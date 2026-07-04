@@ -191,7 +191,7 @@ OpenTelemetry/OpenInference spans directly to that backend during execution.
 agentv inspect stats .agentv/results/<run_id>/.internal/index.jsonl
 
 # Inspect AgentV-owned per-case artifacts and transcript sidecars
-agentv inspect show .agentv/results/<run_id>/index.jsonl --tree
+agentv inspect show .agentv/results/<run_id>/.internal/index.jsonl --tree
 ```
 
 `index.jsonl` contains aggregate metrics such as score, latency, cost, token
@@ -217,7 +217,7 @@ agentv eval evals/my-eval.yaml --target gpt --target claude --workers 4
 # The target matrix shares the same 4-worker budget
 ```
 
-This matches the standard model used by eval frameworks (promptfoo, deepeval, OpenAI Evals) and avoids cross-file workspace races without any special configuration.
+This avoids cross-file workspace races without requiring per-file worker pools.
 
 ### Workspace Path and Finish Policy
 
@@ -461,7 +461,7 @@ Use `config.yaml` for portable defaults and shared eval-definition fields that c
 ### YAML config (`config.yaml` plus optional `config.local.yaml`)
 
 Project config and eval YAML share the same eval-definition graph for targets,
-graders, tests, defaults, and execution policy. Small projects can keep that
+graders, tests, defaults, and supported execution defaults. Small projects can keep that
 graph inline:
 
 ```yaml
@@ -486,9 +486,6 @@ tests:
 defaults:
   target: codex-local
   grader: openai-grader
-
-execution:
-  max_concurrency: 3
 ```
 
 Larger projects can decompose any supported top-level field with a direct
@@ -500,7 +497,6 @@ targets: file://targets.yaml
 graders: file://graders.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
-execution: file://execution.yaml
 ```
 
 ```yaml
@@ -522,9 +518,9 @@ Do not wrap referenced field files in another object. For example,
 `targets: file://targets.yaml` expects `targets.yaml` to contain a bare array,
 not `{ targets: [...] }`.
 
-`execution.max_concurrency` is AgentV's general eval parallelism field for this
-config graph. It is AgentV's run-policy shape, aligned with the general
-max-concurrency concept in eval runners, not a copied Promptfoo YAML path.
+Authored suite concurrency belongs in eval files under
+`evaluate_options.max_concurrency`, next to the suite or wrapper eval it
+controls. `agentv eval --workers N` remains the operator-side override.
 
 Other project defaults can live beside the graph:
 
@@ -550,7 +546,6 @@ eval_patterns:
 | Field | CLI equivalent | Type | Default | Description |
 |-------|---------------|------|---------|-------------|
 | `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
-| `max_concurrency` | `--workers` | integer | none | Default eval parallelism for the composable config graph |
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
 | `workspace_path` | `--workspace-path` | string | none | Machine-local existing workspace directory |
 | `refs` | none | object | none | Project-defined named references for fields that support `ref://name`, such as shared `default_test` files |

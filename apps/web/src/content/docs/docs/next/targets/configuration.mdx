@@ -250,8 +250,8 @@ still choose its own grader target when the evaluator supports that override.
 
 ### Lifecycle Extensions
 
-Run non-provisioning setup at Promptfoo-compatible lifecycle points using
-top-level `extensions`. The harness materializes `workspace.template` and
+Run non-provisioning setup at AgentV lifecycle points using top-level
+`extensions`. The harness materializes `workspace.template` and
 `workspace.repos` first, then runs `beforeAll` extensions. Use extensions for
 dependency installs, builds, fixture generation, and agent-rule staging. Use
 target hooks for runner-specific setup. Keep repo identity and checkout pins in
@@ -302,9 +302,8 @@ case context:
 }
 ```
 
-`workspace.hooks` remains the reset-policy home for `after_each.reset`. Legacy
-command hooks still parse for existing local suites, but new portable evals
-should use `extensions` for executable setup.
+`workspace.hooks` is the reset-policy home for `after_each.reset`. Use
+`extensions` for executable setup.
 
 ### Repository Lifecycle
 

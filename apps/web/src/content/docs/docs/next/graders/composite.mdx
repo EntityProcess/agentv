@@ -134,7 +134,7 @@ console.log(
   JSON.stringify({
     score: anyPassed ? 1 : 0,
     verdict: anyPassed ? 'pass' : 'fail',
-    assert: [{ text: `Any-or gate: ${anyPassed ? 'passed' : 'failed'}`, passed: anyPassed }],
+    assertions: [{ text: `Any-or gate: ${anyPassed ? 'passed' : 'failed'}`, passed: anyPassed }],
   }),
   );
 ```

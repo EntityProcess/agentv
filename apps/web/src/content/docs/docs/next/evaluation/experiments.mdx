@@ -11,9 +11,7 @@ AgentV eval files are the runnable authoring artifact. Use top-level
 label, `target` for the system under test, and flat top-level run controls such
 as `timeout_seconds` and `threshold`. Use `evaluate_options` for evaluation
 runtime options such as `repeat`, `budget_usd`, and `max_concurrency`.
-Use `execution.max_concurrency` in eval YAML or `.agentv/config.yaml` for the
-AgentV config graph concurrency field. `agentv eval --workers N` remains an
-operator-side override.
+`agentv eval --workers N` remains an operator-side override.
 
 ```yaml
 name: support-regression
@@ -190,9 +188,10 @@ tests:
 Scoped `run:` supports `threshold`, `repeat`, `timeout_seconds`, and
 per-case `budget_usd` overrides. Parent suite budgets should use
 `evaluate_options.budget_usd` for public eval authoring. Use
-`evaluate_options.max_concurrency` for authored concurrency. Candidate-changing fields stay
-parent-level. Executable workspace setup belongs in top-level lifecycle extensions, and
-provider-specific setup belongs in target configuration.
+`evaluate_options.max_concurrency` for authored concurrency.
+Candidate-changing fields stay parent-level. Executable workspace setup belongs
+in top-level lifecycle extensions, and provider-specific setup belongs in target
+configuration.
 
 ## Lifecycle Ownership
 
@@ -278,8 +277,8 @@ folder names are only storage allocation and must not define result semantics.
 ### Tags as run metadata (`tags.experiment`)
 
 Suite-level `tags` accepts either the existing selection form (a string or list of
-strings that drives `select.tags` / `--tag name` filtering) **or** a
-promptfoo-shaped map:
+strings that drives `select.tags` / `--tag name` filtering) **or** a metadata
+map:
 
 ```yaml
 tags:

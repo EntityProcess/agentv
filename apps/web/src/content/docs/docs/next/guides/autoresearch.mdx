@@ -102,7 +102,7 @@ Review the mutation history with `git log` after the run completes.
 After each eval cycle, autoresearch runs `agentv results compare` between the current candidate and the best baseline:
 
 ```bash
-agentv results compare <baseline>/index.jsonl <candidate>/index.jsonl --json
+agentv results compare <baseline>/.internal/index.jsonl <candidate>/.internal/index.jsonl --json
 ```
 
 The decision rule:
