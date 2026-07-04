@@ -15,9 +15,12 @@ Status note (2026-07-04): implementation settled the grader vocabulary after
 this ADR was accepted. Current authored executable graders use `type: script`.
 `llm-rubric` is the promptfoo-compatible free-form rubric judge. Structured and
 multi-criteria rubric judging uses `g-eval` where itemized rubric semantics are
-needed. `grading.json` exposes `assertion_results` plus `score`, `verdict`, and
-`evidence`; do not teach `grading.json.assertions[]` as the current artifact
-contract.
+needed. The current output contract is owned by ADR 0017 and the active Beads:
+authored YAML uses `assert`, `assert-set`, and `llm-rubric`, while `grading.json`
+describes evaluated `graders[]` and nested `checks[]` with aggregate `pass`,
+`score`, and `reason`. Do not teach `assertion_results`, `assertions`,
+`passed`-only aliases, top-level `checks`, or dynamic one-grader artifact shapes
+as the public contract.
 
 ## Context
 
@@ -46,15 +49,14 @@ keep AgentV's only where its semantics are genuinely better.**
    AgentV extension rather than being forced into `llm-rubric`.
    Structured AgentV rubric criteria are preserved, not flattened into a single
    text blob: criteria objects keep `weight`, `operator`, `required`,
-   `score_ranges`, and `min_score`. Artifact assertion rows are the generic
-   AgentV grader contract: `grading.json.assertion_results[]` holds flattened
-   assertion evidence, and nested grader entries keep their own
-   `assertion_results[]` breakdown with score, verdict, and evidence.
-   Deterministic graders usually emit one row, while multi-aspect graders emit
-   one row per authored check or result unit. Structured rubric criteria
-   therefore populate one assertion row per criterion so the Dashboard can show
-   criterion-level evidence, using the same mechanism as script graders, field
-   accuracy, execution metrics, and tool trajectory.
+   `score_ranges`, and `min_score`. Result artifacts use the ADR 0017 grader
+   contract: `grading.json.graders[]` records each evaluated grader, and
+   `graders[].checks[]` records criterion- or component-level results when the
+   grader produces them. Deterministic graders usually emit no checks or one
+   check, while multi-aspect graders emit one check per authored criterion or
+   result unit. Structured rubric criteria therefore populate checks so the
+   Dashboard can show criterion-level evidence, using the same mechanism as
+   script graders, field accuracy, execution metrics, and tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
    `script` = the subprocess power tool (workspace-`cwd`, arbitrary language).
    `javascript` is NOT desugared to `script`.

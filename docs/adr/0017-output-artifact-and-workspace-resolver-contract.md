@@ -15,8 +15,21 @@ Companion to [ADR 0016](0016-promptfoo-superset-eval-authoring-contract.md).
 
 We reviewed the output formats of promptfoo, margin-lab, vercel-agent-eval, and
 agentskills, and the workspace-acquisition models of SWE-bench, margin, Harbor, and
-Inspect AI (`docs/plans/…` §6, §11.1). Two decisions follow: the canonical result
-bundle, and how a workspace is acquired.
+Inspect AI (`docs/plans/…` §6, §11.1). The active implementation scope is tracked in
+Beads; PRs, ADRs, and plans summarize those Beads for review, but the Bead descriptions,
+acceptance criteria, and notes remain the implementation source of truth.
+
+Promptfoo evidence was checked locally at `/home/entity/projects/promptfoo/promptfoo`
+commit `6bfc5a0c7f16f9c4717ac731d276b578e63d0769`. Promptfoo's authored eval YAML is
+the compatibility target where AgentV overlaps. Its result/export model is useful
+inspiration, not AgentV's canonical artifact format: `EvaluateResult` carries
+prompt/test/provider identity, `success`, `score`, `namedScores`, token usage, and a
+full `gradingResult`; `GradingResult` carries `pass`, `score`, `reason`, optional
+`componentResults`, and assertion metadata; `EvaluateSummaryV3`/`ResultsFile` wrap
+results, prompts, stats, config, author, and variables. AgentV borrows the clean
+aggregate grading vocabulary and component-breakdown idea, then writes them into a
+filesystem/Git-native split run bundle instead of one consolidated DB/export file.
+Two decisions follow: the canonical result bundle, and how a workspace is acquired.
 
 ## Decision — output/artifact contract (best-of-each, split, no DB)
 
@@ -24,24 +37,30 @@ bundle, and how a workspace is acquired.
    maintained consolidated single-file export (generate on demand if ever needed).
    3 of 4 references split; only promptfoo consolidates (for its DB/hosted model).
 2. **Queryable aggregate ← margin-lab**: run-root `summary.json` is a rich `jq`-queryable
-   `Summary` (run_id, status breakdown, per-case **pass@k**, per-instance summaries,
-   usage, infra-failure taxonomy) — widen AgentV's current thin summary to this. Plus
+   `Summary` (run_id, status breakdown, `pass_rate`, `pass_count`, `sample_count`,
+   per-case `passed`/`pass_any` where applicable, per-instance summaries, usage, and
+   infra-failure taxonomy) — widen AgentV's current thin summary to this. Reserve
+   `pass_at_k`/pass@k vocabulary for explicit sampling metrics with a true `k`; do not
+   use `pass_at_1` when the value actually means "any sample passed". Plus
    `.internal/index.jsonl` (one row per case) for streaming/line queries. No database.
 3. **Transcript + metrics ← vercel**: two-layer transcript (raw + normalized) with a
    canonical cross-agent `tool_name` enum and precomputed `transcript_summary`, the
    summary **inlined into each result row** for cheap trajectory/metrics assertions;
    transcript referenced **by path**.
-4. **Per-assertion grading ← agentskills**: `grading.json` = `assertion_results[{ text,
-   passed, evidence }]` + `summary` counts, PLUS AgentV's superset — top-level **string
-   `verdict` (`pass`|`fail`|`skip`)** + fractional **`score`** (not a boolean; needs skip
-   + fractional). These rows are the generic AgentV grader evidence channel: every
-   grader returns `assertions[]`; deterministic graders typically return one row,
-   while multi-aspect graders return one row per distinct criterion/aspect. The
-   artifact preserves both the flattened rows and each grader's nested rows.
-   Default judge = skeptical evidence-by-path (opt-out via
-   explicit `prompt`); grader target selection flows through the config graph
-   (`defaults.grader`) or assertion-level target selection, not a system-under-test
-   target field. Evidence stays in `grading.json`.
+4. **Per-attempt grading sidecar**: `grading.json` is an AgentV-native public contract
+   that keeps Promptfoo's aggregate grading vocabulary while preserving AgentV's richer
+   nested breakdown. It exposes top-level `pass`, `score`, `reason`, optional
+   `threshold`/`details`, and an always-present `graders[]` array. Each grader exposes
+   `name`, `type`, `pass`, `score`, `reason`, optional `threshold`/`details`, and
+   optional `checks[]`. Each check exposes `id?`, `text`, `pass`, optional `score`,
+   `reason`, and optional `evidence` only when the evidence is distinct from `reason`.
+   There are no public top-level `checks`, no dynamic single-grader shortcut, and no
+   public `assertion_results`, `assertions`, `passed`-only aliases, or
+   evidence-as-reason aliases. Authored YAML uses `assert`, `assert-set`, and
+   `llm-rubric`; result artifacts describe evaluated graders and checks. Default judge =
+   skeptical evidence-by-path (opt-out via explicit `prompt`); grader target selection
+   flows through the config graph (`defaults.grader`) or assertion-level target
+   selection, not a system-under-test target field. Evidence stays in `grading.json`.
 5. **Bundle layout / naming**: machine files move under per-run **`.internal/`**
    (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`); run root stays clean
    (`summary.json` + per-case dirs). Rename the reference field `manifest_path` →
@@ -61,8 +80,56 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 
 ### Artifact filenames (locked — accuracy over cosmetic consistency)
 - **`summary.json`** (run-root AND per-case) — the aggregate. Kept over margin's `results.json`: it's a *summary*, not the full results (those are the per-case dirs + `index.jsonl`); avoids the `results/<run_id>/results.json` stutter; symmetric at both levels (run aggregates cases, case aggregates samples); vercel-aligned. We match margin on the aggregate *concept/shape*, not the filename.
-- Per-sample triad (distinct, all kept): **`result.json`** (what happened), **`grading.json`** (verdict = `assertion_results`+`verdict`+`score`), **`metrics.json`** (duration+tokens+cost+execution/trajectory; the `timing.json` merge).
+- Per-sample triad (distinct, all kept): **`result.json`** (what happened), **`grading.json`** (aggregate `pass`/`score`/`reason` plus `graders[]`/`checks[]`), **`metrics.json`** (duration+tokens+cost+execution/trajectory; the `timing.json` merge).
 - **`grading.json`** kept (not `grades.json`) — source-consistent with agentskills (whose file is `grading.json`), and "grading" names the grading *result*.
+
+### `grading.json` wire-format example
+```json
+{
+  "pass": false,
+  "score": 0.62,
+  "reason": "The answer names the right API but misses the rollback condition.",
+  "threshold": 0.8,
+  "details": {
+    "aggregation": "weighted_mean"
+  },
+  "graders": [
+    {
+      "name": "rubric",
+      "type": "llm-rubric",
+      "pass": false,
+      "score": 0.62,
+      "reason": "Two of three rubric checks passed.",
+      "threshold": 0.8,
+      "checks": [
+        {
+          "id": "api",
+          "text": "Identifies the API used to publish result bundles.",
+          "pass": true,
+          "score": 1,
+          "reason": "Correctly identifies the publish command."
+        },
+        {
+          "id": "rollback",
+          "text": "Explains when to roll back a failed publish.",
+          "pass": false,
+          "score": 0,
+          "reason": "Mentions retrying but not rollback criteria.",
+          "evidence": "The response says to rerun the command after any failure."
+        }
+      ]
+    }
+  ]
+}
+```
+
+Summary and index guidance: use `pass_rate`, `pass_count`, and `sample_count` for run
+and case aggregates; use `passed` for one execution outcome and `pass_any` when any
+sample in a repeated case passed. Use `pass_at_k` only when the metric is an explicit
+sampling metric with a real `k` and the calculation is documented on the summary row.
+Index rows should stay lightweight: identity/outcome/named score/token usage fields
+plus paths such as `result_path`, `grading_path`, `metrics_path`, `transcript_path`,
+and `outputs_path`, not a full embedded grading tree.
 
 ### Full results-tree layout (two levels — no per-run `.indexes`)
 ```
@@ -80,12 +147,12 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 ```
 - Per-run index (rows = cases) = `<run_id>/.internal/index.jsonl`; **no separate per-run `.indexes`** — `.internal` already holds it. Cross-run catalog (rows = runs) = `.agentv/results/.indexes/runs.jsonl`. Names signal scope: `.internal` = one bundle; `.indexes`/`.cache` = across runs. Both dot-prefixed (skipped by discovery).
 - **Cross-run filtering needs `cases.jsonl`, not just `runs.jsonl`.** `runs.jsonl` (one row/run) answers "which runs match"; **case-level cross-run** queries ("every `fizzbuzz` across runs", "failing cases with tag X over last 10 runs", "trend of `test_id` T") need one row per (run x case) → `.indexes/cases.jsonl`, rebuilt by concatenating every `<run_id>/.internal/index.jsonl` + run metadata. Join key for trends = the layered identity (content-hash `test_id` + author governance tag, ADR-0016 pt8). Both catalogs are derived/rebuildable; if JSONL scanning outgrows laptop scale, a rebuildable SQLite **view** is the escape hatch (optional adapter, never core — exploitbench pattern, Phoenix boundary intact).
-- **margin-lab consistency & divergence:** matches on the *filesystem* substance — top-level queryable aggregate (`results.json`=`summary.json`), `internal/` machine folder (we dot-prefix `.internal/`), per-execution-unit dirs, one pure `Build()` for pass@k, `instance_key = test_id#sample_index`. **Divergences (deliberate):** (1) margin's *runner* uses a persistent **`RunStore` (in-memory / Postgres, NOT SQLite)** for scheduling + queries; **AgentV declines a store entirely** (laptop-first; resumability via `index.jsonl` + `--rerun-failed`). (2) hierarchical `<test-id>/sample-N/` vs margin's flat `instances/<case>#<sample>/`. (3) `timing`→`metrics` merge. The **rebuildable derived index/view** idea (JSONL `.indexes/`, optional SQLite escape hatch) is from **exploitbench** (`import`/`export` bijection), not margin — margin's store is the operational source during a run, not a filesystem-derived index. (Nuance: margin *can* rehydrate a run's completed-work state from its run-dir for **resume** — `LoadProgressSnapshot` + `loadSavedResumeBundle` + `carryForwardLocalCases` — but that's targeted carry-forward, not a general `import` that rebuilds the multi-run query DB from files; the memory store is ephemeral, the Postgres store persists independently. **AgentV follows exploitbench's model** — filesystem is source of truth, `.indexes/*.jsonl` are derived/rebuildable — with `--rerun-failed` reading `index.jsonl` from fs and no store to rehydrate.)
+- **margin-lab consistency & divergence:** matches on the *filesystem* substance — top-level queryable aggregate (`results.json`=`summary.json`), `internal/` machine folder (we dot-prefix `.internal/`), per-execution-unit dirs, one pure `Build()` for pass rates and explicit sampling metrics, `instance_key = test_id#sample_index`. **Divergences (deliberate):** (1) margin's *runner* uses a persistent **`RunStore` (in-memory / Postgres, NOT SQLite)** for scheduling + queries; **AgentV declines a store entirely** (laptop-first; resumability via `index.jsonl` + `--rerun-failed`). (2) hierarchical `<test-id>/sample-N/` vs margin's flat `instances/<case>#<sample>/`. (3) `timing`→`metrics` merge. The **rebuildable derived index/view** idea (JSONL `.indexes/`, optional SQLite escape hatch) is from **exploitbench** (`import`/`export` bijection), not margin — margin's store is the operational source during a run, not a filesystem-derived index. (Nuance: margin *can* rehydrate a run's completed-work state from its run-dir for **resume** — `LoadProgressSnapshot` + `loadSavedResumeBundle` + `carryForwardLocalCases` — but that's targeted carry-forward, not a general `import` that rebuilds the multi-run query DB from files; the memory store is ephemeral, the Postgres store persists independently. **AgentV follows exploitbench's model** — filesystem is source of truth, `.indexes/*.jsonl` are derived/rebuildable — with `--rerun-failed` reading `index.jsonl` from fs and no store to rehydrate.)
 - **Dashboard default view is sensible, never odd/empty:** because `tags.experiment` is value-defaulted to the eval/suite name (always populated), the default view groups by `experiment` (real names, no "(none)" wall) or a recent-runs list; the grouping key is a user preference they can change, not the absence of a default.
 
 ### Run organization: cross-run index, repeat naming, experiment-as-tag
-- **Cross-run index (rebuildable cache, not source of truth):** keep per-run `index.jsonl` (rows = cases); add a cross-run catalog `.agentv/results/.indexes/runs.jsonl` (already-reserved `.indexes/` namespace) — **one row per run** (run_id, timestamp, targets, `tags` incl experiment, aggregate pass@k). Derived by scanning `*/summary.json`, rebuildable, optional (Dashboard can glob summaries as fallback). JSONL (append per run), **not `index.json`**.
-- **Repeat folder = `sample-N`, not `run-N`.** "run" is overloaded (`run_id` = the whole invocation). Rename `run-${attempt+1}` → `sample-1`, `sample-2`, … (matches margin `samples_per_case`/`sample_index`, pass@k, and AgentV's `repeat`; Inspect's `epoch` is the ML-jargon alt). Keep the metadata split: `sample_index` = repeats, `retry_index` = infra retries.
+- **Cross-run index (rebuildable cache, not source of truth):** keep per-run `index.jsonl` (rows = cases); add a cross-run catalog `.agentv/results/.indexes/runs.jsonl` (already-reserved `.indexes` namespace) — **one row per run** (run_id, timestamp, targets, `tags` incl experiment, aggregate `pass_rate`/`pass_count`/`sample_count`, and explicit `pass_at_k` only when present). Derived by scanning `*/summary.json`, rebuildable, optional (Dashboard can glob summaries as fallback). JSONL (append per run), **not `index.json`**.
+- **Repeat folder = `sample-N`, not `run-N`.** "run" is overloaded (`run_id` = the whole invocation). Rename `run-${attempt+1}` → `sample-1`, `sample-2`, … (matches margin `samples_per_case`/`sample_index`, explicit sampling metrics, and AgentV's `repeat`; Inspect's `epoch` is the ML-jargon alt). Keep the metadata split: `sample_index` = repeats, `retry_index` = infra retries.
 - **`experiment` has no *structural* privilege, but its *value* is auto-defaulted.** No storage dir (already `<run_id>/`), no top-level field (`tags.experiment`), no special schema; tag keys sort **alphabetically**; the default grouping/compare **key** is a user preference (any tag — AgentV blesses none). `--experiment X` = sugar for `--tag experiment=X`. **The one convenience:** the harness auto-populates the `experiment` tag's **value** when unset, deriving it from the eval/suite name (ADR-0009: `--experiment` > authored `tags.experiment` > eval/suite name). So every run always has a meaningful `experiment` value and is groupable — without the author setting anything. This is a default *value*, not a privileged *key*.
 
 ## Decision — workspace resolver (provenance vs acquisition)
