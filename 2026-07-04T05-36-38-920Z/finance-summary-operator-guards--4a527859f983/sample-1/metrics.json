@@ -1,0 +1,64 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-f34c8546c7313506601a",
+  "generated_at": "2026-07-04T05:36:47.147Z",
+  "test_id": "finance-summary-operator-guards",
+  "target": "azure",
+  "suite": "rubric-operators",
+  "category": "examples/features/rubric/operators",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-f34c8546c7313506601a",
+    "trace_id": "68f5e0c773124c65e83b40209aeec5c1",
+    "root_span_id": "bc746c6590602f9f"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 163,
+    "transcript_chars": 1284,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 2145,
+    "total_seconds": 2.145,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 105,
+    "input": 63,
+    "output": 42,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": 0.00023625000000000002,
+    "source": "provider_reported"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

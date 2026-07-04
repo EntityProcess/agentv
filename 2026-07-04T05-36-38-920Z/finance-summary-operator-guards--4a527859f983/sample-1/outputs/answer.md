@@ -1,0 +1,1 @@
+Q4 revenue increased to $10M from $8M, indicating solid top-line growth. However, gross margin declined to 42% from 45%, suggesting some pressure on profitability.
