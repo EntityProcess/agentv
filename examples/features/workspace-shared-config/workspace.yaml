@@ -1,3 +1,4 @@
+scope: suite
 template: ./workspace-template
 hooks:
   after_each:

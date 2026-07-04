@@ -1,8 +1,10 @@
 /**
- * Validate all eval YAML files under examples/features and examples/contract.
+ * Validate public eval YAML files under examples/.
  *
- * Finds files matching the public examples/contract eval patterns and runs
- * AgentV schema validation on each one.
+ * Finds files matching public eval patterns and runs AgentV schema validation
+ * on each one. Sidecar files such as default-test.yaml, cases.yaml, and
+ * *.grader-scores.yaml are intentionally excluded because they are referenced
+ * inputs, not runnable eval suites.
  *
  * Used by CI and local verification to catch invalid eval files before merge.
  *
@@ -23,16 +25,17 @@ const ROOT = path.resolve(import.meta.dir, '..');
 
 function findEvalFiles(): string[] {
   const patterns = [
-    'examples/features/**/evals/*.eval.yaml',
-    'examples/features/**/evals/*.EVAL.yaml',
-    'examples/features/**/*.EVAL.yaml',
-    'examples/contract/**/evals/*.eval.yaml',
-    'examples/contract/**/evals/*.EVAL.yaml',
+    'examples/**/*.eval.yaml',
+    'examples/**/*.EVAL.yaml',
+    'examples/**/EVAL.yaml',
+    'examples/**/evals/suite.yaml',
+    'examples/**/suites/*.eval.yaml',
   ];
 
   const files = new Set<string>();
   for (const pattern of patterns) {
     for (const match of globSync(pattern, { cwd: ROOT })) {
+      if (match.endsWith('.grader-scores.yaml')) continue;
       files.add(path.resolve(ROOT, match));
     }
   }

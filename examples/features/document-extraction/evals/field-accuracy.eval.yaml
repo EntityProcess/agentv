@@ -249,7 +249,7 @@ tests:
         EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
         This simulates OCR output that preserves document formatting.
-        Uses code-grader with config pass-through for multi-field fuzzy matching.
+        Uses a script grader with config pass-through for multi-field fuzzy matching.
     expected_output:
       - role: assistant
         content:

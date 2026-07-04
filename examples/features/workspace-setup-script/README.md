@@ -39,6 +39,7 @@ extensions:
   - file://../scripts/workspace-setup.mjs:beforeAll
 
 workspace:
+  scope: suite
   template: ../workspace-template
   repos:
     - path: ./my-repo

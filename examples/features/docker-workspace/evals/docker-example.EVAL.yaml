@@ -13,6 +13,7 @@ description: Example eval using Docker workspace for grading
 target: mock_agent
 
 workspace:
+  scope: suite
   docker:
     image: python:3.11-slim
     timeout: 300

@@ -3,17 +3,13 @@ description: Evaluate agent ability to sync AgentV implementation with agenteval
 version: "1.0"
 tags: [ showcase, workspace, cross-repo ]
 
+extensions:
+  - file://../scripts/setup.ts:beforeEach
+  - file://../scripts/reset.ts:afterEach
+
 workspace:
+  scope: suite
   template: ../workspace-template
-  hooks:
-    before_each:
-      command: [ "bash", "../scripts/run-ts.sh", "../scripts/setup.ts" ]
-      timeout_ms: 900000
-      cwd: .
-    after_each:
-      command: [ "bash", "../scripts/run-ts.sh", "../scripts/reset.ts" ]
-      timeout_ms: 5000
-      cwd: .
 
 target: mock_agent
 

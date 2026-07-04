@@ -14,6 +14,8 @@
 
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -42,11 +44,8 @@ async function run(cmd: string, args: string[], cwd?: string): Promise<string> {
   return stdout.trim();
 }
 
-async function main(): Promise<void> {
-  const input = readFileSync(0, 'utf-8');
-  const payload: StdinPayload = JSON.parse(input);
-
-  const { workspace_path, case_metadata } = payload;
+export async function beforeEach(context: StdinPayload): Promise<void> {
+  const { workspace_path, case_metadata } = context;
   if (!case_metadata?.agentevals_before) {
     throw new Error('case_metadata must include agentevals_before commit SHA');
   }
@@ -74,7 +73,14 @@ async function main(): Promise<void> {
   console.log(`Cloned agentevals at ${commit} → ${agentevalsDir} (.git preserved)`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+async function main(): Promise<void> {
+  const input = readFileSync(0, 'utf-8');
+  await beforeEach(JSON.parse(input));
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

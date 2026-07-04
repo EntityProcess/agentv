@@ -3,7 +3,7 @@
 #   agentv eval evals/suite.yaml --target baseline
 #   agentv eval evals/suite.yaml --target candidate
 # Then compare:
-#   agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl
+#   agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl
 
 name: compare-demo
 description: Demo eval for generating baseline and candidate results to compare
