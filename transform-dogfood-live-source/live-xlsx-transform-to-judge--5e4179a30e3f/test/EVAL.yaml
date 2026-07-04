@@ -1,0 +1,16 @@
+target: local-openai
+tests:
+  - id: live-xlsx-transform-to-judge
+    input: |
+      Return only this JSON object, with no markdown fence:
+      {"sheet":"orders","rows":[{"item":"widgets","quantity":3},{"item":"gadgets","quantity":2}]}
+    options:
+      transform: file://scripts/xlsx-to-markdown.js
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: |
+          The candidate answer is a markdown table derived from an orders spreadsheet.
+          It must include item and quantity columns, and rows for widgets quantity 3
+          and gadgets quantity 2.

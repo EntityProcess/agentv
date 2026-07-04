@@ -1,0 +1,137 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "transform-dogfood-live-source",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "live-xlsx-transform-to-judge",
+      "suite": "transform",
+      "eval_path": ".agentv/tmp/transform-dogfood/transform.eval.yaml",
+      "target": "local-openai",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "live-xlsx-transform-to-judge",
+          "suite": "transform",
+          "eval_path": ".agentv/tmp/transform-dogfood/transform.eval.yaml",
+          "target": "local-openai",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 1096
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "transform-dogfood-live-source",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/promptfoo-transform-runtime/.agentv/tmp/transform-dogfood/transform.eval.yaml",
+    "timestamp": "2026-07-04T11:36:40.409Z",
+    "targets": [
+      "local-openai"
+    ],
+    "tests_run": [
+      "live-xlsx-transform-to-judge"
+    ],
+    "experiment": "transform",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        ".agentv/tmp/transform-dogfood/transform.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "local-openai": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 1.096,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 1096,
+      "total_seconds": 1.096,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 0,
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}
