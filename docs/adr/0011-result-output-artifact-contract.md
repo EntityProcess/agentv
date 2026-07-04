@@ -20,6 +20,12 @@ Updated by [ADR 0012](0012-finalize-run-artifact-layout.md), which makes
 artifact-format v2 runs direct children of `.agentv/results/` and treats
 `experiment` as run metadata rather than path identity.
 
+Refined and superseded for current output layout by
+[ADR 0017](0017-output-artifact-and-workspace-resolver-contract.md). Keep this
+ADR as historical context; current run bundles use `.internal/index.jsonl`,
+`sample-N/`, `metrics.json`, and `grading.json.assertion_results`, not root
+`index.jsonl`, `run-N/`, `timing_path`, or `timing.json` as the active contract.
+
 ## Context
 
 AgentV needs a result output contract that works for local runs, CI gates,

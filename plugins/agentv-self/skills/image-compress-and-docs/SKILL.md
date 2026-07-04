@@ -46,11 +46,11 @@ agent-browser --session docs-shots close
 kill $(lsof -ti:14800) 2>/dev/null
 ```
 
-**Screenshots with realistic data:** Dashboard screenshots must have populated data — multiple runs with varying pass rates and real targets. If results are sparse, create synthetic JSONL files in `.agentv/results/<experiment>/<timestamp>/index.jsonl` with realistic fields before launching Dashboard.
+**Screenshots with realistic data:** Dashboard screenshots must have populated data — multiple runs with varying pass rates and real targets. If results are sparse, create synthetic run bundles under `.agentv/results/<run_id>/` with `summary.json` plus `.internal/index.jsonl` rows before launching Dashboard.
 
 Synthetic JSONL record format:
 ```json
-{"test_id": "my-test", "score": 0.95, "target": "claude-sonnet", "experiment": "default", "timestamp": "2026-04-08T09:15:44.003Z", "execution_status": "success", "suite": "my-suite", "category": "default", "duration_ms": 3500, "token_usage": {"input_tokens": 1200, "output_tokens": 400}, "scores": [{"type": "llm-grader", "score": 0.95, "passed": true}], "error": null}
+{"test_id": "my-test", "score": 0.95, "target": "claude-sonnet", "experiment": "default", "timestamp": "2026-04-08T09:15:44.003Z", "execution_status": "success", "suite": "my-suite", "duration_ms": 3500, "token_usage": {"input_tokens": 1200, "output_tokens": 400}, "scores": [{"type": "llm-rubric", "score": 0.95, "verdict": "pass"}], "grading_path": "my-test--demo/sample-1/grading.json", "metrics_path": "my-test--demo/sample-1/metrics.json", "error": null}
 ```
 
 ## Step 2 — Optimize

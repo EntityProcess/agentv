@@ -11,6 +11,14 @@ and [ADR 0013 (experiment as tags.experiment)](0013-experiment-is-metadata-expre
 multi-turn is carved out to [ADR 0015](0015-multi-turn-conversation-execution-vs-evaluation.md);
 the output/artifact contract to [ADR 0017](0017-output-artifact-and-workspace-resolver-contract.md).
 
+Status note (2026-07-04): implementation settled the grader vocabulary after
+this ADR was accepted. Current authored executable graders use `type: script`.
+`llm-rubric` is the promptfoo-compatible free-form rubric judge. Structured and
+multi-criteria rubric judging uses `g-eval` where itemized rubric semantics are
+needed. `grading.json` exposes `assertion_results` plus `score`, `verdict`, and
+`evidence`; do not teach `grading.json.assertions[]` as the current artifact
+contract.
+
 ## Context
 
 AgentV's eval-authoring surface diverged from industry primitives. We are re-basing
@@ -30,24 +38,23 @@ keep AgentV's only where its semantics are genuinely better.**
    Promptfoo type names adopted (`contains`/`equals`/`regex`/`is-json`/`icontains`/
    `contains-all|any`/`starts-with`/`similar`/`latency`/`cost`/`webhook`/`javascript`/
    `python`/`assert-set`). `composite` removed → `assert-set`.
-2. **LLM judge vocabulary follows semantics.** `llm-rubric` is the criteria/rubric
-   scoring type. Bare-string `assert` entries desugar to grouped `llm-rubric`
-   assertions as an AgentV superset extension. Structured AgentV rubric criteria
-   are authored directly in promptfoo's permissive `llm-rubric.value` field; old
-   `rubric`/`rubrics` assertion type names are removed. `llm-rubric` also remains
-   the promptfoo-compatible free-form rubric judge. Agentic evidence-gathering
-   judges stay an AgentV extension rather than being forced into `llm-rubric`.
+2. **LLM judge vocabulary follows semantics.** `llm-rubric` is the
+   promptfoo-compatible free-form rubric judge. Bare-string `assert` entries and
+   structured AgentV rubric criteria desugar to grouped `g-eval` assertions when
+   AgentV needs itemized, multi-criteria rubric semantics. Old `rubric`/`rubrics`
+   assertion type names are removed. Agentic evidence-gathering judges stay an
+   AgentV extension rather than being forced into `llm-rubric`.
    Structured AgentV rubric criteria are preserved, not flattened into a single
    text blob: criteria objects keep `weight`, `operator`, `required`,
    `score_ranges`, and `min_score`. Artifact assertion rows are the generic
-   AgentV grader contract, not a `llm-rubric` special case: each grader returns
-   `assertions[]`, the orchestrator flattens those rows into
-   `grading.json.assertions[]`, and `grading.json.graders[].assertions[]` keeps
-   the per-grader breakdown. Deterministic graders usually emit one row, while
-   multi-aspect graders emit one row per authored check or result unit. Structured
-   `llm-rubric` criteria therefore populate one assertion row per criterion so the
-   Dashboard can show criterion-level evidence, using the same mechanism as code
-   graders, field accuracy, execution metrics, and tool trajectory.
+   AgentV grader contract: `grading.json.assertion_results[]` holds flattened
+   assertion evidence, and nested grader entries keep their own
+   `assertion_results[]` breakdown with score, verdict, and evidence.
+   Deterministic graders usually emit one row, while multi-aspect graders emit
+   one row per authored check or result unit. Structured rubric criteria
+   therefore populate one assertion row per criterion so the Dashboard can show
+   criterion-level evidence, using the same mechanism as script graders, field
+   accuracy, execution metrics, and tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
    `script` = the subprocess power tool (workspace-`cwd`, arbitrary language).
    `javascript` is NOT desugared to `script`.
@@ -97,8 +104,9 @@ keep AgentV's only where its semantics are genuinely better.**
     (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
     e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
     Removed: `on_run_complete`, `preprocessors` (→ `extensions`).
-11. **Scope**: `similar` ships with a configured embeddings provider, and `llm-rubric` ships
-    as the structured criteria/rubric judge. Exotic promptfoo assertions
+11. **Scope**: `similar` ships with a configured embeddings provider, `llm-rubric` ships
+    as the free-form rubric judge, and `g-eval` covers structured or multi-criteria
+    rubric judging. Exotic promptfoo assertions
     (`context-*`/`moderation`/…) and `redteam` are **future scope** —
     treated as unrecognized fields, not stubbed. Superset holds over the *implemented*
     surface.

@@ -37,7 +37,7 @@ Current conversion call sites include:
 - core result parsing and artifact writing in
   `packages/core/src/evaluation/run-artifacts.ts`
 - core grader and prompt-template stdin payloads in
-  `packages/core/src/evaluation/graders/code-grader.ts` and
+  `packages/core/src/evaluation/graders/script-grader.ts` and
   `packages/core/src/evaluation/graders/prompt-resolution.ts`
 - SDK stdin boundaries in `packages/sdk/src/runtime.ts`,
   `packages/sdk/src/assertion.ts`, and `packages/sdk/src/prompt-template.ts`

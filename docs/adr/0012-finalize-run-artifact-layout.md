@@ -11,6 +11,12 @@ Supersedes the experiment-parent result layout portions of
 [ADR 0006](0006-separate-experiments-from-eval-definitions.md), and
 [ADR 0011](0011-result-output-artifact-contract.md).
 
+Refined and superseded for current output layout by
+[ADR 0017](0017-output-artifact-and-workspace-resolver-contract.md). Keep this
+ADR as historical context for the results-root move; current run bundles place
+the per-run index at `.internal/index.jsonl`, store repeated executions under
+`sample-N/`, and merge timing data into `metrics.json`.
+
 ## Context
 
 AgentV run bundles are the portable source of truth for Dashboard, reports,

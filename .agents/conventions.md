@@ -51,7 +51,7 @@ These terms are distinct and not interchangeable.
 - Project: the top-level container Dashboard organizes around, backed by a registered workspace directory with `.agentv/`, run artifacts, traces, and experiments. The registry lives in `~/.agentv/projects.yaml` and is modeled by `ProjectEntry` and `ProjectRegistry` in `packages/core/src/projects.ts`.
 - Benchmark: a curated eval suite designed to measure something specific, in the academic ML sense. Example directories using this meaning are correctly named and should not be renamed.
 
-The legacy `~/.agentv/benchmarks.yaml` file is auto-migrated to `projects.yaml` by `migrateLegacyBenchmarksFile()`. Run-level results metadata lives in `summary.json`, with `index.jsonl` as the discovery anchor.
+The legacy `~/.agentv/benchmarks.yaml` file is auto-migrated to `projects.yaml` by `migrateLegacyBenchmarksFile()`. Run-level results metadata lives in `summary.json`, with `.internal/index.jsonl` as the per-run discovery anchor.
 
 Rule of thumb:
 
@@ -128,7 +128,7 @@ If you spot a camelCase key already on disk or in a response, treat it as a bug 
 
 `artifact_pointers` are for offloading large detached payload bytes from the results metadata/control plane. They describe where payloads such as transcript files live when a run is projected to `agentv/artifacts/v1` or a future object store, including `key`, `object_version`, `sha256`, `size`, `media_type`, and `schema_version`.
 
-Do not add an `artifact_pointers.*` entry just because a new per-case artifact exists. Normal sidecars that stay in the run tree should be discoverable through explicit path fields on `index.jsonl` or manifests, for example `metrics_path` for `outputs/metrics.json`.
+Do not add an `artifact_pointers.*` entry just because a new per-case artifact exists. Normal sidecars that stay in the run tree should be discoverable through explicit path fields on `.internal/index.jsonl` rows or manifests, for example `metrics_path` for `metrics.json`.
 
 Before adding a new pointer family, verify that the artifact is large enough or detached enough to benefit from offloading and that published result repos should avoid carrying those payload bytes on the primary results branch.
 
@@ -136,9 +136,10 @@ Before adding a new pointer family, verify that the artifact is large enough or 
 
 Grader types use kebab-case everywhere.
 
-- Authored YAML config: `type: llm-rubric`, `type: script`, `type: is-json`
-- Internal TypeScript still has the shared LLM grader implementation and registry key (`'llm-grader'`), but new authored evals should use `llm-rubric` for semantic LLM grading.
-- Output `scores[].type`: use the authored grader type when available, such as `"llm-rubric"` or `"is-json"`.
+- Authored YAML config: `type: llm-rubric`, `type: g-eval`, `type: script`, `type: is-json`
+- Use `llm-rubric` for promptfoo-compatible free-form rubric checks, and `g-eval` for structured or multi-criteria rubric judging when the eval needs itemized criteria semantics.
+- Internal TypeScript may keep shared LLM grader implementation names, but new authored evals should not use `llm-grader` as a public type.
+- Output `scores[].type`: use the authored grader type when available, such as `"llm-rubric"`, `"g-eval"`, or `"is-json"`.
 - Registry keys: `registry.register('llm-rubric', ...)` for the authored rubric surface, with `llm-grader` retained as internal/shared implementation plumbing.
 
 Source of truth: `GRADER_KIND_VALUES` in `packages/core/src/evaluation/types.ts`.

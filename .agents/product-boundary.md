@@ -41,7 +41,9 @@ Prefer these extension points before adding a built-in:
 
 - `script` graders for custom executable evaluation logic
 - plain assertion strings for simple semantic rubric checks
-- `llm-rubric` for promptfoo-compatible free-form rubrics, structured rubric criteria, custom prompts, custom grader targets, or preprocessing
+- `llm-rubric` for promptfoo-compatible free-form rubric checks
+- `g-eval` for structured or multi-criteria rubric judging
+- config-level grader targets selected through `defaults.grader` or assertion-level target selection, not target-level grader configuration
 - CLI wrappers that consume AgentV JSON or JSONL output for post-processing such as aggregation, comparison, or reporting
 
 Ask: can this be achieved with existing primitives plus a plugin or wrapper? If yes, it should not be a built-in. That includes niche config overrides for existing graders.

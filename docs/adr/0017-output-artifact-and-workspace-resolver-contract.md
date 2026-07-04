@@ -26,7 +26,7 @@ bundle, and how a workspace is acquired.
 2. **Queryable aggregate ← margin-lab**: run-root `summary.json` is a rich `jq`-queryable
    `Summary` (run_id, status breakdown, per-case **pass@k**, per-instance summaries,
    usage, infra-failure taxonomy) — widen AgentV's current thin summary to this. Plus
-   `index.jsonl` (one row per case) for streaming/line queries. No database.
+   `.internal/index.jsonl` (one row per case) for streaming/line queries. No database.
 3. **Transcript + metrics ← vercel**: two-layer transcript (raw + normalized) with a
    canonical cross-agent `tool_name` enum and precomputed `transcript_summary`, the
    summary **inlined into each result row** for cheap trajectory/metrics assertions;
@@ -39,8 +39,9 @@ bundle, and how a workspace is acquired.
    while multi-aspect graders return one row per distinct criterion/aspect. The
    artifact preserves both the flattened rows and each grader's nested rows.
    Default judge = skeptical evidence-by-path (opt-out via
-   explicit `prompt`); judge pinning via `grader_target`. Evidence stays in
-   `grading.json`.
+   explicit `prompt`); grader target selection flows through the config graph
+   (`defaults.grader`) or assertion-level target selection, not a system-under-test
+   target field. Evidence stays in `grading.json`.
 5. **Bundle layout / naming**: machine files move under per-run **`.internal/`**
    (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`); run root stays clean
    (`summary.json` + per-case dirs). Rename the reference field `manifest_path` →
