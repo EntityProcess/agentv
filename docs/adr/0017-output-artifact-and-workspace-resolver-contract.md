@@ -33,6 +33,24 @@ Two decisions follow: the canonical result bundle, and how a workspace is acquir
 
 ## Decision — output/artifact contract (best-of-each, split, no DB)
 
+### Wire-format casing invariant
+
+All AgentV-owned process-boundary and persisted artifact fields use `snake_case`.
+This includes YAML authoring, JSON/JSONL run bundles, `.internal/index.jsonl`,
+`summary.json`, `result.json`, `grading.json`, `metrics.json`, transcript
+sidecars, CLI JSON output, Dashboard/API response bodies, gate stdin/stdout, and
+adapter/export bundle fields.
+
+Internal TypeScript APIs may use `camelCase`, but writers must translate to
+`snake_case` at the boundary and readers must translate back at the boundary.
+New AgentV-owned public fields must not be introduced in `camelCase`, and must
+not ship dual `camelCase`/`snake_case` aliases unless an already-shipped external
+compatibility surface requires a documented migration.
+
+Opaque provider-native payloads are exempt only when they are preserved as native
+evidence, such as `transcript-raw.jsonl`, provider metadata, or external
+protocol payloads. AgentV wrappers around those payloads still use `snake_case`.
+
 1. **Split bundle is the single source of truth** (`.agentv/results/<run_id>/`); NO
    maintained consolidated single-file export (generate on demand if ever needed).
    3 of 4 references split; only promptfoo consolidates (for its DB/hosted model).
@@ -250,3 +268,5 @@ exploitbench (security-exploit benchmark; AgentV research `entities/exploitbench
 - Opik export (`av-bv4.6`) and the Dashboard (`av-2s7`) consume the new bundle → re-gate on
   this contract.
 - Codemod handles bundle-field renames and drops the tangled repo-acquisition fields.
+- `camelCase` in an AgentV-owned artifact or response is a contract bug, not a
+  stylistic alternative.
