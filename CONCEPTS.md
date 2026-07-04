@@ -6,7 +6,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Provider** — an adapter plugin that connects AgentV's evaluation engine to a specific AI system (e.g., copilot CLI, copilot SDK, Claude API, pi). Each provider implements the request/response contract: given a test case, invoke the AI system and return its output. Providers are selected per-target in eval YAML and can be extended via the provider registry.
 
-**Target** — the eval YAML declaration that activates a specific provider for an evaluation run. A target names the provider, supplies configuration (model, API keys, timeouts, passthrough args), and scopes to a subset of test cases when needed. A single eval file can declare multiple targets to compare AI systems side by side.
+**Target** — The eval YAML or config declaration that activates a specific provider for an evaluation run. A target has a stable `id`, a `provider` backend kind, an optional `runtime`, and provider settings under `config`; field-level `file://` references can load prompts, defaults, or other config fragments at the boundary. A single eval file can declare multiple targets to compare AI systems side by side.
 
 **Provider runtime boundary** — the process boundary between AgentV's evaluation orchestrator and the agent runtime a provider invokes. CLI-backed providers place the agent runtime outside the orchestrator; in-process SDK providers share the orchestrator process and need either a targeted transport fix or subprocess-style isolation when runtime teardown can threaten run artifact finalization.
 
@@ -20,11 +20,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Wrapper eval** — Eval YAML whose main job is to import task suites and bind top-level runtime policy such as target selection, repeat count, timeout, budget, and thresholds. Wrapper evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. A wrapper that imports suites with `type: suite` does not define parent `workspace`; imported suites own task environment.
 
-**Experiment** — A string metadata/run-grouping label such as `baseline`, `candidate`, `with_skills`, or `without_skills`. It is not a runtime-policy object and not a result path namespace. Experiment is expressed as the reserved `tags.experiment` key (see **Tags**); there is no top-level `experiment` field. Runtime policy belongs in top-level eval fields or target objects; the experiment label is recorded in `summary.json` and `index.jsonl` for Dashboard grouping and comparison. Lifecycle setup belongs in `workspace.hooks` or `targets[].hooks`, not in a separate experiment artifact.
+**Experiment** — A string metadata/run-grouping label such as `baseline`, `candidate`, `with_skills`, or `without_skills`. It is not a runtime-policy object and not a result path namespace. Experiment is expressed as the reserved `tags.experiment` key (see **Tags**); there is no top-level `experiment` field. Runtime policy belongs in top-level eval fields or target objects; the experiment label is recorded in `summary.json` and `.internal/index.jsonl` for Dashboard grouping and comparison. Lifecycle setup belongs in `extensions` or target hooks, not in a separate experiment artifact.
 
-**Tags** — A promptfoo-shaped `Record<string,string>` map authored on an eval (or project config / `--tag key=value`) that labels a run with structured facets such as `experiment`, `team`, or `env`. The reserved `experiment` key feeds the experiment namespace. The resolved map is recorded in `summary.json` `metadata.tags` and every `index.jsonl` row, and the Dashboard "Tags" tab groups and compares runs by any tag key. This is the only "tags" concept: the earlier free-form manual per-run tag chips have been removed. (Suite-level `tags` may still be authored as a string list, which is a selection construct for `select.tags` / `--tag name` filtering rather than run metadata.)
+**Tags** — A promptfoo-shaped `Record<string,string>` map authored on an eval (or project config / `--tag key=value`) that labels a run with structured facets such as `experiment`, `team`, or `env`. The reserved `experiment` key feeds the experiment namespace. The resolved map is recorded in `summary.json` `metadata.tags` and every `.internal/index.jsonl` row, and the Dashboard "Tags" tab groups and compares runs by any tag key. This is the only "tags" concept: the earlier free-form manual per-run tag chips have been removed. (Suite-level `tags` may still be authored as a string list, which is a selection construct for `select.tags` / `--tag name` filtering rather than run metadata.)
 
-**Workspace** — The task environment an eval prepares for the agent: repositories, templates, fixture files, and lifecycle hooks. It is not prompt input; use `input` for instructions and `workspace.repos[]` for multi-repo workspaces the agent can inspect or modify through tools.
+**Workspace** — The task environment an eval prepares for the agent: repositories, templates, fixture files, and post-materialization extensions. It is not prompt input; use `input` for instructions and `workspace.repos[]` for multi-repo workspaces the agent can inspect or modify through tools. `workspace.repos[]` is first-class declarative provenance, materializes before extensions run, and `workspace.scope` is `suite` or `attempt`.
 
 **Run bundle** — A committed local result directory at `.agentv/results/<run_id>/`. `summary.json` records run metadata such as `run_id` and `experiment`; `.internal/index.jsonl` records per-case rows.
 
@@ -34,7 +34,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Result source identity** — The stable source identity for a result row: repo-relative `eval_path`, `test_id`, and `target`. `suite` and `name` are display metadata, not storage or routing identity.
 
-**Result directory** — The `result_dir` field in a `index.jsonl` row. It is a run-local directory allocation for that row's sidecars and outputs, usually a readable test-id or slug prefix plus a UUID/hash-like suffix. Consumers discover it from `index.jsonl` and must not infer it from suite names, display names, test IDs, targets, models, or folder position.
+**Result directory** — The `result_dir` field in a `.internal/index.jsonl` row. It is a run-local directory allocation for that row's sidecars and outputs, usually a readable test-id or slug prefix plus a UUID/hash-like suffix. Consumers discover it from `.internal/index.jsonl` and must not infer it from suite names, display names, test IDs, targets, models, or folder position.
 
 **Artifact sidecar** — A file beside or below a result directory that provides evidence for a result, such as `summary.json`, `grading.json`, `result.json`, transcripts, logs, or outputs. Sidecars are evidence, not the primary discovery mechanism for a run.
 
@@ -44,7 +44,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Repeat run** — A configured request to execute the same eval case and target more than once in the same run bundle. Repeat runs measure stochastic reliability, verifier stability, and drift; they are not the default CI path.
 
-**Attempt** — One concrete execution inside a repeat run. Attempts keep their own score, status, timing, trace, transcript, logs, and artifacts so aggregate results never hide individual evidence.
+**Attempt** — One concrete execution inside a repeat run. Attempts keep their own score, status, metrics, trace, transcript, logs, and artifacts so aggregate results never hide individual evidence.
 
 **Pass rate** — Assertion or expectation pass rate inside a grading result: passed assertions or expectations divided by total assertions or expectations. AgentV does not use `pass_rate` for repeat-attempt success frequency.
 
