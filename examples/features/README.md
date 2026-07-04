@@ -19,7 +19,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 |---------|-------------|
 | [rubric](rubric/) | Boolean rubric criteria — pass/fail each with a script grader or LLM check |
 | [weighted-graders](weighted-graders/) | Multiple named `llm-rubric` assertions with per-grader weights |
-| [composite](composite/) | Safety gate and weighted aggregation patterns |
+| [assert-set](assert-set/) | Safety gate and weighted assertion groups |
 | [threshold-grader](threshold-grader/) | Pass a test if a configurable percentage of sub-graders pass |
 | [multi-turn-conversation](multi-turn-conversation/) | Grade a multi-turn conversation with per-turn score breakdowns |
 | [preprocessors](preprocessors/) | Convert `ContentFile` outputs into grader-readable text before `llm-rubric` runs |
@@ -142,7 +142,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [script-grader-sdk](script-grader-sdk/) | Custom graders |
 | [script-grader-with-llm-calls](script-grader-with-llm-calls/) | Custom graders |
 | [compare](compare/) | Benchmarking |
-| [composite](composite/) | LLM grading |
+| [assert-set](assert-set/) | LLM grading |
 | [copilot-log-eval](copilot-log-eval/) | Offline evaluation |
 | [default-graders](default-graders/) | Getting started |
 | [deterministic-graders](deterministic-graders/) | Deterministic assertions |

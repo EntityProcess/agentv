@@ -7,10 +7,8 @@ tests:
 
 assert:
   - metric: grader-panel
-    type: composite
-    aggregator:
-      type: threshold
-      threshold: 0.6
+    type: assert-set
+    threshold: 0.6
     assert:
       - metric: grader-gpt-5-mini
         type: llm-rubric

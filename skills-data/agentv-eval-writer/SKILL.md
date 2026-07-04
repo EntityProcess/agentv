@@ -431,22 +431,21 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/sdk`, receives context object with all variables + `config`
 - Use `target:` to run different `llm-rubric` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
 
-### composite
+### assert-set
 ```yaml
 - name: gate
-  type: composite
+  type: assert-set
+  threshold: 0.7
   assert:
     - name: safety
       type: llm-rubric
       prompt: ./safety.md
+      weight: 0.3
     - name: quality
       type: llm-rubric
-  aggregator:
-    type: weighted_average
-    weights: { safety: 0.3, quality: 0.7 }
+      weight: 0.7
 ```
-Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `safety_gate`
-- `safety_gate`: fails immediately if the named gate grader scores below threshold (default 1.0)
+Use `assert-set` for Promptfoo-aligned assertion grouping. Do not use `type: composite`; AgentV rejects it.
 
 ### tool-trajectory
 ```yaml
@@ -463,6 +462,7 @@ Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `s
       max_duration_ms: 5000            # per-tool latency assertion
     - tool: summarize                  # omit args to skip argument checking
 ```
+`tool-trajectory` is an AgentV-specific extension over AgentV-normalized transcripts. Do not use Promptfoo `trajectory:*`, `tool-call-f1`, `skill-used`, or `trace-*` names; AgentV rejects those until their trace semantics are implemented directly.
 
 ### field-accuracy
 ```yaml
@@ -707,7 +707,7 @@ Use `defineScriptGrader()` when the custom component is a command-backed grader 
 Place assertion files in `.agentv/assertions/` — they auto-register by filename:
 
 ```
-.agentv/assertions/word-count.ts  →  type: word-count
+.agentv/assertions/min-words.ts  →  type: min-words
 .agentv/assertions/sentiment.ts   →  type: sentiment
 ```
 

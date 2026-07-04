@@ -40,8 +40,8 @@ describe('token usage type contracts', () => {
 
   it('nested scores carry tokenUsage', () => {
     const result: GraderResult = {
-      name: 'composite',
-      type: 'composite',
+      name: 'assert-set',
+      type: 'assert-set',
       score: 0.8,
       assertions: [],
       scores: [

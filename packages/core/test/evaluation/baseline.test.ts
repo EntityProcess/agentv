@@ -97,14 +97,14 @@ describe('trimBaselineResult', () => {
     expect(er.input).toBeUndefined();
   });
 
-  it('recursively trims composite grader results', () => {
+  it('recursively trims grouped grader results', () => {
     const inner = makeEvaluatorResult({ name: 'inner' });
-    const composite = makeEvaluatorResult({
-      name: 'composite',
-      type: 'composite',
+    const group = makeEvaluatorResult({
+      name: 'assert-set',
+      type: 'assert-set',
       scores: [inner],
     });
-    const full = makeFullResult({ scores: [composite] });
+    const full = makeFullResult({ scores: [group] });
     const trimmed = trimBaselineResult(full);
 
     const outerEr = trimmed.scores?.[0];

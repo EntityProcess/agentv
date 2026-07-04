@@ -168,9 +168,10 @@ Same as contains variants but explicitly case-insensitive.
 
 #### `tool-trajectory`
 
-- **Fields:** `expected` (array of expected tool calls), `mode` (string: `exact` | `contains` | `order`)
-- **Recipe:** Inspect transcript for tool call sequence. Match against expected based on mode.
+- **Fields:** `expected` (array of expected tool calls), `mode` (string: `any_order` | `in_order` | `exact` | `subset` | `superset`)
+- **Recipe:** Inspect AgentV-normalized transcript/tool-call data. Match against expected based on mode.
 - **PASS:** tool calls match expected pattern per mode.
+- **Boundary:** This is an AgentV extension. Promptfoo `trajectory:*`, `tool-call-f1`, `skill-used`, and `trace-*` assertion names are rejected until implemented directly.
 
 #### `skill-trigger`
 
@@ -208,13 +209,13 @@ Same as contains variants but explicitly case-insensitive.
 - **Recipe:** The CLI runs the script, passing canonical JSON on stdin (`{output, input, expected_output, ...}`). Script returns `{"score": N, "assertions": [...]}`
 - **PASS:** score >= 0.5 (or as configured).
 
-### Composite assertion
+### Assertion groups
 
-#### `composite`
+#### `assert-set`
 
-- **Fields:** `assertions` (array of sub-assertions), `aggregation` (string: `weighted_average` | `min` | `max` | `all_pass`)
-- **Recipe:** Evaluate each sub-assertion. Aggregate scores per aggregation mode.
-- **PASS:** depends on aggregation mode.
+- **Fields:** `assert` (array of child assertions), `threshold` (number, optional), child `weight` fields.
+- **Recipe:** Evaluate each child assertion and compute a weighted average.
+- **PASS:** weighted score meets `threshold` (default `1`).
 
 ## 3. Negate Support
 

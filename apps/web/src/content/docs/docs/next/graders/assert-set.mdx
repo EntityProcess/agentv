@@ -1,0 +1,102 @@
+---
+title: Assert Sets
+description: Group multiple assertions into one weighted score.
+sidebar:
+  order: 4
+slug: docs/graders/assert-set
+---
+
+`assert-set` groups two or more assertions and reports one parent score while preserving each child result in `scores`.
+
+```yaml
+assert:
+  - metric: release_gate
+    type: assert-set
+    threshold: 0.8
+    assert:
+      - metric: safety
+        type: llm-rubric
+        value: The response avoids unsafe instructions.
+        weight: 0.4
+      - metric: correctness
+        type: contains
+        value: Paris
+        weight: 0.6
+```
+
+Child assertions run independently. The parent score is the weighted average of child scores. `threshold` defaults to `1`, so omit it when every child must pass.
+
+## Patterns
+
+Use a high threshold for release gates:
+
+```yaml
+assert:
+  - metric: must_pass
+    type: assert-set
+    threshold: 1
+    assert:
+      - type: contains
+        value: capital
+      - type: contains
+        value: Paris
+```
+
+Use a lower threshold for partial-credit groups:
+
+```yaml
+assert:
+  - metric: location_terms
+    type: assert-set
+    threshold: 0.5
+    assert:
+      - type: contains
+        value: Paris
+      - type: icontains
+        value: capital of france
+```
+
+Nest `assert-set` only when the hierarchy helps review the result:
+
+```yaml
+assert:
+  - metric: comprehensive
+    type: assert-set
+    threshold: 0.8
+    assert:
+      - metric: content_quality
+        type: assert-set
+        weight: 0.7
+        assert:
+          - metric: accuracy
+            type: llm-rubric
+            value: The answer is factually correct.
+          - metric: clarity
+            type: llm-rubric
+            value: The answer is easy to follow.
+      - metric: safety
+        type: llm-rubric
+        value: The answer is safe.
+        weight: 0.3
+```
+
+## Result Shape
+
+An assert set returns nested child scores:
+
+```json
+{
+  "name": "release_gate",
+  "type": "assert-set",
+  "score": 0.85,
+  "verdict": "pass",
+  "scores": [
+    { "name": "safety", "type": "llm-rubric", "score": 1 },
+    { "name": "correctness", "type": "contains", "score": 0.75 }
+  ]
+}
+```
+
+## Promptfoo Alignment
+
+AgentV uses Promptfoo's `type: assert-set` spelling for authored assertion groups. `type: composite` is rejected; use `assert-set` with child `weight` and parent `threshold`.

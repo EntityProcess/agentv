@@ -18,7 +18,7 @@ AgentV natively supports `evals.json`. You can run Agent Skills evals directly:
 agentv eval evals.json --target claude
 ```
 
-When you need AgentV's power features (deterministic graders, composite scoring, multi-turn conversations, workspace isolation), you can graduate to EVAL.yaml.
+When you need AgentV's power features (deterministic graders, assert-set scoring, multi-turn conversations, workspace isolation), you can graduate to EVAL.yaml.
 
 ## Quick start
 
@@ -157,7 +157,7 @@ The generated YAML includes comments about available AgentV features you can use
 #   - type: is_json, contains, regex for deterministic graders
 #   - type: code-grader for custom scoring scripts
 #   - Multi-turn conversations via input message arrays
-#   - Composite graders with weighted scoring
+#   - Assert sets with weighted scoring
 #   - Workspace isolation with repos and hooks
 
 tests:
@@ -195,7 +195,7 @@ Use `evals.json` when:
 Switch to EVAL.yaml when you need:
 
 - **Deterministic graders**: `contains`, `regex`, `equals`, `is-json` — faster and cheaper than LLM graders
-- **Composite scoring**: Weighted graders with custom aggregation
+- **Assert-set scoring**: Weighted assertion groups with a parent threshold
 - **Multi-turn conversations**: Multi-message input sequences
 - **Workspace isolation**: Sandboxed file systems per test case
 - **Tool trajectory evaluation**: Assert on the sequence of tool calls

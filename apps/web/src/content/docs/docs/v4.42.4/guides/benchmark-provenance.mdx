@@ -34,7 +34,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.isolation`, `workspace.mode`, `workspace.path` | Yes | Controls workspace reuse and materialization. |
 | `execution` | Yes | Selects targets, thresholds, dependencies, and default grader behavior. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
-| `assertions` | Yes | Runs deterministic, LLM, composite, or code graders. |
+| `assertions` | Yes | Runs deterministic, LLM, assert-set, or code graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
 | `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and hook stdin; in-process custom assertions can also read it. |
 

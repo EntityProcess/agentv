@@ -194,23 +194,19 @@ describe('promptfoo-compatible built-in assertions', () => {
     expect(result.scores?.map((score) => score.type)).toEqual(['contains', 'starts-with']);
   });
 
-  it('does not count zero-score script children as passing in composite thresholds', async () => {
+  it('does not count zero-score script children as passing in assert-set thresholds', async () => {
     const result = await run({
       name: 'gate',
-      type: 'composite',
+      type: 'assert-set',
+      threshold: 1,
       assertions: [
         { name: 'js-zero', type: 'javascript', value: '0' },
         { name: 'contains', type: 'contains', value: 'Paris' },
       ],
-      aggregator: { type: 'threshold', threshold: 1 },
     });
 
     expect(result.score).toBe(0.5);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions[0]).toEqual({
-      text: '1/2 evaluators passed (threshold: 1)',
-      passed: false,
-    });
     expect(result.scores?.[0]).toMatchObject({
       name: 'js-zero',
       type: 'javascript',

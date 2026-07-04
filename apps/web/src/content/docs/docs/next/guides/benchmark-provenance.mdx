@@ -33,7 +33,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.scope` | Yes | Controls suite vs per-attempt workspace lifetime. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
 | `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Authored concurrency uses `evaluate_options.max_concurrency`; `--workers` is the operator override. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and carries passive gold/reference data for graders. |
-| `assert` | Yes | Runs deterministic, LLM, composite, or script graders. |
+| `assert` | Yes | Runs deterministic, LLM, assert-set, or script graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
 | `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and extension context; in-process custom assertions can also read it. |
 

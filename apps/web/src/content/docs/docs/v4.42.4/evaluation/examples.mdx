@@ -179,10 +179,8 @@ tests:
 
 assertions:
   - name: grader-panel
-    type: composite
-    aggregator:
-      type: threshold
-      threshold: 0.6
+    type: assert-set
+    threshold: 0.6
     assertions:
       - name: grader-gpt-5-mini
         type: llm-grader

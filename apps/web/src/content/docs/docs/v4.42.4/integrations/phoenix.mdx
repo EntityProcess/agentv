@@ -52,7 +52,7 @@ bun packages/phoenix-adapter/src/cli.ts run \
 | `regex` | Converts to deterministic Phoenix evaluator logic |
 | `equals` | Converts to deterministic Phoenix evaluator logic |
 | `is-json` | Converts to deterministic Phoenix evaluator logic |
-| `llm-grader`, rubrics, `code-grader`, `tool-trajectory`, composite, metrics, and custom families | Reported as unsupported in the adapter report |
+| `llm-grader`, rubrics, `code-grader`, `tool-trajectory`, assert-set, metrics, and custom families | Reported as unsupported in the adapter report |
 
 Unsupported families do not fail conversion by default. Add
 `--fail-on-unsupported` when a parity report should fail CI if any suite needs a
@@ -79,7 +79,7 @@ Keep the eval in AgentV when you need:
 
 - workspace setup, lifecycle hooks, Docker workspaces, or repo materialization
 - code graders that execute commands in the AgentV workspace
-- tool trajectory, trace, cost, latency, or composite scoring
+- tool trajectory, trace, cost, latency, or assert-set scoring
 - rich rubric semantics that need AgentV's assertion objects in result JSONL
 
 Those features can still be represented in Phoenix with custom task and

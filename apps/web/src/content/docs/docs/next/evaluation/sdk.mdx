@@ -215,7 +215,7 @@ This is the custom assertion path, not the custom grader path. It matches Prompt
 ### Pass/Fail Pattern
 
 ```typescript
-// .agentv/assertions/word-count.ts
+// .agentv/assertions/min-words.ts
 import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
@@ -253,7 +253,7 @@ If only `pass` is given, score is `1` (pass) or `0` (fail).
 Convention-based discovery maps filename → assertion type:
 
 ```
-.agentv/assertions/word-count.ts  →  type: word-count
+.agentv/assertions/min-words.ts  →  type: min-words
 .agentv/assertions/sentiment.ts   →  type: sentiment
 ```
 
@@ -261,7 +261,7 @@ Reference directly in your eval file — no `command:` needed:
 
 ```yaml
 assert:
-  - type: word-count
+  - type: min-words
   - type: contains
     value: "Hello"
 ```

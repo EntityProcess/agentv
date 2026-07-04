@@ -25,9 +25,6 @@ export {
 export { ScriptGrader, executeScript } from './script-grader.js';
 export type { ScriptGraderOptions } from './script-grader.js';
 
-export { CompositeGrader } from './composite.js';
-export type { CompositeGraderOptions } from './composite.js';
-
 export { CostGrader } from './cost.js';
 export type { CostGraderOptions } from './cost.js';
 

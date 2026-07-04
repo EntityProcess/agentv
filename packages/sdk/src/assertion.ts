@@ -41,7 +41,6 @@ export type AssertionType =
   | 'llm-rubric'
   | 'script'
   | 'assert-set'
-  | 'composite'
   | 'tool-trajectory'
   | 'field-accuracy'
   | 'latency'
