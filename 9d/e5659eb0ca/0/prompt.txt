@@ -1,0 +1,17 @@
+so what's the key changes for the result shape. we had lots of work done on it
+
+---
+
+so where can i find sample output format. did you save this to branch in agentv-private. also did we test all providers - codex, copilot and pi both cli and sdk with our local openai endpoint
+
+---
+
+we have 4 PRs open, have they been reviewed, unblocked and now mergeable. pleasle complete all worku nless you need to clarify something with me.
+
+---
+
+aklso why do i see pass_at_k n summary.json. i thought we removed anything thats reduddnant, outlier of eval frameworks or not useful. same with experiment_namespace, experiment_namespace, kind,  under runtime_source. also eval_files and source_eval_files. so still lots of redundant information in the output artifacts
+
+---
+
+also for duration is it more command to show in ms or seconds. what does vercel agent-eval, promptfoo, margin eval show
