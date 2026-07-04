@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-1eb670fd61662351767f",
+  "generated_at": "2026-07-04T03:56:35.025Z",
+  "test_id": "exact-token",
+  "target": "codex-sdk-local",
+  "suite": "provider-sanity",
+  "category": "../../../../../../tmp/agentv-av-7yhs/provider-sanity",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-1eb670fd61662351767f",
+    "trace_id": "5cd6e838a89818fd768d731d4f6517c0",
+    "root_span_id": "aeced6a84ece8c57"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "codex-sdk child runner exit: exit code 1",
+        "stage": "agent"
+      },
+      {
+        "message": "codex-sdk child runner exit: exit code 1",
+        "event_id": "error"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 56,
+    "transcript_chars": 914,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
