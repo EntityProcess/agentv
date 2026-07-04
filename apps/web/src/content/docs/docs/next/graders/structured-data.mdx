@@ -100,34 +100,32 @@ assert:
     # max_output: 2000
 ```
 
-## Combining with Composite Graders
+## Combining with Assert Sets
 
-Use a `composite` grader to produce a single "release gate" score from multiple checks:
+Use an `assert-set` grader to produce a single "release gate" score from multiple checks:
 
 ```yaml
 assert:
   - name: release_gate
-    type: composite
+    type: assert-set
+    threshold: 0.8
     assert:
       - name: correctness
         type: field-accuracy
+        weight: 0.8
         fields:
           - path: invoice_number
             match: exact
       - name: latency
         type: latency
         threshold: 2000
+        weight: 0.1
       - name: cost
         type: cost
         budget: 0.10
+        weight: 0.05
       - name: tokens
         type: token-usage
         max_total: 10000
-    aggregator:
-      type: weighted_average
-      weights:
-        correctness: 0.8
-        latency: 0.1
-        cost: 0.05
-        tokens: 0.05
+        weight: 0.05
 ```

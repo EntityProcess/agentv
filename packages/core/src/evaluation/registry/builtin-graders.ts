@@ -7,7 +7,6 @@
  */
 
 import {
-  CompositeGrader,
   CostGrader,
   ExecutionMetricsGrader,
   FieldAccuracyGrader,
@@ -43,7 +42,6 @@ import { isAgentProvider } from '../providers/types.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryGraderConfig } from '../trace.js';
 import type {
-  CompositeGraderConfig,
   ContainsAllGraderConfig,
   ContainsAnyGraderConfig,
   ContainsGraderConfig,
@@ -214,34 +212,6 @@ export const assertSetFactory: GraderFactoryFn = (config, context) => {
   return new AssertSetGrader(config as import('../types.js').AssertSetGraderConfig, (child) =>
     context.registry.create(child, context),
   );
-};
-
-/** Factory for `composite` evaluators. */
-export const compositeFactory: GraderFactoryFn = (config, context) => {
-  const c = config as CompositeGraderConfig;
-  const evalFileDir = context.evalFileDir ?? process.cwd();
-
-  return new CompositeGrader({
-    config: c,
-    cwd: evalFileDir,
-    evaluatorFactory: {
-      create: (memberConfig: GraderConfig) => {
-        const factory = context.registry.get(memberConfig.type);
-        if (!factory) {
-          throw new Error(`Unsupported grader type in composite: ${memberConfig.type}`);
-        }
-        // Factory functions may return a promise; for composite sync creation,
-        // we handle the common synchronous cases directly.
-        const result = factory(memberConfig, context);
-        if (result instanceof Promise) {
-          throw new Error(
-            `Grader factory for type "${memberConfig.type}" is async — not supported inside composite members. Use synchronous factories for composite child evaluators.`,
-          );
-        }
-        return result;
-      },
-    },
-  });
 };
 
 /** Factory for `tool-trajectory` evaluators. */
@@ -448,7 +418,6 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('llm-grader', llmGraderFactory)
     .register('llm-rubric', llmRubricFactory)
     .register('script', scriptFactory)
-    .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)
     .register('field-accuracy', fieldAccuracyFactory)
     .register('latency', latencyFactory)

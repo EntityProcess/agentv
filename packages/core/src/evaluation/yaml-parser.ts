@@ -2526,24 +2526,9 @@ function collectSingleGraderSourceReferences(
     }
   }
 
-  if (evaluator.type === 'composite') {
+  if (evaluator.type === 'assert-set') {
     for (const member of evaluator.assertions) {
       references.push(...collectSingleGraderSourceReferences(member));
-    }
-    if (evaluator.aggregator.type === 'script') {
-      references.push({
-        kind: 'script_grader_command',
-        displayPath: evaluator.aggregator.path,
-        resolvedPath: path.resolve(evaluator.aggregator.cwd ?? '', evaluator.aggregator.path),
-        graderName: evaluator.name,
-      });
-    } else if (evaluator.aggregator.type === 'llm-grader' && evaluator.aggregator.promptPath) {
-      references.push({
-        kind: 'llm_grader_prompt',
-        displayPath: evaluator.aggregator.prompt ?? evaluator.aggregator.promptPath,
-        resolvedPath: evaluator.aggregator.promptPath,
-        graderName: evaluator.name,
-      });
     }
   }
 

@@ -1440,7 +1440,7 @@ describe('runEvalCase trace integration', () => {
     );
   });
 
-  it('runs latency/cost evaluators inside composite using trace', async () => {
+  it('runs latency/cost evaluators inside assert-set using trace', async () => {
     const output: Message[] = [{ role: 'assistant', content: 'Done' }];
 
     const provider = new TraceProvider('mock', { costUsd: 0.05, durationMs: 1200 }, output);
@@ -1451,12 +1451,11 @@ describe('runEvalCase trace integration', () => {
         assertions: [
           {
             name: 'metrics',
-            type: 'composite',
+            type: 'assert-set',
             assertions: [
               { name: 'latency', type: 'latency', threshold: 1500 },
               { name: 'cost', type: 'cost', budget: 0.1 },
             ],
-            aggregator: { type: 'weighted_average' },
           },
         ],
       },

@@ -8,6 +8,8 @@ slug: docs/graders/tool-trajectory
 
 Tool trajectory graders validate that an agent used the expected tools during execution. They work with trace data returned by agent providers (codex, vscode, cli with trace support).
 
+`tool-trajectory` is an AgentV extension over AgentV-normalized transcripts and trace summaries. Promptfoo's `trajectory:*`, `tool-call-f1`, `skill-used`, and `trace-*` assertion names are not aliases for this grader; AgentV rejects them until their trace semantics are implemented directly.
+
 ## Modes
 
 ### `any_order` — Minimum Tool Counts

@@ -167,7 +167,6 @@ export function isTestMessage(value: unknown): value is TestMessage {
 const GRADER_KIND_VALUES = [
   'script',
   'llm-grader',
-  'composite',
   'tool-trajectory',
   'field-accuracy',
   'latency',
@@ -937,7 +936,6 @@ export type GraderConfig = (
   | CodeGraderConfig
   | LlmGraderConfig
   | LlmRubricGraderConfig
-  | CompositeGraderConfig
   | ToolTrajectoryGraderConfig
   | FieldAccuracyGraderConfig
   | LatencyGraderConfig

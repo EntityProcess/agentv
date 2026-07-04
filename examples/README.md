@@ -38,7 +38,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [rubric](features/rubric/) - Rubric-based evaluation
 - [tool-trajectory-simple](features/tool-trajectory-simple/) - Tool trajectory validation
 - [tool-trajectory-advanced](features/tool-trajectory-advanced/) - Advanced tool trajectory with expected_output
-- [composite](features/composite/) - Composite grader patterns
+- [assert-set](features/assert-set/) - Assertion grouping patterns
 - [weighted-graders](features/weighted-graders/) - Weighted graders
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
 - [script-grader-with-llm-calls](features/script-grader-with-llm-calls/) - script graders with target proxy for LLM calls

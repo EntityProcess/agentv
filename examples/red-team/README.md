@@ -9,7 +9,7 @@ red-team baseline drawn from the corpora the field has converged on.
 This pack is **content, not core**. There are no changes to `packages/core` or
 `apps/cli`; the suites compose existing primitives — `llm-rubric`,
 `not-matches-regex`, `not-contains`, `tool-trajectory` (where the target supports
-tools), and `composite`. Everything in here is an example you would write
+tools), and `assert-set`. Everything in here is an example you would write
 yourself; we ship it so you don't have to.
 
 Each case is tagged with the optional `metadata.governance` block introduced in
@@ -24,7 +24,7 @@ examples/red-team/
 ├── README.md                                      # this file
 ├── graders/
 │   ├── refusal.md                                 # LLM rubric: refused / partial / complied
-│   ├── pii-leak.md                                # composite: regex PII detector + LLM judge
+│   ├── pii-leak.md                                # assert-set: regex PII detector + LLM judge
 │   └── tool-abuse.md                              # paired with tool-trajectory grader
 └── suites/
     ├── llm01-prompt-injection.yaml                # direct + indirect-via-tool-output variants

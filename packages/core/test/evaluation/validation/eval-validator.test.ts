@@ -1398,6 +1398,61 @@ tests:
       expect(warnings).toHaveLength(0);
     });
 
+    it('rejects composite with assert-set migration guidance', async () => {
+      const filePath = path.join(tempDir, 'assert-composite-removed.yaml');
+      await writeFile(
+        filePath,
+        `tests:
+  - id: test-1
+    input: "Return JSON"
+    assert:
+      - type: composite
+        assert:
+          - type: contains
+            value: ok
+        aggregator:
+          type: weighted_average
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.message === "Unsupported assertion type 'composite'. Use 'assert-set' instead.",
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects known unsupported promptfoo trajectory assertions', async () => {
+      const filePath = path.join(tempDir, 'assert-trajectory-unsupported.yaml');
+      await writeFile(
+        filePath,
+        `tests:
+  - id: test-1
+    input: "Use tools"
+    assert:
+      - type: trajectory:tool-sequence
+        value:
+          - search
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.message.includes("Unsupported promptfoo assertion type 'trajectory:tool-sequence'"),
+        ),
+      ).toBe(true);
+    });
+
     it('validates required field accepts boolean', async () => {
       const filePath = path.join(tempDir, 'assert-required-bool.yaml');
       await writeFile(

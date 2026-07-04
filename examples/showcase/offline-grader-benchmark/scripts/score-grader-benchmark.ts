@@ -39,7 +39,7 @@ Options:
   --results <file>     Raw AgentV eval output JSONL
   --eval-set <file>    Offline labeled export JSONL used for the eval
   --label <name>       Optional output target label (defaults to input target or results filename)
-  --grader <name>   Composite grader name to inspect (defaults to first composite / first score group)
+  --grader <name>   Score group name to inspect (defaults to first nested score group)
   --help               Show this help message
 `);
   process.exit(1);

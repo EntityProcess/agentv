@@ -6,7 +6,7 @@ import path from 'node:path';
 import { parseGraders } from '../../../src/evaluation/loaders/grader-parser.js';
 import type { ToolTrajectoryGraderConfig } from '../../../src/evaluation/trace.js';
 import type {
-  CompositeGraderConfig,
+  AssertSetGraderConfig,
   ContainsGraderConfig,
   EqualsGraderConfig,
   IsJsonGraderConfig,
@@ -426,6 +426,34 @@ describe('parseGraders - deterministic assertion types', () => {
         'test-1',
       ),
     ).rejects.toThrow("Unsupported promptfoo assertion type 'bleu'");
+  });
+
+  it('rejects promptfoo trajectory/tool assertion types with a future-scope diagnostic', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [
+            { metric: 'tool-sequence', type: 'trajectory:tool-sequence', value: ['search'] },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(
+      "Unsupported promptfoo assertion type 'trajectory:tool-sequence' in 'test-1' for evaluator 'tool-sequence'. This type is future scope in AgentV",
+    );
+
+    await expect(
+      parseGraders(
+        {
+          assert: [{ metric: 'tool-f1', type: 'tool-call-f1', value: ['search'] }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow("Unsupported promptfoo assertion type 'tool-call-f1'");
   });
 });
 
@@ -2191,11 +2219,11 @@ describe('parseGraders - required field', () => {
   });
 });
 
-describe('parseGraders - composite assert field', () => {
+describe('parseGraders - assert-set grouping', () => {
   let tempDir: string;
 
   beforeAll(async () => {
-    tempDir = path.join(os.tmpdir(), `agentv-test-composite-assert-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `agentv-test-assert-set-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
     // Create dummy prompt files for llm-grader members (must include required template fields)
     await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ output }}');
@@ -2206,18 +2234,18 @@ describe('parseGraders - composite assert field', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses composite with assert field', async () => {
+  it('parses assert-set with assert field', async () => {
     const evaluators = await parseGraders(
       {
         assert: [
           {
             metric: 'combined',
-            type: 'composite',
+            type: 'assert-set',
             assert: [
               { metric: 'safety', type: 'llm-grader', prompt: './safety.md' },
               { metric: 'quality', type: 'llm-grader', prompt: './quality.md' },
             ],
-            aggregator: { type: 'weighted_average' },
+            threshold: 0.7,
           },
         ],
       },
@@ -2226,69 +2254,23 @@ describe('parseGraders - composite assert field', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('composite');
+    const assertSet = evaluators?.[0] as AssertSetGraderConfig;
+    expect(assertSet.type).toBe('assert-set');
+    expect(assertSet.threshold).toBe(0.7);
+    expect(assertSet.assertions).toHaveLength(2);
   });
 
-  it('parses composite with canonical assert field', async () => {
+  it('keeps llm-rubric child assertions inside assert-set groups', async () => {
     const evaluators = await parseGraders(
       {
         assert: [
           {
             metric: 'combined',
-            type: 'composite',
-            assert: [
-              { metric: 'safety', type: 'llm-grader', prompt: './safety.md' },
-              { metric: 'quality', type: 'llm-grader', prompt: './quality.md' },
-            ],
-            aggregator: { type: 'weighted_average' },
-          },
-        ],
-      },
-      undefined,
-      [tempDir],
-      'test-1',
-    );
-    expect(evaluators).toHaveLength(1);
-    const composite = evaluators?.[0] as CompositeGraderConfig;
-    expect(composite.type).toBe('composite');
-    expect(composite.assertions).toHaveLength(2);
-  });
-
-  it('composite works with canonical assert field', async () => {
-    const evaluators = await parseGraders(
-      {
-        assert: [
-          {
-            metric: 'combined',
-            type: 'composite',
-            assert: [
-              { metric: 'safety', type: 'llm-grader', prompt: './safety.md' },
-              { metric: 'quality', type: 'llm-grader', prompt: './quality.md' },
-            ],
-            aggregator: { type: 'weighted_average' },
-          },
-        ],
-      },
-      undefined,
-      [tempDir],
-      'test-1',
-    );
-    expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('composite');
-  });
-
-  it('accepts llm-rubric as the authored LLM composite aggregator type', async () => {
-    const evaluators = await parseGraders(
-      {
-        assert: [
-          {
-            metric: 'combined',
-            type: 'composite',
+            type: 'assert-set',
             assert: [
               { metric: 'safety', type: 'llm-rubric', prompt: './safety.md' },
               { metric: 'quality', type: 'llm-rubric', prompt: './quality.md' },
             ],
-            aggregator: { type: 'llm-rubric', prompt: './quality.md' },
           },
         ],
       },
@@ -2296,15 +2278,33 @@ describe('parseGraders - composite assert field', () => {
       [tempDir],
       'test-1',
     );
-
     expect(evaluators).toHaveLength(1);
-    const composite = evaluators?.[0] as CompositeGraderConfig;
-    expect(composite.type).toBe('composite');
-    expect(composite.assertions.map((assertion) => assertion.type)).toEqual([
+    const assertSet = evaluators?.[0] as AssertSetGraderConfig;
+    expect(assertSet.type).toBe('assert-set');
+    expect(assertSet.assertions.map((assertion) => assertion.type)).toEqual([
       'llm-rubric',
       'llm-rubric',
     ]);
-    expect(composite.aggregator.type).toBe('llm-grader');
+  });
+
+  it('rejects composite with an assert-set migration hint', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [
+            {
+              metric: 'combined',
+              type: 'composite',
+              assert: [{ metric: 'safety', type: 'contains', value: 'safe' }],
+              aggregator: { type: 'weighted_average' },
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow("Unsupported grader 'composite' in 'test-1'. Use 'assert-set' instead.");
   });
 });
 

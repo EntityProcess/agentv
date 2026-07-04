@@ -5,7 +5,7 @@ A public, offline workflow for benchmarking **grader quality itself** against a 
 It uses existing AgentV primitives:
 - a `cli` replay target to return the frozen agent output from each sample,
 - three `llm-rubric` graders (each can use a different low-cost target),
-- a `composite` threshold aggregator for majority vote,
+- an `assert-set` threshold for majority vote,
 - `agentv results compare` for A/B grader-setup comparison,
 - and a small post-processing script that scores the grader panel against human ground truth.
 
@@ -146,7 +146,7 @@ This workflow's design draws from published research and aligns with (or exceeds
 
 ### Multi-model grader panels
 
-The three-model panel approach is grounded in [Replacing Judges with Juries (PoLL)](https://arxiv.org/abs/2404.18796), which found that an ensemble of 3 smaller models from disjoint families outperforms a single strong grader (GPT-4) in correlation with human judgments while being 7× cheaper. No production framework (DeepEval, Arize Phoenix, LangSmith, RAGAS) ships multi-model panels as a built-in — Braintrust documents "multi-grader voting" as a concept but does not implement it. AgentV composes this from existing primitives (`llm-rubric` + `composite`).
+The three-model panel approach is grounded in [Replacing Judges with Juries (PoLL)](https://arxiv.org/abs/2404.18796), which found that an ensemble of 3 smaller models from disjoint families outperforms a single strong grader (GPT-4) in correlation with human judgments while being 7× cheaper. No production framework (DeepEval, Arize Phoenix, LangSmith, RAGAS) ships multi-model panels as a built-in — Braintrust documents "multi-grader voting" as a concept but does not implement it. AgentV composes this from existing primitives (`llm-rubric` + `assert-set`).
 
 ### Scoring graders against human ground truth
 
@@ -173,7 +173,7 @@ Per AgentV's [design principles](../../../CLAUDE.md) — "Lightweight Core, Plug
 
 This workflow avoids a new benchmark subsystem in core. The reusable pieces are already in AgentV:
 - `llm-rubric` for individual grader models,
-- `composite` for majority-vote panels,
+- `assert-set` for majority-vote panels,
 - JSONL outputs for offline post-processing,
 - `compare` for A/B analysis.
 

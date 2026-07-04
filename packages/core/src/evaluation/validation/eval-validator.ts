@@ -55,12 +55,67 @@ const PROMPTFOO_ASSERTION_TYPES = new Set([
   'human',
 ]);
 const REMOVED_ASSERTION_TYPE_REPLACEMENTS = new Map<string, string>([
+  ['composite', 'assert-set'],
   ['g-eval', 'llm-rubric'],
   ['rubrics', 'llm-rubric with value'],
   ['rubric', 'llm-rubric with value'],
   ['script-grader', 'script'],
   ['code-judge', 'script'],
   ['llm-judge', 'llm-grader'],
+]);
+
+const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
+  'agent-rubric',
+  'answer-relevance',
+  'bleu',
+  'classifier',
+  'contains-html',
+  'contains-json',
+  'contains-sql',
+  'contains-xml',
+  'context-faithfulness',
+  'context-recall',
+  'context-relevance',
+  'conversation-relevance',
+  'factuality',
+  'finish-reason',
+  'gleu',
+  'guardrails',
+  'is-html',
+  'is-refusal',
+  'is-sql',
+  'is-valid-function-call',
+  'is-valid-openai-function-call',
+  'is-valid-openai-tools-call',
+  'is-xml',
+  'levenshtein',
+  'meteor',
+  'model-graded-closedqa',
+  'model-graded-factuality',
+  'moderation',
+  'perplexity',
+  'perplexity-score',
+  'pi',
+  'rouge-n',
+  'ruby',
+  'similar:cosine',
+  'similar:dot',
+  'similar:euclidean',
+  'select-best',
+  'human',
+  'max-score',
+  'tool-call-f1',
+  'skill-used',
+  'trajectory:goal-success',
+  'trajectory:tool-args-match',
+  'trajectory:step-count',
+  'trajectory:tool-sequence',
+  'trajectory:tool-used',
+  'trace-error-spans',
+  'trace-span-count',
+  'trace-span-duration',
+  'search-rubric',
+  'word-count',
 ]);
 
 /** Valid file extensions for external test files. */
@@ -2184,6 +2239,17 @@ function validateAssertArray(
         filePath,
         location: `${itemLocation}.type`,
         message: `Unsupported assertion type '${rawTypeValue}'. Use '${replacement}' instead.`,
+      });
+      continue;
+    }
+
+    const baseTypeValue = typeValue.startsWith('not-') ? typeValue.slice(4) : typeValue;
+    if (UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES.has(baseTypeValue)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${itemLocation}.type`,
+        message: `Unsupported promptfoo assertion type '${rawTypeValue}'. This type is future scope in AgentV and is not accepted as a custom assertion.`,
       });
       continue;
     }

@@ -1,11 +1,11 @@
-name: composite-grader-examples
-description: Demonstrates composite grader patterns for combining multiple
-  evaluation criteria
+name: assert-set-examples
+description: Demonstrates assert-set patterns for grouping multiple evaluation
+  criteria
 
 target: llm
 
 tests:
-  # Example 1: Weighted Average Aggregation
+  # Example 1: Weighted average grouping
   - id: weighted-average-example
     input:
       - role: user
@@ -18,22 +18,20 @@ tests:
       - The response should be both concise and detailed, balancing brevity with
         informative content.
       - metric: release_gate
-        type: composite
+        type: assert-set
+        threshold: 0.7
         assert:
           - metric: safety
             type: llm-rubric
             prompt: file://../prompts/safety-check.md
+            weight: 0.3
           - metric: quality
             type: llm-rubric
             prompt: file://../prompts/quality-evaluation.md
-        aggregator:
-          type: weighted_average
-          weights:
-            safety: 0.3
-            quality: 0.7
+            weight: 0.7
 
-  # Example 2: script grader Aggregator (Safety Gate Pattern)
-  - id: script-grader-safety-gate
+  # Example 2: Safety gate pattern
+  - id: safety-gate
     input:
       - role: user
         content: "Explain quantum computing in simple terms."
@@ -45,7 +43,8 @@ tests:
       - The response should be accurate, accessible to non-experts, and pass
         safety checks.
       - metric: safety_gate
-        type: composite
+        type: assert-set
+        threshold: 1
         assert:
           - metric: safety
             type: llm-rubric
@@ -53,12 +52,9 @@ tests:
           - metric: quality
             type: llm-rubric
             prompt: file://../prompts/technical-accuracy.md
-        aggregator:
-          type: script
-          path: bun run ../scripts/safety-gate-aggregator.js
 
-  # Example 3: Strict OR with a local script-grader aggregator
-  - id: strict-or-local
+  # Example 3: Partial credit with grouped deterministic assertions
+  - id: partial-credit-local
     input:
       - role: user
         content: "Where is Paris?"
@@ -69,8 +65,9 @@ tests:
     assert:
       - The response should include either Paris or the phrase "capital of
         France".
-      - metric: strict_or
-        type: composite
+      - metric: location_terms
+        type: assert-set
+        threshold: 0.5
         assert:
           - metric: mentions-paris
             type: contains
@@ -78,13 +75,9 @@ tests:
           - metric: mentions-capital
             type: contains
             value: capital
-        aggregator:
-          type: script
-          path: bun run ../scripts/or-aggregator.js
 
-  # Example 4: LLM Grader Aggregator
-  - id: llm-rubric-conflict-resolution
-    # Baseline note: aggregator may report minor omissions (score ~0.9).
+  # Example 4: Balancing multiple rubric checks
+  - id: assert-set-balance
     input:
       - role: user
         content: "Write a product description that is both brief and comprehensive."
@@ -95,7 +88,8 @@ tests:
     assert:
       - The response should balance conciseness with detail effectively.
       - metric: final_decision
-        type: composite
+        type: assert-set
+        threshold: 0.75
         assert:
           - metric: conciseness
             type: llm-rubric
@@ -103,12 +97,9 @@ tests:
           - metric: detail
             type: llm-rubric
             prompt: file://../prompts/detail-check.md
-        aggregator:
-          type: llm-rubric
-          prompt: file://../prompts/conflict-resolution.md
 
-  # Example 5: Nested Composite Graders
-  - id: nested-composite
+  # Example 5: Nested assert sets
+  - id: nested-assert-set
     input:
       - role: user
         content: "Explain the difference between supervised and unsupervised learning."
@@ -119,27 +110,23 @@ tests:
     assert:
       - The response should be accurate, clear, safe, and appropriately detailed.
       - metric: comprehensive_evaluation
-        type: composite
+        type: assert-set
+        threshold: 0.8
         assert:
           - metric: content_quality
-            type: composite
+            type: assert-set
+            threshold: 0.8
+            weight: 0.7
             assert:
               - metric: accuracy
                 type: llm-rubric
                 prompt: file://../prompts/accuracy-check.md
+                weight: 0.6
               - metric: clarity
                 type: llm-rubric
                 prompt: file://../prompts/clarity-check.md
-            aggregator:
-              type: weighted_average
-              weights:
-                accuracy: 0.6
-                clarity: 0.4
+                weight: 0.4
           - metric: safety
             type: llm-rubric
             prompt: file://../prompts/safety-verification.md
-        aggregator:
-          type: weighted_average
-          weights:
-            content_quality: 0.7
-            safety: 0.3
+            weight: 0.3

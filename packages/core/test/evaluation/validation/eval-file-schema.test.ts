@@ -296,9 +296,9 @@ describe('EvalFileSchema input shorthand', () => {
               score_ranges: [{ score_range: [0, 10], outcome: 'overall quality' }],
             },
             {
-              type: 'composite',
+              type: 'assert-set',
               assert: [{ type: 'contains', value: 'safe' }],
-              aggregator: { type: 'weighted_average' },
+              threshold: 0.5,
             },
           ],
           execution: {
@@ -339,6 +339,42 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects composite as an authored assertion grouping type', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [
+            {
+              type: 'composite',
+              assert: [{ type: 'contains', value: 'safe' }],
+              aggregator: { type: 'weighted_average' },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const messages = collectIssueMessages(result.error.issues);
+      expect(messages).not.toContain('Invalid literal value, expected "composite"');
+    }
+  });
+
+  it('rejects unsupported promptfoo trajectory assertion types in schema validation', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [{ type: 'trajectory:tool-sequence', value: ['search'] }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('rejects invalid default_test values', () => {

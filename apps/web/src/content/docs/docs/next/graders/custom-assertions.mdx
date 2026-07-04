@@ -36,7 +36,7 @@ Place assertion files in `.agentv/assertions/` anywhere in your project tree. Ag
 The filename (without extension) becomes the assertion type name:
 
 ```
-.agentv/assertions/word-count.ts   -->  type: word-count
+.agentv/assertions/min-words.ts   -->  type: min-words
 .agentv/assertions/sentiment.ts    -->  type: sentiment
 .agentv/assertions/has-citation.ts -->  type: has-citation
 ```
@@ -51,7 +51,7 @@ Reference the assertion by type name directly -- no `command:` path needed:
 
 ```yaml
 assert:
-  - type: word-count
+  - type: min-words
   - type: contains
     value: "Hello"
 ```
@@ -61,7 +61,7 @@ assert:
 The simplest pattern returns `pass` (boolean) and an optional `assertions` array:
 
 ```typescript
-// .agentv/assertions/word-count.ts
+// .agentv/assertions/min-words.ts
 import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
@@ -132,7 +132,7 @@ Test assertions locally by piping JSON to stdin:
 
 ```bash
 echo '{"input":[{"role":"user","content":"Say hello"}],"input_files":[],"criteria":"Multi-word greeting","output":"Hello there, nice to meet you!","expected_output":[]}' \
-  | bun run .agentv/assertions/word-count.ts
+  | bun run .agentv/assertions/min-words.ts
 ```
 
 Expected output:
@@ -149,7 +149,7 @@ Expected output:
 For test-driven development, write Vitest tests against your assertion logic directly:
 
 ```typescript
-// .agentv/assertions/__tests__/word-count.test.ts
+// .agentv/assertions/__tests__/min-words.test.ts
 import { expect, test } from 'vitest';
 
 // Extract the core logic into a testable function
@@ -181,7 +181,7 @@ This example shows the complete flow from assertion definition to YAML eval file
 my-project/
   .agentv/
     assertions/
-      word-count.ts
+      min-words.ts
   evals/
     suite.yaml
   package.json
@@ -190,7 +190,7 @@ my-project/
 ### 2. Define the Assertion
 
 ```typescript
-// .agentv/assertions/word-count.ts
+// .agentv/assertions/min-words.ts
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/sdk';
 
@@ -231,7 +231,7 @@ tests:
       - Agent gives a multi-word greeting
       - type: contains
         value: "Hello"
-      - type: word-count
+      - type: min-words
 
   - id: short-answer
     input: "What is 2+2?"
@@ -240,7 +240,7 @@ tests:
       - Agent gives a short but valid response
       - type: contains
         value: "4"
-      - type: word-count
+      - type: min-words
 ```
 
 ### 4. Install and Run
@@ -250,4 +250,4 @@ npm install @agentv/sdk
 agentv eval evals/suite.yaml
 ```
 
-Each test produces scores from both the built-in `contains` assertion and your custom `word-count` assertion. Results appear in the output JSONL with each grader's score in the `scores[]` array.
+Each test produces scores from both the built-in `contains` assertion and your custom `min-words` assertion. Results appear in the output JSONL with each grader's score in the `scores[]` array.

@@ -1,5 +1,5 @@
 # Custom Assertion Demo
-# Uses a custom 'word-count' assertion from .agentv/assertions/word-count.ts
+# Uses a custom 'min-words' assertion from .agentv/assertions/min-words.ts
 
 name: sdk-custom-assertion
 description: Demonstrates custom assertions via defineAssertion() and convention discovery
@@ -13,7 +13,7 @@ tests:
     assert:
       - type: contains
         value: "Hello"
-      - type: word-count
+      - type: min-words
       - Agent gives a multi-word greeting
 
   - id: short-answer
@@ -22,7 +22,7 @@ tests:
     assert:
       - type: contains
         value: "4"
-      - type: word-count
+      - type: min-words
       - Agent gives a short but valid response
 
   - id: json-response
@@ -35,5 +35,5 @@ tests:
     assert:
       - type: is-json
         required: true
-      - type: word-count
+      - type: min-words
       - Agent returns valid JSON with sufficient content

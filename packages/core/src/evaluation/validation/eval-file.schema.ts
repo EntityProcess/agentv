@@ -14,6 +14,18 @@ import { z } from 'zod';
 
 const JsonObjectSchema = z.object({}).catchall(z.unknown());
 const JsonRecordSchema = z.record(z.unknown());
+const UnsupportedPromptfooAssertionTypes = new Set([
+  'tool-call-f1',
+  'skill-used',
+  'trajectory:goal-success',
+  'trajectory:tool-args-match',
+  'trajectory:step-count',
+  'trajectory:tool-sequence',
+  'trajectory:tool-used',
+  'trace-error-spans',
+  'trace-span-count',
+  'trace-span-duration',
+]);
 
 /** Message content: string, structured object, or structured array */
 const ContentItemSchema = z.object({
@@ -130,42 +142,6 @@ const IncludeSchema = z
     include: z.string().min(1),
   })
   .strict();
-
-/** Aggregator configs for composite evaluator */
-const AggregatorSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('weighted_average'),
-    weights: z.record(z.number()).optional(),
-  }),
-  z.object({
-    type: z.literal('threshold'),
-    threshold: z.number().min(0).max(1),
-  }),
-  z.object({
-    type: z.literal('script'),
-    path: z.string(),
-    cwd: z.string().optional(),
-  }),
-  z.object({
-    type: z.literal('llm-rubric'),
-    prompt: z.string().optional(),
-    model: z.string().optional(),
-  }),
-  z.object({
-    type: z.literal('llm-grader'),
-    prompt: z.string().optional(),
-    model: z.string().optional(),
-  }),
-]);
-
-// Use z.lazy for recursive composite evaluator
-const CompositeSchema: z.ZodType = z.lazy(() =>
-  EvaluatorCommonSchema.extend({
-    type: z.literal('composite'),
-    assert: z.array(EvaluatorSchema).optional(),
-    aggregator: AggregatorSchema,
-  }),
-);
 
 const ArgsMatchSchema = z.union([
   z.enum(['exact', 'ignore', 'subset', 'superset']),
@@ -287,7 +263,6 @@ const EvaluatorSchema = z.union([
   LlmGraderSchema,
   PromptfooAssertionSchema,
   IncludeSchema,
-  CompositeSchema,
   ToolTrajectorySchema,
   FieldAccuracySchema,
   LatencySchema,
@@ -300,8 +275,32 @@ const EvaluatorSchema = z.union([
   EqualsSchema,
 ]);
 
+const AssertionObjectSchema = JsonObjectSchema.superRefine((value, ctx) => {
+  const rawType = value.type;
+  if (typeof rawType !== 'string') {
+    return;
+  }
+  const type = rawType.replace(/_/g, '-');
+  if (type === 'composite') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['type'],
+      message: "Unsupported assertion type 'composite'. Use 'assert-set' instead.",
+    });
+    return;
+  }
+  const baseType = type.startsWith('not-') ? type.slice(4) : type;
+  if (UnsupportedPromptfooAssertionTypes.has(baseType)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['type'],
+      message: `Unsupported promptfoo assertion type '${rawType}'. This type is future scope in AgentV and is not accepted as a custom assertion.`,
+    });
+  }
+});
+
 /** Assertion item: string shorthand (becomes a criteria/rubric grader) or full evaluator config. */
-const AssertionItemSchema = z.union([z.string(), JsonObjectSchema]);
+const AssertionItemSchema = z.union([z.string(), AssertionObjectSchema]);
 
 // ---------------------------------------------------------------------------
 // Workspace
