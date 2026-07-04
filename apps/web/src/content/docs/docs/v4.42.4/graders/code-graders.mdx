@@ -10,6 +10,8 @@ pagefind: false
 
 Code graders are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
 
+Use command-backed graders when you need explicit score control. If you only need a reusable assertion type that can be referenced by name from `.agentv/assertions/`, use [Custom Assertions](/docs/v4.42.4/graders/custom-assertions/) instead.
+
 ## Contract
 
 Code graders receive eval context via stdin JSON and return a result via stdout.

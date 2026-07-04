@@ -665,7 +665,7 @@ export function ragFaithfulness() {
 
 Use the helper in `assert: [ragFaithfulness()]`; do not create new YAML terms like `scores`.
 
-### defineAssertion (recommended for custom checks)
+### defineAssertion (recommended for reusable custom assertions)
 ```typescript
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/sdk';
@@ -680,6 +680,8 @@ export default defineAssertion(({ output, trace }) => {
 ```
 
 Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass` is given, score is 1 (pass) or 0 (fail).
+
+Use `defineAssertion()` when you want a reusable assertion type discovered from `.agentv/assertions/` and referenced by filename as `type: <name>`. This follows Promptfoo's normal eval terminology: custom logic is an assertion, with Promptfoo using fixed assertion types such as `javascript`, `python`, `ruby`, and `webhook`. AgentV extends that model by allowing arbitrary discovered assertion type names.
 
 ### defineScriptGrader (full control)
 ```typescript
@@ -698,7 +700,7 @@ export default defineScriptGrader(({ output, trace }) => {
 });
 ```
 
-`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineScriptGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
+Use `defineScriptGrader()` when the custom component is a command-backed grader with explicit score control, custom assertion-result arrays, workspace commands, or LLM calls through a grader target. `defineScriptGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
 
 ### Convention-Based Discovery
 

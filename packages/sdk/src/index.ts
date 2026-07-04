@@ -1,7 +1,7 @@
 /**
  * AgentV Evaluation SDK
  *
- * Build custom graders for AI agent outputs.
+ * Build custom assertions, script graders, and eval authoring helpers for AI agent outputs.
  *
  * @example Custom assertion (simplest way to add evaluation logic)
  * ```typescript
@@ -341,11 +341,13 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
 }
 
 /**
- * Define a custom assertion grader with automatic stdin/stdout handling.
+ * Define a custom assertion with automatic stdin/stdout handling.
  *
- * Assertions are the simplest way to add custom evaluation logic. They receive
+ * Assertions are the simplest way to add reusable custom checks. They receive
  * the full evaluation context and return a pass/fail result with optional
- * granular scoring.
+ * granular scoring. Place these files in `.agentv/assertions/` and reference
+ * them by discovered assertion type name. Use defineScriptGrader for
+ * command-backed graders referenced with `type: script`.
  *
  * This function:
  * 1. Reads JSON from stdin (snake_case format)

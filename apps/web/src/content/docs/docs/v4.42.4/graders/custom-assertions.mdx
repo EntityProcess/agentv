@@ -8,7 +8,7 @@ editUrl: false
 pagefind: false
 ---
 
-Custom assertions let you add evaluation logic that goes beyond built-in types. Define a TypeScript function, drop it in `.agentv/assertions/`, and reference it by name in your YAML eval files.
+Custom assertions let you add reusable assertion types that go beyond built-in types. Define a TypeScript function, drop it in `.agentv/assertions/`, and reference it by name in your YAML eval files.
 
 ## When to Use Each Approach
 
@@ -16,14 +16,20 @@ AgentV provides two SDK functions for custom evaluation logic:
 
 | Function | Best For | Discovery |
 |----------|----------|-----------|
-| `defineAssertion()` | Pass/fail checks, reusable assertion types | Convention-based (`.agentv/assertions/`) |
-| `defineCodeGrader()` | Full scoring control with explicit assertions array | Referenced via `type: code-grader` + `command:` |
+| `defineAssertion()` | Reusable assertion types with pass/fail plus optional score | Convention-based (`.agentv/assertions/`) |
+| `defineScriptGrader()` | Command-backed scorer with full score and assertion-result control | Referenced via `type: script` + `command:` |
 
 **Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a command path. It uses a simplified result contract focused on `pass` and optional `score`.
 
-**Use `defineCodeGrader()`** when you need full control over scoring with explicit `assertions` arrays, or when the grader is a one-off grader tied to a specific eval. See [Code Graders](/docs/v4.42.4/graders/code-graders/) for details.
+**Use `defineScriptGrader()`** when the scoring component is a command-backed grader: it needs explicit score calculation, custom assertion-result arrays, workspace commands, or LLM calls through a grader target. See [Code Graders](/docs/v4.42.4/graders/code-graders/) for the command-backed grader contract in this versioned doc set.
 
 Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase conversion, Zod validation, and error handling automatically.
+
+## Promptfoo Terminology
+
+Promptfoo calls normal eval checks assertions. Its custom code paths use fixed assertion types such as `javascript`, `python`, `ruby`, and `webhook`, and its Node API exposes assertion-oriented helpers such as `runAssertion()` and `runAssertions()`.
+
+AgentV follows that framing for `assert:` entries and `defineAssertion()`. The AgentV extension is convention discovery: any file in `.agentv/assertions/` becomes an assertion type name such as `word-count` or `has-citation`. Reserve custom grader or script grader wording for command-backed or LLM-backed scoring components, especially `type: script` entries built with `defineScriptGrader()`.
 
 ## Installation
 
@@ -52,7 +58,7 @@ Custom assertion types cannot override built-in types (`contains`, `equals`, `is
 Reference the assertion by type name directly -- no `command:` path needed:
 
 ```yaml
-assertions:
+assert:
   - type: word-count
   - type: contains
     value: "Hello"
@@ -114,7 +120,7 @@ The handler must return an `AssertionScore` object:
 
 ## Context Available to Assertions
 
-The handler receives an `AssertionContext` with the same fields as a code grader:
+The handler receives an `AssertionContext` with the same fields as a script grader:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -231,7 +237,7 @@ tests:
     criteria: Agent gives a multi-word greeting
     input: "Say hello and introduce yourself"
     expected_output: "Hello! I'm an AI assistant here to help you."
-    assertions:
+    assert:
       - type: contains
         value: "Hello"
       - type: word-count
@@ -240,7 +246,7 @@ tests:
     criteria: Agent gives a short but valid response
     input: "What is 2+2?"
     expected_output: "The answer is 4."
-    assertions:
+    assert:
       - type: contains
         value: "4"
       - type: word-count

@@ -268,7 +268,7 @@ export const MessageSchema = z.object({
 });
 
 /**
- * Derived evaluation trace read model exposed to custom graders.
+ * Derived evaluation trace read model exposed to custom assertions and script graders.
  *
  * Top-level summary fields (`eventCount`, `toolCalls`, `errorCount`) remain
  * available for existing metric graders; full transcript/tool evidence is under

@@ -1,7 +1,7 @@
 {
   "name": "@agentv/sdk",
   "version": "5.0.0-next.1",
-  "description": "Evaluation SDK for AgentV - build custom code judges",
+  "description": "Evaluation SDK for AgentV - build custom assertions and script graders",
   "type": "module",
   "repository": {
     "type": "git",

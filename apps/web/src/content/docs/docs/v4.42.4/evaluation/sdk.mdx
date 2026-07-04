@@ -12,13 +12,13 @@ YAML remains AgentV's canonical, portable eval format. The SDK surfaces below ar
 
 AgentV currently provides two npm packages for programmatic use:
 
-- **`@agentv/sdk`** — YAML-aligned eval authoring, custom assertions, and code graders
+- **`@agentv/sdk`** — YAML-aligned eval authoring, custom assertions, and script graders
 - **`@agentv/core`** — programmatic evaluation API and typed configuration
 
 ## Installation
 
 ```bash
-# Lightweight SDK (defineEval, graders, defineAssertion, defineCodeGrader)
+# Lightweight SDK (defineEval, graders, defineAssertion, defineScriptGrader)
 npm install @agentv/sdk
 
 # Programmatic API (evaluate, defineConfig)
@@ -35,7 +35,7 @@ npm install @agentv/sdk
 ```
 
 ```typescript
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 ```
 
 The general policy is hard convergence for same-week or unreleased surface names: use the correct package, field, or wire name instead of carrying aliases. The package rename is the exception because `@agentv/eval` was already published. It remains a temporary deprecated compatibility package that re-exports `@agentv/sdk` for existing consumers, but it should not appear in new docs, examples, scaffolds, or skills except as migration guidance.
@@ -48,11 +48,12 @@ Use the simplest surface that matches the job:
 - **`defineEval()` / `evalSuite()`** when you want a `.eval.ts` file that mirrors YAML concepts and lowers back to the canonical snake_case contract.
 - **`evaluate({ specFile })`** when you want library control around an existing YAML suite.
 - **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput` and `assert`.
-- **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
+- **`defineAssertion`** when you want a reusable assertion type discovered from `.agentv/assertions/`.
+- **`defineScriptGrader`** when you need a command-backed grader with explicit score and assertion-result control.
 
 There is no separate first-party Python authoring SDK today. Python-facing workflows should either emit canonical YAML/JSONL or implement executable graders that consume the standard `snake_case` wire format.
 
-For example, the repo-local helper in `examples/features/sdk-python/` can build YAML-shaped cases while keeping `assertions` as the durable contract:
+For example, the repo-local helper in `examples/features/sdk-python/` can build YAML-shaped cases while keeping `assert` as the durable authored contract:
 
 ```python
 from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_jsonl
@@ -61,7 +62,7 @@ from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_js
 def rag_faithfulness():
     return {
         "name": "rag-faithfulness",
-        "type": "llm-grader",
+        "type": "llm-rubric",
         "target": "grader-target",
         "prompt": "Grade whether the answer is supported by the retrieved context.",
     }
@@ -74,7 +75,7 @@ write_jsonl(
             id="grounded-answer",
             input=[{"role": "user", "content": "Answer using the retrieved context."}],
             expected_output=[{"role": "assistant", "content": "The answer cites the source material."}],
-            extra={"assertions": [rag_faithfulness()]},
+            extra={"assert": [rag_faithfulness()]},
         )
     ],
 )
@@ -113,7 +114,7 @@ export default defineEval({
       input: 'Say hello',
       inputFiles: ['../fixtures/per-test-note.md'],
       expectedOutput: 'Hello from the mock target',
-      assertions: [graders.contains('Hello')],
+      assert: [graders.contains('Hello')],
     },
   ],
 });
@@ -124,11 +125,11 @@ Useful companion helpers:
 - `toEvalYamlObject()` returns the canonical snake_case object.
 - `serializeEvalYaml()` returns YAML text using the same canonical field names.
 
-The durable field remains `assertions`. This helper does not introduce a second YAML vocabulary.
+The durable authored field remains `assert`. This helper does not introduce a second YAML vocabulary.
 
 ## Built-In Grader Helpers
 
-`@agentv/sdk` includes a small `graders` catalog for common deterministic and LLM-backed grader configs. These helpers return ordinary `assertions` entries and serialize to the same canonical YAML you could write by hand.
+`@agentv/sdk` includes a small `graders` catalog for common deterministic and LLM-backed grader configs. These helpers return ordinary `assert` entries and serialize to the same canonical YAML you could write by hand.
 
 ```typescript
 import { defineEval, graders } from '@agentv/sdk';
@@ -139,35 +140,35 @@ export default defineEval({
     {
       id: 'json-greeting',
       input: 'Return a JSON greeting.',
-      assertions: [
+      assert: [
         graders.contains('Hello', { name: 'mentions-hello' }),
         graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
         graders.regex(/"message"\s*:/, { name: 'message-key' }),
         graders.json({ name: 'valid-json', required: true }),
-        graders.rubrics(['Greets the user'], { name: 'rubric-review' }),
-        graders.llmGrader({
+        graders.llmRubric(['Greets the user'], { name: 'rubric-review' }),
+        graders.llmRubric(undefined, {
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
           target: 'grader-target',
         }),
-        graders.codeGrader(['bun', 'run', 'graders/check.ts'], { name: 'scripted-check' }),
+        graders.scriptGrader(['bun', 'run', 'graders/check.ts'], { name: 'scripted-check' }),
       ],
     },
   ],
 });
 ```
 
-The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `rubrics`, `llm-grader`, and `code-grader`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
+The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `llm-rubric`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
 
 ## AgentV-Native Helper Factories
 
-If you are coming from Braintrust `scores` or DeepEval metrics, keep the reusable logic AgentV-native: write helper factories that return `graders.*` configs, then let `defineEval()` lower them to ordinary `assertions`.
+If you are coming from Braintrust `scores` or DeepEval metrics, keep the reusable logic AgentV-native: write helper factories that return `graders.*` configs, then let `defineEval()` lower them to ordinary `assert` entries.
 
 ```typescript
 import { defineEval, graders } from '@agentv/sdk';
 
 function ragFaithfulness() {
-  return graders.llmGrader({
+  return graders.llmRubric(undefined, {
     name: 'rag-faithfulness',
     target: 'grader-target',
     prompt: [
@@ -184,7 +185,7 @@ export default defineEval({
       id: 'grounded-answer',
       input: 'Answer the question using the retrieved context.',
       expectedOutput: 'The answer cites the source material.',
-      assertions: [
+      assert: [
         graders.contains('source', { name: 'mentions-source' }),
         ragFaithfulness(),
       ],
@@ -196,12 +197,12 @@ export default defineEval({
 The helper above serializes to the same shape you could write by hand:
 
 ```yaml
-assertions:
+assert:
   - name: mentions-source
     type: contains
     value: source
   - name: rag-faithfulness
-    type: llm-grader
+    type: llm-rubric
     target: grader-target
     prompt: |-
       Grade whether the answer is supported by the retrieved context.
@@ -211,6 +212,8 @@ assertions:
 ## Custom Assertions
 
 Use `defineAssertion` from `@agentv/sdk` to create reusable assertion types. Place them in `.agentv/assertions/` — they're auto-discovered by filename.
+
+This is the custom assertion path, not the custom grader path. It matches Promptfoo's assertion terminology for normal eval checks, while extending Promptfoo's fixed custom logic types (`javascript`, `python`, `ruby`, `webhook`) with arbitrary discovered AgentV type names.
 
 ### Pass/Fail Pattern
 
@@ -260,20 +263,20 @@ Convention-based discovery maps filename → assertion type:
 Reference directly in your eval file — no `command:` needed:
 
 ```yaml
-assertions:
+assert:
   - type: word-count
   - type: contains
     value: "Hello"
 ```
 
-## Code Graders
+## Script Graders
 
-Use `defineCodeGrader` from `@agentv/sdk` for full control over scoring with an explicit assertions array:
+Use `defineScriptGrader` from `@agentv/sdk` for full control over scoring with an explicit assertions array:
 
 ```typescript
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output, traceSummary }) => ({
+export default defineScriptGrader(({ output, traceSummary }) => ({
   score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
   assertions: [
     { text: 'Answer is not empty', passed: (output ?? '').length > 0 },
@@ -282,9 +285,9 @@ export default defineCodeGrader(({ output, traceSummary }) => ({
 }));
 ```
 
-`defineCodeGrader` graders are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+`defineScriptGrader` scripts are graders referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. `defineAssertion` uses convention-based discovery instead — just place it in `.agentv/assertions/` and reference it by assertion type name.
 
-For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/docs/v4.42.4/graders/code-graders/).
+For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/docs/v4.42.4/graders/code-graders/) in this versioned doc set.
 
 ## Wire Format vs SDK Format
 

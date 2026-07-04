@@ -57,9 +57,9 @@ tests:
 
     expected_output: "42"
 
-    assertions:
+    assert:
       - name: math_check
-        type: code-grader
+        type: script
         command: [./validators/check_math.py]
 ```
 
@@ -75,5 +75,5 @@ Results appear in `.agentv/results/runs/<timestamp>/index.jsonl` with scores, re
 
 - Learn about [eval file formats](/docs/v4.42.4/evaluation/eval-files/)
 - Configure [targets](/docs/v4.42.4/targets/configuration/) for different providers
-- Create [custom graders](/docs/v4.42.4/graders/custom-graders/)
+- Choose [custom assertions](/docs/v4.42.4/graders/custom-assertions/) or command-backed [custom graders](/docs/v4.42.4/graders/custom-graders/)
 - If setup drifts, rerun: `agentv init`
