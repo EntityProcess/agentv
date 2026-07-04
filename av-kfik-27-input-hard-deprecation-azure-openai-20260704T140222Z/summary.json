@@ -1,0 +1,155 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "av-kfik-27-input-hard-deprecation-azure-openai-20260704T140222Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "pass_at_k": {
+    "k": 1,
+    "passed_cases": 1,
+    "total_cases": 1,
+    "rate": 1
+  },
+  "usage": {
+    "total_tokens": 41,
+    "input_tokens": 28,
+    "output_tokens": 13,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.00007950000000000001
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "greeting",
+      "suite": "default-graders-example",
+      "eval_path": "examples/features/default-graders/evals/suite.yaml",
+      "target": "azure",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "greeting",
+          "suite": "default-graders-example",
+          "eval_path": "examples/features/default-graders/evals/suite.yaml",
+          "target": "azure",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 1506,
+          "cost_usd": 0.00007950000000000001
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "av-kfik-27-input-hard-deprecation-azure-openai-20260704T140222Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/promptfoo-input-hard-deprecation/examples/features/default-graders/evals/suite.yaml",
+    "timestamp": "2026-07-04T14:02:28.971Z",
+    "targets": [
+      "azure"
+    ],
+    "tests_run": [
+      "greeting"
+    ],
+    "experiment": "default-graders-example",
+    "run_config_path": ".internal/run-config.json",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "kind": "direct_suite",
+      "config_source": "mixed",
+      "experiment_namespace": "default-graders-example",
+      "experiment_namespace_source": "eval_metadata",
+      "eval_files": [
+        "examples/features/default-graders/evals/suite.yaml"
+      ],
+      "source_eval_files": [
+        "examples/features/default-graders/evals/suite.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "azure": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 1.506,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 41,
+        "stddev": 0
+      },
+      "cost_usd": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 1506,
+      "total_seconds": 1.506,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 41,
+      "input": 28,
+      "output": 13,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": 0.00007950000000000001,
+      "source": "provider_reported"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}
