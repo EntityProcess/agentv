@@ -84,6 +84,7 @@ import type {
   TrialResult,
   TrialsConfig,
 } from './types.js';
+import { isJsonValue } from './types.js';
 import { cleanupEvalWorkspaces, cleanupWorkspace } from './workspace/manager.js';
 import type { RepoManager } from './workspace/repo-manager.js';
 import {
@@ -1684,6 +1685,7 @@ async function runBatchEvaluation(options: {
     const startTime = merged?.startTime;
     const endTime = merged?.endTime;
     const rawProviderLogPath = extractProviderRawLogPath(providerResponse);
+    const providerResponseMetadata = buildProviderResponseTransformMetadata(providerResponse);
 
     // Extract candidate from last assistant message in output
     const candidate = extractLastAssistantContent(output);
@@ -1710,6 +1712,7 @@ async function runBatchEvaluation(options: {
         costUsd,
         durationMs,
         tokenUsage,
+        providerResponseMetadata,
         startTime,
         endTime,
         rawProviderLogPath,
@@ -2206,6 +2209,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const startTime = merged?.startTime;
   const endTime = merged?.endTime;
   const rawProviderLogPath = extractProviderRawLogPath(providerResponse);
+  const providerResponseMetadata = buildProviderResponseTransformMetadata(providerResponse);
 
   // Extract candidate from last assistant message in output
   const candidate = extractLastAssistantContent(output);
@@ -2253,6 +2257,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       costUsd,
       durationMs,
       tokenUsage,
+      providerResponseMetadata,
       startTime,
       endTime,
       rawProviderLogPath,
@@ -2562,8 +2567,13 @@ function buildTransformContext(options: {
   readonly evalCase: EvalTest;
   readonly promptInputs: PromptInputs;
   readonly provider: Provider;
+  readonly responseMetadata?: JsonObject;
 }): TransformContext {
-  const { evalCase, promptInputs, provider } = options;
+  const { evalCase, promptInputs, provider, responseMetadata } = options;
+  const metadata =
+    responseMetadata && evalCase.metadata
+      ? { ...evalCase.metadata, ...responseMetadata }
+      : (responseMetadata ?? evalCase.metadata);
   return {
     ...(evalCase.vars ? { vars: evalCase.vars } : {}),
     prompt: {
@@ -2571,7 +2581,7 @@ function buildTransformContext(options: {
       ...(evalCase.prompt?.label ? { label: evalCase.prompt.label } : {}),
       raw: promptInputs.question,
     },
-    ...(evalCase.metadata ? { metadata: evalCase.metadata } : {}),
+    ...(metadata ? { metadata } : {}),
     provider: {
       id: provider.id,
       kind: provider.kind,
@@ -2580,12 +2590,52 @@ function buildTransformContext(options: {
   };
 }
 
+function toJsonValue(value: unknown): JsonValue | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  try {
+    const encoded = JSON.stringify(value);
+    if (encoded === undefined) {
+      return undefined;
+    }
+    const parsed = JSON.parse(encoded) as unknown;
+    return isJsonValue(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildProviderResponseTransformMetadata(
+  response: ProviderResponse,
+): JsonObject | undefined {
+  const metadata: Record<string, JsonValue> = {};
+  const fields: Array<readonly [string, unknown]> = [
+    ['raw', response.raw],
+    ['usage', response.usage],
+    ['token_usage', response.tokenUsage],
+    ['cost_usd', response.costUsd],
+    ['duration_ms', response.durationMs],
+    ['start_time', response.startTime],
+    ['end_time', response.endTime],
+    ['steps', response.steps],
+  ];
+  for (const [key, value] of fields) {
+    const jsonValue = toJsonValue(value);
+    if (jsonValue !== undefined) {
+      metadata[key] = jsonValue;
+    }
+  }
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
 async function prepareCandidateForGrading(options: {
   readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly output?: readonly Message[];
   readonly promptInputs: PromptInputs;
   readonly provider: Provider;
+  readonly responseMetadata?: JsonObject;
 }): Promise<{
   readonly candidate: string;
   readonly candidateValue: unknown;
@@ -2630,6 +2680,7 @@ async function evaluateCandidate(options: {
   readonly costUsd?: number;
   readonly durationMs?: number;
   readonly tokenUsage?: TokenUsage;
+  readonly providerResponseMetadata?: JsonObject;
   readonly startTime?: string;
   readonly endTime?: string;
   readonly rawProviderLogPath?: string;
@@ -2661,6 +2712,7 @@ async function evaluateCandidate(options: {
     costUsd,
     durationMs,
     tokenUsage,
+    providerResponseMetadata,
     startTime,
     endTime,
     rawProviderLogPath,
@@ -2680,6 +2732,7 @@ async function evaluateCandidate(options: {
     output,
     promptInputs,
     provider,
+    responseMetadata: providerResponseMetadata,
   });
   const input = buildResultInput(promptInputs);
   const outputMessages = output ?? [{ role: 'assistant' as const, content: candidate }];
@@ -2709,6 +2762,7 @@ async function evaluateCandidate(options: {
     evalCase,
     candidate: preparedCandidate.candidate,
     candidateValue: preparedCandidate.candidateValue,
+    responseMetadata: providerResponseMetadata,
     target,
     provider,
     evaluators,
@@ -2801,6 +2855,7 @@ async function runEvaluatorsForCase(options: {
   readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly candidateValue?: unknown;
+  readonly responseMetadata?: JsonObject;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
@@ -2830,6 +2885,7 @@ async function runEvaluatorsForCase(options: {
     evalCase,
     candidate,
     candidateValue,
+    responseMetadata,
     target,
     provider,
     evaluators,
@@ -2865,6 +2921,7 @@ async function runEvaluatorsForCase(options: {
       evaluators: evalCase.assertions,
       candidate,
       candidateValue,
+      responseMetadata,
       target,
       provider,
       evaluatorRegistry: evaluators,
@@ -2922,6 +2979,7 @@ async function runEvaluatorsForCase(options: {
     evalCase,
     candidate,
     candidateValue,
+    responseMetadata,
     target,
     provider,
     attempt,
@@ -2979,6 +3037,7 @@ async function transformEvaluationContextForGrader(
       evalCase: context.evalCase,
       promptInputs: context.promptInputs,
       provider: context.provider,
+      responseMetadata: context.responseMetadata,
     }),
   );
   const transformedCandidate = stringifyTransformOutput(transformed.value);
@@ -3004,6 +3063,7 @@ async function runEvaluatorList(options: {
   readonly evaluators: readonly GraderConfig[];
   readonly candidate: string;
   readonly candidateValue?: unknown;
+  readonly responseMetadata?: JsonObject;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Grader>> & {
@@ -3036,6 +3096,7 @@ async function runEvaluatorList(options: {
     evaluators,
     candidate,
     candidateValue,
+    responseMetadata,
     target,
     provider,
     evaluatorRegistry,
@@ -3076,6 +3137,7 @@ async function runEvaluatorList(options: {
     evalCase,
     candidate,
     candidateValue,
+    responseMetadata,
     target,
     provider,
     attempt,

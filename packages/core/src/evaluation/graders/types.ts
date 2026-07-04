@@ -23,6 +23,8 @@ export interface EvaluationContext {
   readonly candidate: string;
   /** Raw transformed output value before string coercion, for assertion-level transforms. */
   readonly candidateValue?: unknown;
+  /** JSON-safe provider response metadata available to transforms. */
+  readonly responseMetadata?: JsonObject;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly attempt: number;

@@ -81,17 +81,21 @@ describe('Promptfoo-compatible transform runtime', () => {
       writeFileSync(
         evalPath,
         `
+prompts:
+  - "{{ input }}"
 default_test:
+  vars:
+    input: say hi
   options:
     transform: file://default-transform.js
 tests:
   - id: inherited
-    input: say hi
     assert:
       - type: contains
         value: default
   - id: override
-    input: say hi
+    vars:
+      input: say override
     options:
       transform: output + "|override"
     assert:
@@ -117,12 +121,15 @@ tests:
       writeFileSync(
         evalPath,
         `
+prompts:
+  - "{{ input }}"
 default_test:
+  vars:
+    input: say hi
   options:
     postprocess: output.trim()
 tests:
   - id: postprocess
-    input: say hi
     assert:
       - type: contains
         value: hi
@@ -145,9 +152,12 @@ tests:
       writeFileSync(
         evalPath,
         `
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-postprocess
-    input: say hi
+    vars:
+      input: say hi
     options:
       postprocess: output.trim()
     assert:
@@ -164,9 +174,12 @@ tests:
       writeFileSync(
         evalPath,
         `
+prompts:
+  - "{{ input }}"
 tests:
   - id: assertion-postprocess
-    input: say hi
+    vars:
+      input: say hi
     assert:
       - type: contains
         value: hi
@@ -186,20 +199,24 @@ tests:
   it('applies test transform once before all assertions and isolates assertion transforms', async () => {
     const provider = new StaticProvider('mock', {
       output: [{ role: 'assistant', content: 'raw' }],
+      raw: { response_id: 'resp-1' },
+      tokenUsage: { input: 2, output: 3 },
+      durationMs: 7,
     });
 
     const result = await runEvalCase({
       evalCase: baseEvalCase({
-        outputTransform: 'output + "|case"',
+        outputTransform:
+          'output + "|" + context.metadata.raw.response_id + "|" + context.metadata.token_usage.input + "|case"',
         assertions: [
-          { name: 'case-visible', type: 'contains', value: 'raw|case' },
+          { name: 'case-visible', type: 'contains', value: 'raw|resp-1|2|case' },
           {
             name: 'assert-only',
             type: 'contains',
-            value: 'raw|case|assert',
-            transform: 'output + "|assert"',
+            value: 'raw|resp-1|2|case|7|assert',
+            transform: 'output + "|" + context.metadata.duration_ms + "|assert"',
           },
-          { name: 'assert-isolated', type: 'contains', value: 'raw|case|assert' },
+          { name: 'assert-isolated', type: 'contains', value: 'raw|resp-1|2|case|7|assert' },
         ],
       }),
       provider,
@@ -207,10 +224,13 @@ tests:
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.output).toBe('raw|case');
+    expect(result.output).toBe('raw|resp-1|2|case');
     expect(result.scores?.map((score) => score.score)).toEqual([1, 1, 0]);
     expect(result.scores?.[1]?.input).toEqual({
-      transform: { input: 'raw|case', output: 'raw|case|assert' },
+      transform: {
+        input: 'raw|resp-1|2|case',
+        output: 'raw|resp-1|2|case|7|assert',
+      },
     });
   });
 
