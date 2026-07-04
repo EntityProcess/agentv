@@ -1,0 +1,13 @@
+also spawn worker to fix the docs . https://agentv.dev/docs/v4.42.4/targets/llm-providers/ returns 404. also the docs are not called canary docs. remove the banner saying the docs are snapshot. also instead of having docs under v4 folder maybe just move them to root docs folder to avoid the redirect
+
+---
+
+loss of idle workers on the agent orchestration pie and co-pilot side can we merge any of the work and unblock progress
+
+---
+
+remove stale workmux sessions. also advise if any beads outstanding for agent orchestration targets
+
+---
+
+we need to update the docs and examples after the authoring restructure. please spawn workers.
