@@ -60,6 +60,7 @@ import {
   resolveExpectedMessages,
   resolveInputMessages,
 } from './loaders/shorthand-expansion.js';
+import { parseTransformSpec } from './loaders/transform-parser.js';
 import { parseMetadata } from './metadata.js';
 import { normalizeTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
@@ -541,6 +542,73 @@ function mergeDefaultTestVarsIntoCases(
         ...caseVars,
       },
     };
+  });
+}
+
+function readDefaultTestOptions(defaultTest: JsonValue | undefined): JsonObject | undefined {
+  if (!isJsonObject(defaultTest) || !isJsonObject(defaultTest.options)) {
+    return undefined;
+  }
+  return defaultTest.options;
+}
+
+function mergeDefaultTestOptionsIntoCases(
+  rawCases: readonly JsonValue[],
+  defaultTest: JsonValue | undefined,
+): readonly JsonValue[] {
+  const defaultOptions = readDefaultTestOptions(defaultTest);
+  if (!defaultOptions || Object.keys(defaultOptions).length === 0) {
+    return rawCases;
+  }
+
+  return rawCases.map((rawCase) => {
+    if (!isJsonObject(rawCase)) {
+      return rawCase;
+    }
+    if (rawCase.options !== undefined && !isJsonObject(rawCase.options)) {
+      return rawCase;
+    }
+    const caseOptions = isJsonObject(rawCase.options) ? rawCase.options : {};
+    return {
+      ...rawCase,
+      options: {
+        ...defaultOptions,
+        ...caseOptions,
+      },
+    };
+  });
+}
+
+function rejectPostprocess(value: unknown, location: string): void {
+  if (!isJsonObject(value)) {
+    return;
+  }
+  if (value.postprocess !== undefined) {
+    throw new Error(`${location}.postprocess has been removed. Use ${location}.transform instead.`);
+  }
+}
+
+function rejectAuthoredPostprocess(suite: RawTestSuite): void {
+  rejectPostprocess(
+    isJsonObject(suite.default_test) ? suite.default_test.options : undefined,
+    'default_test.options',
+  );
+  if (Array.isArray(suite.assert)) {
+    suite.assert.forEach((entry, index) => rejectPostprocess(entry, `assert[${index}]`));
+  }
+  if (!Array.isArray(suite.tests)) {
+    return;
+  }
+  suite.tests.forEach((entry, index) => {
+    if (!isJsonObject(entry)) {
+      return;
+    }
+    rejectPostprocess(entry.options, `tests[${index}].options`);
+    if (Array.isArray(entry.assert)) {
+      entry.assert.forEach((assertion, assertionIndex) =>
+        rejectPostprocess(assertion, `tests[${index}].assert[${assertionIndex}]`),
+      );
+    }
   });
 }
 
@@ -1159,6 +1227,7 @@ async function loadTestsFromParsedYamlValue(
     ...(interpolated as RawTestSuite),
     default_test: resolvedDefaultTest.value,
   } as RawTestSuite;
+  rejectAuthoredPostprocess(suite);
   const defaultTestReferences = resolvedDefaultTest.references;
   const suiteNameFromFile = asString(suite.name)?.trim();
   const fallbackSuiteName =
@@ -1225,6 +1294,7 @@ async function loadTestsFromParsedYamlValue(
   }
 
   expandedTestCases = mergeDefaultTestVarsIntoCases(expandedTestCases, suite.default_test);
+  expandedTestCases = mergeDefaultTestOptionsIntoCases(expandedTestCases, suite.default_test);
 
   const promptDefinitions = await parseSuitePrompts(suite.prompts, searchRoots);
   const promptExpansion = expandPromptMatrix(expandedTestCases, promptDefinitions, suite);
@@ -1521,6 +1591,12 @@ async function loadTestsFromParsedYamlValue(
           : undefined;
 
       const category = normalizeCategoryPath(suite.category ?? options?.category);
+      const renderedOptions = isJsonObject(renderedCase.options) ? renderedCase.options : undefined;
+      const outputTransform = await parseTransformSpec(
+        renderedOptions?.transform as JsonValue | undefined,
+        searchRoots,
+        `test '${id ?? 'unknown'}'.options`,
+      );
 
       const testCase: EvalTest = {
         id,
@@ -1537,6 +1613,8 @@ async function loadTestsFromParsedYamlValue(
         criteria: outcome ?? '',
         evaluator: testCaseEvaluatorKind,
         assertions: evaluators,
+        ...(caseVars ? { vars: caseVars } : {}),
+        ...(outputTransform ? { outputTransform } : {}),
         ...(suitePreprocessors ? { preprocessors: suitePreprocessors } : {}),
         ...(suiteExtensions.length > 0 ? { extensions: suiteExtensions } : {}),
         workspace: mergedWorkspace,

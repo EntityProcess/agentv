@@ -1,3 +1,4 @@
+import type { TransformSpec } from './output-transform.js';
 import type { TargetExecutionEnvelope } from './providers/types.js';
 import type { TokenUsage, ToolTrajectoryGraderConfig, Trace } from './trace.js';
 
@@ -938,6 +939,8 @@ export type GraderConfig = (
 ) & {
   /** Optional promptfoo-style named score key. Scoring aggregation support is layered separately. */
   readonly metric?: string;
+  /** Promptfoo-compatible assertion-level transform. */
+  readonly transform?: TransformSpec;
 };
 
 /**
@@ -1055,6 +1058,10 @@ export interface EvalTest {
   readonly criteria: string;
   readonly evaluator?: GraderKind;
   readonly assertions?: readonly GraderConfig[];
+  /** Merged Promptfoo-compatible row vars used by transform scripts. */
+  readonly vars?: JsonObject;
+  /** Promptfoo-compatible output transform inherited from default_test.options or tests[].options. */
+  readonly outputTransform?: TransformSpec;
   /** Suite-level preprocessors used by the implicit default llm-grader. */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
   /** Promptfoo-style lifecycle extensions inherited from the suite. */

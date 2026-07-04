@@ -16,6 +16,12 @@ import {
   negateScore,
   scoreToVerdict,
 } from './graders.js';
+import {
+  type TransformContext,
+  applyTransform,
+  contentToTransformInput,
+  stringifyTransformOutput,
+} from './output-transform.js';
 import { createBuiltinProviderRegistry, createProvider } from './providers/index.js';
 import { discoverProviders } from './providers/provider-discovery.js';
 import {
@@ -78,6 +84,7 @@ import type {
   TrialResult,
   TrialsConfig,
 } from './types.js';
+import { isJsonValue } from './types.js';
 import { cleanupEvalWorkspaces, cleanupWorkspace } from './workspace/manager.js';
 import type { RepoManager } from './workspace/repo-manager.js';
 import {
@@ -659,12 +666,19 @@ export async function gradePreparedEvalCase(
   const outputMessages: readonly Message[] =
     preparedTrace?.messages ??
     (candidate.length > 0 ? [{ role: 'assistant' as const, content: candidate }] : []);
+  const preparedCandidate = await prepareCandidateForGrading({
+    evalCase,
+    candidate,
+    output: outputMessages,
+    promptInputs,
+    provider,
+  });
   const resultTrace =
     preparedTrace ??
     buildTraceFromMessages({
       input,
       output: outputMessages,
-      finalOutput: candidate,
+      finalOutput: preparedCandidate.candidate,
       provider: provider.kind,
       target: target.name,
       testId: authoredResultTestId(evalCase),
@@ -673,9 +687,17 @@ export async function gradePreparedEvalCase(
 
   try {
     const gradeStartedAt = nowFn();
+    const gradingOutput = evalCase.outputTransform
+      ? ([
+          { role: 'assistant' as const, content: preparedCandidate.candidate },
+        ] satisfies readonly Message[])
+      : preparedTrace
+        ? outputMessages
+        : undefined;
     const { score, scores } = await runEvaluatorsForCase({
       evalCase,
-      candidate,
+      candidate: preparedCandidate.candidate,
+      candidateValue: preparedCandidate.candidateValue,
       target,
       provider,
       evaluators: evaluatorRegistry,
@@ -684,7 +706,7 @@ export async function gradePreparedEvalCase(
       promptInputs,
       now: gradeStartedAt,
       agentTimeoutMs,
-      output: preparedTrace ? outputMessages : undefined,
+      output: gradingOutput,
       trace: preparedTrace ? resultTrace : undefined,
       costUsd: preparedTrace ? resultTrace.costUsd : undefined,
       durationMs: preparedTrace ? resultTrace.durationMs : undefined,
@@ -722,7 +744,7 @@ export async function gradePreparedEvalCase(
       assertions: score.assertions,
       target: target.name,
       input,
-      output: candidate,
+      output: preparedCandidate.candidate,
       scores,
       trace: resultTrace,
       fileChanges,
@@ -1663,6 +1685,7 @@ async function runBatchEvaluation(options: {
     const startTime = merged?.startTime;
     const endTime = merged?.endTime;
     const rawProviderLogPath = extractProviderRawLogPath(providerResponse);
+    const providerResponseMetadata = buildProviderResponseTransformMetadata(providerResponse);
 
     // Extract candidate from last assistant message in output
     const candidate = extractLastAssistantContent(output);
@@ -1689,6 +1712,7 @@ async function runBatchEvaluation(options: {
         costUsd,
         durationMs,
         tokenUsage,
+        providerResponseMetadata,
         startTime,
         endTime,
         rawProviderLogPath,
@@ -2185,6 +2209,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const startTime = merged?.startTime;
   const endTime = merged?.endTime;
   const rawProviderLogPath = extractProviderRawLogPath(providerResponse);
+  const providerResponseMetadata = buildProviderResponseTransformMetadata(providerResponse);
 
   // Extract candidate from last assistant message in output
   const candidate = extractLastAssistantContent(output);
@@ -2232,6 +2257,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       costUsd,
       durationMs,
       tokenUsage,
+      providerResponseMetadata,
       startTime,
       endTime,
       rawProviderLogPath,
@@ -2521,6 +2547,121 @@ async function runEvalCaseWithTrials(
   };
 }
 
+function lastAssistantTransformInput(
+  output: readonly Message[] | undefined,
+  candidate: string,
+): unknown {
+  if (!output || output.length === 0) {
+    return candidate;
+  }
+  for (let index = output.length - 1; index >= 0; index--) {
+    const message = output[index];
+    if (message.role === 'assistant' && message.content !== undefined) {
+      return contentToTransformInput(message.content);
+    }
+  }
+  return candidate;
+}
+
+function buildTransformContext(options: {
+  readonly evalCase: EvalTest;
+  readonly promptInputs: PromptInputs;
+  readonly provider: Provider;
+  readonly responseMetadata?: JsonObject;
+}): TransformContext {
+  const { evalCase, promptInputs, provider, responseMetadata } = options;
+  const metadata =
+    responseMetadata && evalCase.metadata
+      ? { ...evalCase.metadata, ...responseMetadata }
+      : (responseMetadata ?? evalCase.metadata);
+  return {
+    ...(evalCase.vars ? { vars: evalCase.vars } : {}),
+    prompt: {
+      ...(evalCase.prompt?.id ? { id: evalCase.prompt.id } : {}),
+      ...(evalCase.prompt?.label ? { label: evalCase.prompt.label } : {}),
+      raw: promptInputs.question,
+    },
+    ...(metadata ? { metadata } : {}),
+    provider: {
+      id: provider.id,
+      kind: provider.kind,
+      target: provider.targetName,
+    },
+  };
+}
+
+function toJsonValue(value: unknown): JsonValue | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  try {
+    const encoded = JSON.stringify(value);
+    if (encoded === undefined) {
+      return undefined;
+    }
+    const parsed = JSON.parse(encoded) as unknown;
+    return isJsonValue(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildProviderResponseTransformMetadata(
+  response: ProviderResponse,
+): JsonObject | undefined {
+  const metadata: Record<string, JsonValue> = {};
+  const fields: Array<readonly [string, unknown]> = [
+    ['raw', response.raw],
+    ['usage', response.usage],
+    ['token_usage', response.tokenUsage],
+    ['cost_usd', response.costUsd],
+    ['duration_ms', response.durationMs],
+    ['start_time', response.startTime],
+    ['end_time', response.endTime],
+    ['steps', response.steps],
+  ];
+  for (const [key, value] of fields) {
+    const jsonValue = toJsonValue(value);
+    if (jsonValue !== undefined) {
+      metadata[key] = jsonValue;
+    }
+  }
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
+async function prepareCandidateForGrading(options: {
+  readonly evalCase: EvalTest;
+  readonly candidate: string;
+  readonly output?: readonly Message[];
+  readonly promptInputs: PromptInputs;
+  readonly provider: Provider;
+  readonly responseMetadata?: JsonObject;
+}): Promise<{
+  readonly candidate: string;
+  readonly candidateValue: unknown;
+  readonly rawCandidateValue: unknown;
+}> {
+  const rawCandidateValue = lastAssistantTransformInput(options.output, options.candidate);
+  if (!options.evalCase.outputTransform) {
+    return {
+      candidate: options.candidate,
+      candidateValue: rawCandidateValue,
+      rawCandidateValue,
+    };
+  }
+
+  const transformed = await applyTransform(
+    options.evalCase.outputTransform,
+    rawCandidateValue,
+    buildTransformContext(options),
+  );
+  return {
+    candidate: stringifyTransformOutput(transformed.value),
+    candidateValue: transformed.value,
+    rawCandidateValue,
+  };
+}
+
 async function evaluateCandidate(options: {
   readonly evalCase: EvalTest;
   readonly candidate: string;
@@ -2539,6 +2680,7 @@ async function evaluateCandidate(options: {
   readonly costUsd?: number;
   readonly durationMs?: number;
   readonly tokenUsage?: TokenUsage;
+  readonly providerResponseMetadata?: JsonObject;
   readonly startTime?: string;
   readonly endTime?: string;
   readonly rawProviderLogPath?: string;
@@ -2570,6 +2712,7 @@ async function evaluateCandidate(options: {
     costUsd,
     durationMs,
     tokenUsage,
+    providerResponseMetadata,
     startTime,
     endTime,
     rawProviderLogPath,
@@ -2583,13 +2726,21 @@ async function evaluateCandidate(options: {
     dependencyResults,
   } = options;
 
+  const preparedCandidate = await prepareCandidateForGrading({
+    evalCase,
+    candidate,
+    output,
+    promptInputs,
+    provider,
+    responseMetadata: providerResponseMetadata,
+  });
   const input = buildResultInput(promptInputs);
   const outputMessages = output ?? [{ role: 'assistant' as const, content: candidate }];
   const evaluationTrace = buildTraceFromMessages({
     input,
     output: outputMessages,
     summary: trace,
-    finalOutput: candidate,
+    finalOutput: preparedCandidate.candidate,
     tokenUsage,
     costUsd,
     durationMs,
@@ -2602,9 +2753,16 @@ async function evaluateCandidate(options: {
   });
 
   const gradeTimestamp = nowFn();
+  const gradingOutput = evalCase.outputTransform
+    ? ([
+        { role: 'assistant' as const, content: preparedCandidate.candidate },
+      ] satisfies readonly Message[])
+    : output;
   const { score, scores } = await runEvaluatorsForCase({
     evalCase,
-    candidate,
+    candidate: preparedCandidate.candidate,
+    candidateValue: preparedCandidate.candidateValue,
+    responseMetadata: providerResponseMetadata,
     target,
     provider,
     evaluators,
@@ -2614,7 +2772,7 @@ async function evaluateCandidate(options: {
     now: gradeTimestamp,
     graderProvider,
     agentTimeoutMs,
-    output,
+    output: gradingOutput,
     trace: evaluationTrace,
     costUsd,
     durationMs,
@@ -2684,7 +2842,7 @@ async function evaluateCandidate(options: {
     endTime,
     requests,
     input,
-    output: candidate,
+    output: preparedCandidate.candidate,
     scores: scores,
     trace: evaluationTrace,
     rawProviderLogPath,
@@ -2696,6 +2854,8 @@ async function evaluateCandidate(options: {
 async function runEvaluatorsForCase(options: {
   readonly evalCase: EvalTest;
   readonly candidate: string;
+  readonly candidateValue?: unknown;
+  readonly responseMetadata?: JsonObject;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
@@ -2724,6 +2884,8 @@ async function runEvaluatorsForCase(options: {
   const {
     evalCase,
     candidate,
+    candidateValue,
+    responseMetadata,
     target,
     provider,
     evaluators,
@@ -2758,6 +2920,8 @@ async function runEvaluatorsForCase(options: {
       evalCase,
       evaluators: evalCase.assertions,
       candidate,
+      candidateValue,
+      responseMetadata,
       target,
       provider,
       evaluatorRegistry: evaluators,
@@ -2814,6 +2978,8 @@ async function runEvaluatorsForCase(options: {
   const score = await activeEvaluator.evaluate({
     evalCase,
     candidate,
+    candidateValue,
+    responseMetadata,
     target,
     provider,
     attempt,
@@ -2852,10 +3018,52 @@ function buildImplicitLlmGraderConfig(evalCase: EvalTest): LlmGraderConfig | und
   };
 }
 
+async function transformEvaluationContextForGrader(
+  context: import('./graders/types.js').EvaluationContext,
+  evaluatorConfig: GraderConfig,
+): Promise<{
+  readonly context: import('./graders/types.js').EvaluationContext;
+  readonly input?: JsonObject;
+  readonly details?: JsonObject;
+}> {
+  if (!evaluatorConfig.transform) {
+    return { context };
+  }
+
+  const transformed = await applyTransform(
+    evaluatorConfig.transform,
+    context.candidateValue ?? context.candidate,
+    buildTransformContext({
+      evalCase: context.evalCase,
+      promptInputs: context.promptInputs,
+      provider: context.provider,
+      responseMetadata: context.responseMetadata,
+    }),
+  );
+  const transformedCandidate = stringifyTransformOutput(transformed.value);
+  const transformDetails = {
+    transform: {
+      input: transformed.input as JsonValue,
+      output: transformed.value as JsonValue,
+    },
+  } as JsonObject;
+  return {
+    context: {
+      ...context,
+      candidate: transformedCandidate,
+      candidateValue: transformed.value,
+    },
+    input: transformDetails,
+    details: transformDetails,
+  };
+}
+
 async function runEvaluatorList(options: {
   readonly evalCase: EvalTest;
   readonly evaluators: readonly GraderConfig[];
   readonly candidate: string;
+  readonly candidateValue?: unknown;
+  readonly responseMetadata?: JsonObject;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Grader>> & {
@@ -2887,6 +3095,8 @@ async function runEvaluatorList(options: {
     evalCase,
     evaluators,
     candidate,
+    candidateValue,
+    responseMetadata,
     target,
     provider,
     evaluatorRegistry,
@@ -2926,6 +3136,8 @@ async function runEvaluatorList(options: {
   const evalContext: import('./graders/types.js').EvaluationContext = {
     evalCase,
     candidate,
+    candidateValue,
+    responseMetadata,
     target,
     provider,
     attempt,
@@ -2965,7 +3177,11 @@ async function runEvaluatorList(options: {
     try {
       // Create evaluator instance via registry
       const evaluatorInstance = await typeRegistry.create(evaluatorConfig, dispatchContext);
-      const score = await evaluatorInstance.evaluate(evalContext);
+      const transformedContext = await transformEvaluationContextForGrader(
+        evalContext,
+        evaluatorConfig,
+      );
+      const score = await evaluatorInstance.evaluate(transformedContext.context);
       const endedAt = new Date();
 
       const weight = evaluatorConfig.weight ?? 1.0;
@@ -2987,9 +3203,12 @@ async function runEvaluatorList(options: {
         weight,
         verdict: score.verdict,
         assertions: score.assertions,
-        input: score.graderRawRequest,
+        input: transformedContext.input ?? score.graderRawRequest,
         target: score.graderTarget,
-        details: score.details,
+        details:
+          transformedContext.details && score.details
+            ? { ...transformedContext.details, ...score.details }
+            : (transformedContext.details ?? score.details),
         scores: mapChildResults(score.scores),
         tokenUsage: score.tokenUsage,
         durationMs: endedAt.getTime() - startedAt.getTime(),
