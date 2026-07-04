@@ -1,0 +1,42 @@
+target: openai
+tests:
+  - id: finance-summary-operator-guards
+    input:
+      - role: user
+        content: |-
+          Source note:
+          - Q4 revenue increased to $10M from $8M.
+          - Gross margin declined to 42% from 45%.
+
+          Write a two-sentence finance summary.
+    expected_output:
+      - role: assistant
+        content: |-
+          Q4 revenue increased to $10M from $8M. Gross margin declined to 42%
+          from 45%.
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        rubrics:
+          - id: supported-revenue
+            outcome: States Q4 revenue increased to $10M from $8M.
+            operator: correctness
+            weight: 1
+            required: true
+          - id: no-margin-contradiction
+            outcome: Gross margin declined to 42% from 45%.
+            operator: contradiction
+            weight: 1
+            required: true
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        rubrics:
+          - id: rubric-1
+            outcome: |-
+              Summarize the source faithfully. Include supported material facts and avoid
+              claims that contradict the source.
+            weight: 1
+            required: true
+        weight: 1
