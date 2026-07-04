@@ -25,6 +25,12 @@ Eval files describe the task, target binding, and run controls. Use
 override concurrency with `agentv eval --workers N`; do not author legacy
 `workers` fields in eval YAML.
 
+For Promptfoo-style authoring, AgentV uses the same broad prompt, test, vars,
+default test, evaluate-options, and assertion contract with `snake_case` wire
+fields. See the [Promptfoo parity matrix](/docs/reference/promptfoo-parity/) for
+the exact alignments, intentional AgentV extensions, and future-scope Promptfoo
+surfaces.
+
 ## Authoring Shapes
 
 Eval YAML is AgentV's composable and runnable authoring primitive. It is a

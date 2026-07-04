@@ -1,0 +1,123 @@
+---
+title: Promptfoo Parity Matrix
+description: Promptfoo-aligned AgentV eval authoring fields, intentional divergences, and future-scope surfaces.
+sidebar:
+  order: 2
+slug: docs/reference/promptfoo-parity
+---
+
+AgentV uses a similar eval config contract to Promptfoo for ordinary authored
+evals: prompt matrices, test rows, vars, default test data, assertions, and
+target matrices all use the same broad shape. AgentV keeps the wire format
+`snake_case`, keeps target identity separate from provider/backend selection,
+and adds repo-native workspace and artifact fields for agent evaluation.
+
+Use this matrix when translating a Promptfoo-style normal eval into AgentV YAML.
+It documents which surfaces align directly, which AgentV surfaces are cleaner
+greenfield extensions, and which Promptfoo surfaces are deferred until AgentV
+implements equivalent semantics directly.
+
+## Decision Terms
+
+| Decision | Meaning |
+| --- | --- |
+| Align with Promptfoo | AgentV accepts the same concept, with `snake_case` where the field crosses the YAML boundary. |
+| Keep AgentV divergence | AgentV intentionally uses a different shape because it is clearer for repo-native agent evals. |
+| Keep AgentV extension | AgentV adds a capability that does not try to be Promptfoo-compatible. |
+| Defer/future-scope | AgentV does not accept the Promptfoo surface yet. Use an AgentV primitive or wait for direct implementation. |
+
+## Authored Config Matrix
+
+| Surface | Promptfoo shape | AgentV shape | Decision | Notes |
+| --- | --- | --- | --- | --- |
+| Prompt matrix | Top-level `prompts` rendered with each test's `vars`. | Top-level `prompts` rendered with `tests[].vars` and `default_test.vars`. | Align with Promptfoo | This is the canonical Promptfoo-compatible input shape in AgentV. Prompt entries can be inline strings, chat arrays, files, or generated prompt functions. |
+| Test rows | `tests` can be inline rows or a case-file reference; rows carry `vars`, `assert`, metadata, prompt/provider filters, and expected data. | `tests` can be inline rows or a raw-case path; rows carry `vars`, `assert`, `expected_output`, metadata, workspace overrides, and run overrides. | Align with Promptfoo | AgentV also supports `imports.suites` and `imports.tests` for explicit composition. Raw cases do not own suite context. |
+| Variables | `tests[].vars` plus `defaultTest.vars`; prompt templates can reference top-level var names. | `tests[].vars` plus `default_test.vars`; templates can use `{{ name }}` or `{{ vars.name }}`. | Align with Promptfoo | Per-test vars override default vars by key. |
+| Default test | `defaultTest`, inline object or `file://` reference. | `default_test`, inline object or `file://` / `ref://` reference. | Align with Promptfoo | AgentV uses `snake_case` for YAML. Shared prompt matrix defaults belong in `default_test.vars`. |
+| Evaluate options | `evaluateOptions` for runtime controls. | `evaluate_options` for runtime controls. | Align with Promptfoo | AgentV uses `evaluate_options.repeat`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency`. |
+| Authored concurrency | Common Promptfoo usage includes runtime options such as `maxConcurrency`. | `evaluate_options.max_concurrency`. | Keep AgentV divergence | Do not author `execution.max_concurrency` or top-level `workers` in eval YAML. CLI `--workers` remains an operator override. |
+| Target selection | Promptfoo normal evals use `providers`; `targets` can alias providers in unified config. | Use top-level `target` for one system under test or top-level `targets` for a target matrix. | Keep AgentV divergence | AgentV reserves `provider` for the backend/adapter kind inside a target object. Top-level `providers` is rejected to avoid overloading that term. |
+| Target object identity | Provider options often use `id` for backend/provider spec and optional `label` for display or matching. | Target objects use stable `id` for target identity, `provider` for backend kind, optional `runtime`, and `config` for provider settings. | Keep AgentV divergence | AgentV does not copy Promptfoo's `label`/`id` baggage because `provider` already names the backend boundary. |
+| Direct input suites | Promptfoo prompt authoring normally goes through `prompts` plus vars. | `tests[].input`, top-level `input`, `tests[].input_files`, and top-level `input_files` are direct-input conveniences. | Keep AgentV extension | Do not mix these fields with top-level `prompts`. Use `tests[].vars` with `prompts`, or remove `prompts` for a direct-input AgentV suite. |
+| Suite assertions | `assert` entries can be strings or typed assertion objects. | `assert` entries can be strings, typed assertion objects, script graders, or AgentV extension graders. | Align with Promptfoo | Plain strings become semantic rubric checks. Use `assert`, not `assertions`, in current authored eval YAML. |
+| Assertion grouping | `type: assert-set` with child `assert` entries. | `type: assert-set` with child `assert`, weights, and parent threshold. | Align with Promptfoo | `type: composite` is rejected; use `assert-set`. |
+| Deterministic assertion vocabulary | Common Promptfoo types include `contains`, `icontains`, `contains-any`, `contains-all`, `starts-with`, `regex`, `is-json`, `equals`, `latency`, `cost`, `javascript`, `python`, `webhook`, `similar`, and `llm-rubric`. | AgentV accepts the implemented overlap, including `contains`, `icontains`, `contains-any`, `contains-all`, `starts-with`, `regex`, `is-json`, `equals`, `latency`, `cost`, `javascript`, `python`, `webhook`, `similar`, and `llm-rubric`. | Align with Promptfoo | Unsupported Promptfoo assertion names error instead of silently becoming custom assertion names. |
+| Custom assertion terminology | Promptfoo calls normal eval custom logic assertions, with fixed code assertion types such as `javascript`, `python`, `ruby`, and `webhook`. | `defineAssertion()` files in `.agentv/assertions/` become reusable assertion type names. | Keep AgentV extension | AgentV keeps assertion terminology and extends discovery to arbitrary assertion type names such as `has-citation`. |
+| Script/custom grader terminology | Promptfoo custom code assertions are still assertion types. | `defineScriptGrader()` powers command-backed graders referenced with `type: script` and `command:`. | Keep AgentV divergence | Use script grader wording only for command-backed or LLM-backed scoring components that need explicit score and assertion-result control. |
+| Tool and trace assertions | Promptfoo includes `trajectory:tool-used`, `trajectory:tool-sequence`, `trajectory:tool-args-match`, `trajectory:step-count`, `trajectory:goal-success`, `tool-call-f1`, `skill-used`, `trace-span-count`, `trace-span-duration`, and `trace-error-spans`. | AgentV rejects those names until their semantics are implemented directly. | Defer/future-scope | These names are not aliases for AgentV's `tool-trajectory` grader. |
+| Tool trajectory grader | No direct Promptfoo alias for AgentV-normalized transcript semantics. | `type: tool-trajectory`. | Keep AgentV extension | This is AgentV-specific and operates over AgentV-normalized transcripts and trace summaries. |
+| Repo-native workspace fields | Promptfoo normal evals do not own AgentV workspace materialization. | `workspace`, `workspace.repos`, `workspace.scope`, `workspace.docker`, `extensions`, and per-test `workspace`. | Keep AgentV extension | AgentV evaluates real repositories and agent workspaces, so workspace provenance is first-class authored config. |
+| Run artifacts and inspection | Promptfoo owns its own result viewer and output formats. | AgentV writes `.agentv/results/<run_id>/` bundles with `summary.json`, `.internal/index.jsonl`, sidecars, and local Dashboard support. | Keep AgentV extension | AgentV-owned bundles are the source of truth for compare, Dashboard, CI, and adapters. Phoenix is link-out correlation only through safe external trace metadata. |
+| Compare command | Promptfoo has its own result comparison surfaces. | `agentv results compare <baseline-index.jsonl> <candidate-index.jsonl>`. | Keep AgentV extension | Compare consumes completed AgentV run indexes such as `.agentv/results/<run_id>/.internal/index.jsonl`. |
+| CLI runtime filters | Promptfoo exposes filters such as prompt/provider/test subset flags. | AgentV supports its current CLI filters and selection fields; full Promptfoo runtime-filter parity is future work. | Defer/future-scope | Prefer authored `select`/`imports` or current AgentV CLI flags until runtime-filter parity lands. |
+| Wire-format casing | Promptfoo config uses camelCase fields such as `defaultTest` and `evaluateOptions`. | AgentV YAML, JSONL, artifacts, and CLI JSON use `snake_case`; internal TypeScript uses `camelCase`. | Keep AgentV divergence | Translate only at process boundaries. New public wire fields should be `snake_case`. |
+| Hard-rejected stale AgentV fields | Not applicable to Promptfoo. | Removed AgentV-era fields such as top-level `execution`, `execution.target`, `execution.targets`, top-level `budget_usd`, top-level `repeat`/`runs`, and `composite` are rejected. | Keep AgentV divergence | Use top-level `target`/`targets`, `evaluate_options`, `evaluate_options.repeat`, and `assert-set`. Migration guidance lives in the eval migration skill reference. |
+
+## Canonical Prompt-Compatible Shape
+
+```yaml
+description: Release-note summarization
+target: local-mini
+
+prompts:
+  - id: direct
+    label: Direct
+    prompt: "Summarize {{ topic }} for {{ audience }}."
+
+default_test:
+  vars:
+    audience: engineers
+
+evaluate_options:
+  max_concurrency: 2
+
+tests:
+  - id: release-notes
+    vars:
+      topic: the July release notes
+    expected_output: concise release-note summary
+    assert:
+      - Identifies the most important change
+      - type: assert-set
+        metric: release_gate
+        threshold: 0.8
+        assert:
+          - type: contains
+            value: July
+          - type: llm-rubric
+            value: The answer is concise and accurate.
+```
+
+## Canonical AgentV Extension Shape
+
+```yaml
+description: Repo-native direct task suite
+target:
+  id: codex-local
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+
+workspace:
+  repos:
+    - path: ./app
+      repo: acme/support-app
+      commit: main
+  scope: attempt
+
+input_files:
+  - ./instructions.md
+
+tests:
+  - id: refund-policy
+    input: Update the refund policy handler.
+    expected_output: The handler supports the damaged-item exception.
+    assert:
+      - type: tool-trajectory
+        mode: any_order
+        minimums:
+          shell: 1
+      - type: script
+        command: [bun, run, graders/check-refund-policy.ts]
+```

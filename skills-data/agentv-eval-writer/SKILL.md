@@ -13,6 +13,7 @@ description: >-
 # AgentV Eval Writer
 
 Comprehensive docs: https://agentv.dev
+Promptfoo parity matrix: https://agentv.dev/docs/reference/promptfoo-parity/
 
 ## Authoring Principle
 
