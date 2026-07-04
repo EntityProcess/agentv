@@ -22,7 +22,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - label: openrouter-target
+  - id: openrouter-target
     provider: openrouter
     api_key: \${{ OPENROUTER_API_KEY }}
     model: openai/gpt-5-mini
@@ -40,13 +40,12 @@ describe('validateTargetsFile', () => {
     ).toBe(false);
   });
 
-  it('accepts promptfoo-shaped id, label, and config fields', async () => {
+  it('accepts id identity and config fields', async () => {
     const filePath = path.join(tempDir, 'promptfoo-shaped-target.yaml');
     await writeFile(
       filePath,
       `targets:
-  - label: candidate-agent
-    id: openai:gpt-5-codex
+  - id: candidate-agent
     provider: codex-cli
     config:
       command: ["codex"]
@@ -58,12 +57,12 @@ describe('validateTargetsFile', () => {
     grader_target: grader
     fallback_targets: [backup-agent]
     batch_requests: true
-  - label: grader
+  - id: grader
     provider: openai
     config:
       api_key: \${{ OPENAI_API_KEY }}
       model: gpt-5-mini
-  - label: backup-agent
+  - id: backup-agent
     provider: mock
     config:
       response: backup
@@ -100,7 +99,7 @@ describe('validateTargetsFile', () => {
     ).toBe(true);
   });
 
-  it('rejects authored target name in favor of label', async () => {
+  it('rejects authored target name in favor of id', async () => {
     const filePath = path.join(tempDir, 'legacy-name-target.yaml');
     await writeFile(
       filePath,
@@ -117,8 +116,8 @@ describe('validateTargetsFile', () => {
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].label' &&
-          error.message.includes("Missing or invalid 'label' field"),
+          error.location === 'targets[0].id' &&
+          error.message.includes("Missing or invalid 'id' field"),
       ),
     ).toBe(true);
     expect(
@@ -126,7 +125,7 @@ describe('validateTargetsFile', () => {
         (error) =>
           error.severity === 'error' &&
           error.location === 'targets[0].name' &&
-          error.message.includes("Use 'label'"),
+          error.message.includes("Use 'id'"),
       ),
     ).toBe(true);
   });
@@ -234,7 +233,7 @@ targets:
     await writeFile(
       filePath,
       `targets:
-  - label: codex-target
+  - id: codex-target
     provider: codex-cli
     command: ["codex"]
     timeoutSeconds: 30
@@ -300,7 +299,7 @@ targets:
     await writeFile(
       filePath,
       `targets:
-  - label: codex-target
+  - id: codex-target
     provider: codex-cli
     command: ["codex"]
     model: \${{ CODEX_MODEL }}
@@ -318,7 +317,7 @@ targets:
     await writeFile(
       filePath,
       `targets:
-  - label: copilot-sdk-custom-provider
+  - id: copilot-sdk-custom-provider
     provider: copilot-sdk
     model: gpt-5
     subprovider: openai
@@ -327,7 +326,7 @@ targets:
     api_format: responses
     model_id: gpt-5
     wire_model: \${{ OPENAI_MODEL }}
-  - label: copilot-cli-custom-provider
+  - id: copilot-cli-custom-provider
     provider: copilot-cli
     subprovider: openai
     base_url: \${{ OPENAI_ENDPOINT }}
@@ -347,7 +346,7 @@ targets:
     await writeFile(
       filePath,
       `targets:
-  - label: codex-local-openai
+  - id: codex-local-openai
     provider: codex-cli
     command: ["codex"]
     model: \${{ CODEX_MODEL }}
@@ -414,11 +413,11 @@ targets:
     await writeFile(
       filePath,
       `targets:
-  - label: default
+  - id: default
     use_target: \${{ AGENT_TARGET }}
-  - label: grader
+  - id: grader
     use_target: \${{ GRADER_TARGET }}
-  - label: codex-agent
+  - id: codex-agent
     provider: codex-cli
     command: ["codex"]
     grader_target: grader
@@ -550,7 +549,7 @@ targets:
     await writeFile(
       filePath,
       `targets:
-  - label: replay-execution-trace
+  - id: replay-execution-trace
     provider: replay
     execution_traces: ./fixtures/execution-traces.jsonl
     source_target: live-agent

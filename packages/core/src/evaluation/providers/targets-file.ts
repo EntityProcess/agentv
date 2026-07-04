@@ -24,25 +24,29 @@ function assertTargetDefinition(value: unknown, index: number, filePath: string)
     throw new Error(`targets.yaml entry at index ${index} in ${filePath} must be an object`);
   }
 
-  const label = value.label;
+  const id = value.id;
   const provider = value.provider;
 
-  if (typeof label !== 'string' || label.trim().length === 0) {
-    throw new Error(
-      `targets.yaml entry at index ${index} in ${filePath} is missing a valid 'label'`,
-    );
+  if (typeof id !== 'string' || id.trim().length === 0) {
+    throw new Error(`targets.yaml entry at index ${index} in ${filePath} is missing a valid 'id'`);
   }
 
   if (typeof value.name === 'string' && value.name.trim().length > 0) {
     throw new Error(
-      `targets.yaml entry '${label}' in ${filePath} uses removed field 'name'. Use 'label' for the AgentV target name.`,
+      `targets.yaml entry '${id}' in ${filePath} uses removed field 'name'. Use 'id' for the AgentV target name.`,
+    );
+  }
+
+  if (typeof value.label === 'string' && value.label.trim().length > 0) {
+    throw new Error(
+      `targets.yaml entry '${id}' in ${filePath} uses removed field 'label'. Use 'id' for the AgentV target name.`,
     );
   }
 
   const hasUseTarget = typeof value.use_target === 'string' && value.use_target.trim().length > 0;
   if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
     throw new Error(
-      `targets.yaml entry '${label}' in ${filePath} is missing a valid 'provider' (or use use_target for delegation)`,
+      `targets.yaml entry '${id}' in ${filePath} is missing a valid 'provider' (or use use_target for delegation)`,
     );
   }
 

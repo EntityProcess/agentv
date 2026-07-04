@@ -440,15 +440,16 @@ export function extractTargetFromSuite(suite: JsonObject): string | undefined {
     return targetValue.trim();
   }
   if (isJsonObject(targetValue)) {
-    const label = targetValue.label;
+    const id = targetValue.id;
     const extendsTarget = targetValue.extends;
     if (typeof targetValue.name === 'string' && targetValue.name.trim().length > 0) {
-      throw new Error(
-        "Top-level target object field 'name' has been removed. Use 'label' instead.",
-      );
+      throw new Error("Top-level target object field 'name' has been removed. Use 'id' instead.");
     }
-    if (typeof label === 'string' && label.trim().length > 0) {
-      return label.trim();
+    if (typeof targetValue.label === 'string' && targetValue.label.trim().length > 0) {
+      throw new Error("Top-level target object field 'label' has been removed. Use 'id' instead.");
+    }
+    if (typeof id === 'string' && id.trim().length > 0) {
+      return id.trim();
     }
     if (typeof extendsTarget === 'string' && extendsTarget.trim().length > 0) {
       return extendsTarget.trim();
@@ -495,9 +496,7 @@ function parseEvalTargetRef(raw: unknown, location: string): EvalTargetRef {
     throw new Error(`Invalid ${location}: use a target label string or target object.`);
   }
   if (typeof raw.name === 'string' && raw.name.trim().length > 0) {
-    throw new Error(
-      `Invalid ${location}: target field 'name' has been removed. Use 'label' instead.`,
-    );
+    throw new Error(`Invalid ${location}: target field 'name' has been removed. Use 'id' instead.`);
   }
 
   const rawLabel = raw.label;
@@ -512,19 +511,22 @@ function parseEvalTargetRef(raw: unknown, location: string): EvalTargetRef {
   const legacyTargetName =
     typeof legacyName === 'string' && legacyName.trim().length > 0 ? legacyName.trim() : undefined;
   if (legacyName !== undefined) {
+    throw new Error(`Invalid ${location}: target field 'name' has been removed. Use 'id' instead.`);
+  }
+  if (label !== undefined) {
     throw new Error(
-      `Invalid ${location}: target field 'name' has been removed. Use 'id' and 'label' instead.`,
+      `Invalid ${location}: target field 'label' has been removed. Use 'id' instead.`,
     );
   }
 
   const hooks = parseTargetHooks(raw.hooks);
   const hasInlineDefinition = typeof raw.provider === 'string' || useTargetName !== undefined;
-  if (hasInlineDefinition && !label) {
-    throw new Error(`Invalid ${location}: target object requires a 'label' field.`);
+  if (hasInlineDefinition && !id) {
+    throw new Error(`Invalid ${location}: target object requires an 'id' field.`);
   }
-  const name = hasInlineDefinition ? label : (id ?? legacyTargetName ?? label);
+  const name = id ?? legacyTargetName;
   if (!name) {
-    throw new Error(`Invalid ${location}: target object requires an 'id' or 'label' field.`);
+    throw new Error(`Invalid ${location}: target object requires an 'id' field.`);
   }
   const definition = hasInlineDefinition
     ? (normalizeTargetDefinition(
@@ -535,7 +537,6 @@ function parseEvalTargetRef(raw: unknown, location: string): EvalTargetRef {
   return {
     name,
     ...(id !== undefined ? { id } : {}),
-    ...(label !== undefined ? { label } : {}),
     ...(useTargetName !== undefined ? { use_target: useTargetName } : {}),
     ...(definition ? { definition } : {}),
     ...(hooks !== undefined ? { hooks } : {}),

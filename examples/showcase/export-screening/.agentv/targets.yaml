@@ -5,6 +5,6 @@
 targets:
   # Mock target for testing eval flow without LLM calls
   # Default: returns High risk - customize to test other scenarios
-  - label: default
+  - id: default
     provider: mock
     response: '{"riskLevel": "High", "reasoning": "Mock response for testing"}'

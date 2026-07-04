@@ -1,7 +1,7 @@
 targets:
   # Mock agent that adds a subtract function to calculator.ts.
   # Each test gets a fresh copy of workspace-template/ as its CWD.
-  - label: mock_agent
+  - id: mock_agent
     provider: cli
     command: >-
       bash -c '
@@ -11,6 +11,6 @@ targets:
     grader_target: grader
 
   # Copilot CLI — used as delegated llm-grader target
-  - label: copilot_grader
+  - id: copilot_grader
     provider: copilot-cli
     model: claude-haiku-4.5

@@ -239,8 +239,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '    label: Terse',
         '    prompt: "In one sentence, summarize {{ topic }}."',
         'targets:',
-        '  - id: openai:gpt-5.4-mini',
-        '    label: mini',
+        '  - id: mini',
         '  - id: local-codex',
         'tests:',
         '  - id: docs',
@@ -266,9 +265,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       'Summarize release notes.',
       'In one sentence, summarize release notes.',
     ]);
-    expect(suite.targets).toEqual(['openai:gpt-5.4-mini', 'local-codex']);
+    expect(suite.targets).toEqual(['mini', 'local-codex']);
     expect(suite.targetRefs).toEqual([
-      { name: 'openai:gpt-5.4-mini', id: 'openai:gpt-5.4-mini', label: 'mini' },
+      { name: 'mini', id: 'mini' },
       { name: 'local-codex', id: 'local-codex' },
     ]);
   });

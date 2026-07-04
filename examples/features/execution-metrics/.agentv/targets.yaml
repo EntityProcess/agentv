@@ -1,12 +1,12 @@
 targets:
-  - label: azure-llm
+  - id: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
-  - label: mock_metrics_agent
+  - id: mock_metrics_agent
     provider: cli
     grader_target: azure-llm
     command: bun run ./mock-metrics-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}

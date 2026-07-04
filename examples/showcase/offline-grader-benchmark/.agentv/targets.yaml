@@ -1,5 +1,5 @@
 targets:
-  - label: fixture_replay
+  - id: fixture_replay
     provider: cli
     command: bun run ./scripts/replay-fixture-output.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..

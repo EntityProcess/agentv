@@ -305,7 +305,7 @@ tags:
 prompts:
   - raw: "Review {{ vars.diff }}"
 targets:
-  - label: local-agent
+  - id: local-agent
     provider: codex-cli
     command: ["codex"]
 default_test:

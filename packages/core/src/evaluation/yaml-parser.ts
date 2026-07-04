@@ -2261,18 +2261,21 @@ function parseEvalTargetSpec(rawTarget: JsonValue | undefined): EvalTargetSpec |
     throw new Error("Invalid top-level 'target': use a target name or target object.");
   }
   if (typeof rawTarget.name === 'string' && rawTarget.name.trim().length > 0) {
+    throw new Error("Invalid top-level 'target': field 'name' has been removed. Use 'id' instead.");
+  }
+  if (typeof rawTarget.label === 'string' && rawTarget.label.trim().length > 0) {
     throw new Error(
-      "Invalid top-level 'target': field 'name' has been removed. Use 'label' instead.",
+      "Invalid top-level 'target': field 'label' has been removed. Use 'id' instead.",
     );
   }
 
   const rawExtends = rawTarget.extends;
   const extendsTarget =
     typeof rawExtends === 'string' && rawExtends.trim().length > 0 ? rawExtends.trim() : undefined;
-  const rawLabel = rawTarget.label;
+  const rawId = rawTarget.id;
   const name =
-    typeof rawLabel === 'string' && rawLabel.trim().length > 0
-      ? rawLabel.trim()
+    typeof rawId === 'string' && rawId.trim().length > 0
+      ? rawId.trim()
       : (extendsTarget ?? 'eval-local-target');
   const hooks = parseTargetHooks(rawTarget.hooks);
   const definitionEntries = Object.entries(rawTarget).filter(
