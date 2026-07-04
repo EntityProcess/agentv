@@ -204,7 +204,7 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
   const canLaunch = !!(suiteFilter.trim() || testIds.length > 0);
 
   return (
-    <ModalShell onClose={onClose} title="Run Eval">
+    <ModalShell onClose={onClose} title="Start">
       <div className="space-y-4">
         {/* Suite filter */}
         <div>
@@ -413,7 +413,7 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
             disabled={!canLaunch || launching}
             className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-50"
           >
-            {launching ? 'Launching…' : 'Run Now'}
+            {launching ? 'Launching…' : 'Start'}
           </button>
         </div>
       </div>
