@@ -1,0 +1,19 @@
+{
+  "score": 0,
+  "verdict": "fail",
+  "assertion_results": [
+    {
+      "text": "Error: copilot-sdk child runner exit: exit code 1",
+      "passed": false,
+      "evidence": "",
+      "score": 0,
+      "verdict": "fail"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1,
+    "pass_rate": 0
+  }
+}

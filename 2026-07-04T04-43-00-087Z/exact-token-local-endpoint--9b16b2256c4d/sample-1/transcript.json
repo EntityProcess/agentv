@@ -1,0 +1,55 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "copilot-sdk-local-openai",
+  "target": "copilot-sdk-local-openai",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "copilot-sdk child runner exit: exit code 1"
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "copilot-sdk-local-openai",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Reply with exactly this token and no extra words: AGENTV_TRANSCRIPT_PARITY_OK"
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "copilot-sdk-local-openai",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Error occurred: copilot-sdk child runner exit: exit code 1"
+        }
+      ]
+    }
+  ]
+}

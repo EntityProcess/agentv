@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-2e1a3ff7cc651de98755",
+  "generated_at": "2026-07-04T04:43:03.569Z",
+  "test_id": "exact-token-local-endpoint",
+  "target": "copilot-sdk-local-openai",
+  "suite": "provider-followup",
+  "category": ".agentv/cache/av-7yhs/provider-followup",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-2e1a3ff7cc651de98755",
+    "trace_id": "5e00b262c617f3c71ec8a83f56dd9262",
+    "root_span_id": "5d4604cfd9b8c7a0"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "copilot-sdk child runner exit: exit code 1",
+        "stage": "agent"
+      },
+      {
+        "message": "copilot-sdk child runner exit: exit code 1",
+        "event_id": "error"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 58,
+    "transcript_chars": 922,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

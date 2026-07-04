@@ -1,0 +1,16 @@
+target: copilot-sdk-local-openai
+tests:
+  - id: exact-token-local-endpoint
+    input: "Reply with exactly this token and no extra words: AGENTV_TRANSCRIPT_PARITY_OK"
+    assert:
+      - metric: contains-AGENTV_TRANSCRIPT_PARITY_OK
+        type: contains
+        value: AGENTV_TRANSCRIPT_PARITY_OK
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        rubrics:
+          - id: rubric-1
+            outcome: The response contains the exact token AGENTV_TRANSCRIPT_PARITY_OK.
+            weight: 1
+            required: true
