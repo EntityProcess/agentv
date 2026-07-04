@@ -1,0 +1,17 @@
+target: proxy-llm
+tests:
+  - id: live-assert-set-parity
+    assert:
+      - metric: live_assert_set
+        type: assert-set
+        assertions:
+          - name: deterministic_child
+            type: contains
+            value: Paris
+            weight: 2
+          - name: live_rubric_child
+            type: llm-rubric
+            prompt: undefined
+            value: The answer correctly identifies Paris as the capital of France.
+            weight: 1
+        threshold: 0.5

@@ -1,0 +1,91 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Output contains \"Paris\"",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Identified the capital of France as Paris",
+      "passed": true,
+      "evidence": "The answer states: \"The capital of France is Paris.\"",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "live_assert_set",
+      "type": "assert-set",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Output contains \"Paris\"",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Identified the capital of France as Paris",
+          "passed": true,
+          "evidence": "The answer states: \"The capital of France is Paris.\"",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ],
+      "details": {
+        "threshold": 0.5
+      },
+      "scores": [
+        {
+          "name": "deterministic_child",
+          "type": "contains",
+          "score": 1,
+          "reasoning": "",
+          "weight": 2,
+          "verdict": "pass",
+          "assertion_results": [
+            {
+              "text": "Output contains \"Paris\"",
+              "passed": true,
+              "evidence": "",
+              "score": 1,
+              "verdict": "pass"
+            }
+          ]
+        },
+        {
+          "name": "live_rubric_child",
+          "type": "llm-rubric",
+          "score": 1,
+          "reasoning": "",
+          "weight": 1,
+          "verdict": "pass",
+          "assertion_results": [
+            {
+              "text": "Identified the capital of France as Paris",
+              "passed": true,
+              "evidence": "The answer states: \"The capital of France is Paris.\"",
+              "score": 1,
+              "verdict": "pass"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

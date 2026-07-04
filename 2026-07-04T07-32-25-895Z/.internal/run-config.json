@@ -1,0 +1,7 @@
+{
+  "schema_version": "agentv.run_config.v1",
+  "experiment_config": {
+    "fingerprint": "7792c785a13a3676a791e0cb3045989632b83f464e717eb826b828fdcde73bf0",
+    "target": "proxy-llm"
+  }
+}
