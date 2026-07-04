@@ -45,8 +45,20 @@ describe('pipeline input', () => {
     expect(llmGrader.prompt_content).toBeDefined();
     expect(llmGrader.name).toBe('relevance');
 
+    const rubricGrader = JSON.parse(
+      await readFile(
+        join(OUT_DIR, 'input-test', 'test-01', 'llm_graders', 'echoes_input.json'),
+        'utf8',
+      ),
+    );
+    expect(rubricGrader.name).toBe('echoes_input');
+    expect(rubricGrader.type).toBe('llm-rubric');
+    expect(rubricGrader.value).toBe('Response echoes the input');
+
     const criteria = await readFile(join(OUT_DIR, 'input-test', 'test-01', 'criteria.md'), 'utf8');
-    expect(criteria).toContain('Response echoes the input');
+    expect(criteria).toBe('');
+    expect(input.description).toBeUndefined();
+    expect(input.metadata).toEqual({});
 
     const invoke = JSON.parse(
       await readFile(join(OUT_DIR, 'input-test', 'test-01', 'invoke.json'), 'utf8'),

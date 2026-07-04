@@ -98,6 +98,8 @@ import { loadTestSuite } from './yaml-parser.js';
 export interface EvalTestInput {
   /** Unique test identifier */
   readonly id: string;
+  /** Optional human-readable test description */
+  readonly description?: string;
   /** What the response should accomplish */
   readonly criteria?: string;
   /** Per-test prompt variables used by config.prompts templates. */
@@ -649,6 +651,7 @@ function buildInlineEvalTests(
           id: promptId ? `${test.id}__${promptId}` : test.id,
           suite: suiteName,
           category: options.category,
+          ...(test.description !== undefined ? { description: test.description } : {}),
           criteria: test.criteria ?? '',
           question: String(question),
           input,

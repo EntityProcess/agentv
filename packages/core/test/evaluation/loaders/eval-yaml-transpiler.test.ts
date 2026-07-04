@@ -13,7 +13,6 @@ const SINGLE_SKILL_SUITE = {
   tests: [
     {
       id: 'csv-top-months',
-      criteria: 'Agent finds the top 3 months by revenue',
       input: [
         {
           role: 'user',
@@ -30,6 +29,7 @@ const SINGLE_SKILL_SUITE = {
         'The top 3 months by revenue are November ($22,500), September ($20,100), and December ($19,400).',
       assert: [
         { type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: true },
+        { type: 'llm-rubric', value: 'Agent finds the top 3 months by revenue' },
         { type: 'llm-rubric', value: 'Output identifies November as the highest revenue month' },
         { type: 'contains', value: '$22,500' },
       ],
@@ -152,10 +152,56 @@ describe('transpileEvalYaml — skill-trigger', () => {
 // ---------------------------------------------------------------------------
 
 describe('transpileEvalYaml — NL assertions', () => {
-  it('prepends criteria to assertions', () => {
+  it('converts explicit llm-rubric assertions', () => {
     const { files } = transpileEvalYaml(SINGLE_SKILL_SUITE);
     const evals = files.get('csv-analyzer')?.evals;
     expect(evals[0].assertions[0]).toBe('Agent finds the top 3 months by revenue');
+  });
+
+  it('rejects test-level criteria combined with assert entries', () => {
+    expect(() =>
+      transpileEvalYaml(
+        {
+          tests: [
+            {
+              id: 'mixed',
+              criteria: 'Describe the expected behavior',
+              input: 'test',
+              assert: [{ type: 'contains', value: 'ok' }],
+            },
+          ],
+        },
+        'mixed.eval.yaml',
+      ),
+    ).toThrow(
+      "do not combine test-level 'criteria' with 'assert'. Put human-readable case descriptions in 'description'",
+    );
+  });
+
+  it('accepts description with assert entries without adding a grading assertion', () => {
+    const { files } = transpileEvalYaml({
+      tests: [
+        {
+          id: 'described',
+          description: 'Human-facing case label',
+          input: 'test',
+          assert: [{ type: 'llm-rubric', value: 'Answer clearly' }],
+        },
+      ],
+    });
+
+    const evals = files.get('_no-skill')?.evals;
+    expect(evals[0].assertions).toEqual(['Answer clearly']);
+    expect(evals[0].assertions).not.toContain('Human-facing case label');
+  });
+
+  it('keeps legacy criteria-only tests as natural-language assertions', () => {
+    const { files } = transpileEvalYaml({
+      tests: [{ id: 'legacy', criteria: 'Answer clearly', input: 'test' }],
+    });
+
+    const evals = files.get('_no-skill')?.evals;
+    expect(evals[0].assertions).toEqual(['Answer clearly']);
   });
 
   it('converts rubrics type to criteria string', () => {

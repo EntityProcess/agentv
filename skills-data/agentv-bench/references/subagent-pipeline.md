@@ -136,8 +136,8 @@ agentv results validate <run-dir>
 
 ## LLM Grading JSON Format
 
-The agent reads `llm_graders/<name>.json` for each test, grades the response using the prompt
-content, and produces a scores JSON:
+The agent reads `llm_graders/<name>.json` for each test, grades the response using
+`value`, `rubrics`, or prompt content from the config, and produces a scores JSON:
 
 ```json
 {
@@ -175,7 +175,7 @@ the eval.yaml. The target is recorded in `manifest.json` — one run = one targe
         ├── response.md              ← target/agent output
         ├── timing.json              ← execution timing
         ├── script_graders/<name>.json     ← grader configs written by `pipeline input`: script-grader scripts AND built-in types (contains, regex, equals, etc.)
-        ├── llm_graders/<name>.json      ← LLM grader configs
+        ├── llm_graders/<name>.json      ← LLM grader configs with prompt_content, value, or rubrics
         ├── script_grader_results/<name>.json  ← script grader results
         ├── llm_grader_results/<name>.json   ← LLM grader results (written by grader subagents; one file per grader)
         └── grading.json              ← merged grading (written by `pipeline bench` — do NOT write here directly)

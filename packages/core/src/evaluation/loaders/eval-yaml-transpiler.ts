@@ -384,6 +384,16 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     const rawCase = tests[idx];
     const caseAssertions = rawCase.assert ?? [];
 
+    if (
+      typeof rawCase.criteria === 'string' &&
+      rawCase.criteria.trim() &&
+      rawCase.assert !== undefined
+    ) {
+      throw new Error(
+        `Invalid EVAL.yaml test '${rawCase.id ?? idx + 1}' in '${source}': do not combine test-level 'criteria' with 'assert'. Put human-readable case descriptions in 'description', or express grading text as an explicit assertion such as { type: 'llm-rubric', value: ... }.`,
+      );
+    }
+
     // Collect NL assertions (not skill-trigger)
     const nlAssertions: string[] = [];
 

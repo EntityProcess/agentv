@@ -592,6 +592,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         location: `${location}.criteria`,
         message: "Invalid 'criteria' field (must be a non-empty string if provided)",
       });
+    } else if (criteria !== undefined && evalCase.assert !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.criteria`,
+        message:
+          "Do not combine test-level 'criteria' with 'assert'. Put human-readable case descriptions in tests[].description, or express grading text as an explicit assertion such as { type: 'llm-rubric', value: ... }.",
+      });
     }
 
     // input field (string/object shorthand or message array). When omitted,
