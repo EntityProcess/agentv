@@ -556,6 +556,11 @@ async function parseGraderList(
         `Grader '${name}' in '${evalId}': postprocess has been removed. Use transform instead.`,
       );
     }
+    if (rawEvaluator.preprocessors !== undefined) {
+      throw new Error(
+        `Grader '${name}' in '${evalId}': preprocessors has been removed from authored eval YAML. Use transform instead.`,
+      );
+    }
     const transform = await parseTransformSpec(
       rawEvaluator.transform as JsonValue | undefined,
       searchRoots,

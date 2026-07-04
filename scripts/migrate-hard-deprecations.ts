@@ -4,8 +4,17 @@ import { parse, stringify } from 'yaml';
 
 type JsonObject = Record<string, unknown>;
 
-const ROOTS = ['examples', 'evals', 'apps/cli/test/commands/eval/pipeline/fixtures'];
+const ROOTS = [
+  'examples',
+  'evals',
+  'apps/cli/src/templates',
+  'apps/cli/test/commands/eval/pipeline/fixtures',
+];
 const INPUT_PROMPT = '{{ input }}';
+const LEGACY_ENV_PATTERN = /\$\{\{\s*([A-Z_][A-Z0-9_]*)\s*\}\}/g;
+const PREPROCESSOR_MEDIA_TYPES: Readonly<Record<string, readonly string[]>> = {
+  xlsx: ['xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx'],
+};
 const TEST_TS_FILES = [
   'apps/cli/test/commands/eval/artifact-writer.test.ts',
   'apps/cli/test/commands/eval/bundle.test.ts',
@@ -14,17 +23,16 @@ const TEST_TS_FILES = [
   'apps/cli/test/commands/eval/task-bundle.test.ts',
   'apps/cli/test/commands/grade/grade-prepared.test.ts',
   'apps/cli/test/commands/prepare/prepare.test.ts',
+  'apps/cli/test/commands/runs/rerun.test.ts',
   'apps/cli/test/commands/workspace/deps.test.ts',
   'apps/cli/test/eval.integration.test.ts',
   'packages/core/test/evaluation/conversation-mode.test.ts',
   'packages/core/test/evaluation/criteria-optional.test.ts',
   'packages/core/test/evaluation/extensions.test.ts',
   'packages/core/test/evaluation/interpolation-integration.test.ts',
-  'packages/core/test/evaluation/preprocessors-yaml.test.ts',
   'packages/core/test/evaluation/repo-schema-validation.test.ts',
   'packages/core/test/evaluation/rubric-operators-yaml.test.ts',
   'packages/core/test/evaluation/source-traceability.test.ts',
-  'packages/core/test/evaluation/workspace-config-parsing.test.ts',
   'packages/core/test/evaluation/yaml-parser-tags-map.test.ts',
   'packages/core/test/evaluation/loaders/ts-eval-loader.test.ts',
   'packages/core/test/evaluation/loaders/case-file-loader.test.ts',
@@ -42,7 +50,7 @@ function walk(dir: string, files: string[] = []): string[] {
     const fullPath = path.join(dir, entry);
     const stat = statSync(fullPath);
     if (stat.isDirectory()) {
-      if (!['node_modules', 'dist', '.agentv', '.beads'].includes(entry)) {
+      if (!['node_modules', 'dist', '.beads'].includes(entry)) {
         walk(fullPath, files);
       }
     } else if (/\.(ya?ml)$/i.test(entry)) {
@@ -54,6 +62,221 @@ function walk(dir: string, files: string[] = []): string[] {
 
 function clone<T>(value: T): T {
   return value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
+}
+
+function migrateLegacyEnvReference(value: string): string {
+  return value.replace(LEGACY_ENV_PATTERN, (_match, name: string) => `{{ env.${name} }}`);
+}
+
+function setNestedObjectValue(parent: JsonObject, key: string, value: unknown): void {
+  const child = isObject(parent[key]) ? parent[key] : {};
+  parent[key] = child;
+  Object.assign(child, value);
+}
+
+function migrateExecutionConcurrency(suite: JsonObject): boolean {
+  if (!isObject(suite.execution)) return false;
+
+  const execution = suite.execution;
+  const concurrency = execution.max_concurrency ?? execution.workers;
+  let changed = false;
+  if (concurrency !== undefined) {
+    const evaluateOptions = isObject(suite.evaluate_options) ? suite.evaluate_options : {};
+    if (evaluateOptions.max_concurrency === undefined) {
+      evaluateOptions.max_concurrency = clone(concurrency);
+      suite.evaluate_options = evaluateOptions;
+    }
+    Reflect.deleteProperty(execution, 'max_concurrency');
+    Reflect.deleteProperty(execution, 'workers');
+    changed = true;
+  }
+
+  if (Object.keys(execution).length === 0) {
+    Reflect.deleteProperty(suite, 'execution');
+    changed = true;
+  }
+  return changed;
+}
+
+function transformWrapperForPreprocessors(preprocessors: unknown): string | undefined {
+  if (!Array.isArray(preprocessors) || preprocessors.length !== 1) return undefined;
+  const preprocessor = preprocessors[0];
+  if (!isObject(preprocessor)) return undefined;
+  const rawType = typeof preprocessor.type === 'string' ? preprocessor.type : undefined;
+  const rawCommand = preprocessor.command;
+  const command =
+    typeof rawCommand === 'string'
+      ? [rawCommand]
+      : Array.isArray(rawCommand) && rawCommand.every((entry) => typeof entry === 'string')
+        ? rawCommand
+        : undefined;
+  if (!rawType || !command || command.length === 0) return undefined;
+
+  const matchers = PREPROCESSOR_MEDIA_TYPES[rawType] ?? [rawType];
+  const commandLiteral = JSON.stringify(command);
+  const matcherLiteral = JSON.stringify(matchers);
+  return `return (() => {
+  const content = Array.isArray(output) ? output : [];
+  const matchers = ${matcherLiteral};
+  const file = content.find((block) => {
+    if (!block || block.type !== "file") return false;
+    const mediaType = typeof block.media_type === "string" ? block.media_type : "";
+    const filePath = typeof block.path === "string" ? block.path : "";
+    return matchers.some((matcher) => mediaType === matcher || filePath.endsWith(matcher));
+  });
+  if (!file || typeof file.path !== "string") return output;
+  const result = Bun.spawnSync(${commandLiteral}, {
+    stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
+  });
+  if (result.exitCode !== 0) {
+    throw new Error(new TextDecoder().decode(result.stderr).trim() || "preprocessor command failed");
+  }
+  return new TextDecoder().decode(result.stdout).trim();
+})()`;
+}
+
+function migrateOptionsPostprocess(options: unknown): boolean {
+  if (!isObject(options) || options.postprocess === undefined) return false;
+  if (options.transform === undefined) {
+    options.transform = clone(options.postprocess);
+  }
+  Reflect.deleteProperty(options, 'postprocess');
+  return true;
+}
+
+function migrateAssertionTransform(assertion: JsonObject): boolean {
+  let changed = false;
+  if (assertion.postprocess !== undefined) {
+    if (assertion.transform === undefined) {
+      assertion.transform = clone(assertion.postprocess);
+    }
+    Reflect.deleteProperty(assertion, 'postprocess');
+    changed = true;
+  }
+  if (assertion.preprocessors !== undefined) {
+    const transform = transformWrapperForPreprocessors(assertion.preprocessors);
+    if (transform && assertion.transform === undefined) {
+      assertion.transform = transform;
+    }
+    Reflect.deleteProperty(assertion, 'preprocessors');
+    changed = true;
+  }
+  return changed;
+}
+
+function migrateAssertions(assertions: unknown): boolean {
+  if (!Array.isArray(assertions)) return false;
+  return assertions
+    .filter(isObject)
+    .map((assertion) => {
+      const nested = migrateAssertions(assertion.assert);
+      return migrateAssertionTransform(assertion) || nested;
+    })
+    .some(Boolean);
+}
+
+function migrateSuitePreprocessors(suite: JsonObject): boolean {
+  if (suite.preprocessors === undefined) return false;
+  const transform = transformWrapperForPreprocessors(suite.preprocessors);
+  if (transform) {
+    const defaultTest = isObject(suite.default_test) ? suite.default_test : {};
+    suite.default_test = defaultTest;
+    setNestedObjectValue(defaultTest, 'options', {
+      ...(isObject(defaultTest.options) ? defaultTest.options : {}),
+      ...(isObject(defaultTest.options) && defaultTest.options.transform !== undefined
+        ? {}
+        : { transform }),
+    });
+  }
+  Reflect.deleteProperty(suite, 'preprocessors');
+  return true;
+}
+
+function migrateWorkspace(workspace: unknown): boolean {
+  if (!isObject(workspace)) return false;
+  if (workspace.isolation === undefined && workspace.mode === undefined) return false;
+
+  const raw = workspace.isolation ?? workspace.mode;
+  if (workspace.scope === undefined) {
+    if (raw === 'shared' || raw === 'suite') {
+      workspace.scope = 'suite';
+    } else if (raw === 'per_case' || raw === 'per_test' || raw === 'attempt' || raw === 'fresh') {
+      workspace.scope = 'attempt';
+    }
+  }
+  Reflect.deleteProperty(workspace, 'isolation');
+  Reflect.deleteProperty(workspace, 'mode');
+  return true;
+}
+
+function migrateDeprecatedArtifactKeys(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.map(migrateDeprecatedArtifactKeys).some(Boolean);
+  }
+  if (!isObject(value)) return false;
+
+  let changed = false;
+  for (const nested of Object.values(value)) {
+    changed = migrateDeprecatedArtifactKeys(nested) || changed;
+  }
+  if (Object.hasOwn(value, 'timing_path')) {
+    if (value.metrics_path === undefined) {
+      value.metrics_path =
+        typeof value.timing_path === 'string'
+          ? value.timing_path.replace(/timing\.json/g, 'metrics.json')
+          : clone(value.timing_path);
+    }
+    Reflect.deleteProperty(value, 'timing_path');
+    changed = true;
+  }
+  if (Object.hasOwn(value, 'manifest_path')) {
+    if (value.index_path === undefined) {
+      value.index_path = migrateManifestPathToIndexPath(value.manifest_path);
+    }
+    Reflect.deleteProperty(value, 'manifest_path');
+    changed = true;
+  }
+  return changed;
+}
+
+function migrateManifestPathToIndexPath(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return clone(value);
+  }
+  return value.replace(/manifest\.jsonl?$/i, 'index.jsonl');
+}
+
+function migrateLegacyEnvReferences(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry, index) => {
+        if (typeof entry === 'string') {
+          const next = migrateLegacyEnvReference(entry);
+          if (next !== entry) {
+            value[index] = next;
+            return true;
+          }
+          return false;
+        }
+        return migrateLegacyEnvReferences(entry);
+      })
+      .some(Boolean);
+  }
+  if (!isObject(value)) return false;
+
+  let changed = false;
+  for (const [key, nested] of Object.entries(value)) {
+    if (typeof nested === 'string') {
+      const next = migrateLegacyEnvReference(nested);
+      if (next !== nested) {
+        value[key] = next;
+        changed = true;
+      }
+    } else {
+      changed = migrateLegacyEnvReferences(nested) || changed;
+    }
+  }
+  return changed;
 }
 
 function inputFilesToMessage(
@@ -245,10 +468,22 @@ function migrateYamlValue(
 
   if (!isObject(value)) return false;
 
+  let changed = false;
+  changed = migrateLegacyEnvReferences(value) || changed;
+  changed = migrateDeprecatedArtifactKeys(value) || changed;
+  changed = migrateExecutionConcurrency(value) || changed;
+  changed = migrateWorkspace(value.workspace) || changed;
+  changed =
+    migrateOptionsPostprocess(
+      isObject(value.default_test) ? value.default_test.options : undefined,
+    ) || changed;
+  changed = migrateSuitePreprocessors(value) || changed;
+  changed = migrateAssertions(value.assert) || changed;
+
   const isSuiteLike =
     value.tests !== undefined || value.eval_cases !== undefined || value.imports !== undefined;
   if (!isSuiteLike && inheritedSuiteInput === undefined) {
-    return false;
+    return changed;
   }
 
   const hasSuiteInput = Object.hasOwn(value, 'input') || Object.hasOwn(value, 'input_files');
@@ -256,11 +491,13 @@ function migrateYamlValue(
     ? inputFilesToMessage(value.input_files, value.input, fileDir)
     : inheritedSuiteInput;
 
-  let changed = false;
   const rawTests = value.tests ?? value.eval_cases;
   if (Array.isArray(rawTests)) {
     for (const entry of rawTests) {
       if (isObject(entry) && !Object.hasOwn(entry, 'include')) {
+        changed = migrateWorkspace(entry.workspace) || changed;
+        changed = migrateOptionsPostprocess(entry.options) || changed;
+        changed = migrateAssertions(entry.assert) || changed;
         changed = migrateCase(entry, fileDir, suiteInput) || changed;
       }
     }
@@ -295,8 +532,20 @@ function migrateYamlFile(filePath: string, inheritedSuiteInput?: unknown): boole
 }
 
 function migrateYamlSnippet(source: string, filePath: string): string | undefined {
-  if (!source.includes('input:') && !source.includes('input_files:')) return undefined;
-  if (source.includes('${')) return undefined;
+  if (
+    !source.includes('input:') &&
+    !source.includes('input_files:') &&
+    !source.includes('${{') &&
+    !source.includes('execution:') &&
+    !source.includes('preprocessors:') &&
+    !source.includes('postprocess:') &&
+    !source.includes('timing_path:') &&
+    !source.includes('manifest_path:') &&
+    !source.includes('isolation:')
+  ) {
+    return undefined;
+  }
+  if (source.replace(LEGACY_ENV_PATTERN, '').includes('${')) return undefined;
   try {
     const parsed = parse(source, { uniqueKeys: false }) as unknown;
     if (Array.isArray(parsed)) {
@@ -352,14 +601,25 @@ function migrateTestTemplateLiterals(filePath: string): boolean {
   return changed;
 }
 
-let changedCount = 0;
-for (const root of ROOTS) {
-  for (const filePath of walk(root)) {
-    if (migrateYamlFile(filePath)) changedCount += 1;
+export function migrateRepository(): number {
+  let changedCount = 0;
+  for (const root of ROOTS) {
+    for (const filePath of walk(root)) {
+      if (migrateYamlFile(filePath)) changedCount += 1;
+    }
   }
-}
-for (const filePath of TEST_TS_FILES) {
-  if (migrateTestTemplateLiterals(filePath)) changedCount += 1;
+  for (const filePath of TEST_TS_FILES) {
+    if (migrateTestTemplateLiterals(filePath)) changedCount += 1;
+  }
+  return changedCount;
 }
 
-console.log(`Migrated ${changedCount} YAML roots`);
+export const _internal = {
+  migrateYamlSnippet,
+  migrateYamlValue,
+  transformWrapperForPreprocessors,
+};
+
+if (import.meta.main) {
+  console.log(`Migrated ${migrateRepository()} YAML roots`);
+}

@@ -10415,31 +10415,7 @@
           }
         },
         "preprocessors": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "minLength": 1
-              },
-              "command": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                ]
-              }
-            },
-            "required": ["type", "command"],
-            "additionalProperties": false
-          }
+          "not": {}
         },
         "workspace": {
           "anyOf": [

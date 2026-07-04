@@ -591,13 +591,32 @@ function rejectPostprocess(value: unknown, location: string): void {
   }
 }
 
+function rejectPreprocessors(value: unknown, location: string): void {
+  if (!isJsonObject(value)) {
+    return;
+  }
+  if (value.preprocessors !== undefined) {
+    throw new Error(
+      `${location}.preprocessors has been removed from authored eval YAML. Use ${location}.transform instead.`,
+    );
+  }
+}
+
 function rejectAuthoredPostprocess(suite: RawTestSuite): void {
   rejectPostprocess(
     isJsonObject(suite.default_test) ? suite.default_test.options : undefined,
     'default_test.options',
   );
   if (Array.isArray(suite.assert)) {
-    suite.assert.forEach((entry, index) => rejectPostprocess(entry, `assert[${index}]`));
+    suite.assert.forEach((entry, index) => {
+      rejectPostprocess(entry, `assert[${index}]`);
+      rejectPreprocessors(entry, `assert[${index}]`);
+    });
+  }
+  if (suite.preprocessors !== undefined) {
+    throw new Error(
+      'preprocessors has been removed from authored eval YAML. Use default_test.options.transform or assertion-level transform instead.',
+    );
   }
   if (!Array.isArray(suite.tests)) {
     return;
@@ -608,9 +627,10 @@ function rejectAuthoredPostprocess(suite: RawTestSuite): void {
     }
     rejectPostprocess(entry.options, `tests[${index}].options`);
     if (Array.isArray(entry.assert)) {
-      entry.assert.forEach((assertion, assertionIndex) =>
-        rejectPostprocess(assertion, `tests[${index}].assert[${assertionIndex}]`),
-      );
+      entry.assert.forEach((assertion, assertionIndex) => {
+        rejectPostprocess(assertion, `tests[${index}].assert[${assertionIndex}]`);
+        rejectPreprocessors(assertion, `tests[${index}].assert[${assertionIndex}]`);
+      });
     }
   });
 }

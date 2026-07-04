@@ -90,7 +90,7 @@ targets:
           target: /results
           access: rw
       secrets:
-        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
+        OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"
     config:
       command: ["codex", "exec", "--json"]
       model: gpt-5-codex
@@ -144,7 +144,7 @@ targets:
     runtime: host
     config:
       command: ["codex-eng", "exec", "--json"]
-      model: ${{ CODEX_MODEL }}
+      model: "{{ env.CODEX_MODEL }}"
 ```
 
 Use `codex-sdk` only when you intentionally want the Codex SDK path:
@@ -190,8 +190,8 @@ targets:
     config:
       command: ["pi"]
       subprovider: openrouter
-      model: ${{ OPENROUTER_MODEL }}
-      api_key: ${{ OPENROUTER_API_KEY }}
+      model: "{{ env.OPENROUTER_MODEL }}"
+      api_key: "{{ env.OPENROUTER_API_KEY }}"
 ```
 
 Use `pi-sdk` only when you intentionally want the SDK path:
@@ -266,8 +266,8 @@ targets:
     config:
       command: ["copilot"]
       subprovider: openai
-      base_url: ${{ OPENAI_ENDPOINT }}
-      api_key: ${{ OPENAI_API_KEY }}
+      base_url: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "{{ env.OPENAI_API_KEY }}"
       api_format: responses
 ```
 

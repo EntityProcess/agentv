@@ -260,7 +260,7 @@ export function normalizeCliHealthcheck(
  * form used by the CLI provider. Resolves environment variables.
  *
  * This function resolves environment variable references using
- * ${{ VAR_NAME }} syntax and converts external YAML field names to the
+ * {{ env.VAR_NAME }} syntax and converts external YAML field names to the
  * internal runtime shape.
  *
  * @param input - The loose CLI target input from YAML
@@ -913,8 +913,9 @@ export const COMMON_TARGET_SETTINGS = [
   'fallback_targets',
 ] as const;
 
-const USE_TARGET_ENV_PATTERN = /^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i;
+const USE_TARGET_ENV_PATTERN = /^\s*\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}\s*$/;
 const SECRET_ENV_TEMPLATE_PATTERN = /^\s*\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}\s*$/;
+const LEGACY_ENV_TEMPLATE_PATTERN = /^\s*\$\{\{\s*([A-Z0-9_]+)\s*\}\}\s*$/i;
 
 const BASE_TARGET_SCHEMA = z
   .object({
@@ -1035,6 +1036,14 @@ export function resolveDelegatedTargetDefinition(
       return definition;
     }
 
+    const legacyEnvMatch = rawUseTarget.match(LEGACY_ENV_TEMPLATE_PATTERN);
+    if (legacyEnvMatch) {
+      const envVarName = legacyEnvMatch[1] ?? 'VARIABLE_NAME';
+      throw new Error(
+        `Target "${definition.name}" uses removed legacy use_target syntax \${{ ${envVarName} }}. Use {{ env.${envVarName} }} instead.`,
+      );
+    }
+
     const envMatch = rawUseTarget.match(USE_TARGET_ENV_PATTERN);
     const envVarName = envMatch?.[1];
     const resolvedName = envVarName ? (env[envVarName]?.trim() ?? '') : rawUseTarget;
@@ -1042,7 +1051,7 @@ export function resolveDelegatedTargetDefinition(
     if (resolvedName.length === 0) {
       if (envVarName) {
         throw new Error(
-          `Target "${definition.name}" uses use_target: \${{ ${envVarName} }}, but ${envVarName} is not set. Set ${envVarName} to the name of a concrete target (for example, "azure") before running the eval.`,
+          `Target "${definition.name}" uses use_target: {{ env.${envVarName} }}, but ${envVarName} is not set. Set ${envVarName} to the name of a concrete target (for example, "azure") before running the eval.`,
         );
       }
 
@@ -1055,7 +1064,7 @@ export function resolveDelegatedTargetDefinition(
     if (!next) {
       if (envVarName) {
         throw new Error(
-          `Target "${definition.name}" uses use_target: \${{ ${envVarName} }}, which resolved to "${resolvedName}", but no target named "${resolvedName}" exists.`,
+          `Target "${definition.name}" uses use_target: {{ env.${envVarName} }}, which resolved to "${resolvedName}", but no target named "${resolvedName}" exists.`,
         );
       }
 
@@ -2578,7 +2587,7 @@ const cliErrorMap: z.ZodErrorMap = (issue, ctx) => {
  * 3. Validates CLI placeholders in the command
  *
  * @param target - The raw target definition from YAML
- * @param env - Environment variable lookup for ${{ VAR }} resolution
+ * @param env - Environment variable lookup for {{ env.VAR }} resolution
  * @param evalFilePath - Optional path to eval file for relative path resolution
  * @returns Normalized CLI configuration matching CliResolvedConfig
  */
@@ -2754,9 +2763,9 @@ function resolveCopilotLogConfig(
 }
 
 /**
- * Resolve a string value from targets.yaml, supporting `${{ VARIABLE }}` env var syntax.
+ * Resolve a string value from targets.yaml, supporting `{{ env.VARIABLE }}` env var syntax.
  *
- * Security: By default (`allowLiteral: false`), values MUST use the `${{ VARIABLE_NAME }}`
+ * Security: By default (`allowLiteral: false`), values MUST use the `{{ env.VARIABLE_NAME }}`
  * syntax to reference environment variables. Literal strings are rejected to prevent
  * secrets (API keys, tokens) from being committed in plaintext to targets.yaml.
  * Only non-sensitive fields like `cwd` or `model` use `allowLiteral: true`.
@@ -2778,36 +2787,31 @@ function resolveOptionalString(
     return undefined;
   }
 
-  // Check for ${{ variable }} syntax
-  const envVarMatch = trimmed.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
-  if (envVarMatch) {
-    const varName = envVarMatch[1];
-    const envValue = env[varName];
-    const optionalEnv = options?.optionalEnv ?? false;
-
-    // Treat empty or undefined env vars the same way
-    if (envValue === undefined || envValue.trim().length === 0) {
-      if (optionalEnv) {
-        return undefined;
-      }
-      const status = envValue === undefined ? 'is not set' : 'is empty';
-      throw new Error(`Environment variable '${varName}' required for ${description} ${status}`);
-    }
-    return envValue;
+  const legacyEnvVarMatch = trimmed.match(LEGACY_ENV_TEMPLATE_PATTERN);
+  if (legacyEnvVarMatch) {
+    const varName = legacyEnvVarMatch[1];
+    throw new Error(
+      `${description} uses removed legacy environment syntax \${{ ${varName} }}. Use {{ env.${varName} }} instead.`,
+    );
   }
 
   if (trimmed.includes('{{') && trimmed.includes('env.')) {
     const allowLiteral = options?.allowLiteral ?? false;
     const isSecretField = /\b(api key|bearer token|github token|token|secret)\b/i.test(description);
+    const wholeEnvMatch = trimmed.match(SECRET_ENV_TEMPLATE_PATTERN);
     if (!allowLiteral && isSecretField && !SECRET_ENV_TEMPLATE_PATTERN.test(trimmed)) {
-      throw new Error(
-        `${description} must use a whole \${{ VARIABLE_NAME }} or {{ env.VARIABLE_NAME }} reference`,
-      );
+      throw new Error(`${description} must use a whole {{ env.VARIABLE_NAME }} reference`);
     }
     const rendered = renderEnvTemplateString(trimmed, env).trim();
     if (rendered.length === 0) {
       if (options?.optionalEnv ?? false) {
         return undefined;
+      }
+      if (wholeEnvMatch) {
+        const varName = wholeEnvMatch[1] ?? 'VARIABLE_NAME';
+        throw new Error(
+          `${description} env template {{ env.${varName} }} resolved to an empty value; ${varName} is not set`,
+        );
       }
       throw new Error(`${description} env template resolved to an empty value`);
     }
@@ -2818,7 +2822,7 @@ function resolveOptionalString(
   const allowLiteral = options?.allowLiteral ?? false;
   if (!allowLiteral) {
     throw new Error(
-      `${description} must use \${{ VARIABLE_NAME }} syntax for environment variables or be marked as allowing literals`,
+      `${description} must use {{ env.VARIABLE_NAME }} syntax for environment variables or be marked as allowing literals`,
     );
   }
   return trimmed;
@@ -2895,19 +2899,28 @@ function resolveOptionalStringArray(
       throw new Error(`${description}[${i}] cannot be empty`);
     }
 
-    // Check for ${{ variable }} syntax
-    const envVarMatch = trimmed.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
-    if (envVarMatch) {
-      const varName = envVarMatch[1];
-      const envValue = env[varName];
-      if (envValue !== undefined) {
-        if (envValue.trim().length === 0) {
-          throw new Error(`Environment variable '${varName}' for ${description}[${i}] is empty`);
+    const legacyEnvVarMatch = trimmed.match(LEGACY_ENV_TEMPLATE_PATTERN);
+    if (legacyEnvVarMatch) {
+      const varName = legacyEnvVarMatch[1];
+      throw new Error(
+        `${description}[${i}] uses removed legacy environment syntax \${{ ${varName} }}. Use {{ env.${varName} }} instead.`,
+      );
+    }
+
+    if (trimmed.includes('{{') && trimmed.includes('env.')) {
+      const wholeEnvMatch = trimmed.match(SECRET_ENV_TEMPLATE_PATTERN);
+      const rendered = renderEnvTemplateString(trimmed, env).trim();
+      if (rendered.length === 0) {
+        if (wholeEnvMatch) {
+          const varName = wholeEnvMatch[1] ?? 'VARIABLE_NAME';
+          throw new Error(
+            `${description}[${i}] env template {{ env.${varName} }} resolved to an empty value; ${varName} is not set`,
+          );
         }
-        resolved.push(envValue);
-        continue;
+        throw new Error(`${description}[${i}] env template resolved to an empty value`);
       }
-      throw new Error(`Environment variable '${varName}' for ${description}[${i}] is not set`);
+      resolved.push(rendered);
+      continue;
     }
 
     // Treat as literal value

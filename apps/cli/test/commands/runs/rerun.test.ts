@@ -280,7 +280,7 @@ describe('agentv runs rerun', () => {
     const created = await fixture(`targets:
   - id: captured
     provider: cli
-    command: \${{ LOCAL_AGENT_COMMAND }}
+    command: "{{ env.LOCAL_AGENT_COMMAND }}"
 `);
 
     const missing = await runCli(created, [
@@ -292,7 +292,7 @@ describe('agentv runs rerun', () => {
       '--dry-run',
     ]);
     expect(missing.exitCode).toBe(1);
-    expect(missing.stderr).toContain('Missing environment variable(s)');
+    expect(missing.stderr).toContain("Failed to resolve target 'captured'");
     expect(missing.stderr).toContain('LOCAL_AGENT_COMMAND');
 
     const withAmbientEnv = await runCli(

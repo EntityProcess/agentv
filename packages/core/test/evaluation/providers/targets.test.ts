@@ -45,7 +45,7 @@ const { extractLastAssistantContent } = await import('../../../src/evaluation/pr
 describe('resolveDelegatedTargetDefinition', () => {
   it('throws a helpful error when an env-backed use_target variable is missing', () => {
     const definitions = new Map([
-      ['grader', { name: 'grader', use_target: '${{ GRADER_TARGET }}' }],
+      ['grader', { name: 'grader', use_target: '{{ env.GRADER_TARGET }}' }],
       ['azure', { name: 'azure', provider: 'azure' }],
     ]);
 
@@ -56,7 +56,7 @@ describe('resolveDelegatedTargetDefinition', () => {
 
   it('throws a helpful error when an env-backed use_target resolves to a missing target', () => {
     const definitions = new Map([
-      ['grader', { name: 'grader', use_target: '${{ GRADER_TARGET }}' }],
+      ['grader', { name: 'grader', use_target: '{{ env.GRADER_TARGET }}' }],
     ]);
 
     expect(() =>
@@ -66,9 +66,20 @@ describe('resolveDelegatedTargetDefinition', () => {
     ).toThrow(/resolved to "azure".*no target named "azure" exists/i);
   });
 
-  it('resolves a delegated target chain to a concrete definition', () => {
+  it('rejects legacy env syntax in use_target', () => {
     const definitions = new Map([
       ['grader', { name: 'grader', use_target: '${{ GRADER_TARGET }}' }],
+      ['azure', { name: 'azure', provider: 'azure' }],
+    ]);
+
+    expect(() => resolveDelegatedTargetDefinition('grader', definitions, {})).toThrow(
+      /removed legacy use_target syntax.*Use {{ env\.GRADER_TARGET }}/,
+    );
+  });
+
+  it('resolves a delegated target chain to a concrete definition', () => {
+    const definitions = new Map([
+      ['grader', { name: 'grader', use_target: '{{ env.GRADER_TARGET }}' }],
       ['llm', { name: 'llm', use_target: 'azure' }],
       ['azure', { name: 'azure', provider: 'azure' }],
     ]);
@@ -131,8 +142,8 @@ describe('resolveTargetDefinition', () => {
         id: 'candidate-agent',
         provider: 'openai',
         config: {
-          api_key: '${{ OPENAI_API_KEY }}',
-          model: '${{ OPENAI_MODEL }}',
+          api_key: '{{ env.OPENAI_API_KEY }}',
+          model: '{{ env.OPENAI_MODEL }}',
         },
       } as never,
       { OPENAI_API_KEY: 'secret', OPENAI_MODEL: 'gpt-5-mini' },
@@ -146,7 +157,7 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.model).toBe('gpt-5-mini');
   });
 
-  it("throws when settings don't use ${{ }} syntax", () => {
+  it("throws when settings don't use {{ env.* }} syntax", () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
       AZURE_OPENAI_API_KEY: 'secret',
@@ -167,7 +178,7 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/must use.*VARIABLE_NAME.*syntax/i);
   });
 
-  it('resolves azure settings using ${{ variable }} syntax', () => {
+  it('resolves azure settings using {{ env.VAR }} syntax', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
       AZURE_OPENAI_API_KEY: 'secret',
@@ -178,9 +189,9 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'default',
         provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        endpoint: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+        api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
+        model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
       },
       env,
     );
@@ -194,7 +205,7 @@ describe('resolveTargetDefinition', () => {
     });
   });
 
-  it('resolves with ${{ }} syntax with extra whitespace', () => {
+  it('resolves with {{ env.* }} syntax with extra whitespace', () => {
     const env = {
       MY_VAR: 'test-value',
       MY_API_KEY: 'literal-key',
@@ -205,9 +216,9 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'test',
         provider: 'azure',
-        endpoint: '${{  MY_VAR  }}',
-        api_key: '${{ MY_API_KEY }}',
-        model: '${{ MY_MODEL }}',
+        endpoint: '{{ env.MY_VAR }}',
+        api_key: '{{ env.MY_API_KEY }}',
+        model: '{{ env.MY_MODEL }}',
       },
       env,
     );
@@ -219,7 +230,7 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.resourceName).toBe('test-value');
   });
 
-  it('resolves with ${{ }} syntax without spaces', () => {
+  it('resolves with {{ env.* }} syntax without spaces', () => {
     const env = {
       MY_ENDPOINT: 'https://no-spaces.example.com',
       MY_KEY: 'key123',
@@ -230,9 +241,9 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'no-spaces',
         provider: 'azure',
-        endpoint: '${{MY_ENDPOINT}}',
-        api_key: '${{MY_KEY}}',
-        model: '${{MY_MODEL}}',
+        endpoint: '{{ env.MY_ENDPOINT }}',
+        api_key: '{{ env.MY_KEY }}',
+        model: '{{ env.MY_MODEL }}',
       },
       env,
     );
@@ -245,7 +256,7 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.apiKey).toBe('key123');
   });
 
-  it('throws when ${{ variable }} reference is missing from env', () => {
+  it('throws when {{ env.VAR }} reference is missing from env', () => {
     const env = {} satisfies Record<string, string>;
 
     expect(() =>
@@ -253,7 +264,7 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'broken',
           provider: 'azure',
-          endpoint: '${{ MISSING_VAR }}',
+          endpoint: '{{ env.MISSING_VAR }}',
           api_key: 'key',
           model: 'model',
         },
@@ -274,10 +285,10 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'azure-version',
         provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        version: '${{ CUSTOM_VERSION }}',
+        endpoint: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+        api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
+        model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
+        version: '{{ env.CUSTOM_VERSION }}',
       },
       env,
     );
@@ -302,9 +313,9 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'azure-with-api-format',
           provider: 'azure',
-          endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-          api_key: '${{ AZURE_OPENAI_API_KEY }}',
-          model: '${{ AZURE_DEPLOYMENT_NAME }}',
+          endpoint: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+          api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
+          model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
           api_format: 'responses',
         },
         env,
@@ -322,7 +333,7 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'openai-with-judge-target',
           provider: 'openai',
-          api_key: '${{ OPENAI_API_KEY }}',
+          api_key: '{{ env.OPENAI_API_KEY }}',
           model: 'gpt-5-mini',
           judge_target: 'grader',
         } as never,
@@ -413,9 +424,9 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'azure-default-version',
         provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        endpoint: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+        api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
+        model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
       },
       env,
     );
@@ -438,9 +449,9 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'broken',
           provider: 'azure',
-          endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-          api_key: '${{ AZURE_OPENAI_API_KEY }}',
-          model: '${{ AZURE_DEPLOYMENT_NAME }}',
+          endpoint: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+          api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
+          model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
         },
         env,
       ),
@@ -478,7 +489,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'editor',
         provider: 'vscode',
-        executable: '${{ VSCODE_CMD }}',
+        executable: '{{ env.VSCODE_CMD }}',
       },
       env,
     );
@@ -539,7 +550,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'gemini-target',
         provider: 'gemini',
-        api_key: '${{ GOOGLE_API_KEY }}',
+        api_key: '{{ env.GOOGLE_API_KEY }}',
       },
       env,
     );
@@ -565,8 +576,8 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'gemini-pro',
         provider: 'gemini',
-        api_key: '${{ GOOGLE_API_KEY }}',
-        model: '${{ GOOGLE_GEMINI_MODEL }}',
+        api_key: '{{ env.GOOGLE_API_KEY }}',
+        model: '{{ env.GOOGLE_GEMINI_MODEL }}',
       },
       env,
     );
@@ -591,7 +602,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'gemini-flash',
         provider: 'gemini',
-        api_key: '${{ GOOGLE_API_KEY }}',
+        api_key: '{{ env.GOOGLE_API_KEY }}',
         model: 'gemini-1.5-flash',
       },
       env,
@@ -619,9 +630,9 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'openai-target',
         provider: 'openai',
-        endpoint: '${{ OPENAI_ENDPOINT }}',
-        api_key: '${{ OPENAI_API_KEY }}',
-        model: '${{ OPENAI_MODEL }}',
+        endpoint: '{{ env.OPENAI_ENDPOINT }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
+        model: '{{ env.OPENAI_MODEL }}',
       },
       env,
     );
@@ -735,8 +746,8 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'openrouter-target',
         provider: 'openrouter',
-        api_key: '${{ OPENROUTER_API_KEY }}',
-        model: '${{ OPENROUTER_MODEL }}',
+        api_key: '{{ env.OPENROUTER_API_KEY }}',
+        model: '{{ env.OPENROUTER_MODEL }}',
       },
       env,
     );
@@ -758,7 +769,7 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'broken-gemini',
           provider: 'gemini',
-          api_key: '${{ GOOGLE_API_KEY }}',
+          api_key: '{{ env.GOOGLE_API_KEY }}',
         },
         {},
       ),
@@ -803,7 +814,7 @@ describe('resolveTargetDefinition', () => {
         name: 'shell-cli',
         provider: 'cli',
         command: 'code chat {PROMPT} {FILES}',
-        cwd: '${{ WORKDIR }}',
+        cwd: '{{ env.WORKDIR }}',
         timeout_seconds: 3,
         files_format: '--file {path}',
       },
@@ -852,7 +863,7 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/unsupported placeholder/i);
   });
 
-  it('resolves codex-cli command argv using ${{ }} syntax', () => {
+  it('resolves codex-cli command argv using {{ env.* }} syntax', () => {
     const env = {
       CODEX_PROFILE: 'default',
       CODEX_MODEL: 'gpt-4',
@@ -865,9 +876,9 @@ describe('resolveTargetDefinition', () => {
         command: [
           'codex-personal',
           '--profile',
-          '${{ CODEX_PROFILE }}',
+          '{{ env.CODEX_PROFILE }}',
           '--model',
-          '${{ CODEX_MODEL }}',
+          '{{ env.CODEX_MODEL }}',
         ],
       },
       env,
@@ -893,8 +904,8 @@ describe('resolveTargetDefinition', () => {
         name: 'codex-cli',
         provider: 'codex-cli',
         command: ['codex'],
-        model: '${{ CODEX_MODEL }}',
-        reasoning_effort: '${{ CODEX_REASONING_EFFORT }}',
+        model: '{{ env.CODEX_MODEL }}',
+        reasoning_effort: '{{ env.CODEX_REASONING_EFFORT }}',
       },
       {
         CODEX_MODEL: 'gpt-5.5',
@@ -917,11 +928,11 @@ describe('resolveTargetDefinition', () => {
         name: 'codex-local-openai',
         provider: 'codex-cli',
         command: ['codex-eng'],
-        model: '${{ CODEX_MODEL }}',
+        model: '{{ env.CODEX_MODEL }}',
         reasoning_effort: 'medium',
         model_verbosity: 'medium',
-        base_url: '${{ OPENAI_BASE_URL }}',
-        api_key: '${{ OPENAI_API_KEY }}',
+        base_url: '{{ env.OPENAI_BASE_URL }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
         api_format: 'responses',
         sandbox_mode: 'danger-full-access',
         approval_policy: 'never',
@@ -1116,9 +1127,9 @@ describe('resolveTargetDefinition', () => {
         name: 'copilot-cli-openai-flat',
         provider: 'copilot-cli',
         subprovider: 'openai',
-        base_url: '${{ OPENAI_ENDPOINT }}',
-        api_key: '${{ OPENAI_API_KEY }}',
-        bearer_token: '${{ OPTIONAL_BEARER_TOKEN }}',
+        base_url: '{{ env.OPENAI_ENDPOINT }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
+        bearer_token: '{{ env.OPTIONAL_BEARER_TOKEN }}',
         api_format: 'responses',
         api_version: '2024-10-21',
       },
@@ -1152,8 +1163,8 @@ describe('resolveTargetDefinition', () => {
         provider: 'copilot-sdk',
         model: 'gpt-5',
         subprovider: 'openai',
-        base_url: '${{ OPENAI_ENDPOINT }}',
-        api_key: '${{ OPENAI_API_KEY }}',
+        base_url: '{{ env.OPENAI_ENDPOINT }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
         api_format: 'responses',
       },
       env,
@@ -1185,11 +1196,11 @@ describe('resolveTargetDefinition', () => {
         provider: 'copilot-sdk',
         model: 'gpt-5',
         subprovider: 'openai',
-        base_url: '${{ OPENAI_ENDPOINT }}',
-        api_key: '${{ OPENAI_API_KEY }}',
+        base_url: '{{ env.OPENAI_ENDPOINT }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
         api_format: 'responses',
         model_id: 'gpt-5',
-        wire_model: '${{ WIRE_MODEL }}',
+        wire_model: '{{ env.WIRE_MODEL }}',
       },
       env,
     );
@@ -1214,7 +1225,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'copilot-sdk-with-args',
         provider: 'copilot-sdk',
-        args: ['--plugin-dir', '${{ COPILOT_PLUGIN_DIR }}'],
+        args: ['--plugin-dir', '{{ env.COPILOT_PLUGIN_DIR }}'],
       },
       { COPILOT_PLUGIN_DIR: './plugins' },
     );
@@ -1265,7 +1276,7 @@ describe('resolveTargetDefinition', () => {
         name: 'copilot-sdk-bearer',
         provider: 'copilot-sdk',
         base_url: 'https://custom-endpoint.example.com/v1',
-        bearer_token: '${{ MY_TOKEN }}',
+        bearer_token: '{{ env.MY_TOKEN }}',
       },
       env,
     );
@@ -1291,7 +1302,7 @@ describe('resolveTargetDefinition', () => {
         model: 'gpt-5',
         subprovider: 'openai',
         base_url: 'https://resource.openai.azure.com/openai/v1/',
-        api_key: '${{ FOUNDRY_KEY }}',
+        api_key: '{{ env.FOUNDRY_KEY }}',
         api_format: 'responses',
       },
       env,
@@ -1329,9 +1340,9 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'deprecated-camel-case',
           provider: 'openai',
-          baseUrl: '${{ OPENAI_BASE_URL }}',
-          apiKey: '${{ OPENAI_API_KEY }}',
-          model: '${{ OPENAI_MODEL }}',
+          baseUrl: '{{ env.OPENAI_BASE_URL }}',
+          apiKey: '{{ env.OPENAI_API_KEY }}',
+          model: '{{ env.OPENAI_MODEL }}',
           maxTokens: 100,
         },
         {
@@ -1349,8 +1360,8 @@ describe('resolveTargetDefinition', () => {
         name: 'azure-chat',
         provider: 'openai',
         base_url: 'https://resource.openai.azure.com/openai/deployments/gpt-4o',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
+        model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
         api_format: 'chat',
       },
       {
@@ -1485,9 +1496,9 @@ describe('createProvider', () => {
       {
         name: 'openai-target',
         provider: 'openai',
-        endpoint: '${{ OPENAI_ENDPOINT }}',
-        api_key: '${{ OPENAI_API_KEY }}',
-        model: '${{ OPENAI_MODEL }}',
+        endpoint: '{{ env.OPENAI_ENDPOINT }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
+        model: '{{ env.OPENAI_MODEL }}',
       },
       env,
     );
@@ -1512,9 +1523,9 @@ describe('createProvider', () => {
       {
         name: 'openai-resp',
         provider: 'openai',
-        endpoint: '${{ OPENAI_ENDPOINT }}',
-        api_key: '${{ OPENAI_API_KEY }}',
-        model: '${{ OPENAI_MODEL }}',
+        endpoint: '{{ env.OPENAI_ENDPOINT }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
+        model: '{{ env.OPENAI_MODEL }}',
         api_format: 'responses',
       },
       env,
@@ -1535,8 +1546,8 @@ describe('createProvider', () => {
       {
         name: 'openrouter-target',
         provider: 'openrouter',
-        api_key: '${{ OPENROUTER_API_KEY }}',
-        model: '${{ OPENROUTER_MODEL }}',
+        api_key: '{{ env.OPENROUTER_API_KEY }}',
+        model: '{{ env.OPENROUTER_MODEL }}',
       },
       env,
     );
@@ -1558,8 +1569,8 @@ describe('createProvider', () => {
       {
         name: 'anthropic-target',
         provider: 'anthropic',
-        api_key: '${{ ANTHROPIC_API_KEY }}',
-        model: '${{ ANTHROPIC_MODEL }}',
+        api_key: '{{ env.ANTHROPIC_API_KEY }}',
+        model: '{{ env.ANTHROPIC_MODEL }}',
         thinking_budget: 4096,
       },
       env,
@@ -1579,7 +1590,7 @@ describe('createProvider', () => {
   it('routes gemini targets through pi-ai google-generative-ai', async () => {
     const env = { GOOGLE_API_KEY: 'gemini-key' } satisfies Record<string, string>;
     const resolved = resolveTargetDefinition(
-      { name: 'gemini-target', provider: 'gemini', api_key: '${{ GOOGLE_API_KEY }}' },
+      { name: 'gemini-target', provider: 'gemini', api_key: '{{ env.GOOGLE_API_KEY }}' },
       env,
     );
     const provider = createProvider(resolved);
@@ -1598,9 +1609,9 @@ describe('createProvider', () => {
       {
         name: 'azure-target',
         provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        endpoint: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+        api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
+        model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
       },
       env,
     );
@@ -1626,9 +1637,9 @@ describe('createProvider', () => {
         name: 'pi-azure',
         provider: 'pi-coding-agent',
         subprovider: 'azure',
-        base_url: '${{ AZURE_OPENAI_ENDPOINT }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        base_url: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+        model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
+        api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
         tools: 'read,bash,edit,write',
       },
       env,
@@ -1688,9 +1699,9 @@ describe('createProvider', () => {
         name: 'pi-cli-azure',
         provider: 'pi-cli',
         subprovider: 'azure',
-        base_url: '${{ AZURE_OPENAI_ENDPOINT }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        base_url: '{{ env.AZURE_OPENAI_ENDPOINT }}',
+        model: '{{ env.AZURE_DEPLOYMENT_NAME }}',
+        api_key: '{{ env.AZURE_OPENAI_API_KEY }}',
       },
       env,
     );
@@ -1710,7 +1721,7 @@ describe('createProvider', () => {
         provider: 'pi-cli',
         subprovider: 'openai',
         base_url: 'http://127.0.0.1:10531/v1',
-        api_key: '${{ OPENAI_API_KEY }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
         model: 'gpt-5.3-codex-spark',
       },
       { OPENAI_API_KEY: 'local-key' },
@@ -1728,8 +1739,8 @@ describe('createProvider', () => {
       {
         name: 'pi-cli-local-endpoint',
         provider: 'pi-cli',
-        base_url: '${{ AGENTV_OPENAI_BASE_URL }}',
-        api_key: '${{ AGENTV_OPENAI_API_KEY }}',
+        base_url: '{{ env.AGENTV_OPENAI_BASE_URL }}',
+        api_key: '{{ env.AGENTV_OPENAI_API_KEY }}',
         model: 'gpt-5.3-codex-spark',
       },
       {
@@ -1750,7 +1761,7 @@ describe('createProvider', () => {
         name: 'pi-cli-openai',
         provider: 'pi-cli',
         subprovider: 'openai',
-        api_key: '${{ OPENAI_API_KEY }}',
+        api_key: '{{ env.OPENAI_API_KEY }}',
         model: 'gpt-4o',
       },
       { OPENAI_API_KEY: 'real-openai-key' },
@@ -1769,7 +1780,7 @@ describe('createProvider', () => {
         provider: 'pi-cli',
         subprovider: 'openai-codex',
         model: 'gpt-5.5',
-        reasoning_effort: '${{ PI_THINKING }}',
+        reasoning_effort: '{{ env.PI_THINKING }}',
       },
       { PI_THINKING: 'medium' },
     );

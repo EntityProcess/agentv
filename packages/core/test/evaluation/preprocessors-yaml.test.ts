@@ -13,12 +13,10 @@ describe('eval YAML preprocessors', () => {
     tempDirs.length = 0;
   });
 
-  it('merges suite-level preprocessors into llm-graders and resolves command paths', async () => {
+  it('rejects removed suite-level preprocessors with transform guidance', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-yaml-preprocessors-'));
     tempDirs.push(dir);
 
-    await writeFile(path.join(dir, 'xlsx-default.js'), 'console.log("default")', 'utf8');
-    await writeFile(path.join(dir, 'xlsx-override.js'), 'console.log("override")', 'utf8');
     await writeFile(
       path.join(dir, 'suite.eval.yaml'),
       `preprocessors:
@@ -31,49 +29,24 @@ prompts:
 tests:
   - id: report
     criteria: works
-    assert:
-      - name: grade
-        type: llm-grader
-        prompt: Evaluate {{ output }}
-        preprocessors:
-          - type: xlsx
-            command:
-              - node
-              - xlsx-override.js
     vars:
       input: grade this
 `,
       'utf8',
     );
 
-    const tests = await loadTests(path.join(dir, 'suite.eval.yaml'), dir);
-    const evaluator = tests[0]?.assertions?.[0];
-
-    expect(evaluator?.type).toBe('llm-grader');
-    if (!evaluator || evaluator.type !== 'llm-grader') {
-      throw new Error('expected llm-grader evaluator');
-    }
-
-    expect(evaluator.preprocessors).toHaveLength(1);
-    expect(evaluator.preprocessors?.[0]?.resolvedCommand?.[1]).toBe(
-      path.join(dir, 'xlsx-override.js'),
+    await expect(loadTests(path.join(dir, 'suite.eval.yaml'), dir)).rejects.toThrow(
+      'preprocessors has been removed from authored eval YAML. Use default_test.options.transform or assertion-level transform instead.',
     );
   });
 
-  it('lets alias-based evaluator overrides replace MIME-typed suite defaults', async () => {
+  it('rejects removed assertion preprocessors with transform guidance', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-yaml-preprocessors-'));
     tempDirs.push(dir);
 
-    await writeFile(path.join(dir, 'xlsx-default.js'), 'console.log("default")', 'utf8');
-    await writeFile(path.join(dir, 'xlsx-override.js'), 'console.log("override")', 'utf8');
     await writeFile(
       path.join(dir, 'suite.eval.yaml'),
-      `preprocessors:
-  - type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-    command:
-      - node
-      - xlsx-default.js
-prompts:
+      `prompts:
   - "{{ input }}"
 tests:
   - id: report
@@ -93,15 +66,8 @@ tests:
       'utf8',
     );
 
-    const tests = await loadTests(path.join(dir, 'suite.eval.yaml'), dir);
-    const evaluator = tests[0]?.assertions?.[0];
-    if (!evaluator || evaluator.type !== 'llm-grader') {
-      throw new Error('expected llm-grader evaluator');
-    }
-
-    expect(evaluator.preprocessors).toHaveLength(1);
-    expect(evaluator.preprocessors?.[0]?.resolvedCommand?.[1]).toBe(
-      path.join(dir, 'xlsx-override.js'),
+    await expect(loadTests(path.join(dir, 'suite.eval.yaml'), dir)).rejects.toThrow(
+      'tests[0].assert[0].preprocessors has been removed from authored eval YAML. Use tests[0].assert[0].transform instead.',
     );
   });
 });

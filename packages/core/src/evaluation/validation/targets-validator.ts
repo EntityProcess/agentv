@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { interpolateEnv } from '../interpolation.js';
 import {
   CLI_PLACEHOLDERS,
   COMMON_TARGET_SETTINGS,
@@ -15,6 +14,7 @@ import type { ValidationError, ValidationResult } from './types.js';
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
+const LEGACY_ENV_PATTERN = /\$\{\{\s*([A-Z_][A-Z0-9_]*)\s*\}\}/g;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -22,6 +22,45 @@ function isObject(value: unknown): value is JsonObject {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isEnvTemplated(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    (/^\s*\{\{\s*env\.[\s\S]+?\}\}\s*$/.test(value) ||
+      /^\s*\$\{\{\s*[A-Z_][A-Z0-9_]*\s*\}\}\s*$/.test(value))
+  );
+}
+
+function validateLegacyEnvTemplates(
+  value: unknown,
+  filePath: string,
+  location: string,
+  errors: ValidationError[],
+): void {
+  if (typeof value === 'string') {
+    for (const match of value.matchAll(LEGACY_ENV_PATTERN)) {
+      const name = match[1];
+      errors.push({
+        severity: 'error',
+        filePath,
+        location,
+        message: `Legacy environment syntax \${{ ${name} }} has been removed. Use {{ env.${name} }} instead.`,
+      });
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) =>
+      validateLegacyEnvTemplates(entry, filePath, `${location}[${index}]`, errors),
+    );
+    return;
+  }
+  if (isObject(value)) {
+    for (const [key, nested] of Object.entries(value)) {
+      validateLegacyEnvTemplates(nested, filePath, `${location}.${key}`, errors);
+    }
+  }
 }
 
 // Cross-provider settings derived from the schema source of truth in targets.ts.
@@ -388,7 +427,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   try {
     const content = await readFile(absolutePath, 'utf8');
     rawParsed = parseYamlValue(content);
-    parsed = interpolateEnv(rawParsed, process.env);
+    parsed = rawParsed;
   } catch (error) {
     errors.push({
       severity: 'error',
@@ -593,6 +632,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       });
       continue;
     }
+    validateLegacyEnvTemplates(rawTargets[i] ?? target, absolutePath, location, errors);
 
     let normalizedTarget: JsonObject | undefined;
     try {
@@ -657,7 +697,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     const hasUseTarget =
       isNonEmptyString(effectiveTarget.use_target) || isNonEmptyString(rawUseTarget);
     const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
-    const isTemplated = typeof provider === 'string' && /^\$\{\{.+\}\}$/.test(provider.trim());
+    const isTemplated = isEnvTemplated(provider);
     if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
       errors.push({
         severity: 'error',
@@ -674,7 +714,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         message: `Ambiguous provider '${providerValue}' is not supported. Choose an explicit provider such as '${providerValue}-cli' or '${providerValue}-sdk'.`,
       });
     } else if (typeof provider === 'string' && !isTemplated && !knownProviders.includes(provider)) {
-      // Warning for unknown providers (non-fatal); skip when provider uses ${{ VAR }}
+      // Warning for unknown providers (non-fatal); skip when provider uses {{ env.VAR }}
       errors.push({
         severity: 'warning',
         filePath: absolutePath,

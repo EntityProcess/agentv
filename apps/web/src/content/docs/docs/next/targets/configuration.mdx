@@ -32,9 +32,9 @@ targets:
     runtime: host
     config:
       api_format: chat
-      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
 
   - id: codex-local
     provider: codex-app-server
@@ -98,7 +98,7 @@ targets:
       env:
         AGENTV_RESULT_DIR: /results
       secrets:
-        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
+        OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"
     config:
       command: ["codex", "exec", "--json"]
       timeout_seconds: 300
@@ -176,7 +176,7 @@ by a separate team; keep fields inline when that is easier to read.
 
 ## Environment Variables
 
-Use `${{ VARIABLE_NAME }}` syntax to reference values from your environment. AgentV reads
+Use `{{ env.VARIABLE_NAME }}` syntax to reference values from your environment. AgentV reads
 exported process environment variables directly, and it also loads `.env` files from the
 eval directory hierarchy when present:
 
@@ -186,8 +186,8 @@ targets:
     provider: anthropic
     runtime: host
     config:
-      api_key: ${{ ANTHROPIC_API_KEY }}
-      model: ${{ ANTHROPIC_MODEL }}
+      api_key: "{{ env.ANTHROPIC_API_KEY }}"
+      model: "{{ env.ANTHROPIC_MODEL }}"
 ```
 
 This keeps secrets out of version-controlled files and avoids requiring a CI step that rewrites

@@ -177,7 +177,7 @@ describe('normalizeCliHealthcheck', () => {
   it('normalizes HTTP and command healthchecks with timeout conversion', () => {
     // HTTP with snake_case timeout
     const httpInput = {
-      url: '${{ HEALTH_URL }}',
+      url: '{{ env.HEALTH_URL }}',
       timeout_seconds: 30,
     };
 
@@ -241,8 +241,8 @@ describe('normalizeCliTargetInput', () => {
     const input = {
       name: 'test-target',
       provider: 'cli',
-      command: '${{ CLI_CMD }}',
-      cwd: '${{ WORK_DIR }}',
+      command: '{{ env.CLI_CMD }}',
+      cwd: '{{ env.WORK_DIR }}',
     };
 
     const result = normalizeCliTargetInput(input, mockEnv);
@@ -287,7 +287,7 @@ describe('normalizeCliTargetInput', () => {
       provider: 'cli',
       command: 'agent {PROMPT}',
       healthcheck: {
-        url: '${{ HEALTH_ENDPOINT }}',
+        url: '{{ env.HEALTH_ENDPOINT }}',
         timeout_seconds: 10,
       },
     };

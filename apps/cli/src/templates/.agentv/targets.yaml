@@ -6,25 +6,25 @@
 targets:
   - id: default
     provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    # version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: uncomment to override default (v1)
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    # version: "{{ env.AZURE_OPENAI_API_VERSION }}"  # Optional: uncomment to override default (v1)
 
   - id: codex
     provider: codex
     grader_target: azure-llm
     # Uses the Codex CLI (defaults to `codex` on PATH)
-    # executable: ${{ CODEX_CLI_PATH }}        # Optional: override executable path
+    # executable: "{{ env.CODEX_CLI_PATH }}"        # Optional: override executable path
     # args:                             # Optional additional CLI arguments
     #   - --profile
-    #   - ${{ CODEX_PROFILE }}
+    #   - "{{ env.CODEX_PROFILE }}"
     #   - --model
-    #   - ${{ CODEX_MODEL }}
+    #   - "{{ env.CODEX_MODEL }}"
     #   - --ask-for-approval
-    #   - ${{ CODEX_APPROVAL_PRESET }}
-    cwd: ${{ CODEX_WORKSPACE_DIR }}            # Where scratch workspaces are created
-    log_dir: ${{ CODEX_LOG_DIR }}              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
+    #   - "{{ env.CODEX_APPROVAL_PRESET }}"
+    cwd: "{{ env.CODEX_WORKSPACE_DIR }}"            # Where scratch workspaces are created
+    log_dir: "{{ env.CODEX_LOG_DIR }}"              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
     stream_log: raw                    # Optional: 'summary' for consolidated logs or 'raw' for per-event logs
 
   # Claude - Anthropic's Claude Agent SDK
@@ -33,24 +33,24 @@ targets:
     grader_target: azure-llm
     # Uses the @anthropic-ai/claude-agent-sdk
     # model: claude-sonnet-4-20250514          # Optional: override model
-    # cwd: ${{ CLAUDE_WORKSPACE_DIR }}         # Optional: working directory (defaults to process.cwd())
+    # cwd: "{{ env.CLAUDE_WORKSPACE_DIR }}"         # Optional: working directory (defaults to process.cwd())
     # max_turns: 50                            # Optional: max conversation turns
     # max_budget_usd: 5.0                      # Optional: max cost budget in USD
-    # log_dir: ${{ CLAUDE_LOG_DIR }}           # Optional: where stream logs are stored (defaults to ./.agentv/logs/claude)
+    # log_dir: "{{ env.CLAUDE_LOG_DIR }}"           # Optional: where stream logs are stored (defaults to ./.agentv/logs/claude)
     stream_log: raw                           # Optional: 'summary' for consolidated logs or 'raw' for per-event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
   - id: azure-llm
     provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    version: ${{ AZURE_OPENAI_API_VERSION }}
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    version: "{{ env.AZURE_OPENAI_API_VERSION }}"
 
   - id: gemini-llm
     provider: gemini
-    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
-    model: ${{ GEMINI_MODEL_NAME }}
+    api_key: "{{ env.GOOGLE_GENERATIVE_AI_API_KEY }}"
+    model: "{{ env.GEMINI_MODEL_NAME }}"
 
   - id: local_cli
     provider: cli
@@ -61,37 +61,37 @@ targets:
     # Format for each file in {FILES}. {path} and {basename} are automatically shell-escaped, so no quotes needed
     files_format: --file {path}
     # Optional working directory resolved from .env
-    cwd: ${{ CLI_EVALS_DIR }}
+    cwd: "{{ env.CLI_EVALS_DIR }}"
     healthcheck:
       command: uv run ./mock_cli.py --healthcheck
 
-  # ── MiMo (Xiaomi) via OpenRouter ───────────────────────────────────
+  # -- MiMo (Xiaomi) via OpenRouter -----------------------------------
   # All MiMo models are available through OpenRouter with OpenAI-compatible API.
   # See https://openrouter.ai/xiaomi/mimo-v2.5-pro for pricing and limits.
   #
   # Models:
-  #   mimo-v2.5-pro    — 1M context, 131K output, flagship
-  #   mimo-v2-pro      — 1M context, ~131K output
-  #   mimo-v2.5        — 1M context, ~131K output, multimodal
-  #   mimo-v2-flash    — 262K context, 65K output, fast MoE (open-source)
-  #   mimo-v2-omni     — 262K context, 65K output, omni-modal
+  #   mimo-v2.5-pro    - 1M context, 131K output, flagship
+  #   mimo-v2-pro      - 1M context, ~131K output
+  #   mimo-v2.5        - 1M context, ~131K output, multimodal
+  #   mimo-v2-flash    - 262K context, 65K output, fast MoE (open-source)
+  #   mimo-v2-omni     - 262K context, 65K output, omni-modal
   - id: mimo
     provider: openrouter
-    api_key: ${{ OPENROUTER_API_KEY }}
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
     model: xiaomi/mimo-v2.5-pro
 
   - id: mimo-flash
     provider: openrouter
-    api_key: ${{ OPENROUTER_API_KEY }}
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
     model: xiaomi/mimo-v2-flash
 
-  # ── Direct provider (not through OpenRouter) ───────────────────────
+  # -- Direct provider (not through OpenRouter) -----------------------
   # For providers not in pi-ai's model registry, set max_output_tokens
   # to match your model's actual output limit. Without this, the default
   # is 16K which may cap output below the model's capability.
   # - name: mimo-direct
   #   provider: openai
   #   base_url: https://token-plan-sgp.xiaomimimo.com/v1
-  #   api_key: ${{ XIAOMI_MIMO_API_KEY }}
+  #   api_key: "{{ env.XIAOMI_MIMO_API_KEY }}"
   #   model: xiaomi/mimo-v2.5-pro
   #   max_output_tokens: 131072

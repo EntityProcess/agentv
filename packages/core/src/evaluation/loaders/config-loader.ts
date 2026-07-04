@@ -373,6 +373,11 @@ function rejectAuthoredSuiteExecution(rawExecution: JsonValue): void {
         "Top-level 'execution.max_concurrency' has been removed from eval YAML. Use evaluate_options.max_concurrency for authored suite concurrency.",
       );
     }
+    if (key === 'workers') {
+      throw new Error(
+        "Top-level 'execution.workers' has been removed from eval YAML. Use evaluate_options.max_concurrency for authored suite concurrency.",
+      );
+    }
     throw new Error(
       `Top-level 'execution.${key}' is not part of eval YAML. Use supported top-level fields or evaluate_options for authored run controls.`,
     );

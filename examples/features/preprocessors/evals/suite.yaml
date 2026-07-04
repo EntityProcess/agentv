@@ -1,10 +1,4 @@
 description: Convert file outputs to grader-readable text before llm grading
-preprocessors:
-  - type: xlsx
-    command:
-      - bun
-      - run
-      - ../scripts/preprocessors/xlsx-to-csv.ts
 prompts:
   - "{{ input }}"
 tests:
@@ -14,3 +8,24 @@ tests:
       - The extracted spreadsheet content includes the revenue rows
     vars:
       input: Generate the spreadsheet report
+default_test:
+  options:
+    transform: >-
+      return (() => {
+        const content = Array.isArray(output) ? output : [];
+        const matchers = ["xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",".xlsx"];
+        const file = content.find((block) => {
+          if (!block || block.type !== "file") return false;
+          const mediaType = typeof block.media_type === "string" ? block.media_type : "";
+          const filePath = typeof block.path === "string" ? block.path : "";
+          return matchers.some((matcher) => mediaType === matcher || filePath.endsWith(matcher));
+        });
+        if (!file || typeof file.path !== "string") return output;
+        const result = Bun.spawnSync(["bun","run","../scripts/preprocessors/xlsx-to-csv.ts"], {
+          stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
+        });
+        if (result.exitCode !== 0) {
+          throw new Error(new TextDecoder().decode(result.stderr).trim() || "preprocessor command failed");
+        }
+        return new TextDecoder().decode(result.stdout).trim();
+      })()
