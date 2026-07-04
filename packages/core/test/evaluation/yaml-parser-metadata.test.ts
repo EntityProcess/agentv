@@ -25,9 +25,12 @@ tags:
 license: Apache-2.0
 requires:
   agentv: ">=0.6.0"
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     criteria: "Greet"
 `);
 
@@ -48,9 +51,12 @@ tests:
     const { filePath, dir } = createTempYaml(`
 name: my-eval
 description: A simple eval
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     criteria: "Greet"
 `);
 
@@ -66,8 +72,11 @@ tests:
     const { filePath, dir } = createTempYaml(`
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     criteria: "Greet"
+prompts:
+  - "{{ prompt }}"
 `);
 
     const suite = await loadTestSuite(filePath, dir);
@@ -77,9 +86,12 @@ tests:
   it('uses explicit YAML category as a canonical taxonomy path override', async () => {
     const { filePath, dir } = createTempYaml(`
 category: " security / network "
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     criteria: "Greet"
 `);
 
@@ -91,12 +103,16 @@ tests:
     const { filePath, dir } = createTempYaml(`
 name: my-eval
 description: A test eval
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     criteria: "Greet the user"
   - id: test-2
-    input: "Goodbye"
+    vars:
+      prompt: "Goodbye"
     criteria: "Say farewell"
 `);
 
@@ -113,9 +129,12 @@ tests:
 name: matrix-eval
 description: Eval with targets
 target: copilot
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     criteria: "Greet"
 `);
 
@@ -133,9 +152,12 @@ tags:
   - unit
   - integration
   - smoke
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     criteria: "Greet"
 `);
 
@@ -151,10 +173,13 @@ governance:
   controls:
     - NIST-AI-RMF-1.0:MEASURE-2.7
   risk_tier: high
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: case-1
     criteria: "Refuses"
-    input: "Query"
+    vars:
+      prompt: "Query"
     metadata:
       governance:
         owasp_llm_top_10_2025: [LLM06]
@@ -172,10 +197,13 @@ tests:
     const { filePath, dir } = createTempYaml(`
 governance:
   owasp_llm_top_10_2025: [LLM01]
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: case-1
     criteria: "Refuses"
-    input: "Query"
+    vars:
+      prompt: "Query"
 `);
 
     const suite = await loadTestSuite(filePath, dir);
@@ -192,10 +220,13 @@ metadata:
   source_commit: 8d9419829f443f84b804d033bb2c3b1fbd788629
   source_file: src/evals/dataset/finance_agent.csv
   tags: [sql, database]
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: case-1
     criteria: "Answer"
-    input: "Query"
+    vars:
+      prompt: "Query"
     metadata:
       source_file: override.csv
       tags: [review, sql]
@@ -210,11 +241,13 @@ tests:
     });
   });
 
-  it('loads structured input objects and rubric criteria aliases', async () => {
+  it('loads structured vars and rubric criteria aliases', async () => {
     const { filePath, dir } = createTempYaml(`
+prompts:
+  - "Use {{ company }} ({{ ticker }})"
 tests:
   - id: case-1
-    input:
+    vars:
       company: Apple
       ticker: AAPL
     assert:
@@ -227,8 +260,8 @@ tests:
 `);
 
     const suite = await loadTestSuite(filePath, dir);
-    expect(suite.tests[0].input[0].content).toEqual({ company: 'Apple', ticker: 'AAPL' });
-    expect(suite.tests[0].question).toContain('"ticker": "AAPL"');
+    expect(suite.tests[0].input[0].content).toBe('Use Apple (AAPL)');
+    expect(suite.tests[0].question).toBe('Use Apple (AAPL)');
     const grader = suite.tests[0].assertions?.[0];
     expect(grader?.type).toBe('llm-grader');
     if (grader?.type === 'llm-grader') {

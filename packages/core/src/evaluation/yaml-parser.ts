@@ -1146,6 +1146,7 @@ async function loadTestsFromParsedYamlValue(
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
   rejectAuthoredWorkers(interpolated);
+  rejectAuthoredDirectInput(interpolated);
 
   const rawSuite = rawParsed as RawTestSuite;
   const resolvedDefaultTest = await resolveDefaultTestValue(
@@ -1662,6 +1663,28 @@ function rejectAuthoredWorkers(parsed: JsonObject): void {
   throw new Error(
     `${locations[0]} has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.`,
   );
+}
+
+function rejectAuthoredDirectInput(parsed: JsonObject): void {
+  if (parsed.input !== undefined) {
+    throw new Error(
+      "Top-level 'input' has been removed from authored eval YAML. Author prompt text or chat messages in top-level 'prompts' and put shared data in default_test.vars or per-row data in tests[].vars.",
+    );
+  }
+
+  if (!Array.isArray(parsed.tests)) {
+    return;
+  }
+
+  for (let index = 0; index < parsed.tests.length; index++) {
+    const entry = parsed.tests[index];
+    if (!isJsonObject(entry) || entry.input === undefined) {
+      continue;
+    }
+    throw new Error(
+      `tests[${index}].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.`,
+    );
+  }
 }
 
 function collectWorkersLocations(raw: unknown, location: string, locations: string[]): void {

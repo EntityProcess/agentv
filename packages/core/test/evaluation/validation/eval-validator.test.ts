@@ -17,7 +17,7 @@ describe('validateEvalFile', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('validates eval file with input alias string shorthand', async () => {
+  it('rejects eval file with authored test input', async () => {
     const filePath = path.join(tempDir, 'input-alias.yaml');
     await writeFile(
       filePath,
@@ -30,8 +30,14 @@ describe('validateEvalFile', () => {
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].input',
+        message: expect.stringContaining('tests[].input has been removed'),
+      }),
+    );
   });
 
   it('validates top-level target and run controls with flatter import entries', async () => {
@@ -39,6 +45,8 @@ describe('validateEvalFile', () => {
     await writeFile(
       filePath,
       `name: wrapper
+prompts:
+  - "{{ prompt }}"
 target: codex
 threshold: 0.8
 evaluate_options:
@@ -50,7 +58,8 @@ evaluate_options:
     early_exit: true
 tests:
   - id: local-case
-    input: "Hello"
+    vars:
+      prompt: "Hello"
 imports:
   suites:
     - path: ./evals/**/*.eval.yaml
@@ -178,12 +187,15 @@ tests:
     const filePath = path.join(tempDir, 'default-test-threshold.yaml');
     await writeFile(
       filePath,
-      `default_test:
+      `prompts:
+  - "{{ prompt }}"
+default_test:
   threshold: 0.6
 tests:
   - id: test-1
     criteria: Goal
-    input: Query
+    vars:
+      prompt: Query
 `,
     );
 
@@ -220,11 +232,14 @@ tests:
     const filePath = path.join(tempDir, 'default-test-reference.yaml');
     await writeFile(
       filePath,
-      `default_test: file://.agentv/default-test.yaml
+      `prompts:
+  - "{{ prompt }}"
+default_test: file://.agentv/default-test.yaml
 tests:
   - id: test-1
     criteria: Goal
-    input: Query
+    vars:
+      prompt: Query
 `,
     );
 
@@ -238,11 +253,14 @@ tests:
     const filePath = path.join(tempDir, 'default-test-ref-reference.yaml');
     await writeFile(
       filePath,
-      `default_test: ref://global-default
+      `prompts:
+  - "{{ prompt }}"
+default_test: ref://global-default
 tests:
   - id: test-1
     criteria: Goal
-    input: Query
+    vars:
+      prompt: Query
 `,
     );
 
@@ -996,7 +1014,7 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
-  it('validates eval file with suite-level input block shorthand', async () => {
+  it('rejects suite-level input block shorthand', async () => {
     const filePath = path.join(tempDir, 'suite-input-block.yaml');
     await writeFile(
       filePath,
@@ -1011,11 +1029,17 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'input',
+        message: expect.stringContaining("Top-level 'input' has been removed"),
+      }),
+    );
   });
 
-  it('validates eval file with suite-level structured object input shorthand', async () => {
+  it('rejects suite-level structured object input shorthand', async () => {
     const filePath = path.join(tempDir, 'suite-input-object.yaml');
     await writeFile(
       filePath,
@@ -1031,11 +1055,17 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'input',
+        message: expect.stringContaining("Top-level 'input' has been removed"),
+      }),
+    );
   });
 
-  it('validates eval file with suite-level single-message input object', async () => {
+  it('rejects suite-level single-message input object', async () => {
     const filePath = path.join(tempDir, 'suite-input-message-object.yaml');
     await writeFile(
       filePath,
@@ -1052,11 +1082,17 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'input',
+        message: expect.stringContaining("Top-level 'input' has been removed"),
+      }),
+    );
   });
 
-  it('rejects suite-level object input with invalid reserved role', async () => {
+  it('rejects suite-level object input before validating direct-input shape', async () => {
     const filePath = path.join(tempDir, 'suite-input-invalid-role-object.yaml');
     await writeFile(
       filePath,
@@ -1073,10 +1109,10 @@ tests:
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.location === 'input[0].role')).toBe(true);
+    expect(result.errors.some((error) => error.location === 'input')).toBe(true);
   });
 
-  it('validates eval file with test-level structured object input shorthand', async () => {
+  it('rejects test-level structured object input shorthand', async () => {
     const filePath = path.join(tempDir, 'test-input-object.yaml');
     await writeFile(
       filePath,
@@ -1091,8 +1127,14 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].input',
+        message: expect.stringContaining('tests[].input has been removed'),
+      }),
+    );
   });
 
   it('rejects test-level object input with invalid reserved role', async () => {
@@ -1111,10 +1153,10 @@ tests:
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.location === 'tests[0].input[0].role')).toBe(true);
+    expect(result.errors.some((error) => error.location === 'tests[0].input')).toBe(true);
   });
 
-  it('validates eval file with input alias message array', async () => {
+  it('rejects eval file with test-level message-array input', async () => {
     const filePath = path.join(tempDir, 'input-array.yaml');
     await writeFile(
       filePath,
@@ -1131,18 +1173,27 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].input',
+        message: expect.stringContaining('tests[].input has been removed'),
+      }),
+    );
   });
 
   it('validates eval file with expected_output alias string shorthand', async () => {
     const filePath = path.join(tempDir, 'output-string.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ prompt }}"
+tests:
   - id: test-1
     criteria: Goal
-    input: Query
+    vars:
+      prompt: Query
     expected_output: "The answer is 4"
 `,
     );
@@ -1157,10 +1208,13 @@ tests:
     const filePath = path.join(tempDir, 'output-object.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ prompt }}"
+tests:
   - id: test-1
     criteria: Goal
-    input: Query
+    vars:
+      prompt: Query
     expected_output:
       riskLevel: High
       confidence: 0.95
@@ -1177,10 +1231,13 @@ tests:
     const filePath = path.join(tempDir, 'rubric-operators.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ prompt }}"
+tests:
   - id: finance-summary
     criteria: Keep supported facts and avoid contradictions
-    input: Summarize the finance note
+    vars:
+      prompt: Summarize the finance note
     assert:
       - type: llm-rubric
         value:
@@ -1212,7 +1269,7 @@ tests:
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'input'"))).toBe(true);
+    expect(result.errors.some((e) => e.message.includes('Missing prompt input'))).toBe(true);
   });
 
   it('rejects eval file with invalid input alias type', async () => {
@@ -1229,19 +1286,25 @@ tests:
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'input'"))).toBe(true);
+    expect(result.errors.some((e) => e.message.includes('tests[].input has been removed'))).toBe(
+      true,
+    );
   });
 
-  it('validates input message array', async () => {
+  it('validates chat message prompt array with vars', async () => {
     const filePath = path.join(tempDir, 'input-messages.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - - role: system
+      content: Be helpful
+    - role: user
+      content: "{{ prompt }}"
+tests:
   - id: test-1
     criteria: Goal
-    input:
-      - role: user
-        content: Hello
+    vars:
+      prompt: Hello
 `,
     );
 
@@ -1255,14 +1318,15 @@ tests:
     const filePath = path.join(tempDir, 'test-vars.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "Question: {{ question }}"
+tests:
   - id: test-1
     vars:
       question: "What is 2+2?"
       expected:
         answer: "4"
     criteria: "Answers {{question}} correctly"
-    input: "Question: {{question}}"
     expected_output: "{{expected.answer}}"
 `,
     );
@@ -1389,9 +1453,12 @@ tests:
       const filePath = path.join(tempDir, 'assert-is-json.yaml');
       await writeFile(
         filePath,
-        `tests:
+        `prompts:
+  - "{{ prompt }}"
+tests:
   - id: test-1
-    input: "Return JSON"
+    vars:
+      prompt: "Return JSON"
     assert:
       - type: is-json
 `,
@@ -1463,9 +1530,12 @@ tests:
       const filePath = path.join(tempDir, 'assert-required-bool.yaml');
       await writeFile(
         filePath,
-        `tests:
+        `prompts:
+  - "{{ prompt }}"
+tests:
   - id: test-1
-    input: "What is 2+2?"
+    vars:
+      prompt: "What is 2+2?"
     assert:
       - type: contains
         value: "4"
@@ -1581,9 +1651,12 @@ tests:
       const filePath = path.join(tempDir, 'assert-string-shorthand.yaml');
       await writeFile(
         filePath,
-        `tests:
+        `prompts:
+  - "{{ prompt }}"
+tests:
   - id: test-1
-    input: "Explain quicksort"
+    vars:
+      prompt: "Explain quicksort"
     assert:
       - Mentions divide-and-conquer approach
       - Explains partition step
@@ -1619,9 +1692,12 @@ tests:
       const filePath = path.join(tempDir, 'assert-valid.yaml');
       await writeFile(
         filePath,
-        `tests:
+        `prompts:
+  - "{{ prompt }}"
+tests:
   - id: test-1
-    input: "Is this entity sanctioned?"
+    vars:
+      prompt: "Is this entity sanctioned?"
     assert:
       - type: contains
         value: DENIED
@@ -1664,9 +1740,12 @@ tests:
         filePath,
         `name: my-eval
 description: A valid eval
+prompts:
+  - "{{ prompt }}"
 tests:
   - id: test-1
-    input: "Query"
+    vars:
+      prompt: "Query"
 `,
       );
 
@@ -1812,7 +1891,9 @@ tests: "./cases-shorthand-workspace.yaml"
       const filePath = path.join(tempDir, 'tests-dataset-extensions.yaml');
       await writeFile(
         filePath,
-        `imports:
+        `prompts:
+  - "{{ prompt }}"
+imports:
   tests:
     - path: file://cases.csv
     - path: cases.json
@@ -1821,7 +1902,8 @@ tests: "./cases-shorthand-workspace.yaml"
 tests:
   - id: inline
     criteria: Goal
-    input: Query
+    vars:
+      prompt: Query
 `,
       );
 
@@ -1834,7 +1916,7 @@ tests:
       expect(extWarnings).toHaveLength(0);
     });
 
-    it('passes promptfoo CSV rows that rely on suite-level input', async () => {
+    it('passes promptfoo CSV rows rendered through top-level prompts and vars', async () => {
       await writeFile(
         path.join(tempDir, 'suite-input-cases.csv'),
         'id,topic,__expected\ncase,refund,contains:refund\n',
@@ -1843,7 +1925,8 @@ tests:
       const filePath = path.join(tempDir, 'suite-input-csv.yaml');
       await writeFile(
         filePath,
-        `input: Answer about {{ topic }}
+        `prompts:
+  - Answer about {{ topic }}
 tests: file://suite-input-cases.csv
 `,
       );
@@ -1881,7 +1964,7 @@ tests: file://suite-input-cases.csv
   });
 
   describe('suite-level input validation', () => {
-    it('validates suite-level input as string', async () => {
+    it('rejects suite-level input as string', async () => {
       const filePath = path.join(tempDir, 'suite-input-string.yaml');
       await writeFile(
         filePath,
@@ -1895,11 +1978,17 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          location: 'input',
+          message: expect.stringContaining("Top-level 'input' has been removed"),
+        }),
+      );
     });
 
-    it('validates suite-level input as message array', async () => {
+    it('rejects suite-level input as message array', async () => {
       const filePath = path.join(tempDir, 'suite-input-array.yaml');
       await writeFile(
         filePath,
@@ -1917,8 +2006,14 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          location: 'input',
+          message: expect.stringContaining("Top-level 'input' has been removed"),
+        }),
+      );
     });
 
     it('rejects suite-level input with invalid type', async () => {
@@ -1936,7 +2031,9 @@ tests:
       const result = await validateEvalFile(filePath);
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.message.includes("suite-level 'input'"))).toBe(true);
+      expect(
+        result.errors.some((e) => e.message.includes("Top-level 'input' has been removed")),
+      ).toBe(true);
     });
   });
 
@@ -2101,7 +2198,9 @@ tests:
       const filePath = path.join(tempDir, 'workspace-docker-repo-hint.yaml');
       await writeFile(
         filePath,
-        `workspace:
+        `prompts:
+  - "{{ prompt }}"
+workspace:
   docker:
     image: swebench/sweb.eval.django__django:latest
   repos:
@@ -2110,7 +2209,8 @@ tests:
 tests:
   - id: test-1
     criteria: Goal
-    input: "Query"
+    vars:
+      prompt: "Query"
 `,
       );
 
@@ -2296,12 +2396,14 @@ tests:
       const filePath = path.join(tempDir, 'expected-outcome-deprecated.yaml');
       await writeFile(
         filePath,
-        `tests:
+        `prompts:
+  - - role: user
+      content: "{{ prompt }}"
+tests:
   - id: test-1
     expected_outcome: Goal
-    input:
-      - role: user
-        content: Query
+    vars:
+      prompt: Query
 `,
       );
 
@@ -2322,9 +2424,12 @@ tests:
       const filePath = path.join(tempDir, 'test-level-assert.yaml');
       await writeFile(
         filePath,
-        `tests:
+        `prompts:
+  - "{{ prompt }}"
+tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
     assert:
       - type: contains
         value: "hello"
@@ -2341,12 +2446,15 @@ tests:
       const filePath = path.join(tempDir, 'top-level-assert.yaml');
       await writeFile(
         filePath,
-        `assert:
+        `prompts:
+  - "{{ prompt }}"
+assert:
   - type: contains
     value: "hello"
 tests:
   - id: test-1
-    input: "Hello"
+    vars:
+      prompt: "Hello"
 `,
       );
 

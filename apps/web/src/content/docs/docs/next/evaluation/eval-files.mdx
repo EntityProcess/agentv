@@ -101,7 +101,8 @@ imports:
 
 tests:
   - id: local-edge-case
-    input: Can a final-sale item be refunded after damage in transit?
+    vars:
+      question: Can a final-sale item be refunded after damage in transit?
     expected_output: Explain the final-sale exception for damaged transit.
 ```
 
@@ -123,13 +124,17 @@ The primary format. A single file contains metadata, inline runtime config, and 
 description: Math problem solving evaluation
 target: default
 
+prompts:
+  - "{{ question }}"
+
 assert:
   - Correctly calculates the answer
   - Explains the calculation briefly
 
 tests:
   - id: addition
-    input: What is 15 + 27?
+    vars:
+      question: What is 15 + 27?
     expected_output: "42"
 ```
 
@@ -153,12 +158,11 @@ tests:
 | `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
 | `assert` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
-| `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
 `workspace` is what the agent can inspect or modify through tools, not prompt
-input. Put instructions in `input`; put repos, templates, Docker config, env
-checks, scope, and repo provenance in `workspace`. Put lifecycle setup that
-does not acquire repos in `extensions`.
+input. Put task instructions and chat/system/user messages in `prompts`; put
+repos, templates, Docker config, env checks, scope, and repo provenance in
+`workspace`. Put lifecycle setup that does not acquire repos in `extensions`.
 
 For historical or repo-state evals, put the checkout under
 `workspace.repos[].commit`. A commit SHA in the prompt or metadata is useful
@@ -228,22 +232,13 @@ the top-level form matches Promptfoo-style prompt templates, while the
 `vars.*` namespace is explicit and useful when a key might collide with other
 template context.
 
-Do not mix top-level `prompts` with direct input fields. `tests[].input`,
-`tests[].input_files`, top-level `input`, and top-level `input_files` are
-AgentV direct-input conveniences for suites that already know the target task
-input. They cannot be combined with top-level `prompts`; use `tests[].vars` for
-prompt-matrix data, or remove `prompts` for a direct-input suite.
+Do not author direct input fields in normal eval YAML. `tests[].input` and
+top-level `input` are removed from public authored eval files. Put prompt text,
+system messages, and user messages in top-level `prompts`; put row data in
+`tests[].vars` and shared defaults in `default_test.vars`.
 
-For simple direct-input text, this:
-
-```yaml
-tests:
-  - id: direct
-    input: Summarize the July release notes.
-```
-
-is conceptually equivalent to a prompt template such as
-`"{{ input }}"` or `"{{ vars.input }}"` with:
+For simple task text, use a prompt template such as `"{{ input }}"` or
+`"{{ vars.input }}"` with:
 
 ```yaml
 tests:
@@ -252,8 +247,9 @@ tests:
       input: Summarize the July release notes.
 ```
 
-Use the direct shorthand for compact AgentV-native suites. Use top-level
-`prompts` when you want Promptfoo-compatible prompt and vars expansion.
+External raw-case files imported through `tests: file://...` or
+`imports.tests` may still contain raw internal `input` rows for compatibility.
+Keep that compatibility out of normal eval YAML authoring.
 
 ### Lifecycle Extensions
 
@@ -375,13 +371,18 @@ Resolution rules:
 - Nested includes are allowed up to depth 3 to keep cycles and runaway recursion bounded
 - Suite-level includes follow the same merge behavior as other suite-level assertions and still respect `execution.skip_defaults: true`
 
-### Suite-level Input
+### Shared Prompt Context
 
-The `input` field defines messages that are **prepended** to every test's input. This avoids repeating the same prompt or system context in each test case, following the same pattern as suite-level `assert`.
+Put shared prompt instructions in top-level `prompts`, with row-specific values
+in `tests[].vars` and shared values in `default_test.vars`.
 
 ```yaml
 description: Travel assistant evaluation
-input: "Answer as a concise travel assistant."
+prompts:
+  - - role: system
+      content: Answer as a concise travel assistant.
+    - role: user
+      content: "{{ question }}"
 
 tests: ./cases.yaml
 ```
@@ -389,79 +390,58 @@ tests: ./cases.yaml
 Use a block scalar for multi-line shared instructions:
 
 ```yaml
-input: |
-  Read AGENTS.md before answering.
-  Explain the tradeoffs clearly.
+prompts:
+  - - role: system
+      content: |
+        Read AGENTS.md before answering.
+        Explain the tradeoffs clearly.
+    - role: user
+      content: "{{ question }}"
 
 tests: ./cases.yaml
 ```
 
-Each test in `cases.yaml` only needs its own query:
+Each test in `cases.yaml` only needs its own data:
 
 ```yaml
 - id: japan-spring
   criteria: Recommends spring for cherry blossoms
-  input: When is the best time to visit Japan?
+  vars:
+    question: When is the best time to visit Japan?
 ```
 
-The effective input at runtime becomes `[...suite input, ...test input]`.
+### File-Backed Prompt Context
 
-Suite-level `input` accepts the same formats as test-level `input`:
-- **String** — wrapped as `[{ role: "user", content: "..." }]`
-- **Object without a top-level `role` key** — wrapped as structured user-message content
-- **Single message object** — a `{ role, content }` object using a supported message role
-- **Message array** — used as-is, including system messages and file references
-
-The top-level `role` key is reserved for message objects. If your structured payload needs a field named `role`, nest it under another key.
-
-```yaml
-input:
-  - role: system
-    content: You are a careful reviewer.
-  - role: user
-    content:
-      - type: file
-        value: ./system-prompt.md
-```
-
-To opt out for a specific test, set `execution.skip_defaults: true` (same flag that skips suite-level `assert`).
-
-### Suite-level Input Files
-
-The `input_files` field is an AgentV direct-input convenience for attaching
-shared file references to every test. When a test has a string `input`, the
-suite-level files are prepended as `type: file` content blocks in a single user
-message — the same shape produced by per-test `input_files`.
+Normal eval YAML should model file-backed context through `prompts` and vars.
+For example, put a path or `file://` reference in `tests[].vars`, then render it
+from a prompt entry next to the task text.
 
 ```yaml
 description: Schema review evaluation
-input_files:
-  - ./shared-context.md
-  - ./schema.json
+
+prompts:
+  - - role: user
+      content:
+        - type: file
+          value: "{{ context_file }}"
+        - type: text
+          value: "{{ question }}"
 
 tests:
   - id: summarize
-    criteria: Summarizes the important constraints
-    input: Summarize the important constraints.
+    vars:
+      context_file: ./shared-context.md
+      question: Summarize the important constraints.
   - id: validate
-    criteria: Identifies validation gaps
-    input: What validation is missing?
+    vars:
+      context_file: ./schema.json
+      question: What validation is missing?
 ```
-
-Each test's effective input becomes a single user message with `[file blocks..., text block]`.
-
-Per-test `input_files` overrides the suite-level value (it does not merge). To opt out, set `execution.skip_defaults: true` on the test.
-
-`input_files` cannot be mixed with top-level `prompts`. In Promptfoo-style
-prompt authoring, model file-backed context as vars whose values are file paths
-or `file://` references, then render those vars from the prompt template next to
-the test input. AgentV `input_files` is shorthand for the direct-input version
-of that pattern.
 
 ### PROMPT.md Fallback
 
-For directory-style evals, a test may omit `input` and keep the task prompt in
-Markdown instead. AgentV resolves the prompt in this order:
+For directory-style raw cases, a test may omit direct input and keep the task
+prompt in Markdown instead. AgentV resolves the prompt in this order:
 
 1. If the effective `input_files` contains a file named exactly `PROMPT.md`, that file becomes the test prompt.
 2. Otherwise, if a `PROMPT.md` exists beside the `EVAL.yaml`, that file becomes the test prompt.
@@ -572,7 +552,8 @@ Each `case.yaml` is a single YAML object (not an array) with the same fields as 
 ```yaml
 # cases/fix-null-check/case.yaml
 criteria: Fixes the null reference bug in the parser module
-input: Fix the null check bug in parser.ts
+vars:
+  task: Fix the null check bug in parser.ts
 ```
 
 **Behavior:**
@@ -581,7 +562,7 @@ input: Fix the null check bug in parser.ts
 - **Alphabetical ordering:** Subdirectories are sorted alphabetically for deterministic order
 - **Per-case workspace:** A `workspace/` subdirectory inside the case directory automatically sets `workspace.template` to that path, unless the case already defines a `workspace` field
 - **Skipped directories:** Subdirectories without `case.yaml` are skipped with a warning
-- **Suite-level config applies:** Suite-level `assert`, `input`, `workspace`, `target`, and top-level run controls still apply to directory-discovered cases
+- **Suite-level config applies:** Suite-level `assert`, `prompts`, `workspace`, `target`, and top-level run controls still apply to directory-discovered cases
 
 This pattern is useful for benchmarks with many cases, where each case benefits from its own directory for workspace templates, supporting files, or documentation.
 For guidance on keeping provenance metadata, patches, oracle files, and generated
@@ -598,9 +579,13 @@ workspace:
       repo: "{{ env.REPO_A_URL }}"
       commit: "{{ env.REPO_A_COMMIT }}"
 
+prompts:
+  - "{{ prompt }}"
+
 tests:
   - id: test-1
-    input: "Evaluate the code in {{ env.PROJECT_NAME }}"
+    vars:
+      prompt: "Evaluate the code in {{ env.PROJECT_NAME }}"
     criteria: "{{ env.EVAL_CRITERIA }}"
 ```
 
@@ -632,13 +617,14 @@ MY_REPO_COMMIT=main
 
 ## Per-Test Template Variables
 
-Eval YAML also supports per-test `vars` for data-driven direct-input suites.
-Use `{{ vars.name }}` placeholders in test-facing text fields, and AgentV
-resolves them when the suite loads. Shared defaults can live in
+Eval YAML supports per-test `vars` for data-driven prompt suites. Use
+`{{ vars.name }}` placeholders in prompt entries and test-facing text fields,
+and AgentV resolves them when the suite loads. Shared defaults can live in
 `default_test.vars`; per-test `vars` override those defaults by key.
 
 ```yaml
-input: "Answer clearly: {{ vars.question }}"
+prompts:
+  - "Answer clearly: {{ vars.question }}"
 
 tests:
   - id: capital
@@ -646,9 +632,6 @@ tests:
       question: What is the capital of France?
       expected_answer: Paris
     criteria: "Answers {{ vars.question }} correctly"
-    input:
-      - role: user
-        content: "Question: {{ vars.question }}"
     expected_output: "{{ vars.expected_answer }}"
 ```
 
@@ -656,7 +639,7 @@ tests:
 
 - `vars` is defined per test as an object, with optional defaults from `default_test.vars`
 - `{{ vars.name }}` and dotted paths like `{{ vars.user.name }}` are supported
-- Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, assertion values/metrics, and conversation turn `input` / `expected_output` / assertions
+- Substitution applies to `prompts`, `criteria`, `expected_output`, assertion values/metrics, and conversation turn `input` / `expected_output` / assertions
 - When the whole string is a single placeholder, the original JSON value is preserved
 - Missing variables render as empty strings following Nunjucks semantics
 - `vars` interpolation is separate from environment interpolation: `{{ vars.question }}` uses test data, `{{ env.PROJECT_NAME }}` uses environment variables

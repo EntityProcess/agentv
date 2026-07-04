@@ -94,15 +94,16 @@ JSON messages:
 
 **Multi-turn format** (when context from prior turns matters):
 ```yaml
+prompts:
+  - - role: user
+      content: "My name is Alice"
+    - role: assistant
+      content: "Nice to meet you, Alice!"
+    - role: user
+      content: "What's my name?"
+
 tests:
   - id: multi-turn-context
-    input:
-      - role: user
-        content: "My name is Alice"
-      - role: assistant
-        content: "Nice to meet you, Alice!"
-      - role: user
-        content: "What's my name?"
     expected_output: "Your name is Alice."
     assert:
       - Correctly recalls the user's name from earlier in the conversation
@@ -116,9 +117,13 @@ tests:
 description: Example eval
 target: default
 
+prompts:
+  - "{{ prompt }}"
+
 tests:
   - id: greeting
-    input: "Say hello"
+    vars:
+      prompt: "Say hello"
     expected_output: "Hello! How can I help you?"
     assert:
       - Greeting is friendly and warm
@@ -128,14 +133,14 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assert`, `input`, `input_files`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assert`
 
 **Test fields:**
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
-| `input` | yes for direct-input suites; no when using top-level `prompts` | Input to the agent (string/object shorthand or full message array) |
+| `vars` | yes when the prompt needs row data | Prompt-template variables for this row |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assert` | yes | Graders: deterministic checks, `llm-rubric` checks, script graders, or plain string rubric criteria |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
@@ -188,21 +193,18 @@ Prompt templates can use `{{ name }}` or `{{ vars.name }}` placeholders. Use
 top-level names when matching Promptfoo-style prompt templates; use
 `{{ vars.name }}` when explicit namespacing is clearer.
 
-Do not mix top-level `prompts` with direct input fields. `tests[].input`,
-`tests[].input_files`, top-level `input`, and top-level `input_files` are
-AgentV direct-input conveniences and cannot be combined with top-level
-`prompts`. For simple direct text, `input: "Summarize X"` is conceptually
-equivalent to a prompt template such as `"{{ input }}"` or `"{{ vars.input }}"`
-with `tests[].vars.input: "Summarize X"`.
+Do not author direct input fields in normal eval YAML. `tests[].input` and
+top-level `input` are removed; write simple task text as a prompt template such
+as `"{{ input }}"` or `"{{ vars.input }}"` with
+`tests[].vars.input: "Summarize X"`.
 
 `input_files` is also direct-input convenience sugar. In prompt-template suites,
 model file-backed context as vars containing file paths or `file://` references,
 then render those vars from the prompt template next to the input.
 
 **Shorthand forms:**
-- `input` (string, including YAML block scalars) expands to `[{role: "user", content: "..."}]`
-- `input` (object without a top-level `role`) expands to `[{role: "user", content: {...}}]`
-- top-level `role` is reserved for message objects; use `{role, content}` when you mean a message, or nest payload role data under another key
+- Prompt entries can be strings, message arrays, file references, or prompt objects.
+- Put chat/system/user messages in `prompts`, not in `tests[].input`.
 - `expected_output` (string/object) expands to `[{role: "assistant", content: ...}]`
 - Use these canonical field names on disk; keep the wire format `snake_case`
 
@@ -230,26 +232,29 @@ requires:
   agentv: ">=0.30.0"
 ```
 
-## Suite-level Input
+## Shared Prompt Context
 
-Prepend shared input messages to every test (like suite-level `assert`). Avoids repeating the same prompt or instruction in each test:
+Put shared prompt instructions in top-level `prompts` and shared data in
+`default_test.vars`:
 
 ```yaml
-input: |
-  Read AGENTS.md before answering.
-  Explain tradeoffs clearly.
+prompts:
+  - - role: system
+      content: |
+        Read AGENTS.md before answering.
+        Explain tradeoffs clearly.
+    - role: user
+      content: "{{ question }}"
 
 tests: ./cases.yaml
 
-# cases.yaml — each test only needs its own query
+# cases.yaml — each raw row supplies vars.question, or a compatibility input row
 # - id: test-1
 #   assert:
 #     - ...
-#   input: "User question here"
+#   vars:
+#     question: "User question here"
 ```
-
-Effective input: `[...suite input, ...test input]`. Skipped when `execution.skip_defaults: true`.
-Accepts the same formats as test `input`: string/block scalar, structured object without a top-level `role`, single message object, or full message array. Use the full message array only when you need multiple messages or file/image content blocks.
 
 ## Tests as String Path
 
@@ -329,9 +334,13 @@ semantic checks, add plain rubric strings. If you need a custom LLM prompt or
 grader target, declare `llm-rubric` explicitly:
 
 ```yaml
+prompts:
+  - "{{ prompt }}"
+
 tests:
   - id: mixed-eval
-    input: "Debug this function..."
+    vars:
+      prompt: "Debug this function..."
     assert:
       - Explains why the bug happens
       - type: contains
@@ -346,18 +355,26 @@ implicit LLM grading call by itself.
 assertion:
 
 ```yaml
+prompts:
+  - "{{ prompt }}"
+
 tests:
   - id: bad-example
-    input: "What is 2+2?"
+    vars:
+      prompt: "What is 2+2?"
     expected_output: The assistant should explain why the answer is 4. # reference answer field, not a grader
 ```
 
 Write this as:
 
 ```yaml
+prompts:
+  - "{{ prompt }}"
+
 tests:
   - id: good-example
-    input: "What is 2+2?"
+    vars:
+      prompt: "What is 2+2?"
     expected_output: "4"
     assert:
       - The answer is 4 and explains the arithmetic briefly

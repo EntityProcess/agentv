@@ -38,7 +38,7 @@ implements equivalent semantics directly.
 | Authored concurrency | Common Promptfoo usage includes runtime options such as `maxConcurrency`. | `evaluate_options.max_concurrency`. | Keep AgentV divergence | Do not author `execution.max_concurrency` or top-level `workers` in eval YAML. CLI `--workers` remains an operator override. |
 | Target selection | Promptfoo normal evals use `providers`; `targets` can alias providers in unified config. | Use top-level `target` for one system under test or top-level `targets` for a target matrix. | Keep AgentV divergence | AgentV reserves `provider` for the backend/adapter kind inside a target object. Top-level `providers` is rejected to avoid overloading that term. |
 | Target object identity | Provider options often use `id` for backend/provider spec and optional `label` for display or matching. | Target objects use stable `id` for target identity, `provider` for backend kind, optional `runtime`, and `config` for provider settings. | Keep AgentV divergence | AgentV does not copy Promptfoo's `label`/`id` baggage because `provider` already names the backend boundary. |
-| Direct input suites | Promptfoo prompt authoring normally goes through `prompts` plus vars. | `tests[].input`, top-level `input`, `tests[].input_files`, and top-level `input_files` are direct-input conveniences. | Keep AgentV extension | Do not mix these fields with top-level `prompts`. Use `tests[].vars` with `prompts`, or remove `prompts` for a direct-input AgentV suite. |
+| Direct authored input | Promptfoo prompt authoring normally goes through `prompts` plus vars. | Top-level `input` and inline `tests[].input` are removed from normal authored eval YAML. External raw-case imports may still carry internal input rows for compatibility. | Removed AgentV extension | Author prompt text, chat/system/user messages, and file-backed prompt content as `prompts`; put row data in `tests[].vars` and shared defaults in `default_test.vars`. |
 | Suite assertions | `assert` entries can be strings or typed assertion objects. | `assert` entries can be strings, typed assertion objects, script graders, or AgentV extension graders. | Align with Promptfoo | Plain strings become semantic rubric checks. Use `assert`, not `assertions`, in current authored eval YAML. |
 | Assertion grouping | `type: assert-set` with child `assert` entries, optional `config`, `metric`, `weight`, and `threshold`. | `type: assert-set` with child `assert`, optional `config`, metric names, weights, and parent threshold. | Align with Promptfoo | Parent `config` is inherited by child assertions; child `config` keys override shared parent keys. Without `threshold`, pass/fail follows nonzero-weight child assertions. With `threshold`, the weighted aggregate score determines pass/fail. `type: composite` is rejected; use `assert-set`. |
 | Deterministic assertion vocabulary | Common Promptfoo types include `contains`, `icontains`, `contains-any`, `contains-all`, `starts-with`, `regex`, `is-json`, `equals`, `latency`, `cost`, `javascript`, `python`, `webhook`, `similar`, and `llm-rubric`. | AgentV accepts the implemented overlap, including `contains`, `icontains`, `contains-any`, `contains-all`, `starts-with`, `regex`, `is-json`, `equals`, `latency`, `cost`, `javascript`, `python`, `webhook`, `similar`, and `llm-rubric`. | Align with Promptfoo | Unsupported Promptfoo assertion names error instead of silently becoming custom assertion names. |
@@ -106,12 +106,18 @@ workspace:
       commit: main
   scope: attempt
 
-input_files:
-  - ./instructions.md
+prompts:
+  - - role: user
+      content:
+        - type: file
+          value: ./instructions.md
+        - type: text
+          value: "{{ task }}"
 
 tests:
   - id: refund-policy
-    input: Update the refund policy handler.
+    vars:
+      task: Update the refund policy handler.
     expected_output: The handler supports the damaged-item exception.
     assert:
       - type: tool-trajectory

@@ -222,6 +222,10 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 /** Removed top-level fields with migration hints. */
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   [
+    'input',
+    "Top-level 'input' has been removed from authored eval YAML. Author prompt text or chat messages in top-level 'prompts' and put shared data in default_test.vars or per-row data in tests[].vars.",
+  ],
+  [
     'workers',
     "'workers' has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.",
   ],
@@ -286,6 +290,10 @@ const SUPPORTED_WORKSPACE_REPO_FIELDS = new Set(['path', 'repo', 'commit', 'ance
 
 /** Removed test-level fields with migration hints. */
 const REMOVED_TEST_FIELDS = new Map<string, string>([]);
+REMOVED_TEST_FIELDS.set(
+  'input',
+  "tests[].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.",
+);
 
 /** Deprecated test-level fields with migration hints. */
 const DEPRECATED_TEST_FIELDS = new Map<string, string>([
@@ -453,9 +461,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
   }
-
-  // Validate suite-level input (optional: string/object shorthand or message array)
-  validateInputField(parsed.input, 'input', absolutePath, errors);
 
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
   validateAuthoredWorkers(parsed, absolutePath, errors);
@@ -1926,7 +1931,7 @@ function validateInputField(
         filePath,
         location,
         message:
-          "Missing 'input' field (provide a string, object, message array, or PROMPT.md next to EVAL.yaml / referenced in input_files)",
+          "Missing prompt input. Author top-level 'prompts' and put data in default_test.vars or tests[].vars; external raw-case files may still provide internal input.",
       });
     }
     return;
