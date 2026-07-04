@@ -74,6 +74,7 @@ export interface RepeatRunGroup {
   readonly trialCount: number;
   readonly passedTrials: number;
   readonly failedTrials: number;
+  readonly executionErrorTrials: number;
   readonly passRate: number;
   readonly meanScore: number;
   readonly assertionCount: number;
@@ -300,6 +301,9 @@ function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRun
   if (trials.length <= 1) return undefined;
 
   const passedTrials = trials.filter((trial) => caseTrialPassed(trial, passThreshold)).length;
+  const executionErrorTrials = trials.filter(
+    (trial) => trial.execution_status === 'execution_error',
+  ).length;
   const durationValues = numeric(trials.map((trial) => trial.duration_ms));
   const scoreValues = numeric(trials.map((trial) => trial.score));
   const toolCallValues = numeric(trials.map((trial) => trial.total_tool_calls));
@@ -317,6 +321,7 @@ function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRun
     trialCount: trials.length,
     passedTrials,
     failedTrials: trials.length - passedTrials,
+    executionErrorTrials,
     passRate: trials.length > 0 ? passedTrials / trials.length : 0,
     meanScore:
       scoreValues.length > 0

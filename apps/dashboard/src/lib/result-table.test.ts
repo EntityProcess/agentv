@@ -143,6 +143,51 @@ describe('result-table model', () => {
       trialCount: 2,
       passedTrials: 1,
       failedTrials: 1,
+      executionErrorTrials: 0,
+    });
+  });
+
+  it('keeps execution-error attempts visible in repeat-run aggregates', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'flaky-repeat-case',
+          score: 0.5,
+          attempts: [
+            {
+              attempt: 0,
+              attempt_path: 'sample-1',
+              score: 1,
+              verdict: 'pass',
+              duration_ms: 4200,
+            },
+            {
+              attempt: 1,
+              attempt_path: 'sample-2',
+              score: 0.42,
+              verdict: 'fail',
+              duration_ms: 5100,
+            },
+            {
+              attempt: 2,
+              attempt_path: 'sample-3',
+              score: 0,
+              verdict: 'fail',
+              execution_status: 'execution_error',
+              error: 'target timed out',
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(model.repeatGroups[0]).toMatchObject({
+      trialCount: 3,
+      passedTrials: 1,
+      failedTrials: 2,
+      executionErrorTrials: 1,
+      passRate: 1 / 3,
     });
   });
 
