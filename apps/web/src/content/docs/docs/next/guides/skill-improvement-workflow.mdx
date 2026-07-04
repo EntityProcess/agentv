@@ -94,10 +94,11 @@ Run the evaluation **without** the skill loaded to establish a baseline:
 agentv eval evals.json --target baseline
 
 agentv convert evals.json --out EVAL.yaml
-agentv eval EVAL.yaml --target baseline
+agentv eval EVAL.yaml --target baseline --output .agentv/results/baseline
 ```
 
-This produces a results file (e.g., `results-baseline.jsonl`) showing how the agent performs on its own.
+This produces a run bundle under `.agentv/results/baseline` showing how the
+agent performs on its own.
 
 ### Baseline isolation
 
@@ -112,7 +113,7 @@ drafts/
     SKILL.md
 
 # Baseline run won't pick it up
-agentv eval EVAL.yaml --target baseline
+agentv eval EVAL.yaml --target baseline --output .agentv/results/baseline
 ```
 
 ## Step 3: Run Candidate Evaluation
@@ -120,7 +121,7 @@ agentv eval EVAL.yaml --target baseline
 Run the same evaluation **with** the skill loaded:
 
 ```bash
-agentv eval EVAL.yaml --target candidate
+agentv eval EVAL.yaml --target candidate --output .agentv/results/candidate
 ```
 
 Or grade existing sessions offline (no API keys required):
@@ -141,7 +142,7 @@ Offline grading is useful when you want to evaluate skills with agents that don'
 Compare the baseline and candidate runs:
 
 ```bash
-agentv results compare results-baseline.jsonl results-candidate.jsonl
+agentv results compare .agentv/results/baseline/.internal/index.jsonl .agentv/results/candidate/.internal/index.jsonl
 ```
 
 The comparison output shows:
@@ -199,10 +200,10 @@ Loop back to Step 3 with the improved skill:
 
 ```bash
 # Run the improved candidate
-agentv eval EVAL.yaml --target candidate
+agentv eval EVAL.yaml --target candidate --output .agentv/results/candidate
 
 # Compare against the previous baseline
-agentv results compare results-baseline.jsonl results-candidate.jsonl
+agentv results compare .agentv/results/baseline/.internal/index.jsonl .agentv/results/candidate/.internal/index.jsonl
 ```
 
 Each iteration should show:

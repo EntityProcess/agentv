@@ -69,7 +69,7 @@ export default defineAssertion(({ output }) => {
   const pass = wordCount >= 3;
   return {
     pass,
-    assert: [{ text: `Output has ${wordCount} words`, passed: pass }],
+    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
   };
 });
 ```
@@ -89,7 +89,7 @@ export default defineAssertion(({ output, traceSummary }) => {
   const isEfficient = (traceSummary?.eventCount ?? 0) <= 5 ? 0.5 : 0;
   return {
     score: hasContent + isEfficient,
-    assert: [
+    assertions: [
       { text: 'Has content', passed: hasContent > 0 },
       { text: 'Efficient', passed: isEfficient > 0 },
     ],
@@ -202,7 +202,7 @@ export default defineAssertion(({ output }) => {
   return {
     pass,
     score: pass ? 1.0 : Math.min(wordCount / minWords, 0.9),
-    assert: [
+    assertions: [
       {
         text: pass
           ? `Output has ${wordCount} words (>= ${minWords} required)`

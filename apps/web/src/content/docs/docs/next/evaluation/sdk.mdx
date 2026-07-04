@@ -220,7 +220,7 @@ export default defineAssertion(({ output }) => {
   const pass = wordCount >= 3;
   return {
     pass,
-    assert: [{ text: `Output has ${wordCount} words`, passed: pass }],
+    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
   };
 });
 ```
@@ -272,7 +272,7 @@ import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output, traceSummary }) => ({
   score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
-  assert: [
+  assertions: [
     { text: 'Answer is not empty', passed: (output ?? '').length > 0 },
     { text: 'Efficient tool usage', passed: (traceSummary?.eventCount ?? 0) <= 5 },
   ],

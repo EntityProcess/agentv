@@ -236,11 +236,10 @@ manual `prepare`/`grade` attempts, or imported provider sessions. That is why
 source metadata belong in `index.jsonl`: tools can filter dynamically without
 requiring every run to be pre-split into semantic folders.
 
-When a run resolves a promptfoo-shaped tags map (from suite `tags`, project
-config `tags`, or `--tag key=value`), the resolved map is emitted as `tags` on
-each row and as `summary.json.metadata.tags`. Its reserved `experiment` key
-matches the row `experiment` field, so trend/compare views can group by
-`tags.experiment`.
+When a run resolves a tags metadata map (from suite `tags`, project config
+`tags`, or `--tag key=value`), the resolved map is emitted as `tags` on each row
+and as `summary.json.metadata.tags`. Its reserved `experiment` key matches the
+row `experiment` field, so trend/compare views can group by `tags.experiment`.
 
 Use `repeat` for authoring configuration and `samples` for produced
 executions. The `sample-1/`, `sample-2/`, and later folders under a result

@@ -28,10 +28,10 @@ Use this split when deciding where a benchmark key belongs:
 |------------|--------------|------------------|
 | `workspace.repos[]` | Yes | Declares repo identity and checkout refs; AgentV resolves acquisition and materializes the checkout. |
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
-| `extensions` | Yes | Runs Promptfoo-style lifecycle setup after `workspace.template` and `workspace.repos` materialize. |
+| `extensions` | Yes | Runs lifecycle setup after `workspace.template` and `workspace.repos` materialize. |
 | `workspace.hooks.after_each.reset` | Yes | Controls workspace reset policy after each case. |
 | `workspace.scope` | Yes | Controls suite vs per-attempt workspace lifetime. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
-| `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Concurrency is an operator/run setting from `--workers` or project config. |
+| `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Authored concurrency uses `evaluate_options.max_concurrency`; `--workers` is the operator override. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and carries passive gold/reference data for graders. |
 | `assert` | Yes | Runs deterministic, LLM, composite, or script graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |

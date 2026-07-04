@@ -96,7 +96,7 @@ const rationale = result.metadata?.rationale ?? "No rationale provided";
 console.log(
   JSON.stringify({
     score,
-    assert: [{ text: rationale, passed: score >= 0.5 }],
+    assertions: [{ text: rationale, passed: score >= 0.5 }],
     reasoning: rationale,
   })
 );
