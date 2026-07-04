@@ -6,7 +6,7 @@ sidebar:
 slug: docs/graders/custom-graders
 ---
 
-AgentV supports multiple grader types that can be combined for comprehensive evaluation.
+AgentV supports multiple grader types that can be combined for comprehensive evaluation. Use this page for command-backed or LLM-backed scoring components. For reusable assertion types discovered from `.agentv/assertions/`, see [Custom Assertions](/docs/graders/custom-assertions/).
 
 ## Grader Types
 
@@ -83,5 +83,6 @@ If any grader has `required: true` and scores below its required threshold, the 
 - **Use plain assertion strings first for semantic checks** — AgentV treats them as rubric criteria
 - **Use script graders for deterministic checks** — exact value matching, format validation, schema compliance
 - **Use `llm-rubric` for semantic evaluation** — meaning, quality, helpfulness, or weighted itemized scoring
+- **Use custom assertions for reusable pass/fail types** — define them with `defineAssertion()` and reference them by discovered type name
 - **Combine grader types** for comprehensive coverage
 - **Test script graders locally** before running full evaluations

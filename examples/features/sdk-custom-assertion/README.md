@@ -24,3 +24,5 @@ agentv eval evals/suite.yaml
 - **`defineAssertion()`** — simplest way to add custom evaluation logic
 - **Convention discovery** — files in `.agentv/assertions/` are auto-discovered by type name
 - **Pass/fail with reasoning** — return `{ pass, reasoning }` for clear results
+
+Use this pattern for reusable assertion types. Use `defineScriptGrader()` with `type: script` when you need a command-backed grader with full score control.

@@ -1,4 +1,8 @@
-# Custom Graders
+# Custom Graders and Assertions
+
+Use **custom assertions** for reusable assertion types discovered from `.agentv/assertions/` via `defineAssertion()`. Use **script graders** for command-backed or LLM-backed scoring components referenced with `type: script` and `command:`.
+
+Promptfoo normally calls eval custom logic assertions and uses fixed assertion types such as `javascript`, `python`, `ruby`, and `webhook`. AgentV follows that assertion terminology for `defineAssertion()` and extends it with arbitrary discovered assertion type names.
 
 ## Wire Format
 

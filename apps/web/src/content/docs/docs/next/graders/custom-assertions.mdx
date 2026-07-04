@@ -6,7 +6,7 @@ sidebar:
 slug: docs/graders/custom-assertions
 ---
 
-Custom assertions let you add evaluation logic that goes beyond built-in types. Define a TypeScript function, drop it in `.agentv/assertions/`, and reference it by name in your YAML eval files.
+Custom assertions let you add reusable assertion types that go beyond built-in types. Define a TypeScript function, drop it in `.agentv/assertions/`, and reference it by name in your YAML eval files.
 
 ## When to Use Each Approach
 
@@ -14,14 +14,20 @@ AgentV provides two SDK functions for custom evaluation logic:
 
 | Function | Best For | Discovery |
 |----------|----------|-----------|
-| `defineAssertion()` | Pass/fail checks, reusable assertion types | Convention-based (`.agentv/assertions/`) |
-| `defineScriptGrader()` | Full scoring control with explicit assertions array | Referenced via `type: script` + `command:` |
+| `defineAssertion()` | Reusable assertion types with pass/fail plus optional score | Convention-based (`.agentv/assertions/`) |
+| `defineScriptGrader()` | Command-backed scorer with full score and assertion-result control | Referenced via `type: script` + `command:` |
 
 **Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a command path. It uses a simplified result contract focused on `pass` and optional `score`.
 
-**Use `defineScriptGrader()`** when you need full control over scoring with explicit `assertions` arrays, or when the grader is a one-off grader tied to a specific eval. See [Script Graders](/docs/graders/script-graders/) for details.
+**Use `defineScriptGrader()`** when the scoring component is a command-backed grader: it needs explicit score calculation, custom assertion-result arrays, workspace commands, or LLM calls through a grader target. See [Script Graders](/docs/graders/script-graders/) for details.
 
 Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase conversion, Zod validation, and error handling automatically.
+
+## Promptfoo Terminology
+
+Promptfoo calls normal eval checks assertions. Its custom code paths use fixed assertion types such as `javascript`, `python`, `ruby`, and `webhook`, and its Node API exposes assertion-oriented helpers such as `runAssertion()` and `runAssertions()`.
+
+AgentV follows that framing for `assert:` entries and `defineAssertion()`. The AgentV extension is convention discovery: any file in `.agentv/assertions/` becomes an assertion type name such as `word-count` or `has-citation`. Reserve custom grader or script grader wording for command-backed or LLM-backed scoring components, especially `type: script` entries built with `defineScriptGrader()`.
 
 ## Installation
 

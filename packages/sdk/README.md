@@ -1,6 +1,6 @@
 # @agentv/sdk
 
-Public lightweight SDK for AgentV - run evaluations programmatically, build YAML-aligned eval suites, and write custom graders and prompt templates around the canonical AgentV eval model.
+Public lightweight SDK for AgentV - run evaluations programmatically, build YAML-aligned eval suites, and write custom assertions, script graders, and prompt templates around the canonical AgentV eval model.
 
 ## Installation
 
@@ -79,14 +79,14 @@ import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output, traceSummary }) => ({
   score: (output ?? '').length > 0 ? 1.0 : 0.0,
-  assert: [
+  assertions: [
     { text: 'Output received', passed: (output ?? '').length > 0 },
     { text: 'Trace summary available', passed: traceSummary !== null },
   ],
 }));
 ```
 
-Both functions handle stdin/stdout parsing, snake_case conversion, Zod validation, and error handling automatically.
+Both functions handle stdin/stdout parsing, snake_case conversion, Zod validation, and error handling automatically. Use `defineAssertion()` for reusable assertion types discovered from `.agentv/assertions/`; use `defineScriptGrader()` for command-backed graders referenced with `type: script` and `command:`.
 
 ### Vitest workspace verifiers (preferred deterministic workspace checks)
 
@@ -228,8 +228,8 @@ Python workflows should emit canonical YAML/JSONL or implement script graders ov
 ## Exports
 
 - `evaluate(config)` - Run evaluations programmatically from inline tests or an eval spec file
-- `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
-- `defineScriptGrader(handler)` - Define a script grader (full score control)
+- `defineAssertion(handler)` - Define a custom assertion type (pass/fail + optional score)
+- `defineScriptGrader(handler)` - Define a script grader (command-backed full score control)
 - `defineVitestWorkspaceGrader(options)` - Embed the Vitest workspace verifier adapter in a custom script
 - `defineWorkspaceGrader(handler)` - Define a workspace-aware script grader with file assertion helpers
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
