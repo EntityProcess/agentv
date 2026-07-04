@@ -1,10 +1,5 @@
 import { extractLastAssistantContent } from '../providers/types.js';
-import type {
-  AssertionEntry,
-  CompositeAggregatorConfig,
-  CompositeGraderConfig,
-  JsonObject,
-} from '../types.js';
+import type { AssertionEntry, GraderConfig, JsonObject } from '../types.js';
 import { buildOutputSchema, freeformEvaluationSchema } from './llm-grader.js';
 import { clampScore, parseJsonFromText, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import { executeScript } from './script-grader.js';
@@ -21,6 +16,30 @@ interface MemberResult {
   readonly type: string;
   readonly result: EvaluationScore;
 }
+
+type CompositeAggregatorConfig =
+  | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
+  | { readonly type: 'script'; readonly path: string; readonly cwd?: string }
+  | {
+      readonly type: 'llm-grader';
+      readonly prompt?: string;
+      readonly promptPath?: string;
+      readonly model?: string;
+    }
+  | { readonly type: 'threshold'; readonly threshold: number };
+
+type CompositeGraderConfig = {
+  readonly name: string;
+  readonly type: 'composite';
+  readonly assertions: readonly GraderConfig[];
+  readonly aggregator: CompositeAggregatorConfig;
+  readonly weight?: number;
+  readonly required?: boolean;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
 
 const DEFAULT_COMPOSITE_AGGREGATOR_PROMPT = `Review the following evaluation results:
 {{EVALUATOR_RESULTS_JSON}}

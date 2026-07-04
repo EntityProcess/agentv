@@ -149,7 +149,7 @@ export interface EvalAssertionInput {
   readonly command?: string | readonly string[];
   /** Additional config passed to the assertion */
   readonly config?: Record<string, unknown>;
-  /** Nested assertions for composite type */
+  /** Nested assertions for assert-set grouping */
   readonly assert?: readonly EvalAssertionInput[];
   /** Rubric criteria for rubrics type */
   readonly criteria?: readonly (string | { id?: string; outcome: string; weight?: number })[];
