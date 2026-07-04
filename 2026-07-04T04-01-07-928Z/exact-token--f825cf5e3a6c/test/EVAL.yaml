@@ -1,0 +1,12 @@
+target: codex-cli-local
+tests:
+  - id: exact-token
+    input: "Reply with exactly this token and no extra words: AGENTV_TRANSCRIPT_PARITY_OK"
+    assert:
+      - metric: contains-AGENTV_TRANSCRIPT_PARITY_OK
+        type: contains
+        value: AGENTV_TRANSCRIPT_PARITY_OK
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: The answer contains the exact token AGENTV_TRANSCRIPT_PARITY_OK and does not contradict the instruction.

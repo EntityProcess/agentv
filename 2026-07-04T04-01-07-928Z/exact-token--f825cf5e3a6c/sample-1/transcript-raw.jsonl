@@ -1,0 +1,37 @@
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":0},"content":"# Codex CLI stream log"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":1},"content":"# target: codex-cli-local"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":2},"content":"# eval: exact-token"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":3},"content":"# attempt: 1"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":4},"content":"# started: 2026-07-04T04:01:08.128Z"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":5},"content":"[+00:04] [stdout] {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":6},"content":"  \"type\": \"thread.started\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":7},"content":"  \"thread_id\": \"019f2b49-8eb4-7913-b03d-423cf0362510\""}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":8},"content":"}"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":9},"content":"[+00:04] [stdout] {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":10},"content":"  \"type\": \"turn.started\""}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":11},"content":"}"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":12},"content":"[+00:07] [stdout] {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":13},"content":"  \"type\": \"item.completed\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":14},"content":"  \"item\": {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":15},"content":"    \"id\": \"item_0\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":16},"content":"    \"type\": \"error\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":17},"content":"    \"message\": \"Skill descriptions were shortened to fit the 2% skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\""}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":18},"content":"  }"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":19},"content":"}"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":20},"content":"[+00:09] [stdout] {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":21},"content":"  \"type\": \"item.completed\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":22},"content":"  \"item\": {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":23},"content":"    \"id\": \"item_1\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":24},"content":"    \"type\": \"agent_message\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":25},"content":"    \"text\": \"AGENTV_TRANSCRIPT_PARITY_OK\""}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":26},"content":"  }"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":27},"content":"}"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":28},"content":"[+00:09] [stdout] {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":29},"content":"  \"type\": \"turn.completed\","}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":30},"content":"  \"usage\": {"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":31},"content":"    \"input_tokens\": 12608,"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":32},"content":"    \"cached_input_tokens\": 4736,"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":33},"content":"    \"output_tokens\": 42,"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":34},"content":"    \"reasoning_output_tokens\": 28"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":35},"content":"  }"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":36},"content":"}"}

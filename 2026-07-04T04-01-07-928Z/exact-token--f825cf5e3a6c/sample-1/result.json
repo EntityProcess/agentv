@@ -1,0 +1,124 @@
+{
+  "execution_status": "ok",
+  "verdict": "pass",
+  "sample_index": 0,
+  "retry_index": 0,
+  "target_execution": {
+    "schema_version": "agentv.target_execution.v1",
+    "target_id": "codex-cli-local",
+    "provider_id": "codex-cli:codex-cli-local",
+    "provider_kind": "codex-cli",
+    "runtime_mode": "host",
+    "command": {
+      "argv": [
+        "/home/entity/.local/bin/codex",
+        "--model",
+        "gpt-5.3-codex-spark",
+        "--sandbox",
+        "read-only",
+        "exec",
+        "--json",
+        "--color",
+        "never",
+        "--skip-git-repo-check",
+        "-"
+      ],
+      "command_line": "/home/entity/.local/bin/codex --model gpt-5.3-codex-spark --sandbox read-only exec --json --color never --skip-git-repo-check -",
+      "cwd": "/tmp/agentv-codex-sQ9QDd"
+    },
+    "timeout_ms": 180000,
+    "started_at": "2026-07-04T04:01:08.131Z",
+    "ended_at": "2026-07-04T04:01:17.769Z",
+    "duration_ms": 9638,
+    "exit_code": 0,
+    "signal": null,
+    "logs": {
+      "stdout": {
+        "text": "{\"type\":\"thread.started\",\"thread_id\":\"019f2b49-8eb4-7913-b03d-423cf0362510\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"Skill descriptions were shortened to fit the 2% skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"agent_message\",\"text\":\"AGENTV_TRANSCRIPT_PARITY_OK\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":12608,\"cached_input_tokens\":4736,\"output_tokens\":42,\"reasoning_output_tokens\":28}}\n",
+        "truncated": false,
+        "bytes": 623,
+        "stored_bytes": 623
+      },
+      "stderr": {
+        "text": "",
+        "truncated": false,
+        "bytes": 0,
+        "stored_bytes": 0
+      }
+    },
+    "status": "success",
+    "transcript": {
+      "messages": [
+        {
+          "role": "assistant",
+          "content": "AGENTV_TRANSCRIPT_PARITY_OK"
+        }
+      ],
+      "final_output": "AGENTV_TRANSCRIPT_PARITY_OK"
+    },
+    "details": {
+      "prompt_file": "/tmp/agentv-codex-sQ9QDd/prompt.md",
+      "workspace": "/tmp/agentv-codex-sQ9QDd",
+      "input_files": [],
+      "log_file": "/tmp/agentv-provider-streams/2026-07-04T04-01-07-928Z-b5dc41011999/provider-sanity/exact-token/logs/codex/2026-07-04T04-01-08-127Z_codex-cli-local_exact-token_attempt-1_0c437245.log"
+    },
+    "artifacts": {
+      "target_execution_path": "target-execution.json",
+      "stdout_path": "stdout.txt",
+      "stderr_path": "stderr.txt",
+      "transcript_path": "transcript.json",
+      "transcript_raw_path": "transcript-raw.jsonl",
+      "summary_path": "summary.json",
+      "metrics_path": "metrics.json",
+      "output_path": "outputs/answer.md",
+      "answer_path": "outputs/answer.md"
+    }
+  },
+  "target_execution_path": "./target-execution.json",
+  "stdout_path": "./stdout.txt",
+  "stderr_path": "./stderr.txt",
+  "duration_ms": 9638,
+  "duration_seconds": 9.638,
+  "model": "codex-cli-local",
+  "grading_path": "./grading.json",
+  "metrics_path": "./metrics.json",
+  "transcript_path": "./transcript.json",
+  "transcript_raw_path": "./transcript-raw.jsonl",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "o11y": {
+    "total_turns": 1,
+    "tool_calls": {},
+    "total_tool_calls": 0,
+    "web_fetches": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_deleted": [],
+    "shell_commands": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "output_paths": {
+    "answer": "./outputs/answer.md"
+  }
+}
