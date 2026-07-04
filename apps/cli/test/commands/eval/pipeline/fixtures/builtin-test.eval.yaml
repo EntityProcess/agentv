@@ -3,8 +3,10 @@ prompts:
   - "{{ input }}"
 tests:
   - id: test-01
-    criteria: Response echoes the input
     assert:
+      - metric: echoes_input
+        type: llm-rubric
+        value: Response echoes the input
       - metric: has_hello
         type: contains
         value: hello

@@ -40,6 +40,61 @@ describe('validateEvalFile', () => {
     );
   });
 
+  it('rejects test-level criteria combined with explicit assert entries', async () => {
+    const filePath = path.join(tempDir, 'criteria-with-assert.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "{{ prompt }}"
+tests:
+  - id: mixed
+    vars:
+      prompt: "Hello"
+    criteria: Response echoes the input
+    assert:
+      - type: contains
+        value: hello
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].criteria',
+        message: expect.stringContaining("Do not combine test-level 'criteria' with 'assert'"),
+      }),
+    );
+    expect(result.errors[0].message).toContain('tests[].description');
+    expect(result.errors[0].message).toContain('type:');
+    expect(result.errors[0].message).toContain('llm-rubric');
+  });
+
+  it('accepts test-level description combined with explicit assert entries', async () => {
+    const filePath = path.join(tempDir, 'description-with-assert.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "{{ prompt }}"
+tests:
+  - id: described
+    description: Human-facing case label
+    vars:
+      prompt: "Hello"
+    assert:
+      - type: contains
+        value: hello
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('validates top-level target and run controls with flatter import entries', async () => {
     const filePath = path.join(tempDir, 'run-controls-include.yaml');
     await writeFile(
@@ -1235,7 +1290,6 @@ tests:
   - "{{ prompt }}"
 tests:
   - id: finance-summary
-    criteria: Keep supported facts and avoid contradictions
     vars:
       prompt: Summarize the finance note
     assert:

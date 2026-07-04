@@ -329,6 +329,9 @@ function interpolateRawEvalCase(
   return {
     ...raw,
     ...(raw.id !== undefined ? { id: interpolateCaseField(raw.id, vars, filters) } : {}),
+    ...(raw.description !== undefined
+      ? { description: interpolateCaseField(raw.description, vars, filters) }
+      : {}),
     ...(raw.criteria !== undefined
       ? { criteria: interpolateCaseField(raw.criteria, vars, filters) }
       : {}),
@@ -1537,6 +1540,9 @@ async function loadTestsFromParsedYamlValue(
         suite: suiteName,
         category,
         conversation_id: conversationId,
+        ...(typeof renderedCase.description === 'string'
+          ? { description: renderedCase.description }
+          : {}),
         ...(promptIdentity ? { prompt: promptIdentity } : {}),
         question: question,
         input: inputMessages,

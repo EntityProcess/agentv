@@ -183,8 +183,8 @@ Same as contains variants but explicitly case-insensitive.
 
 #### `llm-rubric`
 
-- **Fields:** `prompt` (string, required — either inline text or path to .md file)
-- **Recipe:** Read the prompt. Evaluate the response against the criteria using your own reasoning. Produce score (0.0-1.0) with evidence.
+- **Fields:** `value` (free-form or structured criteria), `rubrics` (itemized criteria), or `prompt` / exported `prompt_content` (custom grading prompt)
+- **Recipe:** Read the rubric value, rubric items, or prompt. Evaluate the response against those criteria using your own reasoning. Produce score (0.0-1.0) with evidence.
 - **PASS:** score >= 0.5 (configurable via `threshold`).
 
 #### `rubric` / `rubrics`
@@ -304,7 +304,7 @@ Extracts inputs, target commands, and grader configs from an eval YAML file.
 │   ├── criteria.md             ← human-readable success criteria
 │   ├── expected_output.json    ← (if present)
 │   ├── script_graders/<name>.json   ← {name, command, weight, config?}
-│   └── llm_graders/<name>.json    ← {name, weight, threshold?, prompt_content}
+│   └── llm_graders/<name>.json    ← {name, type, weight, threshold?, prompt_content, value?, rubrics?}
 ```
 
 **`manifest.json` format:**
