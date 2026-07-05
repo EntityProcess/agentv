@@ -19,6 +19,7 @@ function repeatResult(overrides: Partial<EvalResult> = {}): EvalResult {
       {
         attempt: 0,
         sample_index: 1,
+        sample_path: 'sample-1',
         attempt_path: 'sample-1',
         score: 1,
         verdict: 'pass',
@@ -29,6 +30,7 @@ function repeatResult(overrides: Partial<EvalResult> = {}): EvalResult {
       {
         attempt: 1,
         sample_index: 2,
+        sample_path: 'sample-2',
         attempt_path: 'sample-2',
         score: 0.51,
         verdict: 'fail',
@@ -39,6 +41,7 @@ function repeatResult(overrides: Partial<EvalResult> = {}): EvalResult {
       {
         attempt: 2,
         sample_index: 3,
+        sample_path: 'sample-3',
         attempt_path: 'sample-3',
         score: 0,
         verdict: 'fail',

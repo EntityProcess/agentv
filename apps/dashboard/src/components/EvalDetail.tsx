@@ -1,9 +1,8 @@
 /**
- * Eval detail view with checks, source traceability, artifact files, and artifacts.
+ * Eval detail view with grading, source traceability, artifact files, and artifacts.
  *
  * Layout: compact header → tabs → full-height content area.
- * Scores and assertions are only visible in the Checks tab.
- * Assertions are grouped by grader name.
+ * Scores and assertions are only visible in the Grading tab.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -63,7 +62,7 @@ function findFirstFile(nodes: FileNode[]): string | null {
 }
 
 function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
-  return trial.attempt_path ?? trial.run_path ?? `attempt-${trial.attempt ?? index + 1}`;
+  return trial.sample_path ?? trial.attempt_path ?? trial.run_path ?? `sample-${index + 1}`;
 }
 
 function trialNumber(trial: EvalCaseTrial, index = 0): number {
@@ -160,7 +159,7 @@ export function EvalDetail({
   }, [initialTab, initialSelectedFilePath]);
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'checks', label: 'Checks' },
+    { id: 'checks', label: 'Grading' },
     { id: 'transcript', label: 'Transcript' },
     { id: 'source', label: 'Source' },
     { id: 'files', label: 'Files' },
@@ -204,9 +203,16 @@ export function EvalDetail({
                 onSelectTrial={onSelectTrial}
               />
             ) : selectedTrial ? (
-              <TrialChecksTab
+              <ArtifactGradingTab
                 result={detailResult}
                 trial={selectedTrial}
+                runId={runId}
+                projectId={projectId}
+                onOpenFile={openFile}
+              />
+            ) : detailResult.grading_path ? (
+              <ArtifactGradingTab
+                result={detailResult}
                 runId={runId}
                 projectId={projectId}
                 onOpenFile={openFile}
@@ -601,7 +607,7 @@ function TrialActionRow({
           onClick={() => onSelectTrial?.(trial, 'checks')}
           className="rounded-md border border-gray-700 px-2.5 py-1 text-xs text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
         >
-          Checks
+          Grading
         </button>
         <button
           type="button"
@@ -678,49 +684,300 @@ function RepeatAggregateChecksTab({
   );
 }
 
-type ParsedGradingArtifact = {
-  assertions: AssertionEntry[];
-  summary?: {
-    passed?: number;
-    failed?: number;
-    total?: number;
-    pass_rate?: number;
-  };
+type GradingJsonObject = Record<string, unknown>;
+
+export type GradingAssertionMetadata = {
+  type?: string;
+  metric?: string;
+  value?: unknown;
+} & Record<string, unknown>;
+
+export type GradingComponentResult = {
+  pass?: boolean;
+  score?: number;
+  reason?: string;
+  assertion?: GradingAssertionMetadata;
+  namedScores?: Record<string, number>;
+  metadata?: GradingJsonObject;
+  componentResults: GradingComponentResult[];
+};
+
+export type ParsedGradingArtifact = {
+  result?: GradingComponentResult;
   error?: string;
 };
+
+function isObject(value: unknown): value is GradingJsonObject {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function stringField(source: GradingJsonObject, key: string): string | undefined {
+  const value = source[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function numberField(source: GradingJsonObject, key: string): number | undefined {
+  const value = source[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function booleanField(source: GradingJsonObject, key: string): boolean | undefined {
+  const value = source[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function parseNamedScores(value: unknown): Record<string, number> | undefined {
+  if (!isObject(value)) return undefined;
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function parseAssertionMetadata(value: unknown): GradingAssertionMetadata | undefined {
+  if (!isObject(value)) return undefined;
+  return Object.keys(value).length > 0 ? (value as GradingAssertionMetadata) : undefined;
+}
+
+function parseComponentResult(value: unknown): GradingComponentResult | null {
+  if (!isObject(value)) return null;
+  const componentResults = Array.isArray(value.component_results)
+    ? value.component_results.flatMap((component) => {
+        const parsed = parseComponentResult(component);
+        return parsed ? [parsed] : [];
+      })
+    : [];
+  const namedScores = parseNamedScores(value.named_scores);
+  const metadata =
+    isObject(value.metadata) && Object.keys(value.metadata).length > 0 ? value.metadata : undefined;
+  return {
+    pass: booleanField(value, 'pass'),
+    score: numberField(value, 'score'),
+    reason: stringField(value, 'reason'),
+    assertion: parseAssertionMetadata(value.assertion),
+    namedScores,
+    metadata,
+    componentResults,
+  };
+}
 
 export function parseGradingArtifact(content: string | undefined): ParsedGradingArtifact | null {
   if (!content) return null;
   try {
-    const parsed = JSON.parse(content) as Record<string, unknown>;
-    const rawAssertions = Array.isArray(parsed.assertion_results)
-      ? parsed.assertion_results
-      : Array.isArray(parsed.assertions)
-        ? parsed.assertions
-        : [];
-    const assertions = rawAssertions.flatMap((value): AssertionEntry[] => {
-      if (!value || typeof value !== 'object') return [];
-      const assertion = value as Record<string, unknown>;
-      if (typeof assertion.text !== 'string' || typeof assertion.passed !== 'boolean') {
-        return [];
-      }
-      return [
-        {
-          text: assertion.text,
-          passed: assertion.passed,
-          evidence: typeof assertion.evidence === 'string' ? assertion.evidence : undefined,
-        },
-      ];
-    });
-    const summary =
-      parsed.summary && typeof parsed.summary === 'object' ? parsed.summary : undefined;
-    return { assertions, summary: summary as ParsedGradingArtifact['summary'] };
+    const result = parseComponentResult(JSON.parse(content));
+    return result ? { result } : { error: 'grading.json must contain a JSON object.' };
   } catch (error) {
-    return { assertions: [], error: error instanceof Error ? error.message : String(error) };
+    return { error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-function TrialChecksTab({
+function formatJsonValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return JSON.stringify(value);
+}
+
+function gradingVerdictLabel(pass: boolean | undefined): string {
+  if (pass === true) return 'Pass';
+  if (pass === false) return 'Fail';
+  return 'Unknown';
+}
+
+function gradingVerdictClass(pass: boolean | undefined): string {
+  if (pass === true) return 'border-emerald-900/50 bg-emerald-950/20 text-emerald-300';
+  if (pass === false) return 'border-red-900/50 bg-red-950/20 text-red-300';
+  return 'border-gray-800 bg-gray-950/50 text-gray-300';
+}
+
+function assertionLabel(
+  assertion: GradingAssertionMetadata | undefined,
+  fallback: string,
+): { title: string; details: string[] } {
+  if (!assertion) return { title: fallback, details: [] };
+  const title =
+    (typeof assertion.metric === 'string' && assertion.metric) ||
+    (typeof assertion.type === 'string' && assertion.type) ||
+    fallback;
+  const details: string[] = [];
+  if (typeof assertion.type === 'string' && assertion.type !== title) {
+    details.push(`type: ${assertion.type}`);
+  }
+  if (typeof assertion.metric === 'string' && assertion.metric !== title) {
+    details.push(`metric: ${assertion.metric}`);
+  }
+  if (assertion.value !== undefined) {
+    details.push(`value: ${formatJsonValue(assertion.value)}`);
+  }
+  return { title, details };
+}
+
+function NamedScoresGrid({ scores }: { scores: Record<string, number> | undefined }) {
+  if (!scores || Object.keys(scores).length === 0) return null;
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {Object.entries(scores).map(([name, value]) => (
+        <RunMetricRow key={name} label={name} value={formatPercent(value)} />
+      ))}
+    </div>
+  );
+}
+
+function MetadataBlock({ metadata }: { metadata: GradingJsonObject | undefined }) {
+  if (!metadata || Object.keys(metadata).length === 0) return null;
+  return (
+    <details className="rounded-lg border border-gray-800 bg-gray-950/50 p-3">
+      <summary className="cursor-pointer text-sm font-medium text-gray-300">Metadata</summary>
+      <pre className="mt-3 max-h-64 overflow-auto text-xs text-gray-300">
+        {JSON.stringify(metadata, null, 2)}
+      </pre>
+    </details>
+  );
+}
+
+function OptionalScoreBar({ score }: { score: number | undefined }) {
+  if (score == null) {
+    return <div className="h-2 rounded-full bg-gray-800" />;
+  }
+  return <ScoreBar score={score} />;
+}
+
+function GradingAggregateSummary({ result }: { result: GradingComponentResult }) {
+  return (
+    <div className="space-y-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+      <div className="grid gap-3 md:grid-cols-[minmax(9rem,12rem)_1fr] md:items-center">
+        <div
+          className={`rounded-lg border px-3 py-2 text-sm font-medium ${gradingVerdictClass(
+            result.pass,
+          )}`}
+        >
+          {gradingVerdictLabel(result.pass)}
+        </div>
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center justify-between gap-3 text-xs text-gray-500">
+            <span>Aggregate score</span>
+            <span className="font-mono">{formatPercent(result.score)}</span>
+          </div>
+          <OptionalScoreBar score={result.score} />
+        </div>
+      </div>
+      {result.reason ? <p className="text-sm text-gray-300">{result.reason}</p> : null}
+      <NamedScoresGrid scores={result.namedScores} />
+      <MetadataBlock metadata={result.metadata} />
+    </div>
+  );
+}
+
+function GradingComponentTree({
+  components,
+}: {
+  components: readonly GradingComponentResult[];
+}) {
+  if (components.length === 0) return null;
+  return (
+    <section className="space-y-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+        Component Results
+      </h4>
+      <div className="space-y-2">
+        {components.map((component, index) => (
+          <GradingComponentNode
+            key={`${component.reason ?? 'component'}-${index}`}
+            component={component}
+            index={index}
+            depth={0}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function GradingArtifactView({ result }: { result: GradingComponentResult }) {
+  return (
+    <div className="space-y-6">
+      <GradingAggregateSummary result={result} />
+      <GradingComponentTree components={result.componentResults} />
+    </div>
+  );
+}
+
+function GradingComponentNode({
+  component,
+  index,
+  depth,
+}: {
+  component: GradingComponentResult;
+  index: number;
+  depth: number;
+}) {
+  const label = assertionLabel(component.assertion, `Component ${index + 1}`);
+  const hasChildren = component.componentResults.length > 0;
+  const summary = (
+    <div className="min-w-0 flex-1">
+      <div className="grid gap-3 md:grid-cols-[minmax(10rem,1fr)_minmax(8rem,12rem)] md:items-center">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="font-medium text-gray-200">{label.title}</span>
+            <span
+              className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${gradingVerdictClass(
+                component.pass,
+              )}`}
+            >
+              {gradingVerdictLabel(component.pass)}
+            </span>
+          </div>
+          {label.details.length > 0 ? (
+            <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
+              {label.details.map((detail) => (
+                <span key={detail}>{detail}</span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className="min-w-0">
+          <div className="mb-1 text-right font-mono text-xs text-gray-500">
+            {formatPercent(component.score)}
+          </div>
+          <OptionalScoreBar score={component.score} />
+        </div>
+      </div>
+      {component.reason ? <p className="text-sm text-gray-300">{component.reason}</p> : null}
+    </div>
+  );
+
+  return (
+    <details
+      open={depth === 0}
+      className="rounded-lg border border-gray-800 bg-gray-900 p-3"
+      style={{ marginLeft: depth > 0 ? `${Math.min(depth, 4) * 1}rem` : undefined }}
+    >
+      <summary className="flex cursor-pointer list-none items-start gap-3">
+        <span className="mt-1 text-xs text-gray-500">{hasChildren ? 'v' : '-'}</span>
+        {summary}
+      </summary>
+      {component.namedScores || component.metadata ? (
+        <div className="mt-3 space-y-3">
+          <NamedScoresGrid scores={component.namedScores} />
+          <MetadataBlock metadata={component.metadata} />
+        </div>
+      ) : null}
+      {hasChildren ? (
+        <div className="mt-3 space-y-2">
+          {component.componentResults.map((child, childIndex) => (
+            <GradingComponentNode
+              key={`${child.reason ?? 'component'}-${childIndex}`}
+              component={child}
+              index={childIndex}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      ) : null}
+    </details>
+  );
+}
+
+function ArtifactGradingTab({
   result,
   trial,
   runId,
@@ -728,12 +985,12 @@ function TrialChecksTab({
   onOpenFile,
 }: {
   result: EvalResult;
-  trial: EvalCaseTrial;
+  trial?: EvalCaseTrial;
   runId: string;
   projectId?: string;
   onOpenFile: (path: string) => void;
 }) {
-  const gradingPath = trial.grading_path;
+  const gradingPath = result.grading_path ?? trial?.grading_path;
   const resultDir = result.result_dir;
   const evalId = result.testId;
   const { data: gradingContent, isLoading } =
@@ -750,18 +1007,22 @@ function TrialChecksTab({
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-400">Attempt score</span>
+          <span className="text-sm font-medium text-gray-400">
+            {trial ? 'Attempt score' : 'Overall score'}
+          </span>
           <div className="flex-1">
             <ScoreBar score={result.score} />
           </div>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <RunMetricRow label="Duration" value={formatDuration(trial.duration_ms)} />
-        <RunMetricRow label="Cost" value={formatCost(trial.cost_usd)} />
-        <RunMetricRow label="Tokens" value={formatTokens(caseTrialTokenTotal(trial))} />
-      </div>
+      {trial ? (
+        <div className="grid gap-3 md:grid-cols-3">
+          <RunMetricRow label="Duration" value={formatDuration(trial.duration_ms)} />
+          <RunMetricRow label="Cost" value={formatCost(trial.cost_usd)} />
+          <RunMetricRow label="Tokens" value={formatTokens(caseTrialTokenTotal(trial))} />
+        </div>
+      ) : null}
 
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -778,27 +1039,12 @@ function TrialChecksTab({
           <p className="mt-3 text-sm text-gray-500">Loading grading artifact...</p>
         ) : null}
         {parsed?.error ? <p className="mt-3 text-sm text-red-300">{parsed.error}</p> : null}
-        {parsed?.summary ? (
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <RunMetricRow
-              label="Assertion pass rate"
-              value={formatPercent(parsed.summary.pass_rate)}
-            />
-            <RunMetricRow label="Passed" value={String(parsed.summary.passed ?? 0)} />
-            <RunMetricRow label="Failed" value={String(parsed.summary.failed ?? 0)} />
-          </div>
+        {!isLoading && !parsed ? (
+          <p className="mt-3 text-sm text-gray-500">No grading artifact content available.</p>
         ) : null}
       </div>
 
-      {parsed && parsed.assertions.length > 0 ? (
-        <div className="space-y-2">
-          {parsed.assertions.map((assertion, index) => (
-            <AssertionCard key={`${assertion.text}-${index}`} assertion={assertion} />
-          ))}
-        </div>
-      ) : !isLoading ? (
-        <p className="text-sm text-gray-500">No assertion steps recorded in grading.json.</p>
-      ) : null}
+      {parsed?.result ? <GradingArtifactView result={parsed.result} /> : null}
     </div>
   );
 }

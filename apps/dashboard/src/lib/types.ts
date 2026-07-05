@@ -130,6 +130,7 @@ export interface EvalCaseTrial {
   attempt?: number;
   sample_index?: number;
   retry_index?: number;
+  sample_path?: string;
   attempt_path?: string;
   run_path?: string;
   score?: number;

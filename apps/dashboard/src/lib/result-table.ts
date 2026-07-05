@@ -296,7 +296,7 @@ function buildRow(result: EvalResult, index: number, passThreshold: number): Res
 
 function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRunGroup | undefined {
   const trials = caseTrials(row.result).filter(
-    (trial) => trial.attempt_path || trial.run_path || trial.verdict,
+    (trial) => trial.sample_path || trial.attempt_path || trial.run_path || trial.verdict,
   );
   if (trials.length <= 1) return undefined;
 
