@@ -1,0 +1,17 @@
+target: claude-sdk-host
+prompts:
+  - "{{ input }}"
+tests:
+  - id: sdk-live-marker
+    vars:
+      input: |
+        Reply with the exact marker AGENTV_SDK_CHILD_RUNNER_READY.
+        Do not add markdown or explanation.
+    assert:
+      - metric: contains-AGENTV_SDK_CHILD_RUNNER_READY
+        type: contains
+        value: AGENTV_SDK_CHILD_RUNNER_READY
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: The response includes the exact marker AGENTV_SDK_CHILD_RUNNER_READY and does not refuse the request.
