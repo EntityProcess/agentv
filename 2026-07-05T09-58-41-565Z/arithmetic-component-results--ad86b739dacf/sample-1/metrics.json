@@ -1,0 +1,73 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-0a001ad072541e32a29d",
+  "generated_at": "2026-07-05T09:58:43.037Z",
+  "test_id": "arithmetic-component-results",
+  "target": "pi-cli-proxy",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-0a001ad072541e32a29d",
+    "trace_id": "ee1f7434d6f88398093f7c7278452b57",
+    "root_span_id": "f141e89d91c99613"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "Target \"pi-cli-proxy\" is an agent provider (\"pi-cli\") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm).",
+        "stage": "setup"
+      },
+      {
+        "message": "Target \"pi-cli-proxy\" is an agent provider (\"pi-cli\") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm).",
+        "event_id": "error"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 192,
+    "transcript_chars": 1520,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "setup",
+    "failure_reason_code": "setup_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

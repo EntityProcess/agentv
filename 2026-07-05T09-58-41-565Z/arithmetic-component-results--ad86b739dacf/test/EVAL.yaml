@@ -1,0 +1,13 @@
+target: pi-cli-proxy
+prompts:
+  - "{{ input }}"
+tests:
+  - id: arithmetic-component-results
+    vars:
+      input: "In one short sentence, answer this: what is 2 + 2? Include the exact word component-results."
+    assert:
+      - metric: answer_quality
+        type: llm-rubric
+        prompt: undefined
+        value: The answer should state that 2 + 2 equals 4 and include the exact word component-results somewhere in the response.
+        target: grader-openai-proxy

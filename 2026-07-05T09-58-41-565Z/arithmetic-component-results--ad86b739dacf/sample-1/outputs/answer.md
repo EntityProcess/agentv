@@ -1,0 +1,1 @@
+Target "pi-cli-proxy" is an agent provider ("pi-cli") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm).

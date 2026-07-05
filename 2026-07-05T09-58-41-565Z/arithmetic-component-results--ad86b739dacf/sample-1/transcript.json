@@ -1,0 +1,55 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "pi-cli-proxy",
+  "target": "pi-cli-proxy",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "Target \"pi-cli-proxy\" is an agent provider (\"pi-cli\") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm)."
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "pi-cli-proxy",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "In one short sentence, answer this: what is 2 + 2? Include the exact word component-results."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "pi-cli-proxy",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Target \"pi-cli-proxy\" is an agent provider (\"pi-cli\") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm)."
+        }
+      ]
+    }
+  ]
+}
