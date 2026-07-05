@@ -287,8 +287,12 @@ an in-process adapter risk unless wrapped by a child runner.
 Keep provider names explicit by control boundary:
 
 - `copilot-cli`: subprocess/protocol CLI path.
-- `copilot-log`: passive transcript/log replay path.
 - `copilot-sdk`: explicit SDK path, internally isolated if retained.
+
+Update, 2026-07-05: the authored `copilot-log` target provider was removed.
+Copilot `events.jsonl` remains an import adapter source through
+`agentv import copilot`; offline grading uses normalized AgentV transcript rows
+with `provider: replay` and `transcripts`, not a provider-specific log target.
 
 ## Implementation Units
 

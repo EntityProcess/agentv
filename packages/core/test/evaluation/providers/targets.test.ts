@@ -342,6 +342,19 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/judge_target.*has been removed/i);
   });
 
+  it('rejects removed copilot-log target provider surface', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'old-copilot-log',
+          provider: 'copilot-log',
+          discover: 'latest',
+        } as never,
+        {},
+      ),
+    ).toThrow(/removed provider 'copilot-log'.*agentv import copilot.*provider: replay/i);
+  });
+
   it('rejects removed log_format target aliases', () => {
     expect(() =>
       resolveTargetDefinition(

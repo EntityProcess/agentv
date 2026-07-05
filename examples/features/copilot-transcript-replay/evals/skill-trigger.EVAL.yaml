@@ -1,8 +1,8 @@
 tags:
   - agent
-target: copilot-log
+target: copilot-transcript-replay
 extensions:
-  - file://../scripts/copilot-log-workspace.mjs:beforeAll
+  - file://../scripts/copilot-replay-workspace.mjs:beforeAll
 workspace:
   scope: suite
   template: ../workspace/

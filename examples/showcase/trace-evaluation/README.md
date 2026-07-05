@@ -42,8 +42,8 @@ The replay target looks up records by `suite`, `eval_path` when present, `test_i
 records fail before grading.
 
 Replay can also read `agentv.trace.v1` artifacts by using
-`execution_traces` instead of `fixtures` on the replay target. Configure exactly
-one source field:
+`execution_traces` or normalized AgentV transcript JSONL by using `transcripts`
+instead of `fixtures` on the replay target. Configure exactly one source field:
 
 ```yaml
 targets:
@@ -57,6 +57,10 @@ targets:
 Execution trace replay requires the matched artifact to contain full captured assistant
 output. Metadata-only trace sidecars fail before grading rather than replaying
 an empty answer.
+
+Transcript replay uses `agentv.transcript.v1` rows from `agentv import` and
+matches by `test_id` plus `source_target`. A missing or mismatched `test_id`
+fails before grading so a grader does not silently score the wrong trajectory.
 
 ## Proof Run
 
@@ -84,13 +88,16 @@ bun apps/cli/src/cli.ts eval \
 
 ## Transcript Import Fixture
 
-The imported fixture was produced through the existing Codex import command:
+The imported fixture was produced through the Codex import command with
+`--test-id` set to the eval case id. The row `source.session_id` still
+preserves the raw session provenance:
 
 ```bash
 bun apps/cli/src/cli.ts import codex \
   --sessions-dir examples/showcase/trace-evaluation/fixtures/raw/codex-sessions \
   --date 2026-06-06 \
   --session-id 00000000-0000-4000-8000-000000000001 \
+  --test-id imported-codex-config-fix \
   --output examples/showcase/trace-evaluation/fixtures/imported-codex-transcript.jsonl
 ```
 

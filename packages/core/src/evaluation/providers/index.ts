@@ -3,7 +3,6 @@ import { ClaudeCliProvider } from './claude-cli.js';
 import { CliProvider } from './cli.js';
 import { CodexAppServerProvider, CodexCliProvider } from './codex-cli.js';
 import { CopilotCliProvider } from './copilot-cli.js';
-import { CopilotLogProvider } from './copilot-log.js';
 import {
   AnthropicProvider,
   AzureProvider,
@@ -57,7 +56,6 @@ export type {
   CliResolvedConfig,
   CopilotCliResolvedConfig,
   CopilotCustomProviderConfig,
-  CopilotLogResolvedConfig,
   CopilotSdkResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,
@@ -213,7 +211,6 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
         ? unsupportedSandboxProvider(t)
         : new CopilotCliProvider(t.name, t.config as never),
     )
-    .register('copilot-log', (t) => new CopilotLogProvider(t.name, t.config as never))
     .register('pi-sdk', (t) =>
       usesSandboxRuntime(t)
         ? unsupportedSandboxProvider(t)

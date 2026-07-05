@@ -250,6 +250,7 @@ const REPLAY_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'fixtures',
   'execution_traces',
+  'transcripts',
   'source_target',
   'suite',
   'eval_path',
@@ -730,13 +731,16 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     if (providerValue === 'replay') {
       const hasFixtures = isNonEmptyString(effectiveTarget.fixtures);
       const hasExecutionTraces = isNonEmptyString(effectiveTarget.execution_traces);
-      if (hasFixtures === hasExecutionTraces) {
+      const hasTranscripts = isNonEmptyString(effectiveTarget.transcripts);
+      const sourceCount =
+        (hasFixtures ? 1 : 0) + (hasExecutionTraces ? 1 : 0) + (hasTranscripts ? 1 : 0);
+      if (sourceCount !== 1) {
         errors.push({
           severity: 'error',
           filePath: absolutePath,
           location,
           message:
-            "Replay provider requires exactly one replay source: 'fixtures' or 'execution_traces'",
+            "Replay provider requires exactly one replay source: 'fixtures', 'execution_traces', or 'transcripts'",
         });
       }
       if (!isNonEmptyString(effectiveTarget.source_target)) {

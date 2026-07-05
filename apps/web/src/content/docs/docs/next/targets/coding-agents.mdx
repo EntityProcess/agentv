@@ -110,7 +110,6 @@ targets:
 | `claude-cli` | Claude CLI subprocess. | Default Claude path; captures structured stream output when available. |
 | `claude-sdk` | Claude Agent SDK in an AgentV child runner. | Explicit SDK path; useful when SDK-native events matter more than matching a local CLI invocation. |
 | `copilot-cli` | Copilot CLI subprocess/protocol path. | Active Copilot eval run through the installed process. |
-| `copilot-log` | Passive Copilot session-log reader. | Zero-cost transcript grading for existing sessions; it does not run a new agent. |
 | `copilot-sdk` | Copilot SDK in an AgentV child runner. | Explicit SDK path with child-process isolation. |
 
 Every coding-agent provider returns a structured target execution envelope.
@@ -271,15 +270,20 @@ targets:
       api_format: responses
 ```
 
-Read an existing Copilot session log without running a new agent:
+Replay an existing Copilot session without running a new agent by importing the
+native log into AgentV transcript rows, then using the generic replay target:
+
+```bash
+agentv import copilot --session-id <uuid> -o .agentv/transcripts/copilot-case.jsonl
+```
 
 ```yaml
 targets:
-  - id: copilot-session-log
-    provider: copilot-log
-    runtime: host
+  - id: copilot-session-replay
+    provider: replay
     config:
-      discover: latest
+      transcripts: .agentv/transcripts/copilot-case.jsonl
+      source_target: copilot-cli
 ```
 
 Use `copilot-sdk` only when you intentionally want the SDK path:
@@ -295,8 +299,9 @@ targets:
 
 Copilot config fields include `command`, `model`, `cwd`, `timeout_seconds`,
 `subprovider`, `base_url`, `api_key`, `bearer_token`, `api_version`,
-`api_format`, `log_dir`, `stream_log`, `system_prompt`, and session-log fields
-such as `discover`, `session_id`, and `session_dir` for `copilot-log`.
+`api_format`, `log_dir`, `stream_log`, and `system_prompt`. Copilot
+`events.jsonl` parsing is available through `agentv import copilot`; graders
+and Dashboard views consume normalized AgentV transcript/replay artifacts.
 
 ## File inputs
 

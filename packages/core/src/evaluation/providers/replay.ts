@@ -3,8 +3,8 @@
  *
  * Configure it in targets.yaml with `provider: replay`, the `source_target`
  * whose live outputs were recorded, and exactly one replay source: `fixtures`
- * JSONL or `execution_traces`. The provider does not invoke the source target;
- * it only performs strict replay lookup and returns the recorded
+ * JSONL, `execution_traces`, or normalized `transcripts`. The provider does
+ * not invoke the source target; it only performs strict replay lookup and returns the recorded
  * ProviderResponse so graders can run fresh.
  */
 
@@ -18,6 +18,11 @@ import {
   readTraceEnvelopeReplayRecords,
   traceEnvelopeReplayRecordToProviderResponse,
 } from '../replay-trace-envelopes.js';
+import {
+  findTranscriptReplayRecord,
+  readTranscriptReplayRecords,
+  transcriptReplayRecordToProviderResponse,
+} from '../replay-transcripts.js';
 import type { ReplayResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -48,6 +53,11 @@ export class ReplayProvider implements Provider {
         const record = findTraceEnvelopeReplayRecord(records, this.lookupForRequest(request));
         return traceEnvelopeReplayRecordToProviderResponse(record);
       }
+      case 'transcripts': {
+        const records = await readTranscriptReplayRecords(source.path);
+        const record = findTranscriptReplayRecord(records, this.lookupForRequest(request));
+        return transcriptReplayRecordToProviderResponse(record);
+      }
     }
   }
 
@@ -67,6 +77,14 @@ export class ReplayProvider implements Provider {
         return requests.map((request) =>
           traceEnvelopeReplayRecordToProviderResponse(
             findTraceEnvelopeReplayRecord(records, this.lookupForRequest(request)),
+          ),
+        );
+      }
+      case 'transcripts': {
+        const records = await readTranscriptReplayRecords(source.path);
+        return requests.map((request) =>
+          transcriptReplayRecordToProviderResponse(
+            findTranscriptReplayRecord(records, this.lookupForRequest(request)),
           ),
         );
       }
@@ -99,7 +117,10 @@ function resolveReplaySource(
   if (config.fixturesPath) {
     return { kind: 'fixtures', path: config.fixturesPath };
   }
+  if (config.transcriptsPath) {
+    return { kind: 'transcripts', path: config.transcriptsPath };
+  }
   throw new Error(
-    'Replay provider requires exactly one replay source: fixtures or execution_traces',
+    'Replay provider requires exactly one replay source: fixtures, execution_traces, or transcripts',
   );
 }

@@ -64,6 +64,70 @@ describe('TranscriptProvider', () => {
     expect(response.startTime).toBe('2026-03-13T00:00:00.000Z');
   });
 
+  it('matches replay entries by evalCaseId/test_id instead of file position', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-transcript-provider-'));
+    tempDirs.push(dir);
+    const transcriptPath = path.join(dir, 'transcript.jsonl');
+
+    const first = toTranscriptJsonLines(
+      {
+        messages: [
+          { role: 'user', content: 'First task' },
+          { role: 'assistant', content: 'First answer' },
+        ],
+        source: { provider: 'claude', sessionId: 'one' },
+      },
+      { testId: 'case-a', target: 'claude' },
+    );
+    const second = toTranscriptJsonLines(
+      {
+        messages: [
+          { role: 'user', content: 'Second task' },
+          { role: 'assistant', content: 'Second answer' },
+        ],
+        source: { provider: 'claude', sessionId: 'two' },
+      },
+      { testId: 'case-b', target: 'claude' },
+    );
+
+    await writeFile(
+      transcriptPath,
+      `${[...first, ...second].map((line) => JSON.stringify(line)).join('\n')}\n`,
+      'utf8',
+    );
+
+    const provider = await TranscriptProvider.fromFile(transcriptPath);
+    const response = await provider.invoke({ question: 'ignored', evalCaseId: 'case-b' });
+
+    expect(provider.testIds).toEqual(['case-a', 'case-b']);
+    expect(response.output?.[1]?.content).toBe('Second answer');
+  });
+
+  it('fails loudly when no transcript test_id matches the eval case', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-transcript-provider-'));
+    tempDirs.push(dir);
+    const transcriptPath = path.join(dir, 'transcript.jsonl');
+    const lines = toTranscriptJsonLines(
+      {
+        messages: [{ role: 'assistant', content: 'Recorded answer' }],
+        source: { provider: 'claude', sessionId: 'one' },
+      },
+      { testId: 'recorded-case', target: 'claude' },
+    );
+
+    await writeFile(
+      transcriptPath,
+      `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+      'utf8',
+    );
+
+    const provider = await TranscriptProvider.fromFile(transcriptPath);
+
+    await expect(
+      provider.invoke({ question: 'ignored', evalCaseId: 'different-case' }),
+    ).rejects.toThrow(/no entry for test_id=different-case.*recorded-case/);
+  });
+
   it('counts distinct test transcripts instead of raw JSONL rows', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-transcript-provider-'));
     tempDirs.push(dir);

@@ -25,6 +25,8 @@
 import type { ProviderKind } from './types.js';
 import type { ToolCall } from './types.js';
 
+export type ToolNormalizationSource = ProviderKind | 'copilot-events';
+
 // ---------------------------------------------------------------------------
 // Canonical tool names
 // ---------------------------------------------------------------------------
@@ -80,17 +82,17 @@ const TOOL_NAME_MAP = new Map<string, CanonicalTool>([
   ['copilot-sdk::Edit File', 'Edit'],
   ['copilot-sdk::runTerminalCommand', 'Bash'],
 
-  ['copilot-log::Skill', 'Skill'],
-  ['copilot-log::skill', 'Skill'],
-  ['copilot-log::Read File', 'Read'],
-  ['copilot-log::readFile', 'Read'],
-  ['copilot-log::Read', 'Read'],
-  ['copilot-log::readTextFile', 'Read'],
-  ['copilot-log::writeTextFile', 'Write'],
-  ['copilot-log::Write File', 'Write'],
-  ['copilot-log::editFile', 'Edit'],
-  ['copilot-log::Edit File', 'Edit'],
-  ['copilot-log::runTerminalCommand', 'Bash'],
+  ['copilot-events::Skill', 'Skill'],
+  ['copilot-events::skill', 'Skill'],
+  ['copilot-events::Read File', 'Read'],
+  ['copilot-events::readFile', 'Read'],
+  ['copilot-events::Read', 'Read'],
+  ['copilot-events::readTextFile', 'Read'],
+  ['copilot-events::writeTextFile', 'Write'],
+  ['copilot-events::Write File', 'Write'],
+  ['copilot-events::editFile', 'Edit'],
+  ['copilot-events::Edit File', 'Edit'],
+  ['copilot-events::runTerminalCommand', 'Bash'],
 
   ['vscode::Skill', 'Skill'],
   ['vscode::skill', 'Skill'],
@@ -162,7 +164,7 @@ const CODEX_PREFIXES: readonly PrefixRule[] = [
 const TOOL_PREFIX_MAP = new Map<string, readonly PrefixRule[]>([
   ['copilot-cli', COPILOT_PREFIXES],
   ['copilot-sdk', COPILOT_PREFIXES],
-  ['copilot-log', COPILOT_PREFIXES],
+  ['copilot-events', COPILOT_PREFIXES],
   ['vscode', COPILOT_PREFIXES],
   ['vscode-insiders', COPILOT_PREFIXES],
   ['codex-cli', CODEX_PREFIXES],
@@ -207,7 +209,7 @@ const INPUT_NORMALIZERS = new Map<CanonicalTool, InputNormalizer>([
  * This is a pure function — provider kind in, canonical ToolCall out.
  * Unknown tool names pass through unchanged.
  */
-export function normalizeToolCall(providerKind: ProviderKind, tc: ToolCall): ToolCall {
+export function normalizeToolCall(providerKind: ToolNormalizationSource, tc: ToolCall): ToolCall {
   const nativeName = tc.tool;
 
   // 1. Try exact match

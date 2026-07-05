@@ -1,4 +1,4 @@
-# Workspace for copilot-log eval testing
+# Workspace for Copilot transcript replay eval testing
 
 This workspace contains skills for skill-trigger evaluation.
 

@@ -28,6 +28,16 @@ export const importCodexCommand = command({
       short: 'o',
       description: 'Output file path (default: .agentv/transcripts/codex-<timestamp>.jsonl)',
     }),
+    testId: option({
+      type: optional(string),
+      long: 'test-id',
+      description: 'Set the transcript test_id to match an eval test id',
+    }),
+    target: option({
+      type: optional(string),
+      long: 'target',
+      description: 'Set the transcript target/source_target value (default: codex)',
+    }),
     sessionsDir: option({
       type: optional(string),
       long: 'sessions-dir',
@@ -38,7 +48,7 @@ export const importCodexCommand = command({
       description: 'List available sessions instead of importing',
     }),
   },
-  handler: async ({ sessionId, date, output, sessionsDir, list }) => {
+  handler: async ({ sessionId, date, output, testId, target, sessionsDir, list }) => {
     if (list) {
       const sessions = await discoverCodexSessions({
         date,
@@ -92,7 +102,7 @@ export const importCodexCommand = command({
     await mkdir(path.dirname(outputPath), { recursive: true });
 
     // Write transcript as JSONL (one message per line, grouped by test_id)
-    const jsonLines = toTranscriptJsonLines(transcript);
+    const jsonLines = toTranscriptJsonLines(transcript, transcriptWriteOptions(testId, target));
     await writeFile(
       outputPath,
       `${jsonLines.map((line) => JSON.stringify(line)).join('\n')}\n`,
@@ -121,6 +131,16 @@ function formatAge(date: Date): string {
   if (diffHours < 24) return `${diffHours}h ago`;
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays}d ago`;
+}
+
+function transcriptWriteOptions(
+  testId: string | undefined,
+  target: string | undefined,
+): { testId?: string; target?: string } {
+  return {
+    ...(testId ? { testId } : {}),
+    ...(target ? { target } : {}),
+  };
 }
 
 function formatDurationMs(ms: number): string {

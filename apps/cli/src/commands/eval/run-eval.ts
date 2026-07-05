@@ -2274,9 +2274,29 @@ export async function runEvalCommand(
       (sum, meta) => sum + meta.testCases.length,
       0,
     );
+    const evalTestIds = [...fileMetadata.values()].flatMap((meta) =>
+      meta.testCases.map((testCase) => testCase.id),
+    );
     if (transcriptProvider.lineCount !== totalTests) {
       throw new Error(
-        `Transcript has ${transcriptProvider.lineCount} entr${transcriptProvider.lineCount === 1 ? 'y' : 'ies'} but eval defines ${totalTests} test(s). Each transcript entry maps positionally to one test case.`,
+        `Transcript has ${transcriptProvider.lineCount} entr${transcriptProvider.lineCount === 1 ? 'y' : 'ies'} but eval defines ${totalTests} test(s). Each transcript entry must map to one test case by test_id.`,
+      );
+    }
+    const transcriptTestIds = new Set(transcriptProvider.testIds);
+    const evalTestIdSet = new Set(evalTestIds);
+    const missing = evalTestIds.filter((testId) => !transcriptTestIds.has(testId));
+    const extra = transcriptProvider.testIds.filter((testId) => !evalTestIdSet.has(testId));
+    if (missing.length > 0 || extra.length > 0) {
+      throw new Error(
+        [
+          'Transcript test_id values must match eval test ids for replay.',
+          missing.length > 0 ? `Missing transcript entries: ${missing.join(', ')}` : undefined,
+          extra.length > 0
+            ? `Transcript entries without eval tests: ${extra.join(', ')}`
+            : undefined,
+        ]
+          .filter((line): line is string => line !== undefined)
+          .join(' '),
       );
     }
 

@@ -1,6 +1,6 @@
 targets:
   - id: live_coding_agent
-    provider: codex
+    provider: codex-cli
     model: gpt-5
     timeout_seconds: 300
 
@@ -9,3 +9,8 @@ targets:
     fixtures: ../fixtures/replay-target-output.jsonl
     suite: trace-evaluation-showcase
     source_target: live_coding_agent
+
+  - id: replay_imported_codex_transcript
+    provider: replay
+    transcripts: ../fixtures/imported-codex-transcript.jsonl
+    source_target: codex

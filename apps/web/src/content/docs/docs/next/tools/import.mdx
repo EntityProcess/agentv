@@ -108,6 +108,8 @@ The transcript providers share the same core flags:
 | `--session-id <uuid>` | Import a specific session by UUID |
 | `--list` | List available sessions instead of importing |
 | `--output, -o <path>` | Custom output file path |
+| `--test-id <id>` | Set the transcript `test_id` to match an eval test id |
+| `--target <id>` | Set the transcript `target` / replay `source_target` value |
 
 Provider-specific flags:
 
@@ -189,18 +191,35 @@ Token usage is aggregated from the final cumulative value per LLM request. Durat
 
 ## Workflow
 
-Import a session, then run graders against it:
+Import a session, then run graders against it. The transcript `test_id` values
+must match the eval test ids so replay cannot silently grade the wrong
+trajectory.
 
 ```bash
 # 1. List sessions and pick one
 agentv import claude --list
 
 # 2. Import a session by ID
-agentv import claude --session-id 4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22
+agentv import claude --session-id 4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22 --test-id my-case
 
 # 3. Run graders against the imported transcript
 agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-4c4f9e4e.jsonl
 ```
+
+You can also use the same normalized transcript rows through a replay target:
+
+```yaml
+targets:
+  - id: recorded-agent
+    provider: replay
+    transcripts: .agentv/transcripts/claude-4c4f9e4e.jsonl
+    source_target: claude-cli
+```
+
+Replay targets match by `test_id` and `source_target`, return the recorded
+AgentV `Message[]` trajectory, and run graders fresh. Raw provider logs remain
+provenance/debug input for importers; graders and Dashboard views consume the
+normalized transcript/replay artifacts.
 
 See `examples/features/import-claude/` for a complete working example.
 

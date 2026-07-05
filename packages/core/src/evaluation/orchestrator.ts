@@ -264,7 +264,7 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
     const resolvedGrader = resolveTargetByName(graderName);
     if (!resolvedGrader) {
       // Only use the eval target as its own grader if it can return structured JSON.
-      // Agent providers, transcript, cli, and copilot-log cannot grade.
+      // Agent providers, transcript, cli, and replay cannot grade.
       if (!LLM_GRADER_CAPABLE_KINDS.includes(targetContext.kind)) {
         return undefined;
       }

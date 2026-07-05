@@ -23,13 +23,13 @@ claude -p "List all TypeScript files in this project"
 agentv import claude --list
 
 # Import by session ID
-agentv import claude --session-id <uuid> -o transcripts/session.jsonl
+agentv import claude --session-id <uuid> --test-id transcript-quality -o transcripts/session.jsonl
 ```
 
 ### 3. Run the eval
 
 ```bash
-agentv eval evals/transcript-check.EVAL.yaml
+agentv eval evals/transcript-check.EVAL.yaml --transcript transcripts/session.jsonl
 ```
 
 ## How it works
@@ -38,6 +38,7 @@ agentv eval evals/transcript-check.EVAL.yaml
 ~/.claude/projects/<encoded-path>/<uuid>.jsonl
   ↓ agentv import claude (reads from disk, converts to Message[])
 .agentv/transcripts/claude-<short-id>.jsonl
+  ↓ agentv eval --transcript
   ↓ script-grader (deterministic)
 pass/fail
 ```

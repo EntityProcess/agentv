@@ -30,9 +30,6 @@ tests:
           - run
           - ../graders/replay-proof.ts
         require_metrics: false
-      - |-
-        The imported coding-agent transcript should show a repository inspection,
-        a targeted config edit, and a concise final explanation.
     vars:
       input:
         - role: user

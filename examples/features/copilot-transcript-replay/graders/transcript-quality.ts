@@ -2,12 +2,12 @@
 /**
  * Transcript Quality Grader
  *
- * Validates that the copilot-log provider produced a meaningful transcript:
+ * Validates that replayed Copilot transcript rows produced a meaningful transcript:
  * 1. At least one assistant message exists
  * 2. At least one tool call was recorded
  * 3. The assistant response addresses the user's question (mentions CSV-relevant terms)
  *
- * Uses the full Message[] from the copilot-log provider, including toolCalls arrays.
+ * Uses the full replayed Message[] output, including toolCalls arrays.
  *
  * Usage in eval YAML:
  *   assertions:

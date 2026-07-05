@@ -108,7 +108,7 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
         const toolRequests = data.toolRequests as readonly Record<string, unknown>[] | undefined;
 
         const toolCalls: ToolCall[] = (toolRequests ?? []).map((req) =>
-          normalizeToolCall('copilot-log', {
+          normalizeToolCall('copilot-events', {
             tool: String(req.name ?? req.toolName ?? ''),
             input: req.arguments,
             id: req.toolCallId ? String(req.toolCallId) : undefined,
@@ -160,7 +160,7 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
           messages.push({
             role: 'assistant',
             toolCalls: [
-              normalizeToolCall('copilot-log', {
+              normalizeToolCall('copilot-events', {
                 tool: started.toolName,
                 input: started.input,
                 output: data.result,
