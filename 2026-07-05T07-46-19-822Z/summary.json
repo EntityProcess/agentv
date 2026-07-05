@@ -1,0 +1,146 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T07-46-19-822Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 24409,
+    "input_tokens": 24385,
+    "output_tokens": 24,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.12252500000000001
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "sdk-live-marker",
+      "suite": "av-t2o5-6-sdk-live",
+      "eval_path": ".agentv/results/av-t2o5-6-inputs/live-sdk.eval.yaml",
+      "target": "claude-sdk-host",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "sdk-live-marker",
+          "suite": "av-t2o5-6-sdk-live",
+          "eval_path": ".agentv/results/av-t2o5-6-inputs/live-sdk.eval.yaml",
+          "target": "claude-sdk-host",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 2282,
+          "cost_usd": 0.12252500000000001
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-05T07-46-19-822Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/sdk-provider-live-unblock/.agentv/results/av-t2o5-6-inputs/live-sdk.eval.yaml",
+    "timestamp": "2026-07-05T07:46:31.325Z",
+    "targets": [
+      "claude-sdk-host"
+    ],
+    "tests_run": [
+      "sdk-live-marker"
+    ],
+    "experiment": "av-t2o5-6-sdk-live",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "cli_flags",
+      "eval_files": [
+        ".agentv/results/av-t2o5-6-inputs/live-sdk.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "claude-sdk-host": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 2.282,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 24409,
+        "stddev": 0
+      },
+      "cost_usd": {
+        "mean": 0.123,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "contains-agentv-sdk-provider-live-ok:contains": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 2282,
+      "total_seconds": 2.282,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 24409,
+      "input": 24385,
+      "output": 24,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": 0.12252500000000001,
+      "source": "provider_reported"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 3,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}

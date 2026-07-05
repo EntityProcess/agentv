@@ -1,0 +1,8 @@
+targets:
+  - id: claude-sdk-host
+    provider: claude-sdk
+    config:
+      max_turns: 1
+      timeout_seconds: 120
+      stream_log: raw
+      runtime: host
