@@ -191,6 +191,41 @@ describe('result-table model', () => {
     });
   });
 
+  it('uses finalized sample_path values when grouping repeat-run trials', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'sample-path-case',
+          score: 1,
+          attempts: [
+            {
+              attempt: 0,
+              sample_index: 1,
+              sample_path: 'sample-1',
+              attempt_path: 'attempt-1',
+              score: 1,
+              verdict: 'pass',
+            },
+            {
+              attempt: 1,
+              sample_index: 2,
+              sample_path: 'sample-2',
+              attempt_path: 'attempt-2',
+              score: 1,
+              verdict: 'pass',
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(model.repeatGroups[0].trials.map((trial) => trial.sample_path)).toEqual([
+      'sample-1',
+      'sample-2',
+    ]);
+  });
+
   it('accepts legacy scorer URL state as a grader alias', () => {
     const model = buildResultTableModel({
       passThreshold: 0.8,

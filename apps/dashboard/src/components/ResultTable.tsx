@@ -151,7 +151,7 @@ function caseTrialTokenTotal(trial: EvalCaseTrial): number | undefined {
 }
 
 function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
-  return trial.attempt_path ?? trial.run_path ?? `attempt-${trial.attempt ?? index + 1}`;
+  return trial.sample_path ?? trial.attempt_path ?? trial.run_path ?? `sample-${index + 1}`;
 }
 
 function compactTokenBreakdown(result: EvalResult): string | undefined {
