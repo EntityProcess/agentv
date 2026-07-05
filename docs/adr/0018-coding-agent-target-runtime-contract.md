@@ -13,6 +13,14 @@ Profile and sandbox isolation evidence is deferred to `av-t2o5.1`.
 Provider-agnostic recorded trajectory replay and removal of `provider:
 copilot-log` from authored target YAML are owned by `av-t2o5.2`.
 
+Amended (2026-07-05) by Bead `av-noh3.2.1`: AgentV's coding-agent testbed
+recipe is `environment` at suite/test/case scope, not a target field. This ADR
+continues to reject target-level `environment`, `container`, and install fields;
+targets receive the resolved `environment.workdir` as cwd unless a later scoped
+feature explicitly overrides it. Runtime mode vocabulary may be refined by
+Bead `av-oi9a`; that separate cleanup does not move testbed setup under
+targets.
+
 ## Context
 
 AgentV evaluates coding agents in real repositories. Those agents are not
@@ -93,6 +101,14 @@ Do not add competing top-level fields such as `isolation`, `sandbox`,
 under `evaluate_options.max_concurrency`, not inside a target definition.
 Grader selection belongs to `defaults.grader`, CLI overrides, or
 evaluator-level target selection, not to the system-under-test target.
+
+`environment` is valid as an AgentV eval/test/case recipe field outside target
+definitions. It prepares the host or Docker testbed and defines
+`environment.workdir`; the target runtime then decides how the selected
+provider/agent is invoked against that prepared cwd. `environment` does not
+replace `targets[].id`, `targets[].provider`, or `targets[].runtime`.
+Docker/testbed setup belongs to the environment driver by default, not to each
+target provider.
 
 ### Provider Boundaries
 

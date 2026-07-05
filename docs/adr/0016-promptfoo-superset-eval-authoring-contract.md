@@ -22,6 +22,14 @@ describes evaluated `graders[]` and nested `checks[]` with aggregate `pass`,
 `passed`-only aliases, top-level `checks`, or dynamic one-grader artifact shapes
 as the public contract.
 
+Status note (2026-07-05): Bead `av-noh3.2.1` supersedes this ADR's earlier
+`workspace` authoring language for coding-agent testbeds. AgentV's canonical
+public testbed recipe field is now `environment`, authored at suite/test/case
+scope and either inline or by `file://` reference. `workspace` and
+`workspace.repos` are not the canonical coding-agent benchmark contract; any
+workspace-named code or docs that model the same testbed concept are migration
+debt unless they refer only to internal mutable directories or result storage.
+
 ## Context
 
 AgentV's eval-authoring surface diverged from industry primitives. We are re-basing
@@ -58,7 +66,7 @@ keep AgentV's only where its semantics are genuinely better.**
    Dashboard can show criterion-level evidence, using the same mechanism as
    script graders, field accuracy, execution metrics, and tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
-   `script` = the subprocess power tool (workspace-`cwd`, arbitrary language).
+   `script` = the subprocess power tool (`environment.workdir` cwd, arbitrary language).
    `javascript` is NOT desugared to `script`.
 4. **`metric` is the named-score field** (nunjucks-templated); grader `name` becomes
    display-only. Add `named_scores` + `derived_metrics`.
@@ -91,21 +99,39 @@ keep AgentV's only where its semantics are genuinely better.**
    `repeat: { count, strategy, early_exit }` (map promptfoo
    `repeat:int` → `count`+`pass_all`); executable `gate` release policy (alongside per-test
    `threshold`); `imports`/`select`; `depends_on`. `experiment` is authored as `tags.experiment` — a plain tag with **no structural privilege** (not a bucket/field/storage path; not a privileged grouping key; tags alphabetical; default compare key is a user preference). `--experiment X` = sugar for `--tag experiment=X`. Its **value** is auto-defaulted to the eval/suite name when unset so runs are always groupable (ADR-0009 derivation) — a default value, not a privileged key (ADR-0017).
-10. **Workspace repo provisioning is a declarative FIELD, not an extension.**
-    `workspace.repos: [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]` is
-    declared per-test (overridable) / at suite level, and the **harness materializes it
-    (harness-owned resolver, ADR 0017) BEFORE any hook or the target runs.** The *common
-    case* is not a hand-rolled per-eval hook (ordering + reproducibility + declarative
-    provenance). **But acquisition is pluggable** (ADR 0017 pt5): custom acquisition is
-    first-class via a registered custom backend or a `beforeAll` escape hatch, and the
-    built-in acquisition may itself be a swappable plugin — this is the correction of an
-    earlier over-absolute "not an extension" claim; provenance stays a declarative field,
-    acquisition stays extensible. `workspace.scope` (`suite` or `attempt`) is the portable
-    workspace lifetime field.
-    **Extensions are for pluggable non-provisioning setup only**: promptfoo lifecycle
-    (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
-    e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
-    Removed: `on_run_complete`, `preprocessors` (→ `extensions`).
+10. **Coding-agent testbed setup is a declarative `environment`, not a
+    lifecycle extension and not target identity.** AgentV remains
+    promptfoo-compatible where promptfoo has matching primitives: `prompts`,
+    `vars`, `tests`, `default_test`/`defaultTest`, `assert`, transforms,
+    `targets`/providers, top-level `env`, and lifecycle `extensions`. AgentV
+    adds `environment` as an AgentV-specific suite/test/case testbed recipe for
+    repo materialization, fixtures, patches, services, Docker context/image,
+    setup scripts, and the workdir/cwd handed to targets and graders. The
+    recipe may be inline or a `file://` reference; shared `file://` recipes are
+    the canonical reusable form:
+
+    ```yaml
+    environment: file://.agentv/environments/local-python.yaml
+
+    targets:
+      - id: codex
+        provider: codex-cli
+    ```
+
+    `environment.type` starts with `host` and `docker`. `environment.workdir`
+    defines the current working directory passed to target providers and
+    graders/test scripts unless a later scoped feature explicitly overrides it.
+    Top-level `env` remains promptfoo-compatible provider/eval env overrides
+    rendered from `{{ env.VAR }}` and must not be moved under `environment`.
+    If `environment.env` is implemented later, it means variables scoped to the
+    host/docker testbed. `environment.setup` runs scripts with typed `args` to
+    materialize repos, archives, patches, generated fixtures, services, or
+    other testbed state.
+
+    Promptfoo `extensions` remain lifecycle hooks
+    (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`) for customizing eval flow.
+    They can augment a run, but they are not the canonical testbed setup
+    contract. Removed: `on_run_complete`, `preprocessors` (→ `extensions`).
 11. **Scope**: `similar` ships with a configured embeddings provider, `llm-rubric` ships
     as the free-form rubric judge, and `g-eval` covers structured or multi-criteria
     rubric judging. Exotic promptfoo assertions
@@ -116,9 +142,10 @@ keep AgentV's only where its semantics are genuinely better.**
 Removed (hard): `assertions`, `composite`, `eval_cases`,
 `workspace.hooks` (→ `extensions`), `on_run_complete`, `preprocessors`, `${{ ENV }}`,
 top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, the
-`z.never()` rejection stubs. **Kept** as declarative fields: `workspace.repos` (provenance),
-`workspace.scope`, `workspace.docker`, `workspace.template`, direct-suite
-`input`, and direct-suite `input_files`.
+`z.never()` rejection stubs. **Kept** as declarative fields: direct-suite
+`input` and direct-suite `input_files`. **Superseded for coding-agent testbeds:**
+`workspace.repos`, `workspace.scope`, `workspace.docker`, and
+`workspace.template`; use the AgentV `environment` recipe contract instead.
 
 ## Consequences
 
@@ -128,5 +155,5 @@ top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, t
 - promptfoo authors get a near-drop-in contract (snake_case); AgentV keeps repo/agent
   differentiation as documented extensions.
 - FizzBuzz/SWE-bench-style test grading needs no new assertion primitive -- a
-  workspace-`cwd` `script` grader runs the tests (see ADR 0017 note on SWE-bench
-  `FAIL_TO_PASS`/`PASS_TO_PASS`).
+  script grader runs the tests from `environment.workdir` (see ADR 0017 note on
+  SWE-bench `FAIL_TO_PASS`/`PASS_TO_PASS`).
