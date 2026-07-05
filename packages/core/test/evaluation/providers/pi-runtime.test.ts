@@ -38,6 +38,7 @@ describe('Pi coding-agent runtime providers', () => {
 
       expect(extractLastAssistantContent(response.output)).toBe('cli ok');
       expect(captured?.command.slice(0, 3)).toEqual(['pi-shim', '--profile', 'clean']);
+      expect(captured?.cwd).toBe(workspace);
       expect(captured?.command).toContain('--mode');
       expect(captured?.command).toContain('json');
       expect(captured?.env.HOME).toBe('/tmp/pi-profile');

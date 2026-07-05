@@ -910,10 +910,12 @@ export async function runEvaluation(
   const requiresWorkspaceDispatch =
     workspacePath !== undefined ||
     legacyWorkspacePath !== undefined ||
-    filteredEvalCases.some((evalCase) => evalCase.workspace !== undefined);
+    filteredEvalCases.some(
+      (evalCase) => evalCase.workspace !== undefined || evalCase.environment !== undefined,
+    );
   if (providerSupportsBatch && requiresWorkspaceDispatch) {
     if (verbose) {
-      console.warn('Warning: Batch mode is disabled for workspace-enabled evals.');
+      console.warn('Warning: Batch mode is disabled for workspace- or environment-enabled evals.');
     }
     providerSupportsBatch = false;
     batchingDisabledByRuntimePolicy = true;

@@ -17,7 +17,13 @@ import { copyFile, mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import {
+  HostEnvironmentSetupError,
+  type HostEnvironmentSetupResult,
+  prepareHostEnvironment,
+} from '../environment/host.js';
 import { type ExtensionRuntimeState, runExtensionsForHook } from '../extensions/runner.js';
+import type { HostEnvironmentRecipe } from '../loaders/environment-recipe.js';
 import type {
   AgentVExtensionConfig,
   EvalTest,
@@ -64,10 +70,24 @@ export interface WorkspaceSetupHookExecution {
   readonly error?: string;
 }
 
+export interface EnvironmentSetupExecution {
+  readonly scope: 'environment';
+  readonly name: 'setup';
+  readonly status: HostEnvironmentSetupResult['status'];
+  readonly testId: string;
+  readonly workdir: string;
+  readonly command?: readonly string[] | string;
+  readonly cwd?: string;
+  readonly output?: string;
+  readonly error?: string;
+  readonly exitCode?: number;
+}
+
 export class WorkspaceSetupError extends Error {
   readonly failureStage: FailureStage;
   readonly failureReasonCode: string;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
+  readonly environmentSetupExecutions: readonly EnvironmentSetupExecution[];
 
   constructor(
     message: string,
@@ -75,6 +95,7 @@ export class WorkspaceSetupError extends Error {
       readonly failureStage: FailureStage;
       readonly failureReasonCode: string;
       readonly hookExecutions?: readonly WorkspaceSetupHookExecution[];
+      readonly environmentSetupExecutions?: readonly EnvironmentSetupExecution[];
       readonly cause?: unknown;
     },
   ) {
@@ -83,6 +104,7 @@ export class WorkspaceSetupError extends Error {
     this.failureStage = options.failureStage;
     this.failureReasonCode = options.failureReasonCode;
     this.hookExecutions = options.hookExecutions ?? [];
+    this.environmentSetupExecutions = options.environmentSetupExecutions ?? [];
     if (options.cause !== undefined) {
       this.cause = options.cause;
     }
@@ -103,6 +125,7 @@ export interface SharedWorkspaceSetupOptions {
 export interface SharedWorkspaceSetup {
   readonly suiteWorkspace?: WorkspaceConfig;
   readonly sharedWorkspaceOwnerKey?: string;
+  readonly sharedEnvironmentOwnerKey?: string;
   readonly sharedWorkspaceAppliesToAllCases: boolean;
   readonly sharedWorkspacePath?: string;
   readonly sharedBaselineCommit?: string;
@@ -112,6 +135,7 @@ export interface SharedWorkspaceSetup {
   readonly useStaticWorkspace: boolean;
   readonly configuredMode: WorkspaceSetupMode;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
+  readonly environmentSetupExecutions: readonly EnvironmentSetupExecution[];
   readonly extensionState?: ExtensionRuntimeState;
 }
 
@@ -138,6 +162,7 @@ export interface EvalCaseWorkspaceSetup {
   readonly baselineCommit?: string;
   readonly isSharedWorkspace: boolean;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
+  readonly environmentSetupExecutions: readonly EnvironmentSetupExecution[];
   readonly extensionState?: ExtensionRuntimeState;
 }
 
@@ -180,7 +205,10 @@ export function isAttemptScopedWorkspace(
 
 export function caseUsesSharedWorkspaceSetup(
   evalCase: EvalTest,
-  setup: Pick<SharedWorkspaceSetup, 'sharedWorkspaceAppliesToAllCases' | 'sharedWorkspaceOwnerKey'>,
+  setup: Pick<
+    SharedWorkspaceSetup,
+    'sharedWorkspaceAppliesToAllCases' | 'sharedWorkspaceOwnerKey' | 'sharedEnvironmentOwnerKey'
+  >,
 ): boolean {
   const workspace = effectiveRuntimeWorkspace(evalCase);
   if (isAttemptScopedWorkspace(workspace)) {
@@ -189,10 +217,17 @@ export function caseUsesSharedWorkspaceSetup(
   if (setup.sharedWorkspaceAppliesToAllCases) {
     return true;
   }
-  return (
+  if (
     setup.sharedWorkspaceOwnerKey !== undefined &&
     workspaceNeedsSharedSetup(workspace) &&
     sharedWorkspaceOwnerKey(evalCase) === setup.sharedWorkspaceOwnerKey
+  ) {
+    return true;
+  }
+  return !!(
+    setup.sharedEnvironmentOwnerKey !== undefined &&
+    hostEnvironment(evalCase) &&
+    hostEnvironmentOwnerKey(evalCase) === setup.sharedEnvironmentOwnerKey
   );
 }
 
@@ -212,14 +247,16 @@ function workspaceNeedsSharedSetup(
 }
 
 function effectiveRuntimeWorkspace(evalCase: EvalTest): WorkspaceConfig | undefined {
-  const workspace = evalCase.workspace;
-  if (evalCase.environment?.type !== 'host') {
-    return workspace;
-  }
-  return {
-    ...(workspace ?? {}),
-    template: workspace?.template ?? evalCase.environment.workdir,
-  };
+  return evalCase.workspace;
+}
+
+function hostEnvironment(evalCase: EvalTest): HostEnvironmentRecipe | undefined {
+  const environment = evalCase.environment;
+  return environment?.type === 'host' ? environment : undefined;
+}
+
+function unsupportedDockerEnvironment(evalCase: EvalTest): boolean {
+  return evalCase.environment?.type === 'docker';
 }
 
 function stableWorkspaceValue(value: unknown): string {
@@ -259,6 +296,16 @@ function sharedWorkspaceOwnerKey(evalCase: EvalTest): string {
       ? `parent:${source.evalFileAbsolutePath}`
       : 'programmatic';
   return `${sourceKey}:${stableWorkspaceValue(effectiveRuntimeWorkspace(evalCase))}`;
+}
+
+function hostEnvironmentOwnerKey(evalCase: EvalTest): string {
+  const source = evalCase.source;
+  const sourceKey = source?.importedSuiteName
+    ? `imported:${source.evalFileAbsolutePath}:${source.importedSuiteName}`
+    : source?.evalFileAbsolutePath
+      ? `parent:${source.evalFileAbsolutePath}`
+      : 'programmatic';
+  return `${sourceKey}:${stableWorkspaceValue(hostEnvironment(evalCase))}`;
 }
 
 interface SelectedSharedWorkspace {
@@ -303,6 +350,67 @@ function selectSuiteWorkspace(evalCases: readonly EvalTest[]): SelectedSharedWor
     {
       failureStage: 'setup',
       failureReasonCode: 'ambiguous_shared_workspace',
+    },
+  );
+}
+
+interface SelectedSharedEnvironment {
+  readonly key: string;
+  readonly environment: HostEnvironmentRecipe;
+}
+
+function selectSuiteHostEnvironment(
+  evalCases: readonly EvalTest[],
+): SelectedSharedEnvironment | undefined {
+  const candidates = new Map<
+    string,
+    {
+      readonly environment: HostEnvironmentRecipe;
+      readonly owner: string;
+      readonly testIds: string[];
+    }
+  >();
+
+  for (const evalCase of evalCases) {
+    if (unsupportedDockerEnvironment(evalCase)) {
+      throw new WorkspaceSetupError(
+        `Docker environment recipes are not implemented for runtime execution yet: test '${evalCase.id}'.`,
+        {
+          failureStage: 'setup',
+          failureReasonCode: 'unsupported_environment',
+        },
+      );
+    }
+    const environment = hostEnvironment(evalCase);
+    if (!environment || isAttemptScopedWorkspace(effectiveRuntimeWorkspace(evalCase))) {
+      continue;
+    }
+    const key = hostEnvironmentOwnerKey(evalCase);
+    const existing = candidates.get(key);
+    if (existing) {
+      existing.testIds.push(evalCase.id);
+      continue;
+    }
+    candidates.set(key, {
+      environment,
+      owner: describeWorkspaceOwner(evalCase),
+      testIds: [evalCase.id],
+    });
+  }
+
+  if (candidates.size <= 1) {
+    const [key, candidate] = [...candidates.entries()][0] ?? [];
+    return key && candidate ? { key, environment: candidate.environment } : undefined;
+  }
+
+  const owners = [...candidates.values()]
+    .map((candidate) => `${candidate.owner} for tests ${candidate.testIds.join(', ')}`)
+    .join('; ');
+  throw new WorkspaceSetupError(
+    `Wrapper eval contains multiple suite host environments: ${owners}. AgentV does not merge multiple environment.workdir values in one wrapper execution. Split them into separate runs or use workspace.scope: attempt for per-case setup.`,
+    {
+      failureStage: 'setup',
+      failureReasonCode: 'ambiguous_shared_environment',
     },
   );
 }
@@ -409,6 +517,58 @@ export async function releaseSharedWorkspaceSetup(setup: SharedWorkspaceSetup): 
   void setup;
 }
 
+function environmentSetupExecution(options: {
+  readonly result: HostEnvironmentSetupResult;
+  readonly testId: string;
+  readonly error?: string;
+}): EnvironmentSetupExecution {
+  return {
+    scope: 'environment',
+    name: 'setup',
+    status: options.error ? 'failed' : options.result.status,
+    testId: options.testId,
+    workdir: options.result.workdir,
+    ...(options.result.command !== undefined && { command: options.result.command }),
+    ...(options.result.cwd !== undefined && { cwd: options.result.cwd }),
+    ...(options.result.stdout !== undefined && { output: options.result.stdout }),
+    ...((options.error ?? options.result.stderr)
+      ? { error: options.error ?? options.result.stderr }
+      : {}),
+    ...(options.result.exitCode !== undefined && { exitCode: options.result.exitCode }),
+  };
+}
+
+async function prepareHostEnvironmentForSetup(
+  environment: HostEnvironmentRecipe,
+  testId: string,
+): Promise<{
+  readonly workdir: string;
+  readonly execution: EnvironmentSetupExecution;
+}> {
+  try {
+    const result = await prepareHostEnvironment(environment);
+    return {
+      workdir: result.workdir,
+      execution: environmentSetupExecution({ result, testId }),
+    };
+  } catch (error) {
+    if (error instanceof HostEnvironmentSetupError) {
+      const execution = environmentSetupExecution({
+        result: error.result,
+        testId,
+        error: error.message,
+      });
+      throw new WorkspaceSetupError(error.message, {
+        failureStage: 'setup',
+        failureReasonCode: 'environment_setup_error',
+        environmentSetupExecutions: [execution],
+        cause: error,
+      });
+    }
+    throw error;
+  }
+}
+
 export async function prepareSharedWorkspaceSetup(
   options: SharedWorkspaceSetupOptions,
 ): Promise<SharedWorkspaceSetup> {
@@ -423,6 +583,7 @@ export async function prepareSharedWorkspaceSetup(
     legacyWorkspacePath,
   } = options;
   const selectedSuiteWorkspace = selectSuiteWorkspace(evalCases);
+  const selectedSuiteEnvironment = selectSuiteHostEnvironment(evalCases);
   const suiteWorkspace = selectedSuiteWorkspace?.workspace;
   const suiteExtensions = selectSuiteExtensions(evalCases);
   const rawTemplate = suiteWorkspace?.template;
@@ -442,7 +603,7 @@ export async function prepareSharedWorkspaceSetup(
   const configuredMode: WorkspaceSetupMode = cliWorkspacePath ? 'static' : 'temp';
   const configuredStaticPath = cliWorkspacePath;
 
-  const useStaticWorkspace = configuredMode === 'static';
+  const useStaticWorkspace = configuredMode === 'static' || !!selectedSuiteEnvironment;
 
   if (
     useStaticWorkspace &&
@@ -454,6 +615,7 @@ export async function prepareSharedWorkspaceSetup(
   }
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
+    selectedSuiteEnvironment ||
     (!isAttemptWorkspace &&
       (workspaceTemplate || suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) ||
     suiteExtensions.length > 0
@@ -477,6 +639,7 @@ export async function prepareSharedWorkspaceSetup(
   let beforeAllOutput: string | undefined;
 
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
+  const environmentSetupExecutions: EnvironmentSetupExecution[] = [];
   let extensionState: ExtensionRuntimeState | undefined;
 
   let repoManager: RepoManager | undefined;
@@ -484,6 +647,28 @@ export async function prepareSharedWorkspaceSetup(
   if (useStaticWorkspace && configuredStaticPath) {
     setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
     sharedWorkspacePath = configuredStaticPath;
+  } else if (selectedSuiteEnvironment) {
+    setupLog(`preparing shared host environment: ${selectedSuiteEnvironment.environment.workdir}`);
+    try {
+      const prepared = await prepareHostEnvironmentForSetup(
+        selectedSuiteEnvironment.environment,
+        '__environment_setup__',
+      );
+      sharedWorkspacePath = prepared.workdir;
+      environmentSetupExecutions.push(prepared.execution);
+      setupLog(`shared host environment ready at: ${sharedWorkspacePath}`);
+    } catch (error) {
+      if (error instanceof WorkspaceSetupError) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new WorkspaceSetupError(`Failed to prepare host environment: ${message}`, {
+        failureStage: 'setup',
+        failureReasonCode: 'environment_setup_error',
+        hookExecutions,
+        cause: error,
+      });
+    }
   } else if (!isAttemptWorkspace && workspaceTemplate) {
     setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
     try {
@@ -721,6 +906,9 @@ export async function prepareSharedWorkspaceSetup(
     ...(selectedSuiteWorkspace?.key !== undefined && {
       sharedWorkspaceOwnerKey: selectedSuiteWorkspace.key,
     }),
+    ...(selectedSuiteEnvironment?.key !== undefined && {
+      sharedEnvironmentOwnerKey: selectedSuiteEnvironment.key,
+    }),
     sharedWorkspaceAppliesToAllCases,
     ...(sharedWorkspacePath !== undefined && { sharedWorkspacePath }),
     ...(sharedBaselineCommit !== undefined && { sharedBaselineCommit }),
@@ -730,6 +918,7 @@ export async function prepareSharedWorkspaceSetup(
     useStaticWorkspace,
     configuredMode,
     hookExecutions,
+    environmentSetupExecutions,
     ...(extensionState !== undefined && { extensionState }),
   };
 }
@@ -752,24 +941,55 @@ export async function prepareEvalCaseWorkspace(
   } = options;
 
   const runtimeWorkspace = effectiveRuntimeWorkspace(evalCase);
+  if (unsupportedDockerEnvironment(evalCase)) {
+    throw new WorkspaceSetupError(
+      `Docker environment recipes are not implemented for runtime execution yet: test '${evalCase.id}'.`,
+      {
+        failureStage: 'setup',
+        failureReasonCode: 'unsupported_environment',
+      },
+    );
+  }
+  const runtimeEnvironment = hostEnvironment(evalCase);
   let workspacePath: string | undefined = isAttemptScopedWorkspace(runtimeWorkspace)
     ? undefined
     : sharedWorkspacePath;
   const inheritedSuiteWorkspaceFile = workspacePath ? suiteWorkspaceFile : undefined;
   let beforeAllOutput: string | undefined;
   let beforeEachOutput: string | undefined;
-  const isSharedWorkspace = !!workspacePath;
+  let isSharedWorkspace = !!workspacePath;
   let caseWorkspaceFile: string | undefined;
   const caseHooksEnabled = hooksEnabled(runtimeWorkspace);
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
+  const environmentSetupExecutions: EnvironmentSetupExecution[] = [];
   let extensionState = sharedExtensionState;
 
   if (!workspacePath) {
+    if (runtimeEnvironment) {
+      try {
+        const prepared = await prepareHostEnvironmentForSetup(runtimeEnvironment, evalCase.id);
+        workspacePath = prepared.workdir;
+        isSharedWorkspace = true;
+        environmentSetupExecutions.push(prepared.execution);
+      } catch (error) {
+        if (error instanceof WorkspaceSetupError) {
+          throw error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        throw new WorkspaceSetupError(`Failed to prepare host environment: ${message}`, {
+          failureStage: 'setup',
+          failureReasonCode: 'environment_setup_error',
+          hookExecutions,
+          cause: error,
+        });
+      }
+    }
+
     const rawCaseTemplate = runtimeWorkspace?.template;
     const resolvedCaseTemplate = await resolveWorkspaceTemplate(rawCaseTemplate);
     const caseWorkspaceTemplate = resolvedCaseTemplate?.dir;
     caseWorkspaceFile = resolvedCaseTemplate?.workspaceFile;
-    if (caseWorkspaceTemplate && evalRunId) {
+    if (!workspacePath && caseWorkspaceTemplate && evalRunId) {
       try {
         workspacePath = await createTempWorkspace(caseWorkspaceTemplate, evalRunId, evalCase.id);
       } catch (error) {
@@ -1179,6 +1399,7 @@ export async function prepareEvalCaseWorkspace(
     ...(baselineCommit !== undefined && { baselineCommit }),
     isSharedWorkspace,
     hookExecutions,
+    environmentSetupExecutions,
     ...(extensionState !== undefined && { extensionState }),
   };
 }

@@ -150,6 +150,7 @@ tests: ../data/cases.yaml
       workdir: 'workspaces/workspace-template',
       setup: { command: ['bun', 'scripts/scripts/setup.ts'] },
     });
+    expect(testCase.environment).not.toHaveProperty('source_dir');
     expect(bundledEval.prompts).toEqual(['{{ input }}']);
     const input = (testCase.vars as Record<string, unknown>).input as Array<{
       content: Array<Record<string, unknown>>;
