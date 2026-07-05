@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-fb4bb0a56554e7e1a4b9",
+  "generated_at": "2026-07-05T07:48:22.730Z",
+  "test_id": "sdk-live-marker",
+  "target": "copilot-sdk-local",
+  "suite": "av-t2o5-6-sdk-live",
+  "category": ".agentv/results/av-t2o5-6-inputs/live-sdk",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-fb4bb0a56554e7e1a4b9",
+    "trace_id": "5671415e992f75a937c8aefd2e80bff0",
+    "root_span_id": "aee18cfca947efe2"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "copilot-sdk child runner child_error: CLI server exited with code 1\nstderr: BYOK providers require an explicit model. Run `copilot help providers` for configuration details.",
+        "stage": "agent"
+      },
+      {
+        "message": "copilot-sdk child runner child_error: CLI server exited with code 1\nstderr: BYOK providers require an explicit model. Run `copilot help providers` for configuration details.",
+        "event_id": "error"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 189,
+    "transcript_chars": 1452,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

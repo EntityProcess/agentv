@@ -1,0 +1,34 @@
+{
+  "total_attempts": 1,
+  "passed_attempts": 0,
+  "pass_rate": "0%",
+  "mean_duration_ms": 0,
+  "mean_duration_seconds": 0,
+  "fingerprint": "agentv-prj-0f02824e97f62eb1a3d528c07296101b",
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
