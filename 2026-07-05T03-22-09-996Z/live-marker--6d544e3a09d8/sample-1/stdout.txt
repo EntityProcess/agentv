@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019f304c-479f-7261-b914-dbd4ea1e44cd"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"AGENTV-LIVE-MATRIX-OK"}}
+{"type":"turn.completed","usage":{"input_tokens":17816,"cached_input_tokens":3456,"output_tokens":28,"reasoning_output_tokens":13}}

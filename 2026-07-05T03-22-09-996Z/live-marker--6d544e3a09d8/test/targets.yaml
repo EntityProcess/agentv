@@ -1,0 +1,25 @@
+targets:
+  - id: codex-cli-local
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: codex-cli
+    config:
+      command:
+        - codex
+        - -c
+        - model_provider="agentv-openai"
+        - -c
+        - model_providers.agentv-openai.name="OpenAI-compatible endpoint"
+        - -c
+        - model_providers.agentv-openai.base_url="{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+        - -c
+        - model_providers.agentv-openai.env_key="CODEX_API_KEY"
+        - -c
+        - model_providers.agentv-openai.wire_api="responses"
+      model_reasoning_effort: low
+      sandbox_mode: workspace-write
+      approval_policy: never
+      cwd: .agentv/results/av-y7eq-9-workspace
+      timeout_seconds: 90
+      stream_log: raw
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"

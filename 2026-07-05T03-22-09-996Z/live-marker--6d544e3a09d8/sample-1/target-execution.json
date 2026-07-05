@@ -1,0 +1,85 @@
+{
+  "schema_version": "agentv.target_execution.v1",
+  "target_id": "codex-cli-local",
+  "provider_id": "codex-cli:codex-cli-local",
+  "provider_kind": "codex-cli",
+  "runtime_mode": "host",
+  "command": {
+    "argv": [
+      "/home/entity/.local/bin/codex",
+      "-c",
+      "model_provider=\"agentv-openai\"",
+      "-c",
+      "model_providers.agentv-openai.name=\"OpenAI-compatible endpoint\"",
+      "-c",
+      "model_providers.agentv-openai.base_url=\"http://127.0.0.1:10531/v1\"",
+      "-c",
+      "model_providers.agentv-openai.env_key=\"CODEX_API_KEY\"",
+      "-c",
+      "model_providers.agentv-openai.wire_api=\"responses\"",
+      "--model",
+      "gpt-5.4-mini",
+      "--config",
+      "model_reasoning_effort=low",
+      "--sandbox",
+      "workspace-write",
+      "--ask-for-approval",
+      "never",
+      "exec",
+      "--json",
+      "--color",
+      "never",
+      "--skip-git-repo-check",
+      "-"
+    ],
+    "command_line": "/home/entity/.local/bin/codex -c 'model_provider=\"agentv-openai\"' -c 'model_providers.agentv-openai.name=\"OpenAI-compatible endpoint\"' -c 'model_providers.agentv-openai.base_url=\"http://127.0.0.1:10531/v1\"' -c 'model_providers.agentv-openai.env_key=\"CODEX_API_KEY\"' -c 'model_providers.agentv-openai.wire_api=\"responses\"' --model gpt-5.4-mini --config model_reasoning_effort=low --sandbox workspace-write --ask-for-approval never exec --json --color never --skip-git-repo-check -",
+    "cwd": "/home/entity/projects/EntityProcess/agentv__worktrees/coding-runtime-live-matrix/.agentv/results/av-y7eq-9-workspace"
+  },
+  "timeout_ms": 90000,
+  "started_at": "2026-07-05T03:22:11.716Z",
+  "ended_at": "2026-07-05T03:22:22.566Z",
+  "duration_ms": 10850,
+  "exit_code": 0,
+  "signal": null,
+  "logs": {
+    "stdout": {
+      "text": "{\"type\":\"thread.started\",\"thread_id\":\"019f304c-479f-7261-b914-dbd4ea1e44cd\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"AGENTV-LIVE-MATRIX-OK\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":17816,\"cached_input_tokens\":3456,\"output_tokens\":28,\"reasoning_output_tokens\":13}}\n",
+      "truncated": false,
+      "bytes": 336,
+      "stored_bytes": 336
+    },
+    "stderr": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    }
+  },
+  "status": "success",
+  "transcript": {
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "AGENTV-LIVE-MATRIX-OK"
+      }
+    ],
+    "final_output": "AGENTV-LIVE-MATRIX-OK"
+  },
+  "details": {
+    "prompt_file": "/tmp/agentv-codex-Pps4PL/prompt.md",
+    "workspace": "/tmp/agentv-codex-Pps4PL",
+    "input_files": [],
+    "log_file": "/tmp/agentv-provider-streams/2026-07-05T03-22-09-996Z-c65da8b56f59/av-y7eq-9-host-runtime-live-marker/live-marker/logs/codex/2026-07-05T03-22-11-703Z_codex-cli-local_live-marker_attempt-1_03e0a57f.log"
+  },
+  "artifacts": {
+    "target_execution_path": "target-execution.json",
+    "stdout_path": "stdout.txt",
+    "stderr_path": "stderr.txt",
+    "transcript_path": "transcript.json",
+    "transcript_raw_path": "transcript-raw.jsonl",
+    "summary_path": "summary.json",
+    "metrics_path": "metrics.json",
+    "output_path": "outputs/answer.md",
+    "answer_path": "outputs/answer.md"
+  }
+}
