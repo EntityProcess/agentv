@@ -61,7 +61,8 @@ The `defineScriptGrader` helper:
 import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output, criteria }) => ({
+  pass: (output ?? '').includes(criteria),
   score: (output ?? '').includes(criteria) ? 1.0 : 0.0,
-  assertions: [{ text: 'Check passed', passed: (output ?? '').includes(criteria) }],
+  reason: (output ?? '').includes(criteria) ? 'Check passed' : 'Check failed',
 }));
 ```

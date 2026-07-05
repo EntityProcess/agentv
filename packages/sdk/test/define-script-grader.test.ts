@@ -288,50 +288,56 @@ describe('ScriptGraderInputSchema', () => {
 describe('ScriptGraderResultSchema', () => {
   it('parses valid result with all fields', () => {
     const result: ScriptGraderResult = {
+      pass: false,
       score: 0.8,
-      assertions: [
-        { text: 'Correct answer', passed: true },
-        { text: 'Missing explanation', passed: false },
+      reason: 'One check failed',
+      checks: [
+        { text: 'Correct answer', pass: true, reason: 'Answer matched' },
+        { text: 'Missing explanation', pass: false, reason: 'No explanation included' },
       ],
     };
     const parsed = ScriptGraderResultSchema.parse(result);
+    expect(parsed.pass).toBe(false);
     expect(parsed.score).toBe(0.8);
-    expect(parsed.assertions).toEqual([
-      { text: 'Correct answer', passed: true },
-      { text: 'Missing explanation', passed: false },
+    expect(parsed.reason).toBe('One check failed');
+    expect(parsed.checks).toEqual([
+      { text: 'Correct answer', pass: true, reason: 'Answer matched' },
+      { text: 'Missing explanation', pass: false, reason: 'No explanation included' },
     ]);
   });
 
-  it('defaults assertions to empty array', () => {
-    const result = { score: 0.5 };
+  it('defaults checks to empty array', () => {
+    const result = { pass: true, score: 0.5, reason: 'Aggregate only' };
     const parsed = ScriptGraderResultSchema.parse(result);
-    expect(parsed.assertions).toEqual([]);
+    expect(parsed.checks).toEqual([]);
   });
 
-  it('defaults assertions to empty array when omitted', () => {
-    const result = { score: 1.0 };
+  it('defaults checks to empty array when omitted', () => {
+    const result = { pass: true, score: 1.0, reason: 'All good' };
     const parsed = ScriptGraderResultSchema.parse(result);
-    expect(parsed.assertions).toEqual([]);
+    expect(parsed.checks).toEqual([]);
   });
 
   it('rejects score below 0', () => {
-    const result = { score: -0.5 };
+    const result = { pass: false, score: -0.5, reason: 'Too low' };
     expect(() => ScriptGraderResultSchema.parse(result)).toThrow();
   });
 
   it('rejects score above 1', () => {
-    const result = { score: 1.5 };
+    const result = { pass: true, score: 1.5, reason: 'Too high' };
     expect(() => ScriptGraderResultSchema.parse(result)).toThrow();
   });
 
   it('accepts boundary scores 0 and 1', () => {
-    expect(ScriptGraderResultSchema.parse({ score: 0 }).score).toBe(0);
-    expect(ScriptGraderResultSchema.parse({ score: 1 }).score).toBe(1);
+    expect(ScriptGraderResultSchema.parse({ pass: false, score: 0, reason: 'Fail' }).score).toBe(0);
+    expect(ScriptGraderResultSchema.parse({ pass: true, score: 1, reason: 'Pass' }).score).toBe(1);
   });
 
   it('accepts optional details object', () => {
     const result = {
+      pass: true,
       score: 0.75,
+      reason: 'Metric details included',
       details: {
         tp: 5,
         tn: 2,
@@ -353,14 +359,16 @@ describe('ScriptGraderResultSchema', () => {
   });
 
   it('allows details to be omitted', () => {
-    const result = { score: 0.5 };
+    const result = { pass: true, score: 0.5, reason: 'No details' };
     const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.details).toBeUndefined();
   });
 
   it('accepts nested details object', () => {
     const result = {
+      pass: true,
       score: 0.8,
+      reason: 'Nested details included',
       details: {
         alignment: [
           { expectedIdx: 0, parsedIdx: 1, similarity: 0.95 },
@@ -375,6 +383,23 @@ describe('ScriptGraderResultSchema', () => {
     const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.details?.alignment).toHaveLength(2);
     expect(parsed.details?.metrics).toBeDefined();
+  });
+
+  it('accepts checks with and without scores', () => {
+    const parsed = ScriptGraderResultSchema.parse({
+      pass: false,
+      score: 0.5,
+      reason: 'One of two checks passed',
+      checks: [
+        { id: 'format', text: 'Format valid', pass: true, score: 1, reason: 'JSON parsed' },
+        { text: 'Content complete', pass: false, reason: 'Missing summary' },
+      ],
+    });
+
+    expect(parsed.checks).toEqual([
+      { id: 'format', text: 'Format valid', pass: true, score: 1, reason: 'JSON parsed' },
+      { text: 'Content complete', pass: false, reason: 'Missing summary' },
+    ]);
   });
 });
 
@@ -397,7 +422,7 @@ describe('CodeJudgeInputSchema (backward-compat alias)', () => {
 
 describe('CodeJudgeResultSchema (backward-compat alias)', () => {
   it('parses valid result via deprecated alias', () => {
-    const result = { score: 0.8, assertions: [{ text: 'ok', passed: true }] };
+    const result = { pass: true, score: 0.8, reason: 'ok' };
     const parsed = CodeJudgeResultSchema.parse(result);
     expect(parsed.score).toBe(0.8);
   });

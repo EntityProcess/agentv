@@ -107,15 +107,23 @@ process.exit(1);
     );
 
     const output = JSON.parse(result.stdout);
+    expect(output.pass).toBe(false);
     expect(output.score).toBe(0.5);
-    expect(output.assertions).toEqual([
-      { text: 'welcome banner includes ready status', passed: true },
+    expect(output.reason).toBe('1/2 Vitest tests passed.');
+    expect(output.checks).toEqual([
+      {
+        text: 'welcome banner includes ready status',
+        pass: true,
+        reason: 'Vitest test passed.',
+      },
       {
         text: 'welcome banner links to dashboard',
-        passed: false,
+        pass: false,
+        reason: 'Vitest test failed.',
         evidence: 'AssertionError: expected link to point at /dashboard',
       },
     ]);
+    expect(output).not.toHaveProperty('assertions');
     expect(output.details).toMatchObject({
       vitest_success: false,
       num_total_tests: 2,

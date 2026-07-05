@@ -10,7 +10,12 @@ import {
 } from '../../runtime/target-proxy.js';
 import { serializeSnakeCaseBoundaryPayload } from '../case-conversion.js';
 import { type ContentImage, isContentArray } from '../content.js';
-import type { AssertionEntry, JsonObject, TargetAccessConfig } from '../types.js';
+import type {
+  AssertionEntry,
+  GraderCheckResult,
+  JsonObject,
+  TargetAccessConfig,
+} from '../types.js';
 import { getRepoCheckoutTargets } from '../workspace/repo-checkout.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Grader } from './types.js';
@@ -20,6 +25,20 @@ const FILE_BACKED_OUTPUT_THRESHOLD = 50_000;
 
 /** Regex matching `data:<mediaType>;base64,<data>` URIs. */
 const DATA_URI_RE = /^data:([^;]+);base64,(.+)$/s;
+
+interface ScriptProtocolResult {
+  readonly pass: boolean;
+  readonly score: number;
+  readonly reason?: string;
+  readonly checks: readonly GraderCheckResult[];
+  readonly details?: JsonObject;
+}
+
+interface ScriptProtocolCheckRecord extends Record<string, unknown> {
+  readonly text: string;
+  readonly pass: boolean;
+  readonly reason: string;
+}
 
 /**
  * Convert ContentImage blocks in message arrays for script grader consumption.
@@ -93,6 +112,77 @@ export async function materializeContentForGrader(
   }
 
   return result;
+}
+
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function optionalScore(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === 'number' ? clampScore(value) : undefined;
+}
+
+function parseScriptChecks(value: unknown): readonly GraderCheckResult[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((check): check is ScriptProtocolCheckRecord => {
+      if (typeof check !== 'object' || check === null || Array.isArray(check)) {
+        return false;
+      }
+      const record = check as Record<string, unknown>;
+      return (
+        typeof record.text === 'string' &&
+        typeof record.pass === 'boolean' &&
+        typeof record.reason === 'string'
+      );
+    })
+    .map((check) => ({
+      ...(typeof check.id === 'string' ? { id: check.id } : {}),
+      text: check.text,
+      pass: check.pass,
+      ...(typeof check.score === 'number' ? { score: clampScore(check.score) } : {}),
+      reason: check.reason,
+      ...(typeof check.evidence === 'string' ? { evidence: check.evidence } : {}),
+    }));
+}
+
+function checksToAssertions(checks: readonly GraderCheckResult[]): AssertionEntry[] {
+  return checks.map((check) => ({
+    text: check.text,
+    passed: check.pass,
+    ...(check.evidence !== undefined ? { evidence: check.evidence } : {}),
+  }));
+}
+
+function normalizeScriptProtocol(parsed: Record<string, unknown>): ScriptProtocolResult {
+  const checks = parseScriptChecks(parsed.checks);
+  const score =
+    optionalScore(parsed, 'score') ??
+    (checks.length > 0
+      ? checks.reduce((sum, check) => sum + (check.score ?? (check.pass ? 1 : 0)), 0) /
+        checks.length
+      : typeof parsed.pass === 'boolean'
+        ? parsed.pass
+          ? 1
+          : 0
+        : 0);
+  const pass = typeof parsed.pass === 'boolean' ? parsed.pass : scoreToVerdict(score) === 'pass';
+  const reason = optionalString(parsed, 'reason');
+  const details =
+    parsed.details && typeof parsed.details === 'object' && !Array.isArray(parsed.details)
+      ? (parsed.details as JsonObject)
+      : undefined;
+
+  if (typeof parsed.pass !== 'boolean' && typeof parsed.score !== 'number' && checks.length === 0) {
+    throw new Error('Script evaluator JSON must include pass, score, or checks[]');
+  }
+
+  return { pass, score, reason, checks, details };
 }
 
 export interface ScriptGraderOptions {
@@ -277,44 +367,19 @@ export class ScriptGrader implements Grader {
         rawParsed != null && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
           ? rawParsed
           : undefined;
-      // Plain-text fallback: exit code is pass/fail, stdout is the assertion text.
+      // Plain-text fallback: exit code is pass/fail, stdout is the check text.
       // For numeric scores or multi-aspect results, use the JSON protocol instead.
       const passed = exitCode === 0;
+      const protocol = parsed != null ? normalizeScriptProtocol(parsed) : undefined;
+      const checks = protocol?.checks ?? [];
       const assertions: AssertionEntry[] =
-        parsed != null && Array.isArray(parsed?.assertions)
-          ? parsed.assertions
-              .filter(
-                (a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
-                  typeof a === 'object' &&
-                  a !== null &&
-                  typeof (a as Record<string, unknown>).text === 'string',
-              )
-              .map((a) => ({
-                text: String(a.text),
-                passed: Boolean(a.passed),
-                ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),
-              }))
-          : parsed == null
-            ? [{ text: stdout.trim() || (passed ? 'exit 0' : `exit ${exitCode}`), passed }]
-            : [];
-      // When the script omits `score` but returns `assertions`, derive score as passing/total.
-      const score =
-        parsed != null
-          ? clampScore(
-              typeof parsed.score === 'number'
-                ? parsed.score
-                : assertions.length > 0
-                  ? assertions.filter((a) => a.passed).length / assertions.length
-                  : 0,
-            )
-          : passed
-            ? 1
-            : 0;
-      // Capture optional structured details from code judge output
-      const details =
-        parsed?.details && typeof parsed.details === 'object' && !Array.isArray(parsed.details)
-          ? (parsed.details as JsonObject)
-          : undefined;
+        protocol != null
+          ? checksToAssertions(checks)
+          : [{ text: stdout.trim() || (passed ? 'exit 0' : `exit ${exitCode}`), passed }];
+      const score = protocol?.score ?? (passed ? 1 : 0);
+      const verdict = protocol ? (protocol.pass ? 'pass' : 'fail') : scoreToVerdict(score);
+      const reason = protocol?.reason;
+      const details = protocol?.details;
 
       // Build evaluator raw request with proxy metadata if used
       const proxyUsage = getProxyUsage?.();
@@ -333,7 +398,9 @@ export class ScriptGrader implements Grader {
 
       return {
         score,
-        verdict: scoreToVerdict(score),
+        verdict,
+        reason,
+        checks,
         assertions,
         expectedAspectCount: assertions.length || 1,
         graderRawRequest,
@@ -346,6 +413,15 @@ export class ScriptGrader implements Grader {
       return {
         score: 0,
         verdict: 'fail',
+        reason: `Script evaluator failed: ${message}`,
+        checks: [
+          {
+            text: 'Script evaluator execution',
+            pass: false,
+            score: 0,
+            reason: message,
+          },
+        ],
         assertions: [{ text: `Script evaluator failed: ${message}`, passed: false }],
         expectedAspectCount: 1,
         graderRawRequest: {

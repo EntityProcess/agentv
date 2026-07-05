@@ -91,6 +91,10 @@ export async function runScriptGrader(handler: ScriptGraderHandler): Promise<voi
     const result = ScriptGraderResultSchema.parse({
       ...rawResult,
       score: clampScore(rawResult.score),
+      checks: rawResult.checks?.map((check) => ({
+        ...check,
+        ...(check.score !== undefined ? { score: clampScore(check.score) } : {}),
+      })),
     });
 
     // 9. Output JSON
@@ -99,8 +103,16 @@ export async function runScriptGrader(handler: ScriptGraderHandler): Promise<voi
     // Output failure result
     const errorMessage = formatError(error);
     const errorResult: ScriptGraderResult = {
+      pass: false,
       score: 0,
-      assertions: [{ text: `Evaluation failed: ${errorMessage}`, passed: false }],
+      reason: `Evaluation failed: ${errorMessage}`,
+      checks: [
+        {
+          text: 'Script grader execution',
+          pass: false,
+          reason: errorMessage,
+        },
+      ],
     };
     console.log(JSON.stringify(errorResult, null, 2));
     process.exit(1);

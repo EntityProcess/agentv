@@ -70,6 +70,8 @@ export interface EvaluationContext {
 export interface EvaluationScore {
   readonly score: number;
   readonly verdict: EvaluationVerdict;
+  readonly reason?: string;
+  readonly checks?: readonly import('../types.js').GraderCheckResult[];
   readonly assertions: readonly import('../types.js').AssertionEntry[];
   readonly expectedAspectCount: number;
   readonly graderRawRequest?: JsonObject;
@@ -88,6 +90,8 @@ export interface ChildGraderResult {
   readonly score: number;
   readonly weight?: number;
   readonly verdict: EvaluationVerdict;
+  readonly reason?: string;
+  readonly checks?: readonly import('../types.js').GraderCheckResult[];
   readonly assertions: readonly import('../types.js').AssertionEntry[];
   readonly graderRawRequest?: JsonObject;
   readonly scores?: readonly ChildGraderResult[];

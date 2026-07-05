@@ -66,7 +66,8 @@ import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => ({
   pass: (output ?? '').toLowerCase().includes('hello'),
-  reasoning: 'Checks for greeting',
+  score: (output ?? '').toLowerCase().includes('hello') ? 1 : 0,
+  reason: 'Checks for greeting',
 }));
 ```
 
@@ -79,10 +80,20 @@ Checks support `pass: boolean` for simple checks and `score: number` (0-1) for g
 import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output, traceSummary }) => ({
+  pass: (output ?? '').length > 0 && traceSummary !== null,
   score: (output ?? '').length > 0 ? 1.0 : 0.0,
-  assertions: [
-    { text: 'Output received', passed: (output ?? '').length > 0 },
-    { text: 'Trace summary available', passed: traceSummary !== null },
+  reason: 'Checks output presence and trace availability',
+  checks: [
+    {
+      text: 'Output received',
+      pass: (output ?? '').length > 0,
+      reason: (output ?? '').length > 0 ? 'Output is non-empty' : 'Output is empty',
+    },
+    {
+      text: 'Trace summary available',
+      pass: traceSummary !== null,
+      reason: traceSummary !== null ? 'Trace summary is present' : 'Trace summary is missing',
+    },
   ],
 }));
 ```
@@ -113,7 +124,7 @@ assert:
     command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
-The command reads the normal script-grader stdin payload, runs Vitest in `workspace_path`, maps each Vitest test to an AgentV assertion, and computes score as `passed / total`.
+The command reads the normal script-grader stdin payload, runs Vitest in `workspace_path`, maps each Vitest test to an AgentV check, and computes score as `passed / total`.
 
 Use the explicit `agentv eval vitest` subcommand when you need adapter options such as `--cwd`, `--in-workspace`, or `--vitest-command`. Use `defineVitestWorkspaceGrader` when embedding this adapter in a custom script:
 
@@ -143,7 +154,7 @@ export default defineWorkspaceGrader(async ({ workspace }) => [
 ]);
 ```
 
-The helper resolves `workspace_path` or `AGENTV_WORKSPACE_PATH`, reads files relative to the workspace, returns AgentV assertion objects, and computes `score` as passed checks divided by total checks. Prefer Vitest verifiers for checks that naturally fit a test file; use this lower-level helper for tiny one-off graders or custom score shaping.
+The helper resolves `workspace_path` or `AGENTV_WORKSPACE_PATH`, reads files relative to the workspace, returns AgentV check objects, and computes `score` as passed checks divided by total checks. Prefer Vitest verifiers for checks that naturally fit a test file; use this lower-level helper for tiny one-off graders or custom score shaping.
 
 ### defineEval (YAML-aligned `.eval.ts` authoring)
 

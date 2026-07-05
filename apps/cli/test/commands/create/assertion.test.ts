@@ -35,9 +35,11 @@ describe('agentv create assertion', () => {
       );
       expect(content).toContain("import { defineAssertion } from '@agentv/sdk';");
       expect(content).toContain("const text = output ?? '';");
-      expect(content).toContain(
-        "assertions: [{ text: pass ? 'Output has content' : 'Output is empty', passed: pass }]",
-      );
+      expect(content).toContain('pass,');
+      expect(content).toContain('score: pass ? 1 : 0,');
+      expect(content).toContain("reason: pass ? 'Output has content' : 'Output is empty'");
+      expect(content).not.toContain('assertions:');
+      expect(content).not.toContain('passed:');
       expect(content).not.toContain('reasoning:');
       expect(content).not.toContain('getMessageText');
     } finally {

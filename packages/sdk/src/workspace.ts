@@ -1,8 +1,8 @@
 /**
- * Workspace grader helpers for deterministic file assertions.
+ * Workspace grader helpers for deterministic file checks.
  *
  * `defineWorkspaceGrader()` wraps the script-grader runtime with a small
- * workspace object so graders can read files and return assertion arrays
+ * workspace object so graders can read files and return check arrays
  * without hand-rolling stdin parsing, workspace path fallback, file reads, or
  * score aggregation.
  */
@@ -11,23 +11,29 @@ import nodePath from 'node:path';
 
 import { runScriptGrader } from './runtime.js';
 import {
+  type ScriptGraderCheck,
   type ScriptGraderInput,
   type ScriptGraderResult,
   ScriptGraderResultSchema,
 } from './schemas.js';
 
-export interface WorkspaceAssertion {
+export interface WorkspaceCheck {
   readonly text: string;
-  readonly passed: boolean;
+  readonly pass: boolean;
+  readonly score?: number;
+  readonly reason: string;
   readonly evidence?: string;
 }
+
+/** @deprecated Use WorkspaceCheck. */
+export type WorkspaceAssertion = WorkspaceCheck;
 
 type Awaitable<T> = T | Promise<T>;
 
 export type WorkspaceGraderReturn =
   | ScriptGraderResult
-  | WorkspaceAssertion
-  | readonly Awaitable<WorkspaceAssertion>[];
+  | WorkspaceCheck
+  | readonly Awaitable<WorkspaceCheck>[];
 
 export interface WorkspaceFileAssertionOptions {
   readonly text?: string;
@@ -37,14 +43,11 @@ export interface WorkspaceFile {
   readonly path: string;
   readonly absolutePath?: string;
   readText(): Promise<string>;
-  exists(options?: WorkspaceFileAssertionOptions): Promise<WorkspaceAssertion>;
-  contains(expected: string, options?: WorkspaceFileAssertionOptions): Promise<WorkspaceAssertion>;
-  notContains(
-    expected: string,
-    options?: WorkspaceFileAssertionOptions,
-  ): Promise<WorkspaceAssertion>;
-  matches(pattern: RegExp, options?: WorkspaceFileAssertionOptions): Promise<WorkspaceAssertion>;
-  notMatches(pattern: RegExp, options?: WorkspaceFileAssertionOptions): Promise<WorkspaceAssertion>;
+  exists(options?: WorkspaceFileAssertionOptions): Promise<WorkspaceCheck>;
+  contains(expected: string, options?: WorkspaceFileAssertionOptions): Promise<WorkspaceCheck>;
+  notContains(expected: string, options?: WorkspaceFileAssertionOptions): Promise<WorkspaceCheck>;
+  matches(pattern: RegExp, options?: WorkspaceFileAssertionOptions): Promise<WorkspaceCheck>;
+  notMatches(pattern: RegExp, options?: WorkspaceFileAssertionOptions): Promise<WorkspaceCheck>;
 }
 
 export interface Workspace {
@@ -121,10 +124,11 @@ function resolveWorkspacePath(workspacePath: string | undefined, relativePath: s
   };
 }
 
-function assertion(text: string, passed: boolean, evidence?: string): WorkspaceAssertion {
+function check(text: string, pass: boolean, reason: string, evidence?: string): WorkspaceCheck {
   return {
     text,
-    passed,
+    pass,
+    reason,
     ...(evidence !== undefined ? { evidence } : {}),
   };
 }
@@ -189,17 +193,17 @@ export function createWorkspace(input: ScriptGraderInput): Workspace {
       async exists(options: WorkspaceFileAssertionOptions = {}) {
         const text = options.text ?? `${label} exists`;
         if (resolved.error) {
-          return assertion(text, false, resolved.error);
+          return check(text, false, resolved.error);
         }
 
         try {
           const fileStat = await stat(resolved.absolutePath as string);
           if (fileStat.isFile()) {
-            return assertion(text, true);
+            return check(text, true, `${label} exists.`);
           }
-          return assertion(text, false, `${label} exists but is not a file.`);
+          return check(text, false, `${label} exists but is not a file.`);
         } catch {
-          return assertion(text, false, `${label} does not exist.`);
+          return check(text, false, `${label} does not exist.`);
         }
       },
 
@@ -207,14 +211,16 @@ export function createWorkspace(input: ScriptGraderInput): Workspace {
         const text = options.text ?? `${label} contains ${quote(expected)}`;
         const content = await readFileForAssertion(this);
         if ('error' in content) {
-          return assertion(text, false, content.error);
+          return check(text, false, content.error);
         }
 
-        const passed = content.content.includes(expected);
-        return assertion(
+        const pass = content.content.includes(expected);
+        return check(
           text,
-          passed,
-          passed ? undefined : `${label} is missing ${quote(expected)}.`,
+          pass,
+          pass
+            ? `${label} contains ${quote(expected)}.`
+            : `${label} is missing ${quote(expected)}.`,
         );
       },
 
@@ -222,14 +228,16 @@ export function createWorkspace(input: ScriptGraderInput): Workspace {
         const text = options.text ?? `${label} does not contain ${quote(expected)}`;
         const content = await readFileForAssertion(this);
         if ('error' in content) {
-          return assertion(text, false, content.error);
+          return check(text, false, content.error);
         }
 
-        const passed = !content.content.includes(expected);
-        return assertion(
+        const pass = !content.content.includes(expected);
+        return check(
           text,
-          passed,
-          passed ? undefined : `${label} contains unexpected text ${quote(expected)}.`,
+          pass,
+          pass
+            ? `${label} does not contain ${quote(expected)}.`
+            : `${label} contains unexpected text ${quote(expected)}.`,
         );
       },
 
@@ -237,15 +245,17 @@ export function createWorkspace(input: ScriptGraderInput): Workspace {
         const text = options.text ?? `${label} matches ${regexLabel(pattern)}`;
         const content = await readFileForAssertion(this);
         if ('error' in content) {
-          return assertion(text, false, content.error);
+          return check(text, false, content.error);
         }
 
         pattern.lastIndex = 0;
-        const passed = pattern.test(content.content);
-        return assertion(
+        const pass = pattern.test(content.content);
+        return check(
           text,
-          passed,
-          passed ? undefined : `${label} does not match ${regexLabel(pattern)}.`,
+          pass,
+          pass
+            ? `${label} matches ${regexLabel(pattern)}.`
+            : `${label} does not match ${regexLabel(pattern)}.`,
         );
       },
 
@@ -253,15 +263,17 @@ export function createWorkspace(input: ScriptGraderInput): Workspace {
         const text = options.text ?? `${label} does not match ${regexLabel(pattern)}`;
         const content = await readFileForAssertion(this);
         if ('error' in content) {
-          return assertion(text, false, content.error);
+          return check(text, false, content.error);
         }
 
         pattern.lastIndex = 0;
-        const passed = !pattern.test(content.content);
-        return assertion(
+        const pass = !pattern.test(content.content);
+        return check(
           text,
-          passed,
-          passed ? undefined : `${label} matches unexpected pattern ${regexLabel(pattern)}.`,
+          pass,
+          pass
+            ? `${label} does not match ${regexLabel(pattern)}.`
+            : `${label} matches unexpected pattern ${regexLabel(pattern)}.`,
         );
       },
     };
@@ -281,12 +293,18 @@ export async function normalizeWorkspaceGraderResult(
     return ScriptGraderResultSchema.parse(result);
   }
 
-  const assertions = Array.isArray(result) ? await Promise.all(result) : [result];
-  const passed = assertions.filter((item) => item.passed).length;
+  const checks = Array.isArray(result) ? await Promise.all(result) : [result];
+  const passed = checks.filter((item) => item.pass).length;
+  const score =
+    checks.length > 0
+      ? checks.reduce((sum, item) => sum + (item.score ?? (item.pass ? 1 : 0)), 0) / checks.length
+      : 0;
 
   return ScriptGraderResultSchema.parse({
-    score: assertions.length > 0 ? passed / assertions.length : 0,
-    assertions,
+    pass: checks.length > 0 && passed === checks.length,
+    score,
+    reason: checks.length > 0 ? `${passed}/${checks.length} checks passed.` : 'No checks ran.',
+    checks: checks satisfies readonly ScriptGraderCheck[],
   });
 }
 

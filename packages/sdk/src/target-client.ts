@@ -115,7 +115,7 @@ export class TargetInvocationError extends Error {
  *
  *   if (!target) {
  *     // Target not available - no target config on this evaluator
- *     return { score: 0.5, assertions: [{ text: 'Target not available', passed: false }] };
+ *     return { pass: false, score: 0.5, reason: 'Target not available' };
  *   }
  *
  *   const response = await target.invoke({
@@ -124,7 +124,11 @@ export class TargetInvocationError extends Error {
  *   });
  *
  *   const result = JSON.parse(response.rawText ?? '{}');
- *   return { score: result.correct ? 1.0 : 0.0 };
+ *   return {
+ *     pass: result.correct === true,
+ *     score: result.correct === true ? 1.0 : 0.0,
+ *     reason: result.correct === true ? 'Target judged the answer correct' : 'Target judged the answer incorrect',
+ *   };
  * });
  * ```
  */

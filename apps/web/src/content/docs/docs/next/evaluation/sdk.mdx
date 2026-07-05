@@ -223,7 +223,8 @@ export default defineAssertion(({ output }) => {
   const pass = wordCount >= 3;
   return {
     pass,
-    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
+    score: pass ? 1 : 0,
+    reason: `Output has ${wordCount} words`,
   };
 });
 ```
@@ -241,7 +242,7 @@ export default defineAssertion(({ output, traceSummary }) => {
   const isEfficient = (traceSummary?.eventCount ?? 0) <= 10 ? 0.5 : 0;
   return {
     score: hasContent + isEfficient,
-    reasoning: 'Checks content exists and is efficient',
+    reason: 'Checks content exists and is efficient',
   };
 });
 ```
@@ -268,16 +269,26 @@ assert:
 
 ## Script Graders
 
-Use `defineScriptGrader` from `@agentv/sdk` for full control over scoring with an explicit assertions array:
+Use `defineScriptGrader` from `@agentv/sdk` for full control over scoring with optional per-check results:
 
 ```typescript
 import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output, traceSummary }) => ({
+  pass: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5,
   score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
-  assertions: [
-    { text: 'Answer is not empty', passed: (output ?? '').length > 0 },
-    { text: 'Efficient tool usage', passed: (traceSummary?.eventCount ?? 0) <= 5 },
+  reason: 'Checks answer text and tool usage',
+  checks: [
+    {
+      text: 'Answer is not empty',
+      pass: (output ?? '').length > 0,
+      reason: (output ?? '').length > 0 ? 'Output is non-empty' : 'Output is empty',
+    },
+    {
+      text: 'Efficient tool usage',
+      pass: (traceSummary?.eventCount ?? 0) <= 5,
+      reason: 'Trace event count is within limit',
+    },
   ],
 }));
 ```

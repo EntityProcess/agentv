@@ -16,14 +16,19 @@ const candidateText =
       ? input.output.map((m) => String(m.content ?? '')).join('')
       : '';
 const hasCandidate = candidateText.length > 0;
+const pass = hasExpected && hasCandidate;
 
 // Emit details with structured metrics
 console.log(
   JSON.stringify({
-    score: hasExpected && hasCandidate ? 0.75 : 0,
-    assertions: [
-      ...(hasExpected ? [{ text: 'expected_output present', passed: true }] : []),
-      ...(hasCandidate ? [] : [{ text: 'output missing', passed: false }]),
+    pass,
+    score: pass ? 0.75 : 0,
+    reason: pass
+      ? 'Expected output and candidate output were present'
+      : 'Missing required payload data',
+    checks: [
+      { text: 'expected_output present', pass: hasExpected, reason: 'expected_output was present' },
+      { text: 'output present', pass: hasCandidate, reason: 'output was present' },
     ],
     details: {
       metrics: {

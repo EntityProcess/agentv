@@ -189,26 +189,35 @@ export function vitestReportToScriptGraderResult(
   report: VitestJsonReport,
   options: Pick<VitestWorkspaceGraderOptions, 'passWithNoTests'> = {},
 ): ScriptGraderResult {
-  const assertions = (report.testResults ?? []).flatMap((file) =>
+  const checks = (report.testResults ?? []).flatMap((file) =>
     (file.assertionResults ?? []).map((item) => {
-      const passed = item.status === 'passed';
+      const pass = item.status === 'passed';
       const evidence =
         item.failureMessages && item.failureMessages.length > 0
           ? truncate(item.failureMessages.join('\n\n'))
           : undefined;
       return {
         text: assertionText(file, item),
-        passed,
+        pass,
+        reason: pass ? 'Vitest test passed.' : 'Vitest test failed.',
         ...(evidence !== undefined ? { evidence } : {}),
       };
     }),
   );
 
-  if (assertions.length === 0) {
-    const passed = options.passWithNoTests === true;
+  if (checks.length === 0) {
+    const pass = options.passWithNoTests === true;
     return ScriptGraderResultSchema.parse({
-      score: passed ? 1 : 0,
-      assertions: [{ text: 'Vitest reported no tests', passed }],
+      pass,
+      score: pass ? 1 : 0,
+      reason: pass ? 'Vitest reported no tests; configured to pass.' : 'Vitest reported no tests.',
+      checks: [
+        {
+          text: 'Vitest reported no tests',
+          pass,
+          reason: pass ? 'passWithNoTests is enabled.' : 'No Vitest tests were discovered.',
+        },
+      ],
       details: {
         vitest_success: report.success ?? false,
         num_total_tests: report.numTotalTests ?? 0,
@@ -220,15 +229,18 @@ export function vitestReportToScriptGraderResult(
     });
   }
 
-  const passedCount = assertions.filter((item) => item.passed).length;
+  const passedCount = checks.filter((item) => item.pass).length;
+  const pass = passedCount === checks.length;
   return ScriptGraderResultSchema.parse({
-    score: passedCount / assertions.length,
-    assertions,
+    pass,
+    score: passedCount / checks.length,
+    reason: `${passedCount}/${checks.length} Vitest tests passed.`,
+    checks,
     details: {
-      vitest_success: report.success ?? passedCount === assertions.length,
-      num_total_tests: report.numTotalTests ?? assertions.length,
+      vitest_success: report.success ?? pass,
+      num_total_tests: report.numTotalTests ?? checks.length,
       num_passed_tests: report.numPassedTests ?? passedCount,
-      num_failed_tests: report.numFailedTests ?? assertions.length - passedCount,
+      num_failed_tests: report.numFailedTests ?? checks.length - passedCount,
       num_pending_tests: report.numPendingTests ?? 0,
       num_todo_tests: report.numTodoTests ?? 0,
     },
@@ -342,12 +354,14 @@ export async function runVitestWorkspaceGrader(
   const workspacePath = workspacePathFrom(input);
   if (!workspacePath) {
     return {
+      pass: false,
       score: 0,
-      assertions: [
+      reason: 'Vitest workspace verifier requires workspace_path.',
+      checks: [
         {
           text: 'Vitest workspace verifier requires workspace_path',
-          passed: false,
-          evidence: 'Configure workspace in the eval YAML so AgentV can pass workspace_path.',
+          pass: false,
+          reason: 'Configure workspace in the eval YAML so AgentV can pass workspace_path.',
         },
       ],
     };
@@ -393,13 +407,16 @@ export async function runVitestWorkspaceGrader(
     const report = await readVitestReport(result, outputFile);
     return vitestReportToScriptGraderResult(report, options);
   } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
     return {
+      pass: false,
       score: 0,
-      assertions: [
+      reason: 'Vitest workspace verifier failed to run.',
+      checks: [
         {
           text: 'Vitest workspace verifier failed to run',
-          passed: false,
-          evidence: error instanceof Error ? error.message : String(error),
+          pass: false,
+          reason,
         },
       ],
     };

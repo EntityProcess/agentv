@@ -37,13 +37,20 @@ def _read_output_file(path: str) -> Any:
 
 
 @dataclass(frozen=True)
-class Assertion:
+class Check:
     text: str
-    passed: bool
+    pass_: bool
+    reason: str
+    score: float | None = None
     evidence: str | None = None
+    id: str | None = None
 
     def to_wire(self) -> dict[str, Any]:
-        wire = {"text": self.text, "passed": self.passed}
+        wire = {"text": self.text, "pass": self.pass_, "reason": self.reason}
+        if self.id is not None:
+            wire["id"] = self.id
+        if self.score is not None:
+            wire["score"] = min(max(float(self.score), 0.0), 1.0)
         if self.evidence is not None:
             wire["evidence"] = self.evidence
         return wire
@@ -51,15 +58,19 @@ class Assertion:
 
 @dataclass(frozen=True)
 class ScriptGraderResult:
+    pass_: bool
     score: float
-    assertions: list[Assertion] = field(default_factory=list)
+    reason: str
+    checks: list[Check] = field(default_factory=list)
     details: Mapping[str, Any] | None = None
 
     def to_wire(self) -> dict[str, Any]:
         score = min(max(float(self.score), 0.0), 1.0)
         wire: dict[str, Any] = {
+            "pass": self.pass_,
             "score": score,
-            "assertions": [assertion.to_wire() for assertion in self.assertions],
+            "reason": self.reason,
+            "checks": [check.to_wire() for check in self.checks],
         }
         if self.details is not None:
             wire["details"] = dict(self.details)
@@ -251,8 +262,16 @@ def run_script_grader(handler: ScriptGraderHandler, stdin_text: str | None = Non
     except Exception as error:
         emit_grader_result(
             ScriptGraderResult(
+                pass_=False,
                 score=0.0,
-                assertions=[Assertion(text=f"Evaluation failed: {error}", passed=False)],
+                reason=f"Evaluation failed: {error}",
+                checks=[
+                    Check(
+                        text="Script grader execution",
+                        pass_=False,
+                        reason=str(error),
+                    )
+                ],
             )
         )
         return 1
@@ -263,7 +282,7 @@ def define_script_grader(handler: ScriptGraderHandler) -> None:
 
 
 CodeGraderContext = ScriptGraderContext
-ScriptGraderResult = ScriptGraderResult
+Assertion = Check
 CodeGraderHandler = ScriptGraderHandler
 run_script_grader = run_script_grader
 define_script_grader = define_script_grader
