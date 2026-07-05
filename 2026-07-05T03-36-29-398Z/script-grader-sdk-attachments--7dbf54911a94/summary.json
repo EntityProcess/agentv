@@ -1,0 +1,45 @@
+{
+  "total_attempts": 1,
+  "passed_attempts": 0,
+  "pass_rate": "0%",
+  "mean_duration_ms": 271,
+  "mean_duration_seconds": 0.271,
+  "fingerprint": "b1d0b69e460ed9ff80ac1452a346d0e990816a7795f1a0f4643e0ad7b5beec0d",
+  "duration": {
+    "total_ms": 271,
+    "total_seconds": 0.271,
+    "source": "provider_reported",
+    "mean_ms": 271,
+    "mean_seconds": 0.271,
+    "stats": {
+      "count": 1,
+      "mean_ms": 271,
+      "mean_seconds": 0.271,
+      "stddev_ms": 0,
+      "stddev_seconds": 0,
+      "min_ms": 271,
+      "max_ms": 271
+    }
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "evaluator",
+    "failure_reason_code": "evaluator_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

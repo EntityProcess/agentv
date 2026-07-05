@@ -1,0 +1,59 @@
+{
+  "schema_version": "agentv.target_execution.v1",
+  "status": "success",
+  "target_id": "local_cli",
+  "provider_id": "cli:local_cli",
+  "provider_kind": "cli",
+  "runtime_mode": "host",
+  "command": {
+    "argv": [
+      "/bin/sh",
+      "-lc",
+      "uv run ../local-cli/mock_cli.py --prompt '@[System]:\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md\">\n\n@[User]:\nPlease echo this request in one short sentence and mention all attached files by name.\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt\">' --file '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md' --file '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt' --output '/tmp/agentv-script-grader-sdk-attachments-1783222590586-vxqegfp.json'"
+    ],
+    "command_line": "uv run ../local-cli/mock_cli.py --prompt '@[System]:\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md\">\n\n@[User]:\nPlease echo this request in one short sentence and mention all attached files by name.\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt\">' --file '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md' --file '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt' --output '/tmp/agentv-script-grader-sdk-attachments-1783222590586-vxqegfp.json'",
+    "cwd": "/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk"
+  },
+  "started_at": "2026-07-05T03:36:30.587Z",
+  "ended_at": "2026-07-05T03:36:30.860Z",
+  "duration_ms": 273,
+  "exit_code": 0,
+  "signal": null,
+  "logs": {
+    "stdout": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    },
+    "stderr": {
+      "text": "[mock_cli] running from: /home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/local-cli/mock_cli.py\n[mock_cli] argv: ['../local-cli/mock_cli.py', '--prompt', '@[System]:\\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md\">\\n\\n@[User]:\\nPlease echo this request in one short sentence and mention all attached files by name.\\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt\">', '--file', '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md', '--file', '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt', '--output', '/tmp/agentv-script-grader-sdk-attachments-1783222590586-vxqegfp.json']\n[mock_cli] CLI_EVALS_DIR: ./docs/examples/simple/evals/local-cli\nPrompt: @[System]:\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md\">\n\n@[User]:\nPlease echo this request in one short sentence and mention all attached files by name.\n<file: path=\"/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt\">\nAttachments: example.txt, python.instructions.md\n[mock_cli] writing output to: /tmp/agentv-script-grader-sdk-attachments-1783222590586-vxqegfp.json\n",
+      "truncated": false,
+      "bytes": 1634,
+      "stored_bytes": 1634
+    }
+  },
+  "transcript": {
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Attachments detected (2): example.txt, python.instructions.md."
+      }
+    ],
+    "final_output": "Attachments detected (2): example.txt, python.instructions.md."
+  },
+  "details": {
+    "output_file": "/tmp/agentv-script-grader-sdk-attachments-1783222590586-vxqegfp.json"
+  },
+  "artifacts": {
+    "target_execution_path": "target-execution.json",
+    "stdout_path": "stdout.txt",
+    "stderr_path": "stderr.txt",
+    "transcript_path": "transcript.json",
+    "transcript_raw_path": "transcript-raw.jsonl",
+    "summary_path": "summary.json",
+    "metrics_path": "metrics.json",
+    "output_path": "outputs/answer.md",
+    "answer_path": "outputs/answer.md"
+  }
+}

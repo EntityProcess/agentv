@@ -1,0 +1,90 @@
+{
+  "score": 0,
+  "verdict": "fail",
+  "assertion_results": [
+    {
+      "text": "Candidate output matches expected message",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Mentions attachment: python.instructions.md",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Mentions attachment: example.txt",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error.",
+      "passed": false,
+      "evidence": "",
+      "score": 0,
+      "verdict": "fail"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "graders": [
+    {
+      "name": "attachment-check",
+      "type": "script",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Candidate output matches expected message",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Mentions attachment: python.instructions.md",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Mentions attachment: example.txt",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 0,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "skip",
+      "assertion_results": [
+        {
+          "text": "Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error.",
+          "passed": false,
+          "evidence": "",
+          "score": 0,
+          "verdict": "fail"
+        }
+      ]
+    }
+  ]
+}

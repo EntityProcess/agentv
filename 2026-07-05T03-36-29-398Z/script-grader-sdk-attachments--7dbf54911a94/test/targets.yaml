@@ -1,0 +1,17 @@
+targets:
+  - id: local_cli
+    provider: cli
+    grader_target: openai
+    config:
+      command: uv run ../local-cli/mock_cli.py --prompt {PROMPT} {FILES} --output {OUTPUT_FILE}
+      files_format: --file {path}
+      cwd: /home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk
+      healthcheck:
+        command: uv run ../local-cli/mock_cli.py --healthcheck
+        cwd: /home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk
+  - id: openai
+    provider: openai
+    model: "{{ env.OPENAI_MODEL }}"
+    config:
+      endpoint: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "[redacted]"
