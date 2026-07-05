@@ -1,0 +1,139 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T03-50-32-033Z",
+  "status": {
+    "passed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "failed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "errored": {
+      "count": 1,
+      "percentage": 1
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 0,
+    "failed_cases": 1,
+    "errored_instances": 1
+  },
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 1,
+    "reasons": [
+      {
+        "reason": "provider_error",
+        "count": 1
+      }
+    ]
+  },
+  "cases": [
+    {
+      "test_id": "sdk-live-marker",
+      "suite": "av-t2o5-3-sdk-child-runner-live",
+      "target": "copilot-sdk-local",
+      "sample_count": 1,
+      "pass_count": 0,
+      "status_counts": {
+        "execution_error": 1
+      },
+      "samples": [
+        {
+          "test_id": "sdk-live-marker",
+          "suite": "av-t2o5-3-sdk-child-runner-live",
+          "target": "copilot-sdk-local",
+          "sample_index": 1,
+          "verdict": "fail",
+          "score": 0,
+          "execution_status": "execution_error",
+          "failure_stage": "agent",
+          "failure_reason_code": "provider_error"
+        }
+      ],
+      "pass_rate": 0,
+      "pass_at_1": false
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-05T03-50-32-033Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/runtime-sdk-child-runner-deps/.agentv/results/av-t2o5-3-inputs/live-marker.eval.yaml",
+    "timestamp": "2026-07-05T03:50:36.774Z",
+    "targets": [
+      "copilot-sdk-local"
+    ],
+    "tests_run": [
+      "sdk-live-marker"
+    ],
+    "experiment": "av-t2o5-3-sdk-child-runner-live",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "cli_flags",
+      "eval_files": [
+        ".agentv/results/av-t2o5-3-inputs/live-marker.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "copilot-sdk-local": {
+      "pass_rate": {
+        "mean": 0,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 0,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 0,
+      "total_seconds": 0,
+      "source": "unavailable"
+    },
+    "tokens": {
+      "total": 0,
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "source": "unavailable"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "execution_error",
+      "failure_stage": "agent",
+      "failure_reason_code": "provider_error"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": [
+    "1 test(s) had execution errors and are excluded from quality pass_rate"
+  ]
+}
