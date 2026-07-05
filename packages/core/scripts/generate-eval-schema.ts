@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { EvalFileSchema } from '../src/evaluation/validation/eval-file.schema.js';
+import { EvalFileSchemaInput } from '../src/evaluation/validation/eval-file.schema.js';
 
 async function formatWithBiome(filePath: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
@@ -38,6 +38,7 @@ async function writeSchema(options: {
   const jsonSchema = zodToJsonSchema(options.schema, {
     name: options.name,
     $refStrategy: 'none',
+    effectStrategy: 'input',
     target: 'jsonSchema2019-09',
   });
 
@@ -60,7 +61,7 @@ async function writeSchema(options: {
 }
 
 await writeSchema({
-  schema: EvalFileSchema,
+  schema: EvalFileSchemaInput,
   name: 'EvalFile',
   title: 'AgentV Eval File',
   description: 'Schema for AgentV evaluation YAML files (.eval.yaml)',

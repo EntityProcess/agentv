@@ -1,6 +1,43 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { EvalFileSchema } from '../../src/evaluation/validation/eval-file.schema.js';
+import { validateEvalFile } from '../../src/evaluation/validation/eval-validator.js';
+
+async function validateEvalYaml(body: string) {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-env-schema-'));
+  try {
+    const evalPath = path.join(tempDir, 'suite.eval.yaml');
+    writeFileSync(
+      evalPath,
+      `${body}
+description: test
+prompts:
+  - "{{ input }}"
+tests:
+  - id: test-1
+    vars:
+      input: hello
+`,
+    );
+    return await validateEvalFile(evalPath);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function expectError(result: Awaited<ReturnType<typeof validateEvalYaml>>, location: string) {
+  expect(result.valid).toBe(false);
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({
+      severity: 'error',
+      location,
+      message: expect.stringContaining('environment'),
+    }),
+  );
+}
 
 describe('environment recipe schema validation', () => {
   const baseEval = {
@@ -69,69 +106,45 @@ describe('environment recipe schema validation', () => {
     ).toBe(true);
   });
 
-  it('rejects legacy source field', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            source: { type: 'git', url: 'https://github.com/org/repo.git' },
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects legacy source field', async () => {
+    const result = await validateEvalYaml(`workspace:
+  repos:
+    - path: ./repo-a
+      source:
+        type: git
+        url: https://github.com/org/repo.git`);
+    expectError(result, 'workspace.repos');
   });
 
-  it('rejects legacy checkout field', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-            checkout: { resolve: 'remote' },
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects legacy checkout field', async () => {
+    const result = await validateEvalYaml(`workspace:
+  repos:
+    - path: ./repo-a
+      repo: https://github.com/org/repo.git
+      checkout:
+        resolve: remote`);
+    expectError(result, 'workspace.repos');
   });
 
-  it('rejects legacy clone field', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-            clone: { depth: 1 },
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects legacy clone field', async () => {
+    const result = await validateEvalYaml(`workspace:
+  repos:
+    - path: ./repo-a
+      repo: https://github.com/org/repo.git
+      clone:
+        depth: 1`);
+    expectError(result, 'workspace.repos');
   });
 
-  it('rejects removed repo acquisition fields', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-            type: 'git',
-            resolve: 'custom',
-            resolver: 'custom',
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects removed repo acquisition fields', async () => {
+    const result = await validateEvalYaml(`workspace:
+  repos:
+    - path: ./repo-a
+      repo: https://github.com/org/repo.git
+      type: git
+      resolve: custom
+      resolver: custom`);
+    expectError(result, 'workspace.repos');
   });
 
   it('rejects unknown environment fields', () => {
@@ -146,40 +159,21 @@ describe('environment recipe schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts internal workspace hooks after_each reset config', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        hooks: { after_each: { reset: 'fast' } },
-      },
-    });
-    expect(result.success).toBe(true);
+  it('keeps removed workspace authoring out of the public schema', () => {
+    expect(EvalFileSchema.safeParse(baseEval).success).toBe(true);
+    expect(EvalFileSchema.safeParse({ ...baseEval, workspace: {} }).success).toBe(true);
   });
 
-  it('rejects public workspace scope field', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        scope: 'attempt',
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects public workspace scope field', async () => {
+    const result = await validateEvalYaml(`workspace:
+  scope: attempt`);
+    expectError(result, 'workspace.scope');
   });
 
-  it('rejects removed workspace isolation per_test value', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        isolation: 'per_test',
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects removed workspace isolation per_test value', async () => {
+    const result = await validateEvalYaml(`workspace:
+  isolation: per_test`);
+    expectError(result, 'workspace.isolation');
   });
 
   it('rejects experiment workspace blocks', () => {
@@ -242,44 +236,27 @@ describe('environment recipe schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects removed workspace.mode', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        mode: 'temp',
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects removed workspace.mode', async () => {
+    const result = await validateEvalYaml(`workspace:
+  mode: temp`);
+    expectError(result, 'workspace.mode');
   });
 
-  it('rejects removed workspace.path', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        path: '/tmp/my-workspace',
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects removed workspace.path', async () => {
+    const result = await validateEvalYaml(`workspace:
+  path: /tmp/my-workspace`);
+    expectError(result, 'workspace.path');
   });
 
-  it('rejects removed workspace.static_path field', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        mode: 'static',
-        static_path: '/tmp/my-workspace',
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects removed workspace.static_path field', async () => {
+    const result = await validateEvalYaml(`workspace:
+  static_path: /tmp/my-workspace`);
+    expectError(result, 'workspace.static_path');
   });
 
-  it('rejects removed workspace.pool field', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        pool: true,
-      },
-    });
-    expect(result.success).toBe(false);
+  it('rejects removed workspace.pool field', async () => {
+    const result = await validateEvalYaml(`workspace:
+  pool: true`);
+    expectError(result, 'workspace.pool');
   });
 });

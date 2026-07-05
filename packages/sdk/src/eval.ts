@@ -76,7 +76,7 @@ export interface EvalAssertionConfig {
   readonly [key: string]: unknown;
 }
 
-export interface EvalWorkspaceHook {
+export interface EvalLifecycleHook {
   readonly command?: string | readonly string[];
   readonly timeoutMs?: number;
   readonly cwd?: string;
@@ -84,43 +84,18 @@ export interface EvalWorkspaceHook {
   readonly [key: string]: unknown;
 }
 
-export interface EvalWorkspaceHooks {
+export interface EvalLifecycleHooks {
   readonly enabled?: boolean;
-  readonly beforeAll?: EvalWorkspaceHook;
-  readonly beforeEach?: EvalWorkspaceHook;
-  readonly afterEach?: EvalWorkspaceHook;
-  readonly afterAll?: EvalWorkspaceHook;
-}
-
-export interface EvalWorkspaceRepo {
-  readonly path?: string;
-  readonly repo?: string;
-  readonly commit?: string;
-  readonly ancestor?: number;
-  readonly sparse?: readonly string[];
-}
-
-export interface EvalDockerWorkspace {
-  readonly image: string;
-  readonly timeout?: number;
-  readonly memory?: string;
-  readonly cpus?: number;
-}
-
-export interface EvalWorkspace {
-  readonly template?: string;
-  readonly scope?: 'suite' | 'attempt';
-  readonly repos?: readonly EvalWorkspaceRepo[];
-  readonly hooks?: EvalWorkspaceHooks;
-  readonly path?: string;
-  readonly docker?: EvalDockerWorkspace;
+  readonly beforeAll?: EvalLifecycleHook;
+  readonly beforeEach?: EvalLifecycleHook;
+  readonly afterEach?: EvalLifecycleHook;
+  readonly afterAll?: EvalLifecycleHook;
 }
 
 export interface EvalEnvironmentSetup {
-  readonly command: string | readonly string[];
-  readonly args?: Readonly<Record<string, unknown>>;
-  readonly env?: Readonly<Record<string, string>>;
-  readonly timeoutSeconds?: number;
+  readonly command: readonly string[];
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
 }
 
 export interface EvalDockerEnvironmentMount {
@@ -163,7 +138,7 @@ export interface EvalTargetRef {
   readonly label: string;
   readonly id?: string;
   readonly useTarget?: string;
-  readonly hooks?: EvalWorkspaceHooks;
+  readonly hooks?: EvalLifecycleHooks;
 }
 
 export interface EvalTargetConfig {
@@ -178,7 +153,7 @@ export interface EvalTargetConfig {
   readonly delay?: number;
   readonly env?: Readonly<Record<string, string>>;
   readonly reasoningEffort?: string;
-  readonly hooks?: EvalWorkspaceHooks;
+  readonly hooks?: EvalLifecycleHooks;
   readonly [key: string]: unknown;
 }
 
@@ -219,7 +194,6 @@ export interface EvalTest {
   readonly assert?: readonly EvalAssertionConfig[];
   readonly execution?: EvalExecution;
   readonly environment?: EvalEnvironment | string;
-  readonly workspace?: EvalWorkspace;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly conversationId?: string;
   readonly suite?: string;
@@ -269,7 +243,6 @@ export interface EvalDefinition {
   readonly budgetUsd?: number;
   readonly assert?: readonly EvalAssertionConfig[];
   readonly environment?: EvalEnvironment | string;
-  readonly workspace?: EvalWorkspace | string;
 }
 
 export interface DefinedEvalSuite {

@@ -301,6 +301,17 @@ const KNOWN_TEST_FIELDS = new Set([
 ]);
 
 const SUPPORTED_WORKSPACE_REPO_FIELDS = new Set(['path', 'repo', 'commit', 'ancestor', 'sparse']);
+const KNOWN_REMOVED_WORKSPACE_FIELDS = new Set([
+  'template',
+  'repos',
+  'scope',
+  'docker',
+  'hooks',
+  'env',
+  'mode',
+  'isolation',
+  'path',
+]);
 
 /** Removed test-level fields with migration hints. */
 const REMOVED_TEST_FIELDS = new Map<string, string>([]);
@@ -931,7 +942,7 @@ function rejectRuntimeWorkspaceConfig(
     severity: 'error',
     filePath,
     location,
-    message: `${location} has been removed from eval YAML. Put machine-local workspace_path in .agentv/config.local.yaml under execution, or pass --workspace-path. Keep portable task setup in top-level workspace.`,
+    message: `${location} has been removed from eval YAML. Put machine-local workspace_path in .agentv/config.local.yaml under execution, or pass --workspace-path. Keep portable coding-agent testbed setup in environment.`,
   });
 }
 
@@ -1619,39 +1630,19 @@ async function validateWorkspaceConfig(
     return;
   }
 
-  if (isObject(workspace)) {
-    validateWorkspaceRepoConfig(workspace, evalFilePath, errors, location);
-    return;
-  }
-
-  if (typeof workspace !== 'string') {
-    return;
-  }
-
-  const workspacePath = path.resolve(path.dirname(evalFilePath), workspace);
-
-  try {
-    const workspaceContent = await readFile(workspacePath, 'utf8');
-    const parsedWorkspace = interpolateEnv(parseYamlValue(workspaceContent), process.env);
-    if (!isObject(parsedWorkspace)) {
-      errors.push({
-        severity: 'error',
-        filePath: evalFilePath,
-        location,
-        message: `External workspace file must contain a YAML object: ${workspace}`,
-      });
-      return;
-    }
-
-    validateWorkspaceRepoConfig(parsedWorkspace, workspacePath, errors, location);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  if (typeof workspace === 'string') {
     errors.push({
       severity: 'error',
       filePath: evalFilePath,
       location,
-      message: `Failed to load external workspace file '${workspace}': ${message}`,
+      message: `${location} has been removed from public eval YAML. Use environment: file://... for reusable coding-agent testbed recipes.`,
     });
+    return;
+  }
+
+  if (isObject(workspace)) {
+    validateWorkspaceRepoConfig(workspace, evalFilePath, errors, location);
+    return;
   }
 }
 
@@ -1668,6 +1659,17 @@ function validateWorkspaceRepoConfig(
 
   const docker = workspace.docker;
   let hasRemovedTestbedField = false;
+
+  if (Object.keys(workspace).length === 0) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message:
+        'workspace has been removed from public eval YAML. Use environment for coding-agent testbed setup.',
+    });
+    return;
+  }
 
   if ('template' in workspace) {
     hasRemovedTestbedField = true;
@@ -1686,7 +1688,7 @@ function validateWorkspaceRepoConfig(
       filePath,
       location: `${location}.repos`,
       message:
-        'workspace.repos has been removed from public eval YAML. Use an environment recipe with setup args to materialize repositories.',
+        'workspace.repos has been removed from public eval YAML. Use environment.setup.command argv to materialize repositories.',
     });
   }
   if ('scope' in workspace) {
@@ -1709,6 +1711,26 @@ function validateWorkspaceRepoConfig(
         'workspace.docker has been removed from public eval YAML. Use environment.type: docker with image or context.',
     });
   }
+  if ('hooks' in workspace) {
+    hasRemovedTestbedField = true;
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.hooks`,
+      message:
+        'workspace.hooks has been removed from public eval YAML. Use environment.setup for testbed setup and extensions for lifecycle instrumentation.',
+    });
+  }
+  if ('env' in workspace) {
+    hasRemovedTestbedField = true;
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.env`,
+      message:
+        'workspace.env has been removed from public eval YAML. Use top-level env for provider/eval variables or environment.env for environment-scoped variables.',
+    });
+  }
   if (hasRemovedTestbedField) {
     return;
   }
@@ -1719,7 +1741,7 @@ function validateWorkspaceRepoConfig(
       filePath,
       location: `${location}.mode`,
       message:
-        'workspace.mode has been removed from eval YAML. Use workspace.scope: suite|attempt.',
+        'workspace.mode has been removed from eval YAML. Use --workspace-path or execution.workspace_path for machine-local existing directories, and environment for portable testbed setup.',
     });
   }
 
@@ -1728,7 +1750,8 @@ function validateWorkspaceRepoConfig(
       severity: 'error',
       filePath,
       location: `${location}.isolation`,
-      message: 'workspace.isolation has been removed. Use workspace.scope: suite|attempt.',
+      message:
+        'workspace.isolation has been removed from eval YAML. Use environment at suite/test scope and let AgentV manage runtime isolation.',
     });
   }
 
@@ -1738,7 +1761,19 @@ function validateWorkspaceRepoConfig(
       filePath,
       location: `${location}.path`,
       message:
-        'workspace.path has been removed from eval YAML. Put existing workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
+        'workspace.path has been removed from eval YAML. Use environment.workdir for portable testbed cwd; put existing machine-local workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
+    });
+  }
+
+  for (const key of Object.keys(workspace)) {
+    if (KNOWN_REMOVED_WORKSPACE_FIELDS.has(key)) {
+      continue;
+    }
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.${key}`,
+      message: `${location}.${key} has been removed from public eval YAML. Use environment for portable coding-agent testbed setup.`,
     });
   }
 

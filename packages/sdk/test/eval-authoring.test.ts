@@ -52,7 +52,7 @@ describe('YAML-aligned eval authoring helpers', () => {
             workdir: 'fixtures/workspace',
             setup: {
               command: ['bun', 'scripts/setup.ts'],
-              timeoutSeconds: 5,
+              timeoutMs: 5000,
             },
           },
           mode: 'conversation',
@@ -138,7 +138,7 @@ describe('YAML-aligned eval authoring helpers', () => {
             workdir: 'fixtures/workspace',
             setup: {
               command: ['bun', 'scripts/setup.ts'],
-              timeout_seconds: 5,
+              timeout_ms: 5000,
             },
           },
           mode: 'conversation',

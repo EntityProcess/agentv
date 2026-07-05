@@ -251,7 +251,7 @@ describe('environment recipe loading', () => {
       );
 
       await expect(loadTests(evalPath, dir)).rejects.toThrow(
-        /workspace\.repos.*environment recipe/,
+        /workspace\.repos.*environment\.setup\.command/,
       );
     });
   });

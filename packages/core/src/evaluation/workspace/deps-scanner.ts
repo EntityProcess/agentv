@@ -2,8 +2,8 @@
  * Lightweight scanner that extracts repo dependencies from eval YAML files
  * without performing full test/grader parsing.
  *
- * Used by `agentv workspace deps` to determine which repos CI needs to fetch
- * before running evals.
+ * Legacy internal scanner for pre-environment eval files that still need repo
+ * dependency extraction during migration audits.
  *
  * How it works:
  * 1. Reads each eval YAML file and parses it

@@ -160,7 +160,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts workspace env preflight requirements', () => {
+  it('does not model removed workspace env preflight requirements in the public schema', () => {
     const result = EvalFileSchema.safeParse({
       workspace: {
         env: {
@@ -602,7 +602,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects removed workspace hook script alias', () => {
+  it('does not model removed workspace hook script alias in the public schema', () => {
     const result = EvalFileSchema.safeParse({
       tests: [
         {
@@ -618,7 +618,7 @@ describe('EvalFileSchema input shorthand', () => {
       ],
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('does not accept test-level execution.targets', () => {
