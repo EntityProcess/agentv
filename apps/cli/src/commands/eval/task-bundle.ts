@@ -811,7 +811,11 @@ function serializeEnvironment(
   environment: EnvironmentRecipe,
   rewrites: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
-  const { recipeFilePath: _recipeFilePath, ...portableEnvironment } = environment;
+  const {
+    recipeFilePath: _recipeFilePath,
+    sourceDir: _sourceDir,
+    ...portableEnvironment
+  } = environment;
   return rewritePathsDeep(portableEnvironment, rewrites) as Record<string, unknown>;
 }
 
