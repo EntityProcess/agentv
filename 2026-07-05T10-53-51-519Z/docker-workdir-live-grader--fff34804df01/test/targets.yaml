@@ -1,0 +1,12 @@
+targets:
+  - id: docker-cli-live-graded
+    provider: cli
+    grader_target: openai-grader
+    config:
+      command: test "$(pwd)" = /app && printf '{"text":"docker-workdir-ok"}' > {OUTPUT_FILE}
+  - id: openai-grader
+    provider: openai
+    model: "{{ env.GH_MODELS_MODEL }}"
+    config:
+      base_url: https://models.github.ai/inference
+      api_key: "[redacted]"
