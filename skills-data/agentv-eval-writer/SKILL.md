@@ -20,20 +20,19 @@ Promptfoo parity matrix: https://agentv.dev/docs/reference/promptfoo-parity/
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
 Eval files define what is tested and how it runs: prompts, datasets, assertions,
-task fixtures, top-level `target`, and suite run controls. Use `imports.suites`
-for full child suites that preserve their workspace, shared input, `assert`,
-fixtures, and graders. Use `imports.tests` for raw case rows that should run in
-the parent file's context. Inline `tests` are also parent-owned raw cases.
-String-valued `tests` and string entries inside `tests[]` are raw-case import
-shorthand for direct paths, directories, and globs. Legacy `tests[].include`
-entries still load with a migration warning, but new evals should use
-`imports.suites` or `imports.tests`. Use scoped `run:` on import entries or
-individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
-legacy `budget_usd`; keep target selection at top-level `target` or CLI `--target`,
-put suite budget caps under `evaluate_options.budget_usd`, authored concurrency
-under `evaluate_options.max_concurrency`, suite repeat policy under
-`evaluate_options.repeat`,
-and keep setup and workspace mutation under `workspace`.
+task fixtures, top-level `target`, and suite run controls. Use field-local file
+refs such as `tests: file://...`, `prompts: file://...`, `default_test:
+file://...`, and `environment: file://...`. String-valued `tests` and string
+entries inside `tests[]` are raw-case refs for direct paths, directories, and
+globs. Run several full eval suites directly with CLI multi-file selection and
+tags. Use scoped `run:` on individual tests only for `threshold`, `repeat`,
+`timeout_seconds`, and legacy `budget_usd`; keep target selection at top-level
+`target` or CLI `--target`, put suite budget caps under
+`evaluate_options.budget_usd`, authored concurrency under
+`evaluate_options.max_concurrency`, suite repeat policy under
+`evaluate_options.repeat`, coding-agent testbed setup under `environment`,
+provider environment overrides under `env`, and lifecycle hooks under
+`extensions`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 
@@ -42,7 +41,7 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 - Put grading criteria in `assert`, not in test-level `criteria`. Plain assertion strings become an `llm-rubric` grader.
 - Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or assertion-level transforms, and `type: script` when grading must execute code.
 - Write `expected_output` as a golden/reference answer the target could have produced. Do not write criteria, scoring instructions, or "the agent should..." rubric prose there.
-- For historical or repo-state evals, materialize the repo under `workspace.repos[]` pinned to the commit under test. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
+- For historical or repo-state evals, materialize the repo through a pinned `environment` setup recipe. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
 
 ## Evaluation Types
 
@@ -132,8 +131,8 @@ tests:
 
 ## Eval File Structure
 
-**Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assert`
+**Required:** `tests` (array or string raw-case path) or `scenarios`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `environment`, `env`, `extensions`, `assert`
 
 **Test fields:**
 
@@ -144,7 +143,7 @@ tests:
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assert` | yes | Graders: deterministic checks, `llm-rubric` checks, script graders, or plain string rubric criteria |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
-| `workspace` | no | Per-case workspace config (overrides suite-level) |
+| `environment` | no | Per-case coding-agent testbed config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |
 
@@ -215,7 +214,7 @@ then render those vars from the prompt template next to the input.
 
 **JSONL format:** One test per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
 
-**Environment variables:** Use `{{ env.VAR }}` templates in authored config. Missing vars resolve to empty string. Works in eval files, external case files, and workspace configs. `.env` files are loaded automatically.
+**Environment variables:** Use `{{ env.VAR }}` templates in authored config. Missing vars resolve to empty string. Works in eval files, external case files, and environment configs. `.env` files are loaded automatically.
 
 ## Output Transforms
 
@@ -431,25 +430,21 @@ assert:
 
 If a required grader scores below its threshold, the overall verdict is forced to `fail`.
 
-## Workspace Setup/Teardown
+## Environment Setup/Teardown
 
 Run scripts before/after each test. Define at suite level or override per case:
 
 ```yaml
-workspace:
-  template: ./workspace-templates/my-project
-  repos:
-    - path: ./repo
+environment:
+  type: host
+  workdir: ./repo
+  setup:
+    command: ["bun", "run", "setup.ts"]
+    args:
       repo: sympy/sympy
       commit: "abc123"
-  hooks:
-    before_all:
-      command: ["bun", "run", "setup.ts"]
-      timeout_ms: 120000
-    after_each:
-      reset: fast
-    after_all:
-      command: ["bun", "run", "teardown.ts"]
+extensions:
+  - file://scripts/teardown.mjs:afterAll
 
 tests:
   - id: case-1
@@ -459,42 +454,41 @@ tests:
       source_commit: "abc123"
 ```
 
-**Lifecycle:** template copy → repo materialization → workspace before_all → target before_all → git baseline → before_each hooks → agent → file changes → after_each hooks → after_all hooks → cleanup
-**Merge:** Case-level fields replace suite-level fields.
+**Lifecycle:** environment setup → lifecycle extensions → target setup → agent → grading → teardown extensions → cleanup
+**Merge:** Case-level environment fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
 For SWE-bench-style evals, put operational checkout state under
-`workspace.repos[].commit`; treat `metadata.source_commit` as informational
-only. A SHA in the prompt or metadata without a matching workspace repo pin is
+`environment` setup args; treat `metadata.source_commit` as informational only.
+A SHA in the prompt or metadata without a matching environment setup recipe is
 not an operational checkout.
 
-### Repository Lifecycle
+### Environment Lifecycle
 
-Materialize repos into the eval workspace automatically. Repo entries declare identity and checkout pins only; AgentV resolves acquisition from configured `repo_resolvers`, then registered projects, `git_cache.mirrors`, its mirror cache, and remote clone. `repo_resolvers` and `git_cache.mirrors` may be defined in `$AGENTV_HOME/config.yaml`, the project's committed `.agentv/config.yaml`, or a gitignored `.agentv/config.override.yaml` (highest precedence) — use the override for machine-specific local bindings without editing tracked or user-global config. Shared repo workspaces use fresh temp materialization by default:
+Describe coding-agent testbeds with `environment`. Reusable recipes should live
+in field-local files and be loaded with `environment: file://...`:
 
 ```yaml
-workspace:
-  repos:
-    - path: ./repo
-      repo: https://github.com/org/repo.git
-      commit: main
-      ancestor: 1       # parent commit
-  hooks:
-    after_each:
-      reset: fast          # none | fast | strict
-  scope: suite             # suite | attempt
+environment: file://.agentv/environments/repo.yaml
 ```
 
-- `repo`: full clone URL or GitHub `org/name` shorthand
-- `commit`: branch, tag, or SHA to check out
-- `ancestor`: walk N commits back from the checked-out ref
-- `sparse`: sparse checkout paths array
-- Harness-managed repo workspaces use temp materialization by default; use `workspace.scope: suite | attempt` for portable lifetime
-- Existing local workspace directories are machine-local bindings; use `--workspace-path` or `.agentv/config.local.yaml` with `execution.workspace_path`
-- `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
-- `agentv workspace deps <eval-paths>` scans eval files and outputs a JSON manifest of required git repos (useful for CI pre-cloning)
+```yaml
+# .agentv/environments/repo.yaml
+type: host
+workdir: ./repo
+setup:
+  command: ./scripts/materialize-repo.sh
+  args:
+    repo: https://github.com/org/repo.git
+    commit: main
+    ancestor: 1
+```
 
-See https://agentv.dev/targets/configuration/#repository-lifecycle
+- `type`: `host` or `docker`
+- `workdir`: path the target and graders should use
+- `setup`: command and args for repository/testbed materialization
+- Top-level `env`: provider/eval environment overrides
+- `extensions`: lifecycle hooks such as `beforeAll`, `beforeEach`, `afterEach`, and `afterAll`
 
 ## Grader Types
 

@@ -1,14 +1,14 @@
 # External Datasets Example
 
-Demonstrates loading raw test cases from external files using `imports.tests`.
+Demonstrates loading raw test cases from external files using field-local `tests` file refs.
 
 ## What This Shows
 
-- Loading tests from external YAML files (`imports.tests[].path: cases/accuracy.yaml`)
-- Loading tests from external JSONL files (`imports.tests[].path: cases/regression.jsonl`)
-- Loading tests from promptfoo-compatible CSV files (`imports.tests[].path: cases/magic.csv`)
-- Mixing inline `tests` with imported raw test rows
-- Glob patterns for loading multiple files (`imports.tests[].path: cases/**/*.yaml`)
+- Loading tests from external YAML files (`tests: [file://cases/accuracy.yaml]`)
+- Loading tests from external JSONL files (`tests: [file://cases/regression.jsonl]`)
+- Loading tests from promptfoo-compatible CSV files (`tests: [file://cases/magic.csv]`)
+- Mixing inline `tests` with external raw test rows
+- Glob patterns for loading multiple files (`tests: [file://cases/**/*.yaml]`)
 
 ## Running
 
@@ -19,7 +19,7 @@ bun agentv eval examples/features/external-datasets/evals/suite.yaml
 
 ## Key Files
 
-- `evals/suite.yaml` — Main eval with inline tests and `imports.tests` references
+- `evals/suite.yaml` — Main eval with inline tests and `tests` file references
 - `evals/cases/accuracy.yaml` — YAML array of test cases
 - `evals/cases/regression.jsonl` — JSONL test data (one test per line)
 - `evals/cases/magic.csv` — CSV test data with promptfoo-style magic columns
@@ -66,8 +66,7 @@ columns such as `locale` become `vars` and can be interpolated by suite-level
 
 Use glob patterns to load from multiple files:
 ```yaml
-imports:
-  tests:
-    - path: cases/**/*.yaml    # All YAML files recursively
-    - path: cases/*.jsonl      # All JSONL files in cases/
+tests:
+  - file://cases/**/*.yaml    # All YAML files recursively
+  - file://cases/*.jsonl      # All JSONL files in cases/
 ```

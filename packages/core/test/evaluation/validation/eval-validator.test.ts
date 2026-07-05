@@ -95,11 +95,11 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
-  it('validates top-level target and run controls with flatter import entries', async () => {
-    const filePath = path.join(tempDir, 'run-controls-include.yaml');
+  it('validates top-level target and run controls with field-local tests', async () => {
+    const filePath = path.join(tempDir, 'run-controls-field-local-tests.yaml');
     await writeFile(
       filePath,
-      `name: wrapper
+      `name: direct-suite
 prompts:
   - "{{ prompt }}"
 target: codex
@@ -115,25 +115,6 @@ tests:
   - id: local-case
     vars:
       prompt: "Hello"
-imports:
-  suites:
-    - path: ./evals/**/*.eval.yaml
-      select:
-        test_ids: [pr50857-*]
-        tags: [sql-migration]
-        metadata:
-          type: [e2e, regression]
-          priority: high
-      run:
-        threshold: 1.0
-        repeat:
-          count: 2
-          strategy: pass_all
-          early_exit: true
-        timeout_seconds: 120
-        budget_usd: 2
-  tests:
-    - path: ./cases/**/*.cases.yaml
 `,
     );
 
@@ -680,7 +661,9 @@ tests:
           error.severity === 'error' &&
           error.location === 'workspace' &&
           error.message.includes('Parent workspace is not allowed') &&
-          error.message.includes('type: suite'),
+          error.message.includes('legacy tests[].include suite entries') &&
+          error.message.includes('Run eval files directly') &&
+          error.message.includes('tests: file://...'),
       ),
     ).toBe(true);
   });
@@ -749,7 +732,9 @@ tests:
           error.severity === 'error' &&
           error.location === 'execution.workspace' &&
           error.message.includes('Parent workspace is not allowed') &&
-          error.message.includes('type: suite'),
+          error.message.includes('legacy tests[].include suite entries') &&
+          error.message.includes('Run eval files directly') &&
+          error.message.includes('tests: file://...'),
       ),
     ).toBe(true);
   });
@@ -934,12 +919,14 @@ tests:
           error.severity === 'warning' &&
           error.location === 'tests[0].include' &&
           error.message.includes('child target and run controls are ignored') &&
-          error.message.includes('parent eval owns wrapper target and run controls'),
+          error.message.includes('legacy tests[].include suite imports') &&
+          error.message.includes('CLI multi-file selection') &&
+          error.message.includes('tags'),
       ),
     ).toBe(true);
   });
 
-  it('warns when imports.tests-style raw imports drop eval suite context', async () => {
+  it('warns when legacy raw suite includes drop eval suite context', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-tests-import.eval.yaml'),
       `environment:
@@ -975,33 +962,37 @@ tests:
         (error) =>
           error.severity === 'warning' &&
           error.location === 'tests[0].include' &&
-          error.message.includes('imports.tests imports raw cases') &&
+          error.message.includes('Legacy tests[].include with type: tests') &&
           error.message.includes('drops suite context'),
       ),
     ).toBe(true);
   });
 
-  it('rejects missing raw case files under imports.tests', async () => {
-    const filePath = path.join(tempDir, 'missing-imports-tests-path.eval.yaml');
+  it('rejects top-level imports', async () => {
+    const filePath = path.join(tempDir, 'top-level-imports.eval.yaml');
     await writeFile(
       filePath,
       `imports:
   tests:
     - path: ./missing-cases.yaml
+tests: []
 `,
     );
 
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(
-      result.errors.some(
-        (error) =>
-          error.severity === 'error' &&
-          error.location === 'imports.tests[0].path' &&
-          error.message.includes('Cannot read external test file'),
-      ),
-    ).toBe(true);
+    const importsError = result.errors.find(
+      (error) => error.severity === 'error' && error.location === 'imports',
+    );
+    expect(importsError?.message).toContain("Top-level 'imports' is not supported");
+    expect(importsError?.message).toContain('Run eval files directly');
+    expect(importsError?.message).toContain('tests: file://...');
+    expect(importsError?.message).toContain('prompts: file://...');
+    expect(importsError?.message).toContain('default_test: file://...');
+    expect(importsError?.message).toContain('environment: file://...');
+    expect(importsError?.message).toContain('tags');
+    expect(importsError?.message).toContain('CLI multi-file selection');
   });
 
   it('rejects removed execution blocks when experiment label is present', async () => {
@@ -2057,13 +2048,11 @@ tests: "./cases-shorthand-workspace.yaml"
         filePath,
         `prompts:
   - "{{ prompt }}"
-imports:
-  tests:
-    - path: file://cases.csv
-    - path: cases.json
-    - path: cases.mjs:createTests
-    - path: cases.py:create_tests
 tests:
+  - file://cases.csv
+  - cases.json
+  - cases.mjs:createTests
+  - cases.py:create_tests
   - id: inline
     criteria: Goal
     vars:

@@ -191,7 +191,6 @@ function formatCircularImportChain(
 }
 
 type RawTestSuite = JsonObject & {
-  readonly imports?: JsonValue;
   readonly tests?: JsonValue;
   /** @deprecated Use `tests` instead */
   readonly eval_cases?: JsonValue;
@@ -634,6 +633,14 @@ function rejectAuthoredPostprocess(suite: RawTestSuite): void {
       });
     }
   });
+}
+
+function rejectTopLevelImports(suite: JsonObject): void {
+  if (suite.imports !== undefined) {
+    throw new Error(
+      "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
+    );
+  }
 }
 
 function isChatPromptArray(value: readonly JsonValue[]): boolean {
@@ -1264,6 +1271,7 @@ async function loadTestsFromParsedYamlValue(
     ...(interpolated as RawTestSuite),
     default_test: resolvedDefaultTest.value,
   } as RawTestSuite;
+  rejectTopLevelImports(suite);
   rejectAuthoredPostprocess(suite);
   const defaultTestReferences = resolvedDefaultTest.references;
   const suiteNameFromFile = asString(suite.name)?.trim();
@@ -1295,25 +1303,10 @@ async function loadTestsFromParsedYamlValue(
   const nunjucksFilters = await loadNunjucksFilters(suite.nunjucks_filters, evalFileDir);
   const parentWorkspace = parentWorkspaceLocation(suite);
   const parentEnvironment = parentEnvironmentLocation(suite);
-  const importEntries = readImports(suite.imports);
-  const expandedImports = await expandImportEntries({
-    entries: importEntries,
-    evalFileDir,
-    repoRoot,
-    suiteMetadataPayload,
-    parentWorkspaceLocation: parentWorkspace,
-    parentEnvironmentLocation: parentEnvironment,
-    options,
-  });
-  importedSuiteTests.push(...expandedImports.importedSuiteTests);
-
   // Resolve tests: string path to external file/directory, inline array, legacy include entries, or error.
   let expandedTestCases: readonly JsonValue[];
   if (typeof rawTestCases === 'string') {
-    expandedTestCases = [
-      ...expandedImports.rawCases,
-      ...(await loadRawCasesFromShorthand(rawTestCases, evalFileDir)),
-    ];
+    expandedTestCases = await loadRawCasesFromShorthand(rawTestCases, evalFileDir);
   } else if (Array.isArray(rawTestCases)) {
     const expanded = await expandInlineTestEntries({
       entries: rawTestCases,
@@ -1324,10 +1317,8 @@ async function loadTestsFromParsedYamlValue(
       parentEnvironmentLocation: parentEnvironment,
       options,
     });
-    expandedTestCases = [...expandedImports.rawCases, ...expanded.rawCases];
+    expandedTestCases = expanded.rawCases;
     importedSuiteTests.push(...expanded.importedSuiteTests);
-  } else if (rawTestCases === undefined && importEntries.length > 0) {
-    expandedTestCases = expandedImports.rawCases;
   } else {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
@@ -2034,19 +2025,6 @@ function isIncludeEntry(value: JsonValue): value is JsonObject & { include: stri
   );
 }
 
-function importEntryPath(value: JsonValue): string | undefined {
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value.trim();
-  }
-  if (!isJsonObject(value)) {
-    return undefined;
-  }
-  const pathValue = value.path ?? value.include;
-  return typeof pathValue === 'string' && pathValue.trim().length > 0
-    ? pathValue.trim()
-    : undefined;
-}
-
 function hasGlobMagic(value: string): boolean {
   return /[*?[\]{}()!+@]/.test(value);
 }
@@ -2191,55 +2169,6 @@ function rawCaseMatchesSelect(
   );
 }
 
-function readImports(rawImports: JsonValue | undefined): readonly NormalizedImportEntry[] {
-  if (rawImports === undefined) {
-    return [];
-  }
-  if (!isJsonObject(rawImports)) {
-    throw new Error("Invalid 'imports' field. Use imports.suites and/or imports.tests.");
-  }
-  const entries: NormalizedImportEntry[] = [];
-  entries.push(...readImportGroup(rawImports.suites, 'suite', 'imports.suites'));
-  entries.push(...readImportGroup(rawImports.tests, 'tests', 'imports.tests'));
-  return entries;
-}
-
-function readImportGroup(
-  rawGroup: JsonValue | undefined,
-  mode: IncludeEntryType,
-  location: string,
-): readonly NormalizedImportEntry[] {
-  if (rawGroup === undefined) {
-    return [];
-  }
-  const values = Array.isArray(rawGroup) ? rawGroup : [rawGroup];
-  return values.map((entry, index) => normalizeImportEntry(entry, mode, `${location}[${index}]`));
-}
-
-function normalizeImportEntry(
-  entry: JsonValue,
-  mode: IncludeEntryType,
-  location: string,
-): NormalizedImportEntry {
-  const includePath = importEntryPath(entry);
-  if (!includePath) {
-    throw new Error(`Invalid ${location}. Use a path string or an object with a non-empty path.`);
-  }
-  const select = isJsonObject(entry)
-    ? readSelectPatterns(entry.select, `${location}.select for path '${includePath}'`)
-    : undefined;
-  const includeRun = isJsonObject(entry)
-    ? normalizeRunOverride(entry.run, `${location}.run for path '${includePath}'`)
-    : undefined;
-  return {
-    path: includePath,
-    mode,
-    ...(select !== undefined && { select }),
-    ...(includeRun !== undefined && { run: includeRun }),
-    location,
-  };
-}
-
 function normalizeLegacyIncludeEntry(
   entry: JsonObject & { include: string },
 ): NormalizedImportEntry {
@@ -2248,7 +2177,9 @@ function normalizeLegacyIncludeEntry(
   const select = readSelectPatterns(entry.select, `tests[].select for include '${includePath}'`);
   const includeRun = normalizeRunOverride(entry.run, `tests[].run for include '${includePath}'`);
   logWarning(
-    `tests[].include is deprecated. Use imports.${mode === 'suite' ? 'suites' : 'tests'} with path: ${includePath}`,
+    mode === 'suite'
+      ? `tests[].include with type: suite is deprecated. Run eval files directly instead: ${includePath}`
+      : `tests[].include is deprecated. Use tests: file://... or a tests list file reference instead: ${includePath}`,
   );
   return {
     path: includePath,
@@ -2279,12 +2210,12 @@ async function expandImportEntries(params: {
       if (entry.mode === 'suite') {
         if (params.parentWorkspaceLocation) {
           throw new Error(
-            `Parent workspace is not allowed when importing eval suites (${params.parentWorkspaceLocation}): ${entry.path}. Move workspace into the child suite, or import raw cases with imports.tests when you intentionally want parent workspace context.`,
+            `Parent workspace is not allowed with legacy tests[].include suite entries (${params.parentWorkspaceLocation}): ${entry.path}. Run eval files directly, or use tests: file://... for raw cases that should use the parent workspace.`,
           );
         }
         if (params.parentEnvironmentLocation) {
           throw new Error(
-            `Parent environment is not allowed when importing eval suites (${params.parentEnvironmentLocation}): ${entry.path}. Imported suites own task environment. Move environment into the child suite, or import raw cases with imports.tests when you intentionally want parent environment context.`,
+            `Parent environment is not allowed with legacy tests[].include suite entries (${params.parentEnvironmentLocation}): ${entry.path}. Run eval files directly, or use tests: file://... for raw cases that should use the parent environment.`,
           );
         }
         const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
