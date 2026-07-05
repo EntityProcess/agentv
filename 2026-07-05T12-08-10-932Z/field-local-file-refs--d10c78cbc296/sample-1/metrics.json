@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-e555d6d715bc7db74b67",
+  "generated_at": "2026-07-05T12:08:20.681Z",
+  "test_id": "field-local-file-refs",
+  "target": "live-openai",
+  "suite": "field-local-refs-dogfood",
+  "category": ".agentv/cache/av-kfik-43-dogfood/field-local-refs",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-e555d6d715bc7db74b67",
+    "trace_id": "a4d3b434f3c337519ba5a5b6d505eae9",
+    "root_span_id": "55d886cbfa4dcb0c"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "pi-ai call failed: Connection error.",
+        "stage": "agent"
+      },
+      {
+        "message": "pi-ai call failed: Connection error.",
+        "event_id": "error"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 52,
+    "transcript_chars": 960,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

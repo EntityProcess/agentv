@@ -1,0 +1,20 @@
+{
+  "pass": false,
+  "score": 0,
+  "reason": "pi-ai call failed: Connection error.",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "Error: pi-ai call failed: Connection error.",
+      "assertion": {
+        "value": "Error: pi-ai call failed: Connection error."
+      }
+    }
+  ],
+  "metadata": {
+    "execution_status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  }
+}

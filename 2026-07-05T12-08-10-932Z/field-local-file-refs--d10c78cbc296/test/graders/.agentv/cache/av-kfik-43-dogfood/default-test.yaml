@@ -1,0 +1,3 @@
+assert:
+  - type: llm-rubric
+    value: The answer says AgentV uses field-local file references for raw case files and does not use top-level imports.

@@ -1,0 +1,15 @@
+target: live-openai
+prompts:
+  - "{{ input }}"
+tests:
+  - id: field-local-file-refs
+    vars:
+      question: How should AgentV compose reusable raw test rows now?
+      input: |
+        Answer the migration question in one concise sentence: How should AgentV compose reusable raw test rows now?
+    expected_output: Use tests file references instead of top-level imports.
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: The answer says AgentV uses field-local file references for raw case files and does not use top-level imports.

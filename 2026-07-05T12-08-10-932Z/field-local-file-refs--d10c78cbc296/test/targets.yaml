@@ -1,0 +1,7 @@
+targets:
+  - id: live-openai
+    provider: openai
+    model: "{{ env.OPENAI_MODEL }}"
+    config:
+      endpoint: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "[redacted]"
