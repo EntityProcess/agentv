@@ -1,0 +1,121 @@
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":0},"content":"# Pi CLI stream log"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":1},"content":"# target: pi-host-env"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":2},"content":"# eval: host-env-ready"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":3},"content":"# attempt: 1"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":4},"content":"# started: 2026-07-05T09:42:13.304Z"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":5},"content":"[+00:02] [stdout] session"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":6},"content":"[+00:02] [stdout] agent_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":7},"content":"[+00:02] [stdout] turn_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":8},"content":"[+00:02] [stdout] message_start: user"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":9},"content":"[+00:02] [stdout] message_end: user"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":10},"content":"[+00:05] [stdout] message_start: assistant"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":11},"content":"[+00:05] [stdout] message_update: thinking_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":12},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":13},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":14},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":15},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":16},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":17},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":18},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":19},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":20},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":21},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":22},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":23},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":24},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":25},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":26},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":27},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":28},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":29},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":30},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":31},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":32},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":33},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":34},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":35},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":36},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":37},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":38},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":39},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":40},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":41},"content":"[+00:06] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":42},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":43},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":44},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":45},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":46},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":47},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":48},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":49},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":50},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":51},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":52},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":53},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":54},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":55},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":56},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":57},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":58},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":59},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":60},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":61},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":62},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":63},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":64},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":65},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":66},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":67},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":68},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":69},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":70},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":71},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":72},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":73},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":74},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":75},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":76},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":77},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":78},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":79},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":80},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":81},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":82},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":83},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":84},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":85},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":86},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":87},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":88},"content":"[+00:07] [stdout] message_update: thinking_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":89},"content":"[+00:07] [stdout] message_update: thinking_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":90},"content":"[+00:07] [stdout] message_update: toolcall_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":91},"content":"[+00:07] [stdout] message_update: toolcall_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":92},"content":"[+00:07] [stdout] message_update: toolcall_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":93},"content":"[+00:07] [stdout] message_update: toolcall_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":94},"content":"[+00:07] [stdout] message_update: toolcall_delta"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":95},"content":"[+00:07] [stdout] message_update: toolcall_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":96},"content":"[+00:07] [stdout] message_end: assistant"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":97},"content":"[+00:07] [stdout] tool_start: bash"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":98},"content":"[+00:07] [stdout] tool_start: read"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":99},"content":"[+00:07] [stdout] tool_execution_update"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":100},"content":"[+00:07] [stdout] tool_execution_update"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":101},"content":"[+00:07] [stdout] tool_end: read"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":102},"content":"[+00:07] [stdout] tool_execution_update"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":103},"content":"[+00:07] [stdout] tool_end: bash"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":104},"content":"[+00:07] [stdout] message_start: toolResult"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":105},"content":"[+00:07] [stdout] message_end: toolResult"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":106},"content":"[+00:07] [stdout] message_start: toolResult"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":107},"content":"[+00:07] [stdout] message_end: toolResult"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":108},"content":"[+00:07] [stdout] turn_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":109},"content":"[+00:07] [stdout] turn_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":110},"content":"[+00:08] [stdout] message_start: assistant"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":111},"content":"[+00:08] [stdout] message_update: thinking_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":112},"content":"[+00:08] [stdout] message_update: thinking_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":113},"content":"[+00:08] [stdout] message_update: text_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":114},"content":"[+00:08] [stdout] text_delta: HOST"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":115},"content":"[+00:08] [stdout] text_delta: _ENV"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":116},"content":"[+00:08] [stdout] text_delta: _READY"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":117},"content":"[+00:08] [stdout] message_update: text_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":118},"content":"[+00:08] [stdout] message_end: assistant"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":119},"content":"[+00:08] [stdout] turn_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":120},"content":"[+00:08] [stdout] agent_end"}

@@ -1,0 +1,107 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-1319c2b5a4131ad0bce7",
+  "generated_at": "2026-07-05T09:42:28.777Z",
+  "test_id": "host-env-ready",
+  "target": "pi-host-env",
+  "suite": "host-environment-live-dogfood",
+  "category": ".agentv/results/av-noh3-2-3-dogfood",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-1319c2b5a4131ad0bce7",
+    "trace_id": "9918754edbcc508f888bfee050036e18",
+    "root_span_id": "19c12ed75fcd55d9"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {
+      "Bash": 1,
+      "Read": 1
+    },
+    "tool_call_counts": {
+      "Bash": 1,
+      "Read": 1
+    },
+    "tool_category_counts": {
+      "shell": 1,
+      "file_read": 1
+    },
+    "total_tool_calls": 2,
+    "total_steps": 2,
+    "total_turns": 2,
+    "tool_call_events": [
+      {
+        "position": 0,
+        "tool": "Bash",
+        "category": "shell",
+        "tool_call_id": "call_ZrdOweUww058iqba8AZmovcg|fc_0f365985b9c4ba7d016a4a26fceeac819196a9622abc164b9b",
+        "message_index": 1,
+        "tool_index": 0,
+        "status": "ok"
+      },
+      {
+        "position": 1,
+        "tool": "Read",
+        "category": "file_read",
+        "tool_call_id": "call_BbVGPcNgz91gy7kDjuXPSYCj|fc_0f365985b9c4ba7d016a4a26fceec881919fcf8217e8b35e6f",
+        "message_index": 1,
+        "tool_index": 1,
+        "status": "ok"
+      }
+    ],
+    "shell_commands": [
+      {
+        "command": "pwd && ls -la && if [ -f ready.txt ]; then echo '__READY_FILE__'; fi",
+        "tool_call_id": "call_ZrdOweUww058iqba8AZmovcg|fc_0f365985b9c4ba7d016a4a26fceeac819196a9622abc164b9b",
+        "success": true
+      }
+    ],
+    "files_read": [
+      {
+        "path": "ready.txt",
+        "tool_call_id": "call_BbVGPcNgz91gy7kDjuXPSYCj|fc_0f365985b9c4ba7d016a4a26fceec881919fcf8217e8b35e6f",
+        "source": "tool_input"
+      }
+    ],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 14,
+    "transcript_chars": 7493,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 9322,
+    "total_seconds": 9.322,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 7737,
+    "input": 7621,
+    "output": 116,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 2,
+    "total_tool_calls": 2,
+    "tool_calls": {
+      "Bash": 1,
+      "Read": 1
+    }
+  }
+}

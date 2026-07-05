@@ -1,0 +1,144 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T09-42-10-563Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 7737,
+    "input_tokens": 7621,
+    "output_tokens": 116,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "host-env-ready",
+      "suite": "host-environment-live-dogfood",
+      "eval_path": ".agentv/results/av-noh3-2-3-dogfood/suite.eval.yaml",
+      "target": "pi-host-env",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "host-env-ready",
+          "suite": "host-environment-live-dogfood",
+          "eval_path": ".agentv/results/av-noh3-2-3-dogfood/suite.eval.yaml",
+          "target": "pi-host-env",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 9322
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-05T09-42-10-563Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/environment-host-runtime/.agentv/results/av-noh3-2-3-dogfood/suite.eval.yaml",
+    "timestamp": "2026-07-05T09:42:28.653Z",
+    "targets": [
+      "pi-host-env"
+    ],
+    "tests_run": [
+      "host-env-ready"
+    ],
+    "experiment": "av-noh3-2-3-host-env-dogfood",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "cli_flags",
+      "eval_files": [
+        ".agentv/results/av-noh3-2-3-dogfood/suite.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "pi-host-env": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 9.322,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 7737,
+        "stddev": 0
+      },
+      "tool_calls": {
+        "mean": 2,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 9322,
+      "total_seconds": 9.322,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 7737,
+      "input": 7621,
+      "output": 116,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 2,
+      "total_tool_calls": 2,
+      "tool_calls": {
+        "Bash": 1,
+        "Read": 1
+      }
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,113 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "pi-cli",
+  "target": "pi-host-env",
+  "transcript_summary": {
+    "total_turns": 3,
+    "tool_calls": {
+      "file_read": 1,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 1,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [
+      "ready.txt"
+    ],
+    "files_modified": [],
+    "shell_commands": [
+      "pwd && ls -la && if [ -f ready.txt ]; then echo '__READY_FILE__'; fi"
+    ],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "pi-cli",
+      "type": "user",
+      "ts": "2026-07-05T09:42:15.836Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "Inspect the current working directory. If ready.txt exists and contains the word ready, answer exactly HOST_ENV_READY and nothing else."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "pi-cli",
+      "type": "assistant",
+      "ts": "2026-07-05T09:42:15.919Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "HOST_ENV_READY"
+        },
+        {
+          "type": "tool_use",
+          "id": "call_ZrdOweUww058iqba8AZmovcg|fc_0f365985b9c4ba7d016a4a26fceeac819196a9622abc164b9b",
+          "tool_name": "shell",
+          "name": "Bash",
+          "input": {
+            "command": "pwd && ls -la && if [ -f ready.txt ]; then echo '__READY_FILE__'; fi",
+            "timeout": 10
+          },
+          "result": {
+            "status": "success",
+            "output": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "/home/entity/projects/EntityProcess/agentv__worktrees/environment-host-runtime/.agentv/results/av-noh3-2-3-dogfood/.agentv/environments/workdir\ntotal 20\ndrwxrwxr-x 2 entity entity 4096 Jul  5 11:40 .\ndrwxrwxr-x 3 entity entity 4096 Jul  5 11:40 ..\n-rw-rw-r-- 1 entity entity  135 Jul  5 11:42 prompt.md\n-rw-rw-r-- 1 entity entity    6 Jul  5 11:42 ready.txt\n-rw-rw-r-- 1 entity entity  136 Jul  5 11:42 setup-cwd.txt\n__READY_FILE__\n"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "call_BbVGPcNgz91gy7kDjuXPSYCj|fc_0f365985b9c4ba7d016a4a26fceec881919fcf8217e8b35e6f",
+          "tool_name": "file_read",
+          "name": "Read",
+          "input": {
+            "path": "ready.txt",
+            "offset": 1,
+            "limit": 20,
+            "file_path": "ready.txt"
+          },
+          "result": {
+            "status": "success",
+            "output": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "ready\n"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "pi-cli",
+      "type": "assistant",
+      "ts": "2026-07-05T09:42:21.102Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "HOST_ENV_READY"
+        }
+      ]
+    }
+  ]
+}

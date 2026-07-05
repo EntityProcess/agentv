@@ -1,0 +1,12 @@
+target: pi-host-env
+prompts:
+  - "{{ input }}"
+tests:
+  - id: host-env-ready
+    vars: {}
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: The answer is exactly HOST_ENV_READY, showing the agent inspected the prepared host environment.
+        min_score: 0.7

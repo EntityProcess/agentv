@@ -1,0 +1,76 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Answer exactly HOST_ENV_READY when ready.txt exists and contains ready",
+      "passed": true,
+      "evidence": "The answer is exactly HOST_ENV_READY.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Inspect current working directory and ready.txt",
+      "passed": true,
+      "evidence": "The tool calls indicate directory inspection and reading ready.txt.",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Answer exactly HOST_ENV_READY when ready.txt exists and contains ready",
+          "passed": true,
+          "evidence": "The answer is exactly HOST_ENV_READY.",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Inspect current working directory and ready.txt",
+          "passed": true,
+          "evidence": "The tool calls indicate directory inspection and reading ready.txt.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ],
+      "details": {
+        "pass": true,
+        "score": 1,
+        "reason": "The response exactly matches the required output and the tool calls show the agent inspected the working directory and read ready.txt, supporting that it was ready.",
+        "threshold": 0.7,
+        "checks": [
+          {
+            "id": "env-check",
+            "text": "Answer exactly HOST_ENV_READY when ready.txt exists and contains ready",
+            "pass": true,
+            "score": 1,
+            "reason": "The answer is exactly HOST_ENV_READY.",
+            "evidence": "Final answer: \"HOST_ENV_READY\""
+          },
+          {
+            "id": "inspection",
+            "text": "Inspect current working directory and ready.txt",
+            "pass": true,
+            "score": 1,
+            "reason": "The tool calls indicate directory inspection and reading ready.txt.",
+            "evidence": "Tool calls: `pwd && ls -la && if [ -f ready.txt ]; then echo '__READY_FILE__'; fi` and `Read: ready.txt`"
+          }
+        ]
+      }
+    }
+  ]
+}
