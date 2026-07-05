@@ -1,0 +1,11 @@
+target: pi-rpc-local
+prompts:
+  - "{{ input }}"
+tests:
+  - id: protocol-marker
+    vars:
+      input: "Reply with the exact phrase: agentv protocol provider ok"
+    assert:
+      - metric: contains-agentv protocol provider ok
+        type: contains
+        value: agentv protocol provider ok
