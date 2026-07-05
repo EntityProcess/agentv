@@ -806,9 +806,9 @@ tests:
   - id: t1
     criteria: Goal
     mode: conversation
+    expected_output: some output
     turns:
       - input: Turn 1
-    expected_output: some output
     vars:
       input: hello
 `,
@@ -816,9 +816,7 @@ tests:
     const result = await validateEvalFile(filePath);
     expect(result.valid).toBe(false);
     expect(
-      result.errors.some((e) =>
-        e.message.includes("'expected_output' is not allowed with mode: conversation"),
-      ),
+      result.errors.some((e) => e.message.includes('tests[].expected_output has been removed')),
     ).toBe(true);
   });
 

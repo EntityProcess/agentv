@@ -434,7 +434,7 @@ tests:
     expect(cases[0].assertions?.[0]?.rubrics?.[0]?.outcome).toBe('Goal');
   });
 
-  it('keeps expected_output-only YAML cases passive without implicit assertions', async () => {
+  it('keeps vars.expected_output-only YAML cases passive without implicit assertions', async () => {
     const yamlPath = path.join(tempDir, 'expected-output-only.yaml');
     await writeFile(
       yamlPath,
@@ -442,18 +442,56 @@ tests:
   - "{{ input }}"
 tests:
   - id: expected-only
-    expected_output: Reference answer
     vars:
       input: Query
+      expected_output: Reference answer
 `,
     );
 
     const cases = await loadTests(yamlPath, tempDir);
 
-    expect(cases).toHaveLength(1);
-    expect(cases[0].criteria).toBe('');
-    expect(cases[0].expected_output[0].content).toBe('Reference answer');
-    expect(cases[0].assertions).toBeUndefined();
+    expect(cases).toHaveLength(0);
+  });
+
+  it('rejects top-level authored YAML expected_output', async () => {
+    const yamlPath = path.join(tempDir, 'top-level-expected-output.yaml');
+    await writeFile(
+      yamlPath,
+      `expected_output: Shared reference
+prompts:
+  - "{{ input }}"
+tests:
+  - id: expected-only
+    criteria: Goal
+    vars:
+      input: Query
+`,
+    );
+
+    await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+      "Top-level 'expected_output' has been removed",
+    );
+  });
+
+  it('rejects default_test authored YAML expected_output', async () => {
+    const yamlPath = path.join(tempDir, 'default-test-expected-output.yaml');
+    await writeFile(
+      yamlPath,
+      `default_test:
+  expected_output: Shared reference
+prompts:
+  - "{{ input }}"
+tests:
+  - id: expected-only
+    criteria: Goal
+    vars:
+      input: Query
+`,
+    );
+
+    await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+      'default_test.expected_output has been removed',
+    );
   });
 
   it('accepts direct input shorthand without deprecation warnings', async () => {
@@ -726,7 +764,7 @@ tests:
       expect(cases[0].input[1].role).toBe('user');
     });
 
-    it('supports expected_output string shorthand', async () => {
+    it('rejects authored YAML expected_output string shorthand', async () => {
       const yamlPath = path.join(tempDir, 'expected-string.yaml');
       await writeFile(
         yamlPath,
@@ -741,15 +779,12 @@ tests:
 `,
       );
 
-      const cases = await loadTests(yamlPath, tempDir);
-
-      expect(cases).toHaveLength(1);
-      expect(cases[0].expected_output).toHaveLength(1);
-      expect(cases[0].expected_output[0].role).toBe('assistant');
-      expect(cases[0].expected_output[0].content).toBe('The answer is 4');
+      await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+        'tests[0].expected_output has been removed',
+      );
     });
 
-    it('supports expected_output object shorthand', async () => {
+    it('rejects authored YAML expected_output object shorthand', async () => {
       const yamlPath = path.join(tempDir, 'expected-object.yaml');
       await writeFile(
         yamlPath,
@@ -766,13 +801,9 @@ tests:
 `,
       );
 
-      const cases = await loadTests(yamlPath, tempDir);
-
-      expect(cases).toHaveLength(1);
-      expect(cases[0].expected_output).toHaveLength(1);
-      expect(cases[0].expected_output[0].role).toBe('assistant');
-      const content = cases[0].expected_output[0].content as { riskLevel: string };
-      expect(content.riskLevel).toBe('High');
+      await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+        'tests[0].expected_output has been removed',
+      );
     });
 
     it('resolves input message array from YAML', async () => {
@@ -799,7 +830,7 @@ tests:
   });
 
   describe('Mixed canonical and alias usage', () => {
-    it('allows mixing canonical and alias in same file', async () => {
+    it('rejects mixing authored YAML expected_output forms', async () => {
       const yamlPath = path.join(tempDir, 'mixed.yaml');
       await writeFile(
         yamlPath,
@@ -823,17 +854,12 @@ tests:
 `,
       );
 
-      const cases = await loadTests(yamlPath, tempDir);
-
-      expect(cases).toHaveLength(2);
-      expect(cases[0].id).toBe('test-canonical');
-      expect(cases[0].input[0].content).toBe('Using canonical');
-      expect(cases[1].id).toBe('test-alias');
-      expect(cases[1].input[0].content).toBe('Using alias shorthand');
-      expect(cases[1].expected_output[0].content).toBe('Alias response');
+      await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+        'tests[0].expected_output has been removed',
+      );
     });
 
-    it('YAML and JSONL aliases produce equivalent results', async () => {
+    it('supports expected_output in JSONL raw cases but rejects authored YAML', async () => {
       const yamlPath = path.join(tempDir, 'equiv-alias.yaml');
       const jsonlPath = path.join(tempDir, 'equiv-alias.jsonl');
 
@@ -856,21 +882,14 @@ tests:
         '{"id": "test-1", "criteria": "Goal", "input": "What is 2+2?", "expected_output": {"answer": 4}}\n',
       );
 
-      const yamlCases = await loadTests(yamlPath, tempDir);
+      await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+        'tests[0].expected_output has been removed',
+      );
       const jsonlCases = await loadTests(jsonlPath, tempDir);
 
-      expect(yamlCases).toHaveLength(1);
       expect(jsonlCases).toHaveLength(1);
-
-      // Input should match
-      expect(jsonlCases[0].input[0].role).toBe(yamlCases[0].input[0].role);
-      expect(jsonlCases[0].input[0].content).toBe(yamlCases[0].input[0].content);
-
-      // Expected output should match
-      expect(jsonlCases[0].expected_output[0].role).toBe(yamlCases[0].expected_output[0].role);
-      const yamlContent = yamlCases[0].expected_output[0].content as { answer: number };
       const jsonlContent = jsonlCases[0].expected_output[0].content as { answer: number };
-      expect(jsonlContent.answer).toBe(yamlContent.answer);
+      expect(jsonlContent.answer).toBe(4);
     });
   });
 });

@@ -129,4 +129,76 @@ tests:
     expect(secondAssertion.transform).toContain('return (() =>');
     expect(secondAssertion.transform).toContain('Bun.spawnSync(["node","xlsx.js"]');
   });
+
+  it('migrates authored expected_output to vars.expected_output with explicit rubric assertion', () => {
+    const migrated = migrateSnippet(`description: legacy expected output
+prompts:
+  - "{{ input }}"
+tests:
+  - id: one
+    vars:
+      input: What is 2+2?
+    expected_output: "4"
+`);
+    const parsed = asRecord(parse(migrated));
+    const tests = parsed.tests as Array<Record<string, unknown>>;
+    const firstTest = asRecord(tests[0]);
+    const vars = asRecord(firstTest.vars);
+    const assertions = firstTest.assert as Array<Record<string, unknown>>;
+
+    expect(firstTest.expected_output).toBeUndefined();
+    expect(vars.expected_output).toBe('4');
+    expect(assertions).toEqual([
+      {
+        type: 'llm-rubric',
+        value: 'Matches the reference answer: {{ expected_output }}',
+      },
+    ]);
+  });
+
+  it('preserves explicit assert strategy when migrating expected_output', () => {
+    const migrated = migrateSnippet(`prompts:
+  - "{{ input }}"
+tests:
+  - id: one
+    vars:
+      input: What is 2+2?
+    expected_output: "4"
+    assert:
+      - type: equals
+        value: "{{ expected_output }}"
+`);
+    const parsed = asRecord(parse(migrated));
+    const tests = parsed.tests as Array<Record<string, unknown>>;
+    const firstTest = asRecord(tests[0]);
+    const vars = asRecord(firstTest.vars);
+    const assertions = firstTest.assert as Array<Record<string, unknown>>;
+
+    expect(firstTest.expected_output).toBeUndefined();
+    expect(vars.expected_output).toBe('4');
+    expect(assertions).toEqual([{ type: 'equals', value: '{{ expected_output }}' }]);
+  });
+
+  it('migrates default_test expected_output to default_test.vars.expected_output', () => {
+    const migrated = migrateSnippet(`default_test:
+  expected_output: Paris
+prompts:
+  - "{{ input }}"
+tests:
+  - id: one
+    vars:
+      input: What is the capital of France?
+`);
+    const parsed = asRecord(parse(migrated));
+    const defaultTest = asRecord(parsed.default_test);
+    const vars = asRecord(defaultTest.vars);
+    const assertions = defaultTest.assert as Array<Record<string, unknown>>;
+
+    expect(defaultTest.expected_output).toBeUndefined();
+    expect(vars.expected_output).toBe('Paris');
+    expect(assertions[0]).toEqual({
+      type: 'llm-rubric',
+      value: 'Matches the reference answer: {{ expected_output }}',
+    });
+  });
 });

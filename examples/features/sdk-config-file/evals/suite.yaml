@@ -5,15 +5,14 @@ prompts:
   - "{{ input }}"
 tests:
   - id: config-greeting
-    expected_output: Hello! How can I help you?
     assert:
       - type: contains
         value: Hello
       - Agent responds with a greeting
     vars:
       input: Hello!
+      expected_output: Hello! How can I help you?
   - id: config-json
-    expected_output: "{\"status\": \"ok\"}"
     assert:
       - type: is-json
       - Agent returns valid JSON
@@ -23,3 +22,4 @@ tests:
           content: Respond only with valid JSON.
         - role: user
           content: Return status ok
+      expected_output: "{\"status\": \"ok\"}"

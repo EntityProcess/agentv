@@ -71,13 +71,6 @@ tests:
         - role: user
           content: Analyze the quarterly sales data and generate a summary report.
   - id: pairwise-demo
-    expected_output:
-      - role: assistant
-        content: |-
-          Here is a summary of the user manual:
-          1. Installation: Follow the setup wizard
-          2. Configuration: Edit settings.json
-          3. Usage: Run the main command
     assert:
       - metric: pairwise-quality
         type: script
@@ -90,3 +83,10 @@ tests:
       input:
         - role: user
           content: Summarize the main points of the user manual.
+      expected_output:
+        - role: assistant
+          content: |-
+            Here is a summary of the user manual:
+            1. Installation: Follow the setup wizard
+            2. Configuration: Edit settings.json
+            3. Usage: Run the main command

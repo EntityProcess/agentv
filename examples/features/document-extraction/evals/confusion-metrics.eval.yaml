@@ -20,17 +20,6 @@ tests:
   - id: metrics-001
     assert:
       - All fields extracted correctly (all TP)
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          supplier:
-            name: Acme Shipping
-          importer:
-            name: Global Trade Co
-          gross_total: 1889
     vars:
       input:
         - role: user
@@ -39,20 +28,20 @@ tests:
               value: ../fixtures/invoice-001.json
             - type: text
               value: Extract header fields.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            supplier:
+              name: Acme Shipping
+            importer:
+              name: Global Trade Co
+            gross_total: 1889
   - id: metrics-002
     assert:
       - Supplier name has dash variation (FP+FN)
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          supplier:
-            name: Acme Shipping
-          importer:
-            name: Global Trade Co
-          gross_total: 1889
     vars:
       input:
         - role: user
@@ -61,20 +50,20 @@ tests:
               value: ../fixtures/invoice-002.json
             - type: text
               value: Extract header fields.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            supplier:
+              name: Acme Shipping
+            importer:
+              name: Global Trade Co
+            gross_total: 1889
   - id: metrics-003
     assert:
       - Supplier name has dash variation (FP+FN)
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          supplier:
-            name: Acme Shipping
-          importer:
-            name: Global Trade Co
-          gross_total: 1889
     vars:
       input:
         - role: user
@@ -83,20 +72,20 @@ tests:
               value: ../fixtures/invoice-003.json
             - type: text
               value: Extract header fields.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            supplier:
+              name: Acme Shipping
+            importer:
+              name: Global Trade Co
+            gross_total: 1889
   - id: metrics-004
     assert:
       - Invoice number missing (FN)
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          supplier:
-            name: Acme Shipping
-          importer:
-            name: Global Trade Co
-          gross_total: 1889
     vars:
       input:
         - role: user
@@ -105,20 +94,20 @@ tests:
               value: ../fixtures/invoice-004.json
             - type: text
               value: Extract header fields.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            supplier:
+              name: Acme Shipping
+            importer:
+              name: Global Trade Co
+            gross_total: 1889
   - id: metrics-005
     assert:
       - Multiple field errors (currency, supplier, gross_total)
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          supplier:
-            name: Acme Shipping
-          importer:
-            name: Global Trade Co
-          gross_total: 1889
     vars:
       input:
         - role: user
@@ -127,3 +116,14 @@ tests:
               value: ../fixtures/invoice-007.json
             - type: text
               value: Extract header fields.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            supplier:
+              name: Acme Shipping
+            importer:
+              name: Global Trade Co
+            gross_total: 1889

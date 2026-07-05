@@ -1,16 +1,5 @@
-# Prompt and vars templating example
-#
-# Top-level prompts define the prompt templates. tests[].vars provides per-test
-# data, and default_test.vars provides shared defaults. Prompt templates can use
-# Promptfoo-style {{ name }} placeholders or explicit {{ vars.name }} placeholders.
-#
-# Usage:
-#   agentv eval examples/features/test-vars-templating/evals/suite.yaml
-
 description: Demonstrates prompt templates rendered from default_test.vars and tests[].vars
-
 target: llm
-
 prompts:
   - id: support-chat
     label: Support chat
@@ -18,12 +7,10 @@ prompts:
   - id: terse
     label: Terse answer
     prompt: "Answer for {{ audience }} in one sentence: {{ question }}"
-
 default_test:
   vars:
     audience: users
     category: general
-
 tests:
   - id: capital-france
     vars:
@@ -31,19 +18,18 @@ tests:
       question: What is the capital of France?
       expected:
         answer: Paris
+      expected_output: "{{ vars.expected.answer }}"
     assert:
-      - "Answers {{ vars.question }} correctly"
-    expected_output: "{{ vars.expected.answer }}"
-
+      - Answers {{ vars.question }} correctly
   - id: greet-ada
     vars:
       audience: new teammates
       category: onboarding
       person:
         name: Ada
-      question: "How should I greet {{ vars.person.name }}?"
+      question: How should I greet {{ vars.person.name }}?
       expected:
         answer: Hello, Ada!
+      expected_output: "{{ vars.expected.answer }}"
     assert:
-      - "Greets {{ vars.person.name }} warmly"
-    expected_output: "{{ vars.expected.answer }}"
+      - Greets {{ vars.person.name }} warmly

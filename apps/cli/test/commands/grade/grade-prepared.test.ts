@@ -104,8 +104,8 @@ prompts:
   - "{{ input }}"
 tests:
   - id: case-1
-    expected_output: "done"
     vars:
+      expected_output: "done"
       input: "Fix the workspace file."
 `,
     'utf8',

@@ -4,11 +4,11 @@ prompts:
   - "{{ input }}"
 tests:
   - id: direct-string
-    expected_output: concise onboarding summary
     assert:
       - Summarizes the request concisely
     vars:
       input: Summarize the onboarding checklist in one sentence.
+      expected_output: concise onboarding summary
   - id: direct-chat-messages
     vars:
       product: AgentV
@@ -17,6 +17,6 @@ tests:
           content: You answer product questions precisely.
         - role: user
           content: Explain what {{ vars.product }} evaluates.
-    expected_output: AgentV evaluates agent workflows
+      expected_output: AgentV evaluates agent workflows
     assert:
       - Explains that AgentV evaluates agent workflows

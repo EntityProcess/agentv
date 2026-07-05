@@ -5,11 +5,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: finance-summary-operator-guards
-    expected_output:
-      - role: assistant
-        content: |-
-          Q4 revenue increased to $10M from $8M. Gross margin declined to 42%
-          from 45%.
     assert:
       - type: llm-rubric
         value:
@@ -33,3 +28,8 @@ tests:
             - Gross margin declined to 42% from 45%.
 
             Write a two-sentence finance summary.
+      expected_output:
+        - role: assistant
+          content: |-
+            Q4 revenue increased to $10M from $8M. Gross margin declined to 42%
+            from 45%.

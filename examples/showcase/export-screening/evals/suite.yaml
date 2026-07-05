@@ -16,10 +16,6 @@ tests:
         AI correctly classifies as 'High' risk. Electronic integrated circuits
         (processors/controllers) are Tier 1 CHPL items - highest concern for
         precision-guided weapons. Export to Russia is prohibited.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -34,16 +30,16 @@ tests:
                 Destination: RU
                 Product: Microcontroller units (MCU) for industrial automation
                 HS Code: 8542.31
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-002
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Memory integrated circuits
         are Tier 1 CHPL items critical for military systems.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -58,6 +54,10 @@ tests:
                 Destination: BY
                 Product: DRAM memory chips (DDR5, 16GB modules)
                 HS Code: 8542.32
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-003
     conversation_id: export-screening
     assert:
@@ -65,10 +65,6 @@ tests:
         AI correctly classifies as 'High' risk. Photosensitive semiconductor
         devices (excluding photovoltaic) are CHPL Tier 3.A items used in
         targeting and guidance systems.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -83,16 +79,16 @@ tests:
                 Destination: CN
                 Product: Infrared photodiode array (InGaAs, 640x512 elements)
                 HS Code: 8541.49
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-004
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Static converters are CHPL
         Tier 3.A items used in power systems for military equipment.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -107,16 +103,16 @@ tests:
                 Destination: IR
                 Product: High-frequency power inverter modules (50kW)
                 HS Code: 8504.40
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-005
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Precision ball bearings are
         CHPL Tier 3.B items critical for missile guidance and UAV systems.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -131,16 +127,16 @@ tests:
                 Destination: RU
                 Product: Precision angular contact ball bearings (ceramic hybrid)
                 HS Code: 8482.10
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-006
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Aircraft/UAV parts are CHPL
         Tier 3.B items with direct military applications.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -155,16 +151,16 @@ tests:
                 Destination: CN
                 Product: Carbon fiber UAV airframe components
                 HS Code: 8807.30
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-007
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Telescopic sights and optical
         devices are CHPL Tier 3.B items used in weapons targeting systems.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -179,16 +175,16 @@ tests:
                 Destination: PK
                 Product: Thermal imaging riflescope (12 micron VOx sensor)
                 HS Code: 9013.10
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-008
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Navigation instruments for
         aeronautical use are CHPL Tier 3.B items critical for missile guidance.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -204,16 +200,16 @@ tests:
                 Product: Inertial navigation system (fiber optic gyroscope based)
                 HS Code: 9014.20
                 Consignee: State Aviation Research Institute
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-009
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Semiconductor manufacturing
         equipment is CHPL Tier 4.A - critical for chip production capability.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -228,16 +224,16 @@ tests:
                 Destination: CN
                 Product: DUV lithography system for semiconductor wafer processing
                 HS Code: 8486.20
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-010
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Oscilloscopes and test equipment
         are CHPL Tier 4.A items used for weapons development and testing.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -252,16 +248,16 @@ tests:
                 Destination: RU
                 Product: Digital storage oscilloscope (8GHz bandwidth, 40GSa/s)
                 HS Code: 9030.20
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-011
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. Printed circuit boards are
         CHPL Tier 4.A items essential for electronics manufacturing.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -276,16 +272,16 @@ tests:
                 Destination: BY
                 Product: High-density interconnect PCBs (18-layer, fine pitch)
                 HS Code: 8534.00
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-high-012
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'High' risk. CNC machining centers are
         CHPL Tier 4.B items used for precision weapons manufacturing.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: High
     vars:
       input:
         - role: user
@@ -300,6 +296,10 @@ tests:
                 Destination: RU
                 Product: 5-axis CNC machining center (positioning accuracy 2 microns)
                 HS Code: 8457.10
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: High
   - id: exp-med-001
     conversation_id: export-screening
     assert:
@@ -307,10 +307,6 @@ tests:
         AI correctly classifies as 'Medium' risk. Switching/routing apparatus
         is on CHPL (8517.62) but destination is low-risk allied nation.
         Requires verification of end-user and specifications.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Medium
     vars:
       input:
         - role: user
@@ -325,6 +321,10 @@ tests:
                 Destination: JP
                 Product: Enterprise network switch with routing capabilities
                 HS Code: 8517.62
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Medium
   - id: exp-med-002
     conversation_id: export-screening
     assert:
@@ -332,10 +332,6 @@ tests:
         AI correctly classifies as 'Medium' risk. Tantalum capacitors are
         CHPL Tier 2 items but in small quantities for commercial repair.
         Low-risk destination but controlled item requires verification.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Medium
     vars:
       input:
         - role: user
@@ -351,6 +347,10 @@ tests:
                 Product: Tantalum capacitors (assorted values, 500 units)
                 HS Code: 8532.21
                 Consignee: Electronics Repair GmbH
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Medium
   - id: exp-med-003
     conversation_id: export-screening
     assert:
@@ -358,10 +358,6 @@ tests:
         AI correctly classifies as 'Medium' risk. Optical instruments may
         be controlled depending on specifications. Destination is moderate
         risk. Requires technical review.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Medium
     vars:
       input:
         - role: user
@@ -376,6 +372,10 @@ tests:
                 Destination: IN
                 Product: Industrial machine vision camera system
                 HS Code: 9013.80
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Medium
   - id: exp-med-004
     conversation_id: export-screening
     assert:
@@ -383,10 +383,6 @@ tests:
         AI correctly classifies as 'Medium' risk. Radio navigation equipment
         is CHPL Tier 2 (8526.91) but for commercial aviation use in
         low-risk destination.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Medium
     vars:
       input:
         - role: user
@@ -402,16 +398,16 @@ tests:
                 Product: GPS receiver module for commercial drone
                 HS Code: 8526.91
                 Consignee: AgriTech Drones Ltda
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Medium
   - id: exp-low-001
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'Low' risk. Consumer electronics displays
         are not on CHPL. Standard commercial trade between allied nations.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Low
     vars:
       input:
         - role: user
@@ -426,16 +422,16 @@ tests:
                 Destination: AU
                 Product: OLED television display panel (65 inch, 4K resolution)
                 HS Code: 8528.72
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Low
   - id: exp-low-002
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'Low' risk. Standard industrial motors
         (not high-performance/precision) are not controlled.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Low
     vars:
       input:
         - role: user
@@ -450,16 +446,16 @@ tests:
                 Destination: MX
                 Product: AC induction motor for HVAC system (7.5kW)
                 HS Code: 8501.52
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Low
   - id: exp-low-003
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'Low' risk. Agricultural spraying equipment
         has no dual-use applications. Trade to allied nation.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Low
     vars:
       input:
         - role: user
@@ -474,16 +470,16 @@ tests:
                 Destination: CA
                 Product: Tractor-mounted pesticide sprayer
                 HS Code: 8424.82
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Low
   - id: exp-low-004
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'Low' risk. Medical diagnostic equipment
         for hospital use is not controlled. Standard healthcare trade.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Low
     vars:
       input:
         - role: user
@@ -499,16 +495,16 @@ tests:
                 Product: Ultrasound diagnostic imaging system
                 HS Code: 9018.12
                 Consignee: Hospital das Clinicas
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Low
   - id: exp-low-005
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'Low' risk. Household appliances have
         no dual-use concerns. Standard consumer goods trade.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Low
     vars:
       input:
         - role: user
@@ -523,16 +519,16 @@ tests:
                 Destination: GB
                 Product: Robotic vacuum cleaner (consumer model)
                 HS Code: 8508.11
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Low
   - id: exp-low-006
     conversation_id: export-screening
     assert:
       - |
         AI correctly classifies as 'Low' risk. Food processing equipment
         is not controlled. Standard industrial trade to allied nation.
-    expected_output:
-      - role: assistant
-        content:
-          riskLevel: Low
     vars:
       input:
         - role: user
@@ -548,3 +544,7 @@ tests:
                 Product: Commercial pasta extruder machine
                 HS Code: 8438.10
                 Consignee: Italian Foods Inc
+      expected_output:
+        - role: assistant
+          content:
+            riskLevel: Low

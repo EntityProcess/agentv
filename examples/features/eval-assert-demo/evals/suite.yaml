@@ -4,7 +4,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: capital-of-france
-    expected_output: The capital of France is Paris.
     assert:
       - metric: keyword-check
         type: script
@@ -25,11 +24,12 @@ tests:
       - Answer correctly identifies Paris as the capital of France
     vars:
       input: What is the capital of France? Answer in one concise sentence.
+      expected_output: The capital of France is Paris.
   - id: largest-planet
-    expected_output: Jupiter is the largest planet in our solar system.
     assert:
       - type: contains
         value: Jupiter
       - Answer correctly identifies Jupiter as the largest planet
     vars:
       input: What is the largest planet in our solar system? Answer briefly.
+      expected_output: Jupiter is the largest planet in our solar system.

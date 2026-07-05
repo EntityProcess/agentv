@@ -309,7 +309,6 @@ tests:
   - id: templated
     vars:
       question: What is the capital of France?
-      expected_answer: Paris
       input:
         - role: user
           content: "Answer clearly: {{question}}"
@@ -319,8 +318,11 @@ tests:
           content: Thinking about {{question}}
         - role: user
           content: Final answer only.
+      expected_output: Paris
     criteria: Answers {{question}} correctly
-    expected_output: "{{expected_answer}}"
+    assert:
+      - type: equals
+        value: "{{ expected_output }}"
     metadata:
       untouched: "{{question}}"
 `,
@@ -343,7 +345,8 @@ tests:
       role: 'assistant',
       content: 'Thinking about What is the capital of France?',
     });
-    expect(tests[0].expected_output).toEqual([{ role: 'assistant', content: 'Paris' }]);
+    expect(tests[0].expected_output).toEqual([]);
+    expect(tests[0].assertions?.[0]).toMatchObject({ type: 'equals', value: 'Paris' });
     expect(tests[0].metadata).toEqual({ untouched: '{{question}}' });
   });
 

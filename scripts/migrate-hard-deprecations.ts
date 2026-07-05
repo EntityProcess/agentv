@@ -11,6 +11,11 @@ const ROOTS = [
   'apps/cli/test/commands/eval/pipeline/fixtures',
 ];
 const INPUT_PROMPT = '{{ input }}';
+const EXPECTED_OUTPUT_VAR = 'expected_output';
+const REFERENCE_MATCH_ASSERTION = {
+  type: 'llm-rubric',
+  value: 'Matches the reference answer: {{ expected_output }}',
+};
 const LEGACY_ENV_PATTERN = /\$\{\{\s*([A-Z_][A-Z0-9_]*)\s*\}\}/g;
 const PREPROCESSOR_MEDIA_TYPES: Readonly<Record<string, readonly string[]>> = {
   xlsx: ['xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx'],
@@ -352,12 +357,47 @@ function setVarsInput(testCase: JsonObject, input: unknown): void {
   testCase.vars = vars;
 }
 
-function migrateCase(testCase: JsonObject, fileDir: string, suiteInput?: unknown): boolean {
+function setVarsExpectedOutput(testCase: JsonObject, expectedOutput: unknown): void {
+  const vars = isObject(testCase.vars) ? testCase.vars : {};
+  vars[EXPECTED_OUTPUT_VAR] = expectedOutput;
+  testCase.vars = vars;
+}
+
+function hasExplicitAssertStrategy(value: JsonObject): boolean {
+  return (
+    Object.hasOwn(value, 'assert') ||
+    (typeof value.criteria === 'string' && value.criteria.trim().length > 0) ||
+    (typeof value.expected_outcome === 'string' && value.expected_outcome.trim().length > 0)
+  );
+}
+
+function addReferenceAssertion(value: JsonObject): void {
+  value.assert = [clone(REFERENCE_MATCH_ASSERTION)];
+}
+
+function migrateExpectedOutput(value: JsonObject, hasInheritedAssertStrategy: boolean): boolean {
+  if (!Object.hasOwn(value, 'expected_output')) return false;
+  const hadExplicitAssertStrategy = hasExplicitAssertStrategy(value) || hasInheritedAssertStrategy;
+  setVarsExpectedOutput(value, value.expected_output);
+  Reflect.deleteProperty(value, 'expected_output');
+  if (!hadExplicitAssertStrategy) {
+    addReferenceAssertion(value);
+  }
+  return true;
+}
+
+function migrateCase(
+  testCase: JsonObject,
+  fileDir: string,
+  suiteInput?: unknown,
+  hasInheritedAssertStrategy = false,
+): boolean {
+  let changed = migrateExpectedOutput(testCase, hasInheritedAssertStrategy);
   const hasCaseInput = Object.hasOwn(testCase, 'input');
   const hasCaseInputFiles = Object.hasOwn(testCase, 'input_files');
   const effectiveSuiteInput = hasSkipDefaults(testCase) ? undefined : suiteInput;
   if (!hasCaseInput && !hasCaseInputFiles && effectiveSuiteInput === undefined) {
-    return false;
+    return changed;
   }
 
   const caseInput = hasCaseInputFiles
@@ -369,6 +409,47 @@ function migrateCase(testCase: JsonObject, fileDir: string, suiteInput?: unknown
   }
   Reflect.deleteProperty(testCase, 'input');
   Reflect.deleteProperty(testCase, 'input_files');
+  changed = true;
+  return changed;
+}
+
+function ensureDefaultTest(suite: JsonObject): JsonObject {
+  if (isObject(suite.default_test)) return suite.default_test;
+  const defaultTest: JsonObject = {};
+  suite.default_test = defaultTest;
+  return defaultTest;
+}
+
+function migrateSuiteExpectedOutput(
+  suite: JsonObject,
+  hasInheritedAssertStrategy: boolean,
+): boolean {
+  if (!Object.hasOwn(suite, 'expected_output')) return false;
+  const defaultTest = ensureDefaultTest(suite);
+  const hadExplicitAssertStrategy =
+    hasExplicitAssertStrategy(defaultTest) ||
+    hasExplicitAssertStrategy(suite) ||
+    hasInheritedAssertStrategy;
+  setVarsExpectedOutput(defaultTest, suite.expected_output);
+  Reflect.deleteProperty(suite, 'expected_output');
+  if (!hadExplicitAssertStrategy) {
+    addReferenceAssertion(defaultTest);
+  }
+  return true;
+}
+
+function migrateDefaultTestExpectedOutput(suite: JsonObject): boolean {
+  if (!isObject(suite.default_test) || !Object.hasOwn(suite.default_test, 'expected_output')) {
+    return false;
+  }
+  const defaultTest = suite.default_test;
+  const hadExplicitAssertStrategy =
+    hasExplicitAssertStrategy(defaultTest) || hasExplicitAssertStrategy(suite);
+  setVarsExpectedOutput(defaultTest, defaultTest.expected_output);
+  Reflect.deleteProperty(defaultTest, 'expected_output');
+  if (!hadExplicitAssertStrategy) {
+    addReferenceAssertion(defaultTest);
+  }
   return true;
 }
 
@@ -482,6 +563,8 @@ function migrateYamlValue(
 
   const isSuiteLike =
     value.tests !== undefined || value.eval_cases !== undefined || value.imports !== undefined;
+  changed = migrateSuiteExpectedOutput(value, false) || changed;
+  changed = migrateDefaultTestExpectedOutput(value) || changed;
   if (!isSuiteLike && inheritedSuiteInput === undefined) {
     return changed;
   }
@@ -492,13 +575,16 @@ function migrateYamlValue(
     : inheritedSuiteInput;
 
   const rawTests = value.tests ?? value.eval_cases;
+  const hasSuiteAssertStrategy =
+    hasExplicitAssertStrategy(value) ||
+    (isObject(value.default_test) && hasExplicitAssertStrategy(value.default_test));
   if (Array.isArray(rawTests)) {
     for (const entry of rawTests) {
       if (isObject(entry) && !Object.hasOwn(entry, 'include')) {
         changed = migrateWorkspace(entry.workspace) || changed;
         changed = migrateOptionsPostprocess(entry.options) || changed;
         changed = migrateAssertions(entry.assert) || changed;
-        changed = migrateCase(entry, fileDir, suiteInput) || changed;
+        changed = migrateCase(entry, fileDir, suiteInput, hasSuiteAssertStrategy) || changed;
       }
     }
   } else if (typeof rawTests === 'string') {
@@ -535,6 +621,7 @@ function migrateYamlSnippet(source: string, filePath: string): string | undefine
   if (
     !source.includes('input:') &&
     !source.includes('input_files:') &&
+    !source.includes('expected_output:') &&
     !source.includes('${{') &&
     !source.includes('execution:') &&
     !source.includes('preprocessors:') &&

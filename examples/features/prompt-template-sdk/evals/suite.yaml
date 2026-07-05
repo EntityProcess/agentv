@@ -4,9 +4,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: prompt-template-basic
-    expected_output:
-      - role: assistant
-        content: TypeScript provides static type checking, better IDE support, and improved maintainability.
     assert:
       - metric: custom-prompt-eval
         type: llm-rubric
@@ -22,10 +19,10 @@ tests:
           content:
             - type: text
               value: What are the main benefits of TypeScript over JavaScript?
+      expected_output:
+        - role: assistant
+          content: TypeScript provides static type checking, better IDE support, and improved maintainability.
   - id: prompt-template-with-config
-    expected_output:
-      - role: assistant
-        content: Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.
     assert:
       - metric: strict-eval
         type: llm-rubric
@@ -47,3 +44,6 @@ tests:
           content:
             - type: text
               value: Explain async/await in JavaScript.
+      expected_output:
+        - role: assistant
+          content: Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.

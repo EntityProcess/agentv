@@ -144,11 +144,9 @@ describe('env interpolation in YAML loading', () => {
 
   it('resolves missing variables to empty string', async () => {
     const evalFile = path.join(testDir, 'interp-missing.eval.yaml');
-    // Include expected_output so the test is not skipped for missing criteria
-    // (empty criteria alone causes the test loader to skip it as incomplete)
     await writeFile(
       evalFile,
-      'prompts:\n  - "{{ input }}"\ntests:\n  - id: test-1\n    criteria: "prefix {{ env.AGENTV_NONEXISTENT_VAR }} suffix"\n    expected_output: "some output"\n    vars:\n      input: "hello"\n',
+      'prompts:\n  - "{{ input }}"\ntests:\n  - id: test-1\n    criteria: "prefix {{ env.AGENTV_NONEXISTENT_VAR }} suffix"\n    vars:\n      input: "hello"\n',
     );
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('prefix  suffix');

@@ -7,10 +7,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: aml-001
-    expected_output:
-      - role: assistant
-        content:
-          decision: CLEAR
     assert:
       - metric: decision-check
         type: script
@@ -43,11 +39,11 @@ tests:
               transaction_type: INTERNATIONAL_TRANSFER
               amount: 5000
               currency: USD
+      expected_output:
+        - role: assistant
+          content:
+            decision: CLEAR
   - id: aml-002
-    expected_output:
-      - role: assistant
-        content:
-          decision: REVIEW
     assert:
       - metric: decision-check
         type: script
@@ -80,11 +76,11 @@ tests:
               transaction_type: INTERNATIONAL_TRANSFER
               amount: 2000
               currency: USD
+      expected_output:
+        - role: assistant
+          content:
+            decision: REVIEW
   - id: aml-003
-    expected_output:
-      - role: assistant
-        content:
-          decision: REVIEW
     assert:
       - metric: decision-check
         type: script
@@ -117,11 +113,11 @@ tests:
               transaction_type: INTERNATIONAL_TRANSFER
               amount: 25000
               currency: USD
+      expected_output:
+        - role: assistant
+          content:
+            decision: REVIEW
   - id: aml-004-not-exist
-    expected_output:
-      - role: assistant
-        content:
-          decision: REVIEW
     assert:
       - metric: decision-check
         type: script
@@ -154,3 +150,7 @@ tests:
               transaction_type: INTERNATIONAL_TRANSFER
               amount: 25000
               currency: USD
+      expected_output:
+        - role: assistant
+          content:
+            decision: REVIEW

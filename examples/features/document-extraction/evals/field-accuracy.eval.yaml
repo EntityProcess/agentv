@@ -60,79 +60,6 @@ tests:
         Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
         All numeric values rounded to integers (1889 not 1889.00).
         Tests that exact matching passes when extractor normalizes data correctly.
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          incoterm: null
-          currency: USD
-          net_total: 1889
-          gross_total: 1889
-          supplier:
-            name: Acme Shipping
-            address: |-
-              Acme - Shipping
-              123 Harbor Boulevard
-              Suite 400
-              90001  Los Angeles
-              USA
-          importer:
-            name: Global Trade Co
-            address: |-
-              Global Trade Co
-              456 Commerce Street
-              10001  New York
-              USA
-          line_items:
-            - description: OCEAN FREIGHT
-              quantity: 1
-              unit_price: 1370
-              line_total: 1370
-              unit_type: C2 1 USD
-              hs_code: "853720"
-            - description: Bunker Adjustment Factor
-              quantity: 1
-              unit_price: 262
-              line_total: 262
-              unit_type: C2 1 TEU
-              hs_code: "853720"
-            - description: Container maintenance Fee at destination
-              quantity: 1
-              unit_price: 20
-              line_total: 20
-              unit_type: C2 1 TEU
-              hs_code: "853720"
-            - description: Advanced Manifest Declaration Fee
-              quantity: 1
-              unit_price: 32
-              line_total: 32
-              unit_type: C2 1 FIX
-              hs_code: "853720"
-            - description: Energy Transition Surcharge
-              quantity: 1
-              unit_price: 68
-              line_total: 68
-              unit_type: C2 1 TEU
-              hs_code: "853720"
-            - description: Emergency Operational Recovery
-              quantity: 1
-              unit_price: 75
-              line_total: 75
-              unit_type: C2 1 UNI
-              hs_code: "853720"
-            - description: On carriage chassis admin fees
-              quantity: 1
-              unit_price: 12
-              line_total: 12
-              unit_type: C2 1 UNI
-              hs_code: "853720"
-            - description: On Carriage Additional - Emergency Fuel Surch.
-              quantity: 1
-              unit_price: 50
-              line_total: 50
-              unit_type: C2 1 UNI
-              hs_code: "853720"
     vars:
       input:
         - role: user
@@ -143,6 +70,79 @@ tests:
               value: |
                 Extract all structured data from this commercial shipping invoice.
                 Return a JSON object with invoice header, party details, line items, and totals.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            incoterm: null
+            currency: USD
+            net_total: 1889
+            gross_total: 1889
+            supplier:
+              name: Acme Shipping
+              address: |-
+                Acme - Shipping
+                123 Harbor Boulevard
+                Suite 400
+                90001  Los Angeles
+                USA
+            importer:
+              name: Global Trade Co
+              address: |-
+                Global Trade Co
+                456 Commerce Street
+                10001  New York
+                USA
+            line_items:
+              - description: OCEAN FREIGHT
+                quantity: 1
+                unit_price: 1370
+                line_total: 1370
+                unit_type: C2 1 USD
+                hs_code: "853720"
+              - description: Bunker Adjustment Factor
+                quantity: 1
+                unit_price: 262
+                line_total: 262
+                unit_type: C2 1 TEU
+                hs_code: "853720"
+              - description: Container maintenance Fee at destination
+                quantity: 1
+                unit_price: 20
+                line_total: 20
+                unit_type: C2 1 TEU
+                hs_code: "853720"
+              - description: Advanced Manifest Declaration Fee
+                quantity: 1
+                unit_price: 32
+                line_total: 32
+                unit_type: C2 1 FIX
+                hs_code: "853720"
+              - description: Energy Transition Surcharge
+                quantity: 1
+                unit_price: 68
+                line_total: 68
+                unit_type: C2 1 TEU
+                hs_code: "853720"
+              - description: Emergency Operational Recovery
+                quantity: 1
+                unit_price: 75
+                line_total: 75
+                unit_type: C2 1 UNI
+                hs_code: "853720"
+              - description: On carriage chassis admin fees
+                quantity: 1
+                unit_price: 12
+                line_total: 12
+                unit_type: C2 1 UNI
+                hs_code: "853720"
+              - description: On Carriage Additional - Emergency Fuel Surch.
+                quantity: 1
+                unit_price: 50
+                line_total: 50
+                unit_type: C2 1 UNI
+                hs_code: "853720"
   - id: invoice-002
     conversation_id: document-extraction
     assert:
@@ -180,18 +180,6 @@ tests:
 
         This simulates OCR output that preserves document formatting.
         Uses a script grader with config pass-through for multi-field fuzzy matching.
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          net_total: 1889
-          gross_total: 1889
-          supplier:
-            name: Acme Shipping
-          importer:
-            name: Global Trade Co
     vars:
       input:
         - role: user
@@ -200,6 +188,18 @@ tests:
               value: ../fixtures/invoice-002.json
             - type: text
               value: Extract invoice header and party names.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            net_total: 1889
+            gross_total: 1889
+            supplier:
+              name: Acme Shipping
+            importer:
+              name: Global Trade Co
   - id: invoice-003
     conversation_id: document-extraction
     assert:
@@ -209,18 +209,6 @@ tests:
 
         Mock extractor output sample (`invoice-003.json`) contains 1889.5 USD (preserved decimals).
         Numeric tolerance (±1.0) should accept 0.5 difference and pass.
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          net_total: 1889
-          gross_total: 1889
-          supplier:
-            name: Acme - Shipping
-          importer:
-            name: Global Trade Co
     vars:
       input:
         - role: user
@@ -229,6 +217,18 @@ tests:
               value: ../fixtures/invoice-003.json
             - type: text
               value: Extract invoice totals.
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            net_total: 1889
+            gross_total: 1889
+            supplier:
+              name: Acme - Shipping
+            importer:
+              name: Global Trade Co
   - id: invoice-004
     conversation_id: document-extraction
     assert:
@@ -238,18 +238,6 @@ tests:
 
         Tests required field validation. Score should drop significantly due to
         missing critical field (weight 2.0). Expected score ~0.85 (lose 2/13 weight).
-    expected_output:
-      - role: assistant
-        content:
-          invoice_number: INV-2025-001234
-          invoice_date: 15-JAN-2025
-          currency: USD
-          net_total: 1889
-          gross_total: 1889
-          supplier:
-            name: Acme - Shipping
-          importer:
-            name: Global Trade Co
     vars:
       input:
         - role: user
@@ -258,6 +246,18 @@ tests:
               value: ../fixtures/invoice-004.json
             - type: text
               value: Extract invoice data (incomplete extraction).
+      expected_output:
+        - role: assistant
+          content:
+            invoice_number: INV-2025-001234
+            invoice_date: 15-JAN-2025
+            currency: USD
+            net_total: 1889
+            gross_total: 1889
+            supplier:
+              name: Acme - Shipping
+            importer:
+              name: Global Trade Co
   - id: invoice-005
     conversation_id: document-extraction
     assert:
@@ -286,14 +286,6 @@ tests:
       - |
         Extractor correctly extracts first two line items with proper array structure.
         Field paths like line_items[0].description should resolve correctly.
-    expected_output:
-      - role: assistant
-        content:
-          line_items:
-            - description: OCEAN FREIGHT
-              line_total: 1370
-            - description: Bunker Adjustment Factor
-              line_total: 262
     vars:
       input:
         - role: user
@@ -302,6 +294,14 @@ tests:
               value: ../fixtures/invoice-005.json
             - type: text
               value: Extract first two line items from invoice.
+      expected_output:
+        - role: assistant
+          content:
+            line_items:
+              - description: OCEAN FREIGHT
+                line_total: 1370
+              - description: Bunker Adjustment Factor
+                line_total: 262
   - id: invoice-006
     conversation_id: document-extraction
     assert:
@@ -326,16 +326,6 @@ tests:
         This test demonstrates greedy matching for line items.
         Index-based comparison would incorrectly penalize the extractor,
         but greedy matching correctly aligns items by description similarity.
-    expected_output:
-      - role: assistant
-        content:
-          line_items:
-            - description: OCEAN FREIGHT
-              quantity: 1
-              line_total: 120
-            - description: Bunker Adjustment Factor
-              quantity: 1
-              line_total: 80
     vars:
       input:
         - role: user
@@ -344,3 +334,13 @@ tests:
               value: ../fixtures/invoice-006.json
             - type: text
               value: Extract line items from invoice (may be reordered).
+      expected_output:
+        - role: assistant
+          content:
+            line_items:
+              - description: OCEAN FREIGHT
+                quantity: 1
+                line_total: 120
+              - description: Bunker Adjustment Factor
+                quantity: 1
+                line_total: 80

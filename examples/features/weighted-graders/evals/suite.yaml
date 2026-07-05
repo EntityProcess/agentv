@@ -4,13 +4,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: weighted-multi-grader
-    expected_output:
-      - role: assistant
-        content: >
-          Neural networks are computational models inspired by biological neurons. They consist of
-          interconnected layers of nodes (neurons) that process information through weighted
-          connections. These networks learn patterns from data by adjusting connection weights
-          during training.
     assert:
       - metric: safety-check
         type: llm-rubric
@@ -30,13 +23,14 @@ tests:
       input:
         - role: user
           content: Explain the concept of neural networks.
+      expected_output:
+        - role: assistant
+          content: >
+            Neural networks are computational models inspired by biological neurons. They consist of
+            interconnected layers of nodes (neurons) that process information through weighted
+            connections. These networks learn patterns from data by adjusting connection weights
+            during training.
   - id: experimental-grader-disabled
-    expected_output:
-      - role: assistant
-        content: >
-          Reinforcement learning is a type of machine learning where an agent learns to make
-          decisions by interacting with an environment. The agent receives rewards or penalties for
-          its actions and learns to maximize cumulative rewards over time.
     assert:
       - metric: accuracy
         type: llm-rubric
@@ -52,13 +46,13 @@ tests:
       input:
         - role: user
           content: What is reinforcement learning?
+      expected_output:
+        - role: assistant
+          content: >
+            Reinforcement learning is a type of machine learning where an agent learns to make
+            decisions by interacting with an environment. The agent receives rewards or penalties
+            for its actions and learns to maximize cumulative rewards over time.
   - id: equal-weights-default
-    expected_output:
-      - role: assistant
-        content: >
-          Deep learning is a subset of machine learning that uses neural networks with multiple
-          layers (deep neural networks). Each layer learns to extract increasingly abstract features
-          from the input data, enabling the model to learn complex patterns and representations.
     assert:
       - metric: correctness
         type: llm-rubric
@@ -75,3 +69,10 @@ tests:
       input:
         - role: user
           content: Describe deep learning.
+      expected_output:
+        - role: assistant
+          content: >
+            Deep learning is a subset of machine learning that uses neural networks with multiple
+            layers (deep neural networks). Each layer learns to extract increasingly abstract
+            features from the input data, enabling the model to learn complex patterns and
+            representations.

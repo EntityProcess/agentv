@@ -4,13 +4,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: support-context-retention
-    expected_output:
-      - role: assistant
-        content: |-
-          Absolutely, Sarah! I've upgraded order #98765 to express shipping - it should
-          arrive by Thursday, well before Friday. I've also added complimentary gift
-          wrapping since this is a special occasion. You'll receive a tracking update
-          shortly. Is there anything else I can help with for your daughter's birthday?
     assert:
       - metric: context_retention
         type: llm-rubric
@@ -56,14 +49,14 @@ tests:
             available as early as Wednesday.
         - role: user
           content: The express shipping sounds great. Also, can you add gift wrapping?
+      expected_output:
+        - role: assistant
+          content: |-
+            Absolutely, Sarah! I've upgraded order #98765 to express shipping - it should
+            arrive by Thursday, well before Friday. I've also added complimentary gift
+            wrapping since this is a special occasion. You'll receive a tracking update
+            shortly. Is there anything else I can help with for your daughter's birthday?
   - id: support-troubleshooting-flow
-    expected_output:
-      - role: assistant
-        content: |-
-          Great, let's see if that helps! If the WiFi drops again in the next
-          30 minutes, it might be an issue on our end. In that case, I'll schedule
-          a technician visit at a time that works for you - no charge. Just let me
-          know if it happens again.
     assert:
       - metric: context_retention
         type: llm-rubric
@@ -109,3 +102,10 @@ tests:
             Sometimes it just needs a better connection.
         - role: user
           content: OK I did that. What if it happens again?
+      expected_output:
+        - role: assistant
+          content: |-
+            Great, let's see if that helps! If the WiFi drops again in the next
+            30 minutes, it might be an issue on our end. In that case, I'll schedule
+            a technician visit at a time that works for you - no charge. Just let me
+            know if it happens again.
