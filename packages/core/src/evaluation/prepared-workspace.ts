@@ -202,7 +202,7 @@ export async function prepareEvalWorkspace(
 
     if (!caseSetup.workspacePath) {
       throw new Error(
-        `No workspace was materialized for test "${evalCase.id}". Add workspace.template, workspace.repos, or workspace.hooks before preparing an external attempt.`,
+        `No workspace was materialized for test "${evalCase.id}". Add environment.workdir before preparing an external attempt, or use an internal workspace override for private runtime plumbing.`,
       );
     }
 

@@ -1,6 +1,6 @@
-description: Accuracy eval that references a shared workspace config file. The workspace is defined
-  once in workspace.yaml and reused across eval files.
-workspace: ../../workspace.yaml
+description: Accuracy eval that references a shared environment recipe file. The environment is
+  defined once in workspace.yaml and reused across eval files.
+environment: file://../../workspace.yaml
 tags:
   - agent
 prompts:

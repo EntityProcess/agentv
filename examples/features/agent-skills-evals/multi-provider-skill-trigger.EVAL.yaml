@@ -1,8 +1,8 @@
 extensions:
   - agentv:agent-rules
-workspace:
-  scope: suite
-  template: workspace/
+environment:
+  type: host
+  workdir: workspace/
 prompts:
   - "{{ input }}"
 tests:

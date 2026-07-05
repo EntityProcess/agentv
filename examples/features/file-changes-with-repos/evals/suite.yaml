@@ -1,8 +1,8 @@
 name: file-changes-with-repos
 description: Verify file_changes captures workspace-root files AND changes inside nested repos
-workspace:
-  scope: suite
-  template: ../workspace-template
+environment:
+  type: host
+  workdir: ../workspace-template
 extensions:
   - file://../scripts/setup-nested-repo.mjs:beforeAll
 target: mock_agent

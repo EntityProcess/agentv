@@ -1,11 +1,14 @@
 description: "Demonstrates workspace repo lifecycle: clone a git repo into the workspace, check out
   a specific commit, and have the agent work on it."
-workspace:
-  scope: suite
-  repos:
-    - path: ./repo
+environment:
+  type: host
+  workdir: ./repo
+  setup:
+    command: ../scripts/materialize-repo.sh
+    args:
       repo: https://github.com/EntityProcess/agentv.git
       commit: main
+      path: ./repo
 tags:
   - agent
 prompts:

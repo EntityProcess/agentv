@@ -8,7 +8,7 @@ Demonstrates using a `beforeAll` lifecycle extension to clean and re-initialize 
 
 ## Solution
 
-A Node.js lifecycle extension exports `beforeAll(context)`. AgentV runs it after `workspace.template` and `workspace.repos` materialize, so the extension can safely prepare local configuration without owning repo provisioning.
+A Node.js lifecycle extension exports `beforeAll(context)`. AgentV runs it after the authored `environment` recipe is prepared, so the extension can safely prepare local configuration without owning repo provisioning.
 
 ```
 workspace-setup-script/
@@ -32,17 +32,19 @@ workspace-setup-script/
 
 ## Eval YAML
 
-Use top-level `extensions` for executable setup and keep repos under `workspace.repos`:
+Use top-level `extensions` for lifecycle hooks and keep authored testbed setup under `environment`:
 
 ```yaml
 extensions:
   - file://../scripts/workspace-setup.mjs:beforeAll
 
-workspace:
-  scope: suite
-  template: ../workspace-template
-  repos:
-    - path: ./my-repo
+environment:
+  type: host
+  workdir: ../workspace-template
+  setup:
+    command: ../scripts/materialize-repo.sh
+    args:
+      path: ./my-repo
       repo: https://github.com/EntityProcess/agentv.git
       commit: main
 ```
@@ -69,8 +71,8 @@ The `type: file` path is resolved from the eval file's directory up to the repo 
 
 ## How It Works
 
-1. AgentV copies `workspace-template/` to the suite workspace.
-2. AgentV clones `workspace.repos`.
+1. AgentV prepares the authored `environment`.
+2. The environment setup materializes `my-repo/`.
 3. The `beforeAll` extension removes stale `.allagents/` config and runs `npx allagents workspace init`.
 4. The extension registers the local marketplace with `--scope project`.
 5. `allagents workspace sync` installs `my-plugin@workspace-setup-script-marketplace`.

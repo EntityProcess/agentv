@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EvalFileSchema } from '../../src/evaluation/validation/eval-file.schema.js';
 
-describe('repo lifecycle schema validation', () => {
+describe('environment recipe schema validation', () => {
   const baseEval = {
     description: 'test',
     prompts: ['{{ input }}'],
@@ -14,46 +14,55 @@ describe('repo lifecycle schema validation', () => {
     ],
   };
 
-  it('accepts workspace repos with provenance fields', () => {
+  it('accepts host environment setup args with repo provenance fields', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
+      environment: {
+        type: 'host',
+        workdir: './repo-a',
+        setup: {
+          command: './setup.sh',
+          args: {
             repo: 'https://github.com/org/repo.git',
             commit: 'main',
             ancestor: 1,
             sparse: ['src', 'package.json'],
           },
-        ],
+        },
       },
     });
     expect(result.success).toBe(true);
   });
 
-  it('accepts GitHub org/name shorthand', () => {
+  it('accepts GitHub org/name shorthand in environment setup args', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
+      environment: {
+        type: 'host',
+        workdir: './repo-a',
+        setup: {
+          command: './setup.sh',
+          args: {
             repo: 'org/repo',
             commit: '4a1b2c3d',
           },
-        ],
+        },
       },
     });
     expect(result.success).toBe(true);
   });
 
-  it('accepts Docker repo hints without repo identity', () => {
+  it('accepts Docker environment setup args without repo identity', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
-      workspace: {
-        docker: { image: 'swebench/sweb.eval.django__django:latest' },
-        repos: [{ path: '/testbed', commit: 'abc123' }],
+      environment: {
+        type: 'docker',
+        image: 'swebench/sweb.eval.django__django:latest',
+        workdir: '/testbed',
+        setup: {
+          command: './setup.sh',
+          args: { commit: 'abc123' },
+        },
       },
     });
     expect(result.success).toBe(true);
@@ -124,52 +133,36 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects negative ancestor', () => {
+  it('rejects unknown environment fields', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-            ancestor: -1,
-          },
-        ],
+      environment: {
+        type: 'host',
+        workdir: './repo-a',
+        repos: [{ repo: 'https://github.com/org/repo.git' }],
       },
     });
     expect(result.success).toBe(false);
   });
 
-  it('accepts workspace with hooks after_each reset config', () => {
+  it('accepts internal workspace hooks after_each reset config', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-          },
-        ],
         hooks: { after_each: { reset: 'fast' } },
       },
     });
     expect(result.success).toBe(true);
   });
 
-  it('accepts workspace with scope field', () => {
+  it('rejects public workspace scope field', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
         scope: 'attempt',
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-          },
-        ],
       },
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it('rejects removed workspace isolation per_test value', () => {

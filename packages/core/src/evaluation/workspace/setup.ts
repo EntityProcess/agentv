@@ -182,7 +182,8 @@ export function caseUsesSharedWorkspaceSetup(
   evalCase: EvalTest,
   setup: Pick<SharedWorkspaceSetup, 'sharedWorkspaceAppliesToAllCases' | 'sharedWorkspaceOwnerKey'>,
 ): boolean {
-  if (isAttemptScopedWorkspace(evalCase.workspace)) {
+  const workspace = effectiveRuntimeWorkspace(evalCase);
+  if (isAttemptScopedWorkspace(workspace)) {
     return false;
   }
   if (setup.sharedWorkspaceAppliesToAllCases) {
@@ -190,7 +191,7 @@ export function caseUsesSharedWorkspaceSetup(
   }
   return (
     setup.sharedWorkspaceOwnerKey !== undefined &&
-    workspaceNeedsSharedSetup(evalCase.workspace) &&
+    workspaceNeedsSharedSetup(workspace) &&
     sharedWorkspaceOwnerKey(evalCase) === setup.sharedWorkspaceOwnerKey
   );
 }
@@ -208,6 +209,17 @@ function workspaceNeedsSharedSetup(
     workspace.docker ||
     workspace.env
   );
+}
+
+function effectiveRuntimeWorkspace(evalCase: EvalTest): WorkspaceConfig | undefined {
+  const workspace = evalCase.workspace;
+  if (evalCase.environment?.type !== 'host') {
+    return workspace;
+  }
+  return {
+    ...(workspace ?? {}),
+    template: workspace?.template ?? evalCase.environment.workdir,
+  };
 }
 
 function stableWorkspaceValue(value: unknown): string {
@@ -246,7 +258,7 @@ function sharedWorkspaceOwnerKey(evalCase: EvalTest): string {
     : source?.evalFileAbsolutePath
       ? `parent:${source.evalFileAbsolutePath}`
       : 'programmatic';
-  return `${sourceKey}:${stableWorkspaceValue(evalCase.workspace)}`;
+  return `${sourceKey}:${stableWorkspaceValue(effectiveRuntimeWorkspace(evalCase))}`;
 }
 
 interface SelectedSharedWorkspace {
@@ -261,7 +273,8 @@ function selectSuiteWorkspace(evalCases: readonly EvalTest[]): SelectedSharedWor
   >();
 
   for (const evalCase of evalCases) {
-    if (!workspaceNeedsSharedSetup(evalCase.workspace)) {
+    const workspace = effectiveRuntimeWorkspace(evalCase);
+    if (!workspaceNeedsSharedSetup(workspace)) {
       continue;
     }
     const key = sharedWorkspaceOwnerKey(evalCase);
@@ -271,7 +284,7 @@ function selectSuiteWorkspace(evalCases: readonly EvalTest[]): SelectedSharedWor
       continue;
     }
     candidates.set(key, {
-      workspace: evalCase.workspace,
+      workspace,
       owner: describeWorkspaceOwner(evalCase),
       testIds: [evalCase.id],
     });
@@ -298,7 +311,7 @@ function selectSuiteExtensions(evalCases: readonly EvalTest[]): readonly AgentVE
   const candidates = new Map<string, readonly AgentVExtensionConfig[]>();
   for (const evalCase of evalCases) {
     const extensions = evalCase.extensions ?? [];
-    if (extensions.length === 0 || isAttemptScopedWorkspace(evalCase.workspace)) {
+    if (extensions.length === 0 || isAttemptScopedWorkspace(effectiveRuntimeWorkspace(evalCase))) {
       continue;
     }
     candidates.set(stableWorkspaceValue(extensions), extensions);
@@ -433,7 +446,7 @@ export async function prepareSharedWorkspaceSetup(
 
   if (
     useStaticWorkspace &&
-    evalCases.some((evalCase) => isAttemptScopedWorkspace(evalCase.workspace))
+    evalCases.some((evalCase) => isAttemptScopedWorkspace(effectiveRuntimeWorkspace(evalCase)))
   ) {
     throw new Error(
       'static workspace mode is incompatible with workspace.scope: attempt. Use workspace.scope: suite or omit the static workspace override.',
@@ -738,7 +751,8 @@ export async function prepareEvalCaseWorkspace(
     sharedExtensionState,
   } = options;
 
-  let workspacePath: string | undefined = isAttemptScopedWorkspace(evalCase.workspace)
+  const runtimeWorkspace = effectiveRuntimeWorkspace(evalCase);
+  let workspacePath: string | undefined = isAttemptScopedWorkspace(runtimeWorkspace)
     ? undefined
     : sharedWorkspacePath;
   const inheritedSuiteWorkspaceFile = workspacePath ? suiteWorkspaceFile : undefined;
@@ -746,12 +760,12 @@ export async function prepareEvalCaseWorkspace(
   let beforeEachOutput: string | undefined;
   const isSharedWorkspace = !!workspacePath;
   let caseWorkspaceFile: string | undefined;
-  const caseHooksEnabled = hooksEnabled(evalCase.workspace);
+  const caseHooksEnabled = hooksEnabled(runtimeWorkspace);
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
   let extensionState = sharedExtensionState;
 
   if (!workspacePath) {
-    const rawCaseTemplate = evalCase.workspace?.template;
+    const rawCaseTemplate = runtimeWorkspace?.template;
     const resolvedCaseTemplate = await resolveWorkspaceTemplate(rawCaseTemplate);
     const caseWorkspaceTemplate = resolvedCaseTemplate?.dir;
     caseWorkspaceFile = resolvedCaseTemplate?.workspaceFile;
@@ -781,24 +795,22 @@ export async function prepareEvalCaseWorkspace(
 
     if (
       !workspacePath &&
-      (evalCase.workspace?.hooks ||
-        evalCase.workspace?.repos?.length ||
-        evalCase.extensions?.length) &&
+      (runtimeWorkspace?.hooks || runtimeWorkspace?.repos?.length || evalCase.extensions?.length) &&
       evalRunId
     ) {
       workspacePath = getWorkspacePath(evalRunId, evalCase.id);
       await mkdir(workspacePath, { recursive: true });
     }
 
-    if (evalCase.workspace?.repos?.length && workspacePath) {
+    if (runtimeWorkspace?.repos?.length && workspacePath) {
       const perCaseRepoManager = new RepoManager(setupDebug, { projectConfigDir: evalDir });
       try {
         if (setupDebug) {
           console.log(
-            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} attempt repo(s) into ${workspacePath}`,
+            `[setup] test=${evalCase.id} materializing ${runtimeWorkspace.repos.length} attempt repo(s) into ${workspacePath}`,
           );
         }
-        await perCaseRepoManager.materializeAll(evalCase.workspace.repos, workspacePath);
+        await perCaseRepoManager.materializeAll(runtimeWorkspace.repos, workspacePath);
         if (setupDebug) {
           console.log(`[setup] test=${evalCase.id} attempt repo materialization complete`);
         }
@@ -839,7 +851,7 @@ export async function prepareEvalCaseWorkspace(
       }
     }
 
-    const caseDockerConfig = evalCase.workspace?.docker;
+    const caseDockerConfig = runtimeWorkspace?.docker;
     if (caseDockerConfig) {
       try {
         await prepareDockerWorkspace(caseDockerConfig, (message) => {
@@ -861,7 +873,7 @@ export async function prepareEvalCaseWorkspace(
       }
     }
 
-    const caseEnvConfig = evalCase.workspace?.env;
+    const caseEnvConfig = runtimeWorkspace?.env;
     if (caseEnvConfig) {
       try {
         await runPreflightChecks(caseEnvConfig, workspacePath ?? evalDir, (message) => {
@@ -896,7 +908,7 @@ export async function prepareEvalCaseWorkspace(
             case_input: evalCase.question,
             case_metadata: evalCase.metadata,
             eval_dir: evalDir ?? process.cwd(),
-            workspace_file_dir: evalCase.workspace?.workspaceFileDir,
+            workspace_file_dir: runtimeWorkspace?.workspaceFileDir,
           },
           state: extensionState,
         });
@@ -915,7 +927,7 @@ export async function prepareEvalCaseWorkspace(
       }
     }
 
-    const caseBeforeAllHook = evalCase.workspace?.hooks?.before_all;
+    const caseBeforeAllHook = runtimeWorkspace?.hooks?.before_all;
     if (workspacePath && caseHooksEnabled && hasHookCommand(caseBeforeAllHook)) {
       const beforeAllHook = caseBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? []).join(' ');
@@ -931,7 +943,7 @@ export async function prepareEvalCaseWorkspace(
         caseInput: evalCase.question,
         caseMetadata: evalCase.metadata,
         evalDir,
-        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+        workspaceFileDir: runtimeWorkspace?.workspaceFileDir,
       };
       try {
         beforeAllOutput = await executeWorkspaceScript(
@@ -983,20 +995,20 @@ export async function prepareEvalCaseWorkspace(
   if (
     caseHooksEnabled &&
     workspacePath &&
-    evalCase.workspace?.hooks?.before_each?.reset &&
-    evalCase.workspace.hooks.before_each.reset !== 'none'
+    runtimeWorkspace?.hooks?.before_each?.reset &&
+    runtimeWorkspace.hooks.before_each.reset !== 'none'
   ) {
     try {
-      if (repoManager && evalCase.workspace.repos?.length) {
+      if (repoManager && runtimeWorkspace.repos?.length) {
         await repoManager.reset(
-          evalCase.workspace.repos,
+          runtimeWorkspace.repos,
           workspacePath,
-          evalCase.workspace.hooks.before_each.reset,
+          runtimeWorkspace.hooks.before_each.reset,
         );
       } else {
         await resetWorkspaceRoot(
           workspacePath,
-          evalCase.workspace.hooks.before_each.reset,
+          runtimeWorkspace.hooks.before_each.reset,
           sharedBaselineCommit,
         );
       }
@@ -1011,7 +1023,7 @@ export async function prepareEvalCaseWorkspace(
     }
   }
 
-  const caseBeforeEachHook = evalCase.workspace?.hooks?.before_each;
+  const caseBeforeEachHook = runtimeWorkspace?.hooks?.before_each;
   if (workspacePath && evalCase.extensions && evalCase.extensions.length > 0) {
     try {
       beforeEachNeedsFreshBaseline = hasExtensionHook(evalCase.extensions, 'beforeEach');
@@ -1026,7 +1038,7 @@ export async function prepareEvalCaseWorkspace(
           case_input: evalCase.question,
           case_metadata: evalCase.metadata,
           eval_dir: evalDir ?? process.cwd(),
-          workspace_file_dir: evalCase.workspace?.workspaceFileDir,
+          workspace_file_dir: runtimeWorkspace?.workspaceFileDir,
         },
         state: extensionState,
       });
@@ -1055,7 +1067,7 @@ export async function prepareEvalCaseWorkspace(
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
       evalDir,
-      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+      workspaceFileDir: runtimeWorkspace?.workspaceFileDir,
     };
     try {
       beforeEachOutput = await executeWorkspaceScript(
@@ -1105,7 +1117,7 @@ export async function prepareEvalCaseWorkspace(
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
       evalDir,
-      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+      workspaceFileDir: runtimeWorkspace?.workspaceFileDir,
     };
     try {
       await executeWorkspaceScript(

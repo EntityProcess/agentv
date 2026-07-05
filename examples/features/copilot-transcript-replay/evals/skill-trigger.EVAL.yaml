@@ -3,9 +3,9 @@ tags:
 target: copilot-transcript-replay
 extensions:
   - file://../scripts/copilot-replay-workspace.mjs:beforeAll
-workspace:
-  scope: suite
-  template: ../workspace/
+environment:
+  type: host
+  workdir: ../workspace/
 prompts:
   - "{{ input }}"
 tests:

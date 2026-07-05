@@ -1,9 +1,8 @@
-scope: suite
-template: ./workspace-template
-hooks:
-  after_each:
-    reset: fast
-repos:
-  - path: ./agentv
+type: host
+workdir: ./workspace-template
+setup:
+  command: ./scripts/materialize-repo.sh
+  args:
+    path: ./agentv
     repo: https://github.com/EntityProcess/agentv.git
     commit: main

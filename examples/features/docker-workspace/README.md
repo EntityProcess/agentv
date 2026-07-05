@@ -9,7 +9,7 @@ When evaluating coding agents (e.g., SWE-bench), the grader script needs to:
 2. Run tests inside the repository's environment
 3. Report pass/fail results
 
-Docker workspaces let you run this grading process inside a pre-built container
+Docker environments let you run this grading process inside a pre-built container
 image that has the repository, dependencies, and test infrastructure ready.
 
 ## How It Works
@@ -29,28 +29,29 @@ image that has the repository, dependencies, and test infrastructure ready.
 ## YAML Schema
 
 ```yaml
-workspace:
-  scope: suite
-  docker:
-    image: swebench/sweb.eval.x86_64.django__django-15180
-    timeout: 1800    # seconds (default: 1800)
+environment:
+  type: docker
+  image: swebench/sweb.eval.x86_64.django__django-15180
+  workdir: /testbed
+  resources:
     memory: 4g       # optional Docker memory limit
     cpus: 2          # optional Docker CPU limit
 ```
 
-For evals that need a repo pinned to a dataset snapshot, use `workspace.repos[].commit`:
+For evals that need a repo pinned to a dataset snapshot, keep that metadata in `environment.setup.args`:
 
 ```yaml
-workspace:
-  scope: suite
-  docker:
-    image: swebench/sweb.eval.x86_64.django__django-15180
-  repos:
-    - path: /testbed
+environment:
+  type: docker
+  image: swebench/sweb.eval.x86_64.django__django-15180
+  workdir: /testbed
+  setup:
+    command: ./setup.sh
+    args:
       commit: abc123def
 ```
 
-Repos defined without `repo` are assumed to already exist inside the container (e.g., SWE-bench prebuilt images).
+Prebuilt images can carry the repository inside the container, while the setup args record the dataset snapshot being evaluated.
 
 ## Running
 

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { interpolateEnv } from '../interpolation.js';
 import type { JsonObject, JsonValue } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
@@ -70,7 +71,7 @@ export async function resolveEnvironmentRecipe(
     const recipePath = resolveReferencePath(raw, evalFileDir);
     let parsed: unknown;
     try {
-      parsed = parseYamlValue(await readFile(recipePath, 'utf8'));
+      parsed = interpolateEnv(parseYamlValue(await readFile(recipePath, 'utf8')), process.env);
     } catch (error) {
       throw new Error(
         `${location} recipe file not found or unreadable: ${raw} (${(error as Error).message})`,

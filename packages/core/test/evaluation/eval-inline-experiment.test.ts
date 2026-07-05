@@ -1031,8 +1031,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'timeout_seconds: 10',
         'evaluate_options:',
         '  budget_usd: 0.5',
-        'workspace:',
-        '  template: ./child-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./child-workspace',
         'assert:',
         '  - type: contains',
         '    value: child',
@@ -1081,7 +1082,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.experimentConfig?.repeat).toMatchObject({ count: 3, strategy: 'pass_any' });
     expect(test.run).toBeUndefined();
     expect(test.suite).toBe('child-suite');
-    expect(test.workspace?.template).toBe(path.join(tempDir, 'child-workspace'));
+    expect(test.environment?.workdir).toBe(path.join(tempDir, 'child-workspace'));
     expect(test.input.map((message) => message.content)).toEqual([
       'child shared input',
       'child case input',
@@ -1143,13 +1144,14 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     });
   });
 
-  it('rejects parent workspace when importing eval suites with type: suite', async () => {
+  it('rejects parent environment when importing eval suites with type: suite', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'workspace:',
-        '  path: ./child-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./child-workspace',
         'prompts:',
         '  - "{{ input }}"',
         'tests:',
@@ -1164,8 +1166,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'workspace:',
-        '  template: ./parent-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./parent-workspace',
         'tests:',
         '  - include: child.eval.yaml',
         '    type: suite',
@@ -1174,7 +1177,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /Parent workspace is not allowed/,
+      /Parent environment is not allowed/,
     );
   });
 
@@ -1432,8 +1435,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'workspace:',
-        '  template: ./child-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./child-workspace',
         'assert:',
         '  - type: contains',
         '    value: child',
@@ -1479,7 +1483,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.experimentConfig).toMatchObject({ target: 'codex-gpt5', threshold: 0.8 });
     expect(byId.get('child-case')?.suite).toBe('child-suite');
     expect(byId.get('child-case')?.source?.importedSuiteName).toBe('child-suite');
-    expect(byId.get('child-case')?.workspace?.template).toBe(path.join(tempDir, 'child-workspace'));
+    expect(byId.get('child-case')?.environment?.workdir).toBe(
+      path.join(tempDir, 'child-workspace'),
+    );
     expect(byId.get('child-case')?.input.map((message) => message.content)).toEqual([
       'child shared input',
       'child case input',
@@ -1506,8 +1512,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'workspace:',
-        '  template: ./parent-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./parent-workspace',
         'assert:',
         '  - type: contains',
         '    value: parent',
@@ -1534,7 +1541,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.tests.map((test) => test.id)).toEqual(['jsonl-case', 'yaml-case', 'inline-case']);
     for (const id of ['jsonl-case', 'yaml-case', 'inline-case']) {
       expect(byId.get(id)?.suite).toBe('parent-suite');
-      expect(byId.get(id)?.workspace?.template).toBe(path.join(tempDir, 'parent-workspace'));
+      expect(byId.get(id)?.environment?.workdir).toBe(path.join(tempDir, 'parent-workspace'));
       expect(byId.get(id)?.assertions?.[0]).toMatchObject({ type: 'contains', value: 'parent' });
     }
     expect(byId.get('jsonl-case')?.input.map((message) => message.content)).toEqual([
@@ -1557,8 +1564,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'workspace:',
-        '  template: ./parent-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./parent-workspace',
         'imports:',
         '  tests:',
         '    - path: imported.jsonl',
@@ -1573,12 +1581,12 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.tests.map((test) => test.id)).toEqual(['imported-case', 'local-case']);
     expect(byId.get('imported-case')?.suite).toBe('parent-suite');
     expect(byId.get('local-case')?.suite).toBe('parent-suite');
-    expect(byId.get('imported-case')?.workspace?.template).toBe(
+    expect(byId.get('imported-case')?.environment?.workdir).toBe(
       path.join(tempDir, 'parent-workspace'),
     );
   });
 
-  it('rejects parent workspace when imports.suites preserves child workspaces', async () => {
+  it('rejects parent environment when imports.suites preserves child environments', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -1597,8 +1605,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'workspace:',
-        '  template: ./parent-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./parent-workspace',
         'imports:',
         '  suites:',
         '    - path: child.eval.yaml',
@@ -1607,7 +1616,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /Parent workspace is not allowed/,
+      /Parent environment is not allowed/,
     );
   });
 
@@ -1716,8 +1725,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'workspace:',
-        '  template: ./parent-workspace',
+        'environment:',
+        '  type: host',
+        '  workdir: ./parent-workspace',
         'assert:',
         '  - type: contains',
         '    value: parent',
@@ -1740,7 +1750,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       'parent shared input',
       'raw case input',
     ]);
-    expect(test.workspace?.template).toBe(path.join(tempDir, 'parent-workspace'));
+    expect(test.environment?.workdir).toBe(path.join(tempDir, 'parent-workspace'));
     expect(test.assertions?.[0]).toMatchObject({ type: 'contains', value: 'parent' });
   });
 });

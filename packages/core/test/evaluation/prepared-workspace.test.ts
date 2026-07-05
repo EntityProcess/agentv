@@ -139,7 +139,7 @@ describe('prepareEvalWorkspace', () => {
     expect(prepared.promptSource.question).toBe('Implement the requested change');
   });
 
-  it('materializes workspace.repos using the same repo setup path', async () => {
+  it('materializes internal workspace.repos using the same repo setup path', async () => {
     const repoDir = path.join(tmpDir, 'source-repo');
     const commit = createTestRepo(repoDir, {
       'README.md': '# source repo\n',

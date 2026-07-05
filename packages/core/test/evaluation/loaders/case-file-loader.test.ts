@@ -815,7 +815,7 @@ input: "Input"
     expect(ws.template).toBe(path.join(casesDir, 'my-case', 'workspace'));
   });
 
-  it('does not override explicit workspace in case.yaml', async () => {
+  it('does not override explicit legacy internal workspace in case.yaml', async () => {
     const casesDir = path.join(tempDir, 'ws-explicit');
     await mkdir(path.join(casesDir, 'my-case', 'workspace'), { recursive: true });
 
