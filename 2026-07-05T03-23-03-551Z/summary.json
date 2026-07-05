@@ -1,0 +1,146 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T03-23-03-551Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 19693,
+    "input_tokens": 19660,
+    "output_tokens": 33,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.099125
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "live-marker",
+      "suite": "av-y7eq-9-host-runtime-live-marker",
+      "eval_path": ".agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml",
+      "target": "claude-cli-host",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "live-marker",
+          "suite": "av-y7eq-9-host-runtime-live-marker",
+          "eval_path": ".agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml",
+          "target": "claude-cli-host",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 2952,
+          "cost_usd": 0.099125
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-05T03-23-03-551Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/coding-runtime-live-matrix/.agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml",
+    "timestamp": "2026-07-05T03:23:17.427Z",
+    "targets": [
+      "claude-cli-host"
+    ],
+    "tests_run": [
+      "live-marker"
+    ],
+    "experiment": "av-y7eq-9-host-runtime-live-marker",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        ".agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "claude-cli-host": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 2.952,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 19693,
+        "stddev": 0
+      },
+      "cost_usd": {
+        "mean": 0.099,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "contains-AGENTV-LIVE-MATRIX-OK:contains": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 2952,
+      "total_seconds": 2.952,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 19693,
+      "input": 19660,
+      "output": 33,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": 0.099125,
+      "source": "provider_reported"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 3,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}
