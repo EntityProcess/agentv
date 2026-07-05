@@ -2245,6 +2245,59 @@ tests:
       ).toBe(true);
     });
 
+    it('errors when public suite workspace hooks are authored', async () => {
+      const filePath = path.join(tempDir, 'workspace-hooks-error.yaml');
+      await writeFile(
+        filePath,
+        `workspace:
+  hooks:
+    before_all:
+      command: ["bash", "-lc", "echo setup"]
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.location === 'workspace.hooks' &&
+            e.message.includes('Use environment.setup for testbed setup and extensions'),
+        ),
+      ).toBe(true);
+    });
+
+    it('errors when public external workspace recipe references are authored', async () => {
+      const filePath = path.join(tempDir, 'workspace-file-error.yaml');
+      await writeFile(
+        filePath,
+        `workspace: file://workspace.yaml
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.location === 'workspace' &&
+            e.message.includes('Use environment: file://...'),
+        ),
+      ).toBe(true);
+    });
+
     it('accepts host environment setup argv with cwd and timeout', async () => {
       const filePath = path.join(tempDir, 'environment-host.yaml');
       await writeFile(

@@ -434,7 +434,7 @@ tests:
     );
 
     await expect(loadTests(evalFile, testDir)).rejects.toThrow(
-      'workspace.isolation has been removed. Use workspace.scope: suite|attempt.',
+      'workspace.isolation has been removed. Use environment at suite/test scope and let AgentV manage runtime isolation.',
     );
   });
 

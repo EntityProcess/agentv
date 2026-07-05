@@ -88,7 +88,7 @@ function resolveWorkspacePath(workspacePath: string | undefined, relativePath: s
   if (!workspacePath) {
     return {
       displayPath,
-      error: 'Workspace path is not available. Configure workspace in the eval YAML.',
+      error: 'Workspace path is not available. Configure an environment recipe in the eval YAML.',
     };
   }
 

@@ -361,7 +361,8 @@ export async function runVitestWorkspaceGrader(
         {
           text: 'Vitest workspace verifier requires workspace_path',
           pass: false,
-          reason: 'Configure workspace in the eval YAML so AgentV can pass workspace_path.',
+          reason:
+            'Configure an environment recipe in the eval YAML so AgentV can pass workspace_path.',
         },
       ],
     };

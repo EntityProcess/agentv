@@ -24,7 +24,6 @@ import { transpileCommand } from './commands/transpile/index.js';
 import { trendCommand } from './commands/trend/index.js';
 import { trimCommand } from './commands/trim/index.js';
 import { validateCommand } from './commands/validate/index.js';
-import { workspaceCommand } from './commands/workspace/index.js';
 import { getUpdateNotice } from './update-check.js';
 
 export const app = subcommands({
@@ -53,7 +52,6 @@ export const app = subcommands({
     transpile: transpileCommand,
     trim: trimCommand,
     validate: validateCommand,
-    workspace: workspaceCommand,
   },
 });
 
@@ -90,7 +88,6 @@ const TOP_LEVEL_COMMANDS = new Set([
   'transpile',
   'trim',
   'validate',
-  'workspace',
 ]);
 
 export function usesDeprecatedStudioAlias(argv: string[]): boolean {

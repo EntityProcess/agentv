@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { EvalFileSchema } from '../../../src/evaluation/validation/eval-file.schema.js';
+import { EvalFileSchemaInput } from '../../../src/evaluation/validation/eval-file.schema.js';
 
 describe('generated schema sync', () => {
   it('keeps eval.schema.json synced with the Zod schema', async () => {
@@ -16,9 +16,10 @@ describe('generated schema sync', () => {
     const committed = JSON.parse(await readFile(schemaPath, 'utf8'));
 
     // Generate fresh schema from Zod (must match generate-eval-schema.ts options)
-    const generated = zodToJsonSchema(EvalFileSchema, {
+    const generated = zodToJsonSchema(EvalFileSchemaInput, {
       name: 'EvalFile',
       $refStrategy: 'none',
+      effectStrategy: 'input',
       target: 'jsonSchema2019-09',
     });
 

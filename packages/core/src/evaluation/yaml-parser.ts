@@ -3067,7 +3067,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('pool' in obj) {
     throw new Error(
-      'workspace.pool has been removed from eval YAML. Use workspace.scope: suite|attempt for workspace lifetime, or --workspace-path for a machine-local static workspace.',
+      'workspace.pool has been removed from eval YAML. Use environment for portable testbed setup, or --workspace-path for a machine-local static workspace.',
     );
   }
   if ('static' in obj) {
@@ -3077,7 +3077,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('mode' in obj) {
     throw new Error(
-      'workspace.mode has been removed from eval YAML. Use workspace.scope: suite|attempt for workspace lifetime.',
+      'workspace.mode has been removed from eval YAML. Use environment for portable testbed setup, or --workspace-path for machine-local existing directories.',
     );
   }
   if ('path' in obj) {
@@ -3092,7 +3092,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('repos' in obj) {
     throw new Error(
-      'workspace.repos has been removed from public eval YAML. Use an environment recipe with setup args to materialize repositories.',
+      'workspace.repos has been removed from public eval YAML. Use environment.setup.command argv to materialize repositories.',
     );
   }
   if ('docker' in obj) {
@@ -3107,7 +3107,9 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
 
   if ('isolation' in obj) {
-    throw new Error('workspace.isolation has been removed. Use workspace.scope: suite|attempt.');
+    throw new Error(
+      'workspace.isolation has been removed. Use environment at suite/test scope and let AgentV manage runtime isolation.',
+    );
   }
 
   const hooks = parseWorkspaceHooksConfig(obj.hooks, evalFileDir);

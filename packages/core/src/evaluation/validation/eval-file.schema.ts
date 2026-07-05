@@ -6,7 +6,7 @@
  * When adding new eval features, update this schema AND run `bun run generate:schema`
  * to regenerate eval.schema.json. The sync test will fail if they diverge.
  */
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -384,10 +384,10 @@ const ExtensionSchema = z.union([
 ]);
 
 // ---------------------------------------------------------------------------
-// Repo lifecycle
+// Lifecycle hooks
 // ---------------------------------------------------------------------------
 
-const WorkspaceHookSchema = z
+const LifecycleHookSchema = z
   .object({
     command: z.union([z.string(), z.array(z.string())]).optional(),
     timeout_ms: z.number().optional(),
@@ -397,31 +397,13 @@ const WorkspaceHookSchema = z
   })
   .strict();
 
-const WorkspaceHooksSchema = z
+const LifecycleHooksSchema = z
   .object({
     enabled: z.boolean().optional(),
-    before_all: WorkspaceHookSchema.optional(),
-    before_each: WorkspaceHookSchema.optional(),
-    after_each: WorkspaceHookSchema.optional(),
-    after_all: WorkspaceHookSchema.optional(),
-  })
-  .strict();
-
-const WorkspaceEnvSchema = z
-  .object({
-    required_commands: z.array(z.string().min(1)).optional(),
-    required_python_modules: z.array(z.string().min(1)).optional(),
-  })
-  .strict();
-
-const WorkspaceSchema = z
-  .object({
-    template: z.never().optional(),
-    scope: z.never().optional(),
-    repos: z.never().optional(),
-    hooks: WorkspaceHooksSchema.optional(),
-    docker: z.never().optional(),
-    env: WorkspaceEnvSchema.optional(),
+    before_all: LifecycleHookSchema.optional(),
+    before_each: LifecycleHookSchema.optional(),
+    after_each: LifecycleHookSchema.optional(),
+    after_all: LifecycleHookSchema.optional(),
   })
   .strict();
 
@@ -538,10 +520,10 @@ const EnvironmentSchema = z.union([
 
 const TargetHooksSchema = z
   .object({
-    before_all: WorkspaceHookSchema.optional(),
-    before_each: WorkspaceHookSchema.optional(),
-    after_each: WorkspaceHookSchema.optional(),
-    after_all: WorkspaceHookSchema.optional(),
+    before_all: LifecycleHookSchema.optional(),
+    before_each: LifecycleHookSchema.optional(),
+    after_each: LifecycleHookSchema.optional(),
+    after_all: LifecycleHookSchema.optional(),
   })
   .strict();
 
@@ -597,7 +579,6 @@ const ExecutionSchema = z.object({
   fail_on_error: FailOnErrorSchema.optional(),
   failOnError: FailOnErrorSchema.optional(),
   threshold: z.number().min(0).max(1).optional(),
-  workspace: z.never().optional(),
 });
 
 const ExperimentRepeatSchema = z
@@ -683,7 +664,6 @@ const EvalTestSchema = z.object({
   execution: TestExecutionSchema.optional(),
   run: RunOverrideSchema.optional(),
   environment: EnvironmentSchema.optional(),
-  workspace: WorkspaceSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
   conversation_id: z.string().optional(),
   suite: z.string().optional(),
@@ -802,68 +782,66 @@ const TOP_LEVEL_IMPORTS_MESSAGE =
 // Top-level eval file
 // ---------------------------------------------------------------------------
 
-export const EvalFileSchema: z.ZodType = z
-  .object({
-    $schema: z.string().optional(),
-    // Metadata
-    name: z
-      .string()
-      .regex(/^[a-z0-9-]+$/)
-      .optional(),
-    description: z.string().optional(),
-    category: z.string().optional(),
-    version: z.string().optional(),
-    author: z.string().optional(),
-    tags: TagsSchema.optional(),
-    license: z.string().optional(),
-    requires: z.object({ agentv: z.string().optional() }).optional(),
-    expected_output: z.never().optional(),
-    // Suite-level input
-    input: z.never().optional(),
-    prompts: PromptsSchema.optional(),
-    // Suite-level input_files shorthand
-    input_files: z.array(z.string()).optional(),
-    imports: z.never({ invalid_type_error: TOP_LEVEL_IMPORTS_MESSAGE }).optional(),
-    // Tests (inline raw cases, legacy include entries, or external raw-case path)
-    tests: TestsSchema.optional(),
-    // Shared composable config graph fields
-    graders: z.union([z.array(ConfigGraderSchema), z.string().min(1)]).optional(),
-    defaults: z.union([ConfigDefaultsSchema, z.string().min(1)]).optional(),
-    // Deprecated aliases
-    eval_cases: TestsSchema.optional(),
-    // Target
-    target: z.union([z.string().min(1), EvalLocalTargetSchema]).optional(),
-    targets: EvalTargetsSchema.optional(),
-    providers: z.never().optional(),
-    model: z.never().optional(),
-    // Run/result grouping label and flat run controls
-    experiment: z.string().min(1).optional(),
-    repeat: z.never().optional(),
-    runs: z.never().optional(),
-    early_exit: z.never().optional(),
-    timeout_seconds: z.number().gt(0).optional(),
-    evaluate_options: EvaluateOptionsSchema.optional(),
-    budget_usd: z.never().optional(),
-    threshold: z.number().min(0).max(1).optional(),
-    default_test: z.union([DefaultTestReferenceSchema, DefaultTestSchema]).optional(),
-    environment: EnvironmentSchema.optional(),
-    scenarios: z.array(ScenarioSchema).optional(),
-    derived_metrics: z.array(DerivedMetricSchema).optional(),
-    output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
-    env: z.record(z.string()).optional(),
-    nunjucks_filters: z.union([JsonObjectSchema, z.array(z.string().min(1))]).optional(),
-    extensions: z.array(ExtensionSchema).optional(),
-    on_run_complete: z.never().optional(),
-    policy: z.never().optional(),
-    execution: z.never().optional(),
-    // Suite-level assert entries
-    assert: z.array(AssertionItemSchema).optional(),
-    preprocessors: z.never().optional(),
-    // Workspace (inline object or path to external workspace YAML file)
-    workspace: z.union([WorkspaceSchema, z.string()]).optional(),
-  })
-  .refine(
-    (value) =>
-      value.tests !== undefined || value.eval_cases !== undefined || value.scenarios !== undefined,
-    { message: "Eval files must define 'tests' or 'scenarios'." },
-  );
+export const EvalFileSchemaInput: z.ZodType = z.object({
+  $schema: z.string().optional(),
+  // Metadata
+  name: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  version: z.string().optional(),
+  author: z.string().optional(),
+  tags: TagsSchema.optional(),
+  license: z.string().optional(),
+  requires: z.object({ agentv: z.string().optional() }).optional(),
+  expected_output: z.never().optional(),
+  // Suite-level input
+  input: z.never().optional(),
+  prompts: PromptsSchema.optional(),
+  // Suite-level input_files shorthand
+  input_files: z.array(z.string()).optional(),
+  imports: z.never({ invalid_type_error: TOP_LEVEL_IMPORTS_MESSAGE }).optional(),
+  // Tests (inline raw cases, legacy include entries, or external raw-case path)
+  tests: TestsSchema.optional(),
+  // Shared composable config graph fields
+  graders: z.union([z.array(ConfigGraderSchema), z.string().min(1)]).optional(),
+  defaults: z.union([ConfigDefaultsSchema, z.string().min(1)]).optional(),
+  // Deprecated aliases
+  eval_cases: TestsSchema.optional(),
+  // Target
+  target: z.union([z.string().min(1), EvalLocalTargetSchema]).optional(),
+  targets: EvalTargetsSchema.optional(),
+  providers: z.never().optional(),
+  model: z.never().optional(),
+  // Run/result grouping label and flat run controls
+  experiment: z.string().min(1).optional(),
+  repeat: z.never().optional(),
+  runs: z.never().optional(),
+  early_exit: z.never().optional(),
+  timeout_seconds: z.number().gt(0).optional(),
+  evaluate_options: EvaluateOptionsSchema.optional(),
+  budget_usd: z.never().optional(),
+  threshold: z.number().min(0).max(1).optional(),
+  default_test: z.union([DefaultTestReferenceSchema, DefaultTestSchema]).optional(),
+  environment: EnvironmentSchema.optional(),
+  scenarios: z.array(ScenarioSchema).optional(),
+  derived_metrics: z.array(DerivedMetricSchema).optional(),
+  output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+  env: z.record(z.string()).optional(),
+  nunjucks_filters: z.union([JsonObjectSchema, z.array(z.string().min(1))]).optional(),
+  extensions: z.array(ExtensionSchema).optional(),
+  on_run_complete: z.never().optional(),
+  policy: z.never().optional(),
+  execution: z.never().optional(),
+  // Suite-level assert entries
+  assert: z.array(AssertionItemSchema).optional(),
+  preprocessors: z.never().optional(),
+});
+
+export const EvalFileSchema: z.ZodType = EvalFileSchemaInput.refine(
+  (value) =>
+    value.tests !== undefined || value.eval_cases !== undefined || value.scenarios !== undefined,
+  { message: "Eval files must define 'tests' or 'scenarios'." },
+);

@@ -374,7 +374,7 @@ function validateUnknownSettings(
         filePath: absolutePath,
         location: `${location}.${key}`,
         message:
-          'workspace_template has been removed from targets. Use eval-level workspace.template instead.',
+          'workspace_template has been removed from targets. Use eval-level environment.workdir and environment.setup instead.',
       });
       continue;
     }
