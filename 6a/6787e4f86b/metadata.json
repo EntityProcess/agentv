@@ -3,7 +3,7 @@
   "checkpoint_id": "6a6787e4f86b",
   "strategy": "manual-commit",
   "branch": "runtime-sdk-child-runner-deps",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "apps/cli/package.json",
     "apps/web/src/content/docs/docs/next/targets/coding-agents.mdx",
@@ -36,13 +36,19 @@
       "transcript": "/6a/6787e4f86b/2/full.jsonl",
       "content_hash": "/6a/6787e4f86b/2/content_hash.txt",
       "prompt": "/6a/6787e4f86b/2/prompt.txt"
+    },
+    {
+      "metadata": "/6a/6787e4f86b/3/metadata.json",
+      "transcript": "/6a/6787e4f86b/3/full.jsonl",
+      "content_hash": "/6a/6787e4f86b/3/content_hash.txt",
+      "prompt": "/6a/6787e4f86b/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 46575,
+    "input_tokens": 62109,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 114,
-    "api_call_count": 3
+    "cache_read_tokens": 14848,
+    "output_tokens": 144,
+    "api_call_count": 4
   }
 }
