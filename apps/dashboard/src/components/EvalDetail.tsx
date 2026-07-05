@@ -133,6 +133,7 @@ function selectedTrialResult(result: EvalResult, trial: EvalCaseTrial): EvalResu
     timing_path: trial.timing_path,
     metrics_path: trial.metrics_path,
     transcript_path: trial.transcript_path,
+    transcript_raw_path: trial.transcript_raw_path,
     output_path: trial.answer_path,
     answer_path: trial.answer_path,
   };
@@ -902,6 +903,7 @@ function TrialTranscriptTab({
   const evalId = result.testId;
   const resultDir = result.result_dir;
   const transcriptPath = trial.transcript_path;
+  const transcriptRawPath = trial.transcript_raw_path;
   const answerPath = trial.answer_path;
   const { data: transcriptContent, isLoading: isLoadingTranscript } =
     projectId && transcriptPath
@@ -987,6 +989,16 @@ function TrialTranscriptTab({
     resultDir,
     download: true,
   });
+  const transcriptRawHref = transcriptRawPath
+    ? artifactFileContentUrl({
+        projectId,
+        runId,
+        evalId,
+        filePath: transcriptRawPath,
+        resultDir,
+        raw: true,
+      })
+    : undefined;
 
   return (
     <TranscriptTimeline
@@ -994,9 +1006,11 @@ function TrialTranscriptTab({
       finalAnswer={answerPath ? (answerContent?.content ?? result.output) : undefined}
       answerPath={answerPath}
       transcriptPath={transcriptPath}
+      transcriptRawPath={transcriptRawPath}
       answerHref={answerHref}
       transcriptHref={transcriptHref}
       transcriptDownloadHref={transcriptDownloadHref}
+      transcriptRawHref={transcriptRawHref}
       onOpenFile={onOpenFile}
     />
   );
@@ -1023,6 +1037,7 @@ function TranscriptTab({
     ? useQuery(projectEvalTranscriptOptions(projectId, runId, evalId, resultDir))
     : useEvalTranscript(runId, evalId, resultDir);
   const transcriptPath = transcriptData?.transcript_path;
+  const transcriptRawPath = transcriptData?.transcript_raw_path;
   const answerPath = transcriptData?.answer_path;
   const transcriptContent = transcriptData?.status === 'ok' ? (transcriptData.content ?? '') : '';
 
@@ -1159,6 +1174,16 @@ function TranscriptTab({
         download: true,
       })
     : undefined;
+  const transcriptRawHref = transcriptRawPath
+    ? artifactFileContentUrl({
+        projectId,
+        runId,
+        evalId,
+        filePath: transcriptRawPath,
+        resultDir,
+        raw: true,
+      })
+    : undefined;
 
   return (
     <TranscriptTimeline
@@ -1166,9 +1191,11 @@ function TranscriptTab({
       finalAnswer={answerPath ? (transcriptData.answer_content ?? result.output) : undefined}
       answerPath={answerPath}
       transcriptPath={transcriptPath}
+      transcriptRawPath={transcriptRawPath}
       answerHref={answerHref}
       transcriptHref={transcriptHref}
       transcriptDownloadHref={transcriptDownloadHref}
+      transcriptRawHref={transcriptRawHref}
       onOpenFile={onOpenFile}
     />
   );

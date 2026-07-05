@@ -22,9 +22,12 @@ describe('TranscriptTimeline', () => {
         finalAnswer={'{"answer":42,"source":"src/app.ts"}'}
         answerPath="final-json-answer__codex/outputs/answer.md"
         transcriptPath="final-json-answer__codex/transcript.json"
+        transcriptRawPath="final-json-answer__codex/transcript-raw.jsonl"
         answerHref="/api/raw-answer"
         transcriptHref="/api/raw-transcript"
         transcriptDownloadHref="/api/download-transcript"
+        transcriptRawHref="/api/raw-transcript-jsonl"
+        onOpenFile={() => undefined}
       />,
     );
   }
@@ -187,6 +190,9 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain('success');
     expect(html).toContain('Open normalized JSON');
     expect(html).toContain('Download normalized JSON');
+    expect(html).toContain('Open transcript-raw.jsonl in Files');
+    expect(html).toContain('Open raw JSONL');
+    expect(html).toContain('/api/raw-transcript-jsonl');
     expect(html).toContain('{&quot;answer&quot;:42,&quot;source&quot;:&quot;src/app.ts&quot;}');
   });
 
@@ -206,5 +212,22 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain(
       'very-long-project-name/very-long-test-case-name/sample-1/transcript.json',
     );
+  });
+
+  it('shows a clear unavailable state when only normalized transcript JSON exists', () => {
+    const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
+    const html = renderToStaticMarkup(
+      <TranscriptTimeline
+        entries={parsed.entries}
+        transcriptPath="final-json-answer__codex/sample-1/transcript.json"
+        transcriptHref="/api/raw-transcript"
+        transcriptDownloadHref="/api/download-transcript"
+      />,
+    );
+
+    expect(html).toContain('Open normalized JSON');
+    expect(html).toContain('Raw JSONL unavailable');
+    expect(html).not.toContain('Open transcript-raw.jsonl in Files');
+    expect(html).not.toContain('Open raw JSONL');
   });
 });
