@@ -1,0 +1,45 @@
+{
+  "pass": false,
+  "score": 0,
+  "reason": "llm-rubric: Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error.",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error.",
+      "component_results": [
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "openai-grader",
+            "value": "Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error."
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "openai-grader"
+      },
+      "metadata": {
+        "duration_ms": 6324,
+        "started_at": "2026-07-05T10:53:06.340Z",
+        "ended_at": "2026-07-05T10:53:12.664Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "llm-rubric": 0
+  },
+  "metadata": {
+    "execution_status": "execution_error",
+    "failure_stage": "evaluator",
+    "failure_reason_code": "evaluator_error"
+  }
+}

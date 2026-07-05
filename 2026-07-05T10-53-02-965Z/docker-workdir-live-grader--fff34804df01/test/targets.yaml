@@ -1,0 +1,13 @@
+targets:
+  - id: docker-cli-live-graded
+    provider: cli
+    grader_target: openai-grader
+    config:
+      command: test "$(pwd)" = /app && printf '{"text":"docker-workdir-ok"}' > {OUTPUT_FILE}
+  - id: openai-grader
+    model: "{{ env.OPENAI_MODEL }}"
+    provider: openai
+    config:
+      base_url: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "[redacted]"
+      model: "{{ env.OPENAI_MODEL }}"

@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-45b60d97ced81ae51dfa",
+  "generated_at": "2026-07-05T10:53:12.721Z",
+  "test_id": "docker-workdir-live-grader",
+  "target": "docker-cli-live-graded",
+  "suite": "docker-environment-live-grader-dogfood",
+  "category": "../../../../../../tmp/agentv-docker-env-dogfood/docker-env-live-grader",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-45b60d97ced81ae51dfa",
+    "trace_id": "e3c351b389d097483ade2d84e2098290",
+    "root_span_id": "24cd837be36f41e8"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "llm-rubric: Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error.",
+        "stage": "evaluator"
+      },
+      {
+        "message": "llm-rubric: Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: pi-ai call failed: Connection error.",
+        "event_id": "error-3"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 17,
+    "transcript_chars": 932,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 1082,
+    "total_seconds": 1.082,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "evaluator",
+    "failure_reason_code": "evaluator_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
