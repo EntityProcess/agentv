@@ -1,0 +1,52 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "[rubric-1] Output contains the transformed spreadsheet text including the revenue rows",
+      "passed": true,
+      "evidence": "found transformed spreadsheet text in prompt",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[rubric-2] The extracted spreadsheet content includes the revenue rows",
+      "passed": true,
+      "evidence": "found transformed spreadsheet text in prompt",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 2,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "[rubric-1] Output contains the transformed spreadsheet text including the revenue rows",
+          "passed": true,
+          "evidence": "found transformed spreadsheet text in prompt",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "[rubric-2] The extracted spreadsheet content includes the revenue rows",
+          "passed": true,
+          "evidence": "found transformed spreadsheet text in prompt",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    }
+  ]
+}
