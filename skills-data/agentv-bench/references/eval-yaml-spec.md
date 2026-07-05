@@ -9,32 +9,37 @@ The grader agent uses this to evaluate assertions without the CLI.
 
 - `name` (string, optional) — eval name
 - `description` (string, optional) — description
-- `execution` (object, optional) — `target`, `model`, etc.
-- `workspace` (object, optional) — workspace config (template, repos, hooks)
-- `input` (string | object | Message | Message[], optional) — suite-level input prepended to each test. String/block shorthand expands to a user message.
+- `target` or `targets` (string | object | object[], optional) — system under test selection
+- `environment` (object | `file://...`, optional) — AgentV coding-agent testbed recipe
+- `env` (object, optional) — provider/eval environment variable overrides and template inputs
+- `extensions` (array, optional) — lifecycle hooks such as `beforeAll`, `beforeEach`, `afterEach`, `afterAll`
+- `prompts` (array, optional) — Promptfoo-compatible prompt matrix entries
 - `tests` (array, required) — test cases
 
 ### Per-test fields
 
 - `id` (string, required) — unique test identifier
-- `input` (string | object | Message | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`; object shorthand preserves structured user content when the object has no top-level `role`. Top-level `role` is reserved for message objects.
+- `vars` (object, required when prompts need row data) — prompt-template variables for this row
 - `expected_output` (string | Message[], optional) — passive reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`. It is available to declared graders, but does not add an implicit grader when `assertions` is present.
 - `criteria` (string, optional) — human-readable success criteria
-- `assertions` (array, optional) — grader assertions
+- `assert` (array, optional) — grader assertions
+- `environment` (object | `file://...`, optional) — per-case testbed override
 - `conversation_id` (string, optional) — groups related tests
 - `execution` (object, optional) — per-test execution override
 
-If `assertions` already state the grading contract, omit `criteria` instead of
+If `assert` already states the grading contract, omit `criteria` instead of
 duplicating the same rubric. Prefer plain assertion strings for semantic checks
 when the default LLM rubric grader can judge them; use multiple named
 `type: llm-rubric` blocks only for custom prompts, custom grader targets, or
 intentional grader panels. Write `expected_output` as a golden/reference answer,
 not as criteria or scoring instructions.
 
-For historical or repo-state evals, materialize the repository under
-`workspace.repos[]` and pin `commit` to the commit under test. A SHA in prompt
-prose or metadata is context only; it does not give the agent an actual
-checkout.
+For historical or repo-state evals, materialize the repository through
+`environment.setup.command` and pass the repo/ref as argv inputs. A SHA in
+prompt prose or metadata is context only; it does not give the agent an actual
+checkout. `setup.command` is a non-empty string array. Put the executable at
+`command[0]`, put CLI arguments in the remaining array entries, and use
+`timeout_ms` for setup timeout.
 
 ## 2. Assertion Types and Grading Recipes
 

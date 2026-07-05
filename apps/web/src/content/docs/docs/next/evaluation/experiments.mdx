@@ -30,10 +30,12 @@ evaluate_options:
   budget_usd: 2.00
   max_concurrency: 3
 
-workspace:
-  hooks:
-    before_all:
-      command: ["bash", "-lc", "bun install && bun run build"]
+environment:
+  type: host
+  workdir: ./workspaces/support-codex
+  setup:
+    command: ["bash", "-lc", "bun install && bun run build"]
+    cwd: "."
 
 tests:
   - id: refund-eligibility

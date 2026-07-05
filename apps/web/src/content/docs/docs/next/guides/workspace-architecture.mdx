@@ -1,346 +1,182 @@
 ---
-title: Workspace Architecture
-description: How AgentV materializes eval workspaces, resolves repo acquisition, and keeps target comparisons fair.
+title: Environment Recipes
+description: How AgentV prepares coding-agent testbeds with host and Docker environment recipes.
 sidebar:
   order: 7
 slug: docs/guides/workspace-architecture
 ---
 
-AgentV workspaces are the shared substrate an eval runs against: templates,
-fixtures, repositories, and lifecycle hooks. Targets run inside that substrate.
-When `workspace.repos` is present, the eval declares repository identity and
-checkout pins; AgentV decides how to acquire the bytes.
+AgentV combines Promptfoo-compatible eval authoring with AgentV-owned
+`environment` recipes for coding-agent testbeds. Use `prompts`, `tests`,
+`vars`, `default_test`, `assert`, `targets`, top-level `env`, and
+`extensions` for the Promptfoo-shaped eval matrix. Use `environment` for the
+host or Docker state a coding agent should inspect or modify.
 
-By default, repo workspaces are harness-managed temp workspaces. `workspace.scope`
-selects the portable lifetime: `suite` creates one workspace for the run, and
-`attempt` creates a clean workspace for each resolved execution attempt. Use
-`--workspace-path` only when you intentionally want to point a run at an existing
-machine-local directory.
+`environment` is an AgentV extension because Promptfoo does not define a typed
+primitive for repo materialization, Docker images, setup commands, fixture
+generation, services, and working directories. The recipe can be inline or
+loaded from a field-local file reference:
 
-## Eval setup lifecycle
+```yaml
+environment: file://.agentv/environments/local-python.yaml
+```
 
-Each evaluation run proceeds through these phases:
+```yaml
+# .agentv/environments/local-python.yaml
+type: host
+workdir: ./workspaces/example
+setup:
+  command: ["bash", "-lc", "bun install && bun run build"]
+  cwd: "."
+  timeout_ms: 120000
+```
+
+For containerized testbeds, use a Docker environment recipe:
+
+```yaml
+environment:
+  type: docker
+  context: ./environment
+  dockerfile: Dockerfile
+  workdir: /app
+```
+
+## Vocabulary
+
+| Field | Meaning |
+| --- | --- |
+| `environment` | The AgentV testbed recipe: host or Docker placement, cwd, setup command, fixtures, services, and provenance. |
+| `environment.type` | Current recipe discriminator. Supported values are `host` and `docker`. |
+| `environment.workdir` | The cwd inside the prepared testbed. Host paths are local paths; Docker paths are container paths. |
+| `environment.setup.command` | A non-empty argv array. Use `["bash", "-lc", "..."]` when shell behavior is required. |
+| Top-level `env` | Promptfoo-compatible provider/eval variables and template inputs, such as `OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"`. |
+| `environment.env` | Recipe-scoped process environment for the host or container testbed when a recipe needs it. It is distinct from top-level `env`. |
+| `extensions` | Promptfoo-style lifecycle callbacks and instrumentation. They can customize flow, but they are not the canonical testbed materialization contract. |
+
+## Targets Stay Separate
+
+Targets select the system under test. The environment prepares the world those
+targets run against. This separation lets Codex, Claude, Copilot, and Pi see
+the same repo state, fixtures, cwd, and setup output.
+
+```yaml
+environment: file://.agentv/environments/local-python.yaml
+
+targets:
+  - id: codex-host
+    provider: codex-cli
+    runtime: host
+  - id: claude-host
+    provider: claude-cli
+    runtime: host
+  - id: copilot-host
+    provider: copilot-cli
+    runtime: host
+  - id: pi-host
+    provider: pi-cli
+    runtime: host
+
+prompts:
+  - "{{ task }}"
+
+tests:
+  - id: fix-parser
+    vars:
+      task: Fix the parser regression in ./src/parser.ts.
+    assert:
+      - type: script
+        command: ["bash", "-lc", "bun test"]
+```
+
+Target `runtime` describes how the provider is invoked. It does not replace the
+authored `environment` recipe.
+
+## Eval Setup Lifecycle
+
+Each run follows the same high-level order:
 
 ```
 eval start
   |
   v
-+---------------------------+
-| 1. Workspace setup        |  Create suite workspace or attempt workspace
-+---------------------------+
++-----------------------------+
+| 1. Resolve environment      |  Inline object or file:// recipe
++-----------------------------+
   |
   v
-+---------------------------+
-| 2. Template copy          |  workspace.template dir -> workspace/
-+---------------------------+
++-----------------------------+
+| 2. Prepare testbed          |  Host directory or Docker image/container context
++-----------------------------+
   |
   v
-+---------------------------+
-| 3. Repo materialization   |  For each workspace.repos entry:
-|    a. resolve acquisition |    - registered project, configured mirror,
-|    b. materialize bytes   |      resolver source, AgentV cache, or remote fallback
-|    c. checkout if Git     |    - check out commit or HEAD for Git sources
-+---------------------------+
++-----------------------------+
+| 3. Run environment setup    |  setup.command argv in setup.cwd, with timeout_ms
++-----------------------------+
   |
   v
-+---------------------------+
-| 4. beforeAll lifecycle    |  extensions, then target hook
-+---------------------------+
++-----------------------------+
+| 4. beforeAll lifecycle      |  extensions, then target hook
++-----------------------------+
   |
   v
-+---------------------------+
-| 5. Test loop              |  For each test case:
-|    beforeEach -> run ->   |    extension, target hook, agent,
-|    afterEach              |    target hook, extension, reset
-+---------------------------+
++-----------------------------+
+| 5. Test loop                |  beforeEach -> target -> grading -> afterEach
++-----------------------------+
   |
   v
-+---------------------------+
-| 6. after_all / cleanup    |  target hook, workspace hook, cleanup
-+---------------------------+
++-----------------------------+
+| 6. afterAll / cleanup       |  target hook, extensions, cleanup
++-----------------------------+
 ```
 
-With `workspace.scope: suite`, steps 2-4 run once and the test loop shares that
-workspace. With `workspace.scope: attempt`, AgentV repeats setup for each
-prompt-target-test-repeat attempt so mutating agents do not share filesystem
-state.
+Use `environment.setup` for installs, builds, repo checkout scripts, fixture
+generation, and other authored testbed setup that should be visible in config
+and provenance. Use `extensions` for lifecycle callbacks after the testbed is
+prepared, such as staging agent rules or applying per-case patches from
+metadata.
 
-## Repo provenance vs acquisition
+## Repo Provenance Vs Acquisition
 
-A `workspace.repos[]` entry declares **identity**, not acquisition policy:
-
-```yaml
-workspace:
-  repos:
-    - path: ./repo
-      repo: https://github.com/org/repo.git
-      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
-      sparse: [packages/core]
-      ancestor: 0
-```
-
-Supported repo fields:
-
-| Field | Meaning |
-|-------|---------|
-| `path` | Directory inside the workspace where the repo is materialized |
-| `repo` | Repository identity: full clone URL or GitHub `org/name` shorthand |
-| `commit` | Branch, tag, or SHA to check out after clone |
-| `sparse` | Optional sparse-checkout paths |
-| `ancestor` | Walk N parents back after resolving `commit` |
-
-`commit` is the AgentV checkout pin.
-
-`source`, `type`, `checkout`, `checkout.resolve`, `clone`, `resolve`, and
-`resolver` are not part of the repo schema. Acquisition settings are
-deliberately outside eval YAML so the same benchmark can run against the same
-repository identity on every machine
-while each harness uses the fastest safe local source available.
-
-## Native workspace boundary
-
-Use native AgentV workspaces when AgentV owns the run lifecycle: custom internal
-suites, CI gates, target comparisons, local setup hooks, Docker workspaces, and
-generic repository acquisition. In that path,
-`workspace.repos` declares the repos and checkout pins while AgentV materializes
-the workspace, runs targets and graders, and writes AgentV run bundles.
-
-Use a Harbor-backed runner boundary for standard benchmark suites whose
-acquisition, packaging, verifier layout, Docker or Compose adapters, and trace
-export are already owned by Harbor. In that path, AgentV should launch, import,
-and gate Harbor jobs and link Opik traces. It should not copy Harbor `task.toml`
-or suite-specific adapter fields into AgentV core workspace schema.
-
-## Acquisition resolver
-
-AgentV normalizes `repo` identity before acquisition. For example,
-`org/repo`, `https://github.com/org/repo.git`, and
-`git@github.com:org/repo.git` resolve to the same identity key.
-
-For each materialized repo, AgentV resolves acquisition in this order:
-
-| Order | Source | How it is used |
-|-------|--------|----------------|
-| 1 | Pattern resolver | The first non-`default` `repo_resolvers[]` entry whose `repos` pattern matches the repo URL or identity. If it returns `status: "skip"`, AgentV continues to the default resolver. |
-| 2 | Default resolver | The resolver named `default`, if configured. It must not declare `repos`; it is the unconditional project default. If it returns `status: "skip"`, AgentV continues to the built-in git resolver. |
-| 3 | Registered project | A project in `$AGENTV_HOME/projects.yaml` whose `origin` matches the repo identity. AgentV seeds its mirror cache from that local checkout, then clones the cache into the workspace and resets `origin` to the declared repo URL. |
-| 4 | Configured mirror | A path listed under `git_cache.mirrors`. AgentV seeds its mirror cache from that checkout or bare mirror, then clones the cache into the workspace. |
-| 5 | Mirror cache | An AgentV-owned bare cache under `$AGENTV_DATA_DIR/git-cache/<hash>`. Cache population is locked, cloned into a temporary path, verified, and atomically renamed before use. |
-| 6 | Remote clone | The normalized clone URL from the eval's `repo` field. |
-
-Workspace clones are independent from user-owned checkouts, configured mirrors,
-and resolver source directories. AgentV does not leave Git alternates pointing
-back to those sources, so preserved workspaces and pool slots keep working if a
-local checkout is moved, deleted, or garbage-collected.
-
-### Command repo resolvers
-
-Use `repo_resolvers` when repo bytes come from a project-specific source that
-AgentV core should not understand, such as an internal snapshot bundle. Put that
-logic in a resolver script and return a local acquisition path:
+When a benchmark needs a real repository checkout, make that operational in the
+environment recipe. Keep source pins in setup argv or in the setup script's own
+inputs, and duplicate them in `tests[].metadata` only for audit and slicing.
 
 ```yaml
-# .agentv/config.yaml
-repo_resolvers:
-  - name: org_snapshots
-    repos:
-      - https://github.com/example/*
+environment:
+  type: host
+  workdir: ./workspaces/widget
+  setup:
     command:
-      - bun
-      - scripts/eval-config/repo-resolver.ts
-    config:
-      release_tag: snapshot/v1.1.0
+      - bash
+      - ./scripts/materialize-repo.sh
+      - ./workspaces/widget
+      - https://github.com/example/widget.git
+      - 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+    cwd: "."
+    timeout_ms: 120000
 
-  - name: default
-    command:
-      - bun
-      - scripts/eval-config/default-repo-resolver.ts
+tests:
+  - id: widget-parser
+    vars:
+      task: Fix the widget parser regression in the prepared checkout.
+    metadata:
+      repo_url: https://github.com/example/widget.git
+      source_commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
 ```
 
-AgentV sends JSON on stdin with `version`, `repo`, `commit`, `path`, `sparse`,
-`ancestor`, `cache_dir`, `workspace_path`, and the resolver `config`. The
-resolver writes JSON on stdout:
+`metadata.source_commit` is audit data. A SHA in metadata or prompt prose does
+not give the agent an actual checkout; the environment setup must materialize
+the checkout.
 
-```json
-{
-  "status": "handled",
-  "path": "/tmp/source.git"
-}
-```
+## Existing Local Directories
 
-Return `{ "status": "skip" }` when the resolver does not own that repo.
-`path` can point at a Git source or a plain directory snapshot. AgentV
-classifies the path at runtime.
-
-For Git sources, AgentV clones from `path`, applies `sparse` when present,
-resolves `commit`, walks `ancestor`, and checks out the resulting commit.
-Resolver stdout does not set or override `origin`; the resolver chooses
-acquisition bytes only.
-
-For plain directory snapshots, AgentV copies the directory contents into
-`workspace.repos[].path` without requiring `.git`. Because the snapshot has no
-Git history, `commit`, `ancestor`, and `sparse` are ignored for that repo.
-Workspace resets restore the snapshot by copying the same resolver directory
-source again. Targets and graders see a normal filesystem directory at the
-configured workspace path.
-
-### Configured mirrors
-
-Use `git_cache.mirrors` when you want AgentV to prefer a known local checkout or
-bare mirror for a repository identity:
-
-```yaml
-# $AGENTV_HOME/config.yaml
-git_cache:
-  mirrors:
-    "https://github.com/WiseTechGlobal/CargoWise.git": ~/src/CargoWise
-    "sympy/sympy": /mnt/git-mirrors/sympy.git
-```
-
-Mirror keys use the same identity normalization as `workspace.repos[].repo`, so
-full URLs and GitHub `org/name` shorthand can match the same eval repo. If a
-configured mirror path is missing, AgentV warns and continues down the resolver
-chain.
-
-The mirror setting is machine-local configuration. Keep it out of eval YAML so
-the eval remains a portable statement of what repository and checkout are being
-tested.
-
-## World vs player boundary
-
-The eval workspace is the **world**: the same repos, fixtures, template files,
-and workspace hooks are shared by every target in the run. A target is the
-**player**: the harness under evaluation, plus provider configuration and
-target-specific setup hooks.
-
-Targets do **not** declare `repos`. Keeping repo provenance in the shared eval
-workspace is what makes multi-target comparison valid: every target sees the
-same substrate, and differences in results come from the harness, not from a
-different checkout.
-
-Use an eval-local target object for per-harness setup:
-
-```yaml
-target:
-  extends: baseline
-  hooks:
-    before_each:
-      command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.claude/skills\""]
-```
-
-Workspace hooks run first on setup, then target hooks. Teardown runs in the
-opposite order. See [Target Hooks](/docs/targets/configuration/#target-hooks)
-for the command schema and full lifecycle order.
-
-## Windows performance guidance
-
-### Drive choice affects checkout time
-
-On Windows, the drive type materially affects file-write throughput during checkout:
-
-| Drive type | Example path | Checkout time (large repo) | Notes |
-|------------|-------------|---------------------------|-------|
-| Standard NTFS (C:) | `C:\Users\<user>\.agentv` | ~184s | Normal Defender/AV interception |
-| Dev Drive (D:) | `D:\Users\<user>\.agentv` | ~119s | ~35% faster, lower AV overhead |
-
-[Windows Dev Drive](https://learn.microsoft.com/en-us/windows/dev-drive/) uses the Resilient File System (ReFS) with a performance mode that reduces antivirus filter overhead for developer workloads. If you evaluate large repos frequently, relocating `~/.agentv` to a Dev Drive volume can meaningfully reduce per-run setup time.
-
-To relocate the AgentV home directory, set `HOME` or `USERPROFILE` to point to the Dev Drive path before running `agentv eval`:
-
-```powershell
-$env:USERPROFILE = "D:\Users\$env:USERNAME"
-agentv eval evals/my-eval.yaml
-```
-
-### Long-path support for relocated home directories
-
-When `HOME` or `USERPROFILE` is redirected to another drive, the Git global config (`~/.gitconfig`) also moves. If `core.longpaths=true` is not set in the new profile location, `git checkout` can fail with:
-
-```
-error: unable to create file <path>: Filename too long
-```
-
-Set it globally in the **redirected** home:
+`--workspace-path` points AgentV at an existing local mutable directory for a
+one-off run. It is useful for local debugging, but it is machine-local state,
+not a portable authored testbed recipe.
 
 ```bash
-git config --global core.longpaths true
+agentv eval evals/my-eval.yaml --workspace-path /path/to/workdir
 ```
 
-Or add it to the repo-level config after clone (this runs automatically if your `before_all` script includes it):
-
-```bash
-git config core.longpaths true
-```
-
-## Troubleshooting: eval appears stuck at startup
-
-Large repo setup is visible now: git clone/fetch progress streams by default,
-and long-running git operations emit heartbeat messages. If an acquisition
-times out, the error points to the durable fix: register a matching local
-checkout, configure `git_cache.mirrors`, or fix network access.
-
-The old symptom where AgentV looked silent while doing a full remote clone has
-been fixed. A first run can still take time, especially when a large working
-tree is checked out, but the active phase should be visible in the terminal.
-
-### Enable verbose logging
-
-```bash
-agentv eval evals/my-eval.yaml --verbose
-```
-
-Verbose mode logs each setup phase with timestamps. Look for:
-
-```
-[workspace] Creating shared workspace...
-[workspace] Materializing repo ./repo...
-[repo] materialize start path=./repo repo=https://github.com/org/repo.git acquisition=registered-project ...
-Cloning into '.../repo'...
-[repo] git clone https://github.com/org/repo.git still running after 30s
-[workspace] Repo materialization complete
-[workspace] Running before_all script...
-[workspace] Setup complete, starting test loop
-```
-
-If the log shows clone or fetch progress, git is still acquiring objects. If it
-shows checkout progress or a long gap after clone completes, the working-tree
-write is likely the bottleneck. With pooling enabled, this usually only happens
-on the first run for a given repo fingerprint.
-
-### Speed up large repo acquisition
-
-The durable fix for large repos is to make the resolver hit a local source:
-
-1. Register an existing checkout as an AgentV project so its `origin` matches
-   `workspace.repos[].repo`.
-2. Or add a matching entry under `git_cache.mirrors` in
-   `$AGENTV_HOME/config.yaml`.
-
-Both paths use local Git objects for speed and full history, then dissociate the
-workspace clone from user-owned storage.
-
-### Common causes and fixes
-
-| Symptom | Likely cause | Fix |
-|---------|-------------|-----|
-| Clone progress runs for minutes | Large repo acquired from remote | Register a matching local project or configure `git_cache.mirrors`; use `--workspace-path` only when an existing local workspace is acceptable. |
-| Heartbeat ends with a clone/fetch timeout | Remote network or missing local cache | Use the timeout guidance in the error: local checkout, configured mirror, or network fix. |
-| Stuck at checkout for 2+ minutes | Large repo file materialization after objects are present | Expected for 100k+ files; use Dev Drive on Windows or a local mirror. |
-| `Filename too long` during checkout | Missing `core.longpaths` | `git config --global core.longpaths true` |
-| Before_all timeout | Setup script exceeds default 60s | Increase `timeout_ms` in workspace config |
-
-## Existing local workspace
-
-`--workspace-path` points AgentV at an existing local directory and skips
-harness-managed materialization for that run. It is useful for local debugging,
-but it is shared mutable state, not a portable benchmark contract and not a
-clean per-attempt workspace.
-
-To reuse an existing workspace for a run:
-
-```bash
-agentv eval evals/my-eval.yaml --workspace-path /path/to/workspace
-```
-
-Do not commit local paths in eval YAML. Use `.agentv/config.local.yaml` when a
-workspace path is part of your machine-local setup.
+Do not commit local absolute paths in eval YAML. Use an `environment` file for
+portable setup and keep machine-local overrides in local config.

@@ -2,8 +2,8 @@
 //
 // AgentV beforeAll lifecycle extension for this example.
 //
-// It runs after workspace.template and workspace.repos materialize, then
-// refreshes allagents project state inside the prepared workspace.
+// It runs after the authored environment recipe is prepared, then refreshes
+// allagents project state inside the prepared workspace.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';

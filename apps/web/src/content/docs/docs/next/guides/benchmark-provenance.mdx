@@ -1,6 +1,6 @@
 ---
 title: Benchmark Provenance
-description: Patterns for source pins, task artifacts, hooks, and generated benchmark metadata.
+description: Patterns for source pins, task artifacts, environment recipes, and generated benchmark metadata.
 sidebar:
   order: 5
 slug: docs/guides/benchmark-provenance
@@ -10,37 +10,40 @@ Benchmark suites usually need more than a prompt and a score. They carry source
 pins, task patches, generated dataset rows, oracle data, setup scripts, and
 verification commands. AgentV represents that with existing primitives:
 
-- Put runtime behavior in `workspace`, `experiment`, `input`, `expected_output`,
-  and `assert`.
+- Put prompt matrices in `prompts`, `tests[].vars`, `default_test`, and
+  `assert`.
+- Put coding-agent testbed setup in `environment`.
+- Put lifecycle callbacks and instrumentation in `extensions`.
+- Put provider/eval variables in top-level `env`.
 - Put provenance and classification in per-case `metadata`.
 - Put bulky per-case authoring inputs in optional case directories and supporting files.
 - Use generated run folders, not hand-authored source bundles, as the portable audit artifact.
 
 These are documentation patterns, not special runtime schema keys. AgentV does
-not interpret keys such as `source_commit`, `test_patch`, or `question_type`
-unless your hook or custom assertion reads them.
+not interpret metadata keys such as `source_commit`, `test_patch`, or
+`question_type` unless your setup command, lifecycle extension, or custom
+assertion reads them.
 
-## Operational vs Informational Fields
+## Operational Vs Informational Fields
 
 Use this split when deciding where a benchmark key belongs:
 
 | Field area | Operational? | What AgentV does |
-|------------|--------------|------------------|
-| `workspace.repos[]` | Yes | Declares repo identity and checkout refs; AgentV resolves acquisition and materializes the checkout. |
-| `workspace.template` | Yes | Copies a workspace template into the run workspace. |
-| `extensions` | Yes | Runs lifecycle setup after `workspace.template` and `workspace.repos` materialize. |
-| `workspace.hooks.after_each.reset` | Yes | Controls workspace reset policy after each case. |
-| `workspace.scope` | Yes | Controls suite vs per-attempt workspace lifetime. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
-| `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Authored concurrency uses `evaluate_options.max_concurrency`; `--workers` is the operator override. |
-| `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and carries passive gold/reference data for graders. |
+| --- | --- | --- |
+| `environment` | Yes | Prepares the host or Docker testbed, including workdir, setup argv, fixtures, services, and repository checkout scripts. |
+| `environment: file://...` | Yes | Loads a reusable environment recipe from a field-local file reference. |
+| `environment.setup.command` | Yes | Runs the argv command that materializes repo state, installs dependencies, builds fixtures, or prepares services. |
+| `extensions` | Yes | Runs Promptfoo-style lifecycle callbacks after the environment is prepared. |
+| Top-level `env` | Yes | Supplies provider/eval variables and template inputs. |
+| `prompts`, `tests`, `vars`, `default_test` | Yes | Builds the authored matrix of prompts, cases, and row data. |
 | `assert` | Yes | Runs deterministic, LLM, assert-set, or script graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
-| `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and extension context; in-process custom assertions can also read it. |
+| `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results, setup payloads, and extension context. |
 
-`metadata` can still become operational inside your own lifecycle extensions. For
-example, a `beforeEach` extension can read `case_metadata.test_patch` and apply that
-patch before the agent starts. The distinction is that AgentV itself only passes
-the metadata along; the extension owns the behavior.
+`metadata` can still become operational inside your own setup. For example, a
+`beforeEach` extension can read `case_metadata.test_patch` and apply that patch
+before the target starts. The distinction is that AgentV itself only passes the
+metadata along; your extension owns the behavior.
 
 ## Extension Context
 
@@ -61,8 +64,8 @@ the current test's metadata as `case_metadata`:
 }
 ```
 
-`beforeAll` runs once for the shared workspace after repo materialization, so it
-should do suite setup only. Use `beforeEach` when setup depends on per-case
+`beforeAll` runs after the authored `environment` is prepared, so it should do
+suite lifecycle work only. Use `beforeEach` when setup depends on per-case
 metadata such as a patch path, source row, or selected test list.
 
 ## Task Artifact Anatomy
@@ -70,44 +73,47 @@ metadata such as a patch path, source row, or selected test list.
 Benchmark task packs map cleanly onto AgentV fields at authoring time:
 
 | Task artifact | AgentV pattern |
-|---------------|----------------|
-| Prompt or instruction | `input`, usually with `type: file` blocks for long prompts |
-| Source checkout | `workspace.repos[].repo` and `workspace.repos[].commit` |
+| --- | --- |
+| Prompt or instruction | `prompts` rendered with `tests[].vars` |
+| Source checkout | `environment.setup.command` materializes the checkout from argv inputs |
 | Per-case setup | `extensions: ["file://scripts/setup.mjs:beforeEach"]` reading `case_metadata` |
 | Gold answer or reference context | `expected_output` when the data is passive grader context |
 | Active verification | `assert`, especially `script` for commands or artifact checks |
 | Provenance | `tests[].metadata` with source pins, generator rows, and curation labels |
-| Bulky task files | Optional `tests: ./cases/` with per-case directories and supporting files |
+| Bulky task files | `tests: file://./cases.yaml` or directory cases with supporting files |
 
 Use this separation only when it makes the source eval easier to maintain. It is
-not a first-class artifact schema. After an eval runs, AgentV writes the portable
-audit surface into the generated run folder: each result can link from
+not a first-class artifact schema. After an eval runs, AgentV writes the
+portable audit surface into the generated run folder: each result can link from
 `index.jsonl` to a run-local `test/` bundle containing `EVAL.yaml`,
 `targets.yaml`, and copied `files/` or `graders/` snapshots where applicable.
-Review, Dashboard files views, and rerun workflows should inspect those generated
-run artifacts instead of requiring authors to maintain a parallel source-side
-bundle layout. See [Generated Test Bundles](/docs/evaluation/running-evals/#generated-test-bundles).
+Review, Dashboard files views, and rerun workflows should inspect those
+generated run artifacts instead of requiring authors to maintain a parallel
+source-side bundle layout. See [Generated Test Bundles](/docs/evaluation/running-evals/#generated-test-bundles).
 
 ## SWE-Style Case
 
 A SWE-style benchmark usually needs a source repo, a commit pin, a patch that
 adds or selects tests, and a list of failing tests that should pass after the
-agent's fix. Keep the checkout operational under `workspace.repos`; keep the
-benchmark provenance and per-case test selectors in `metadata`.
+agent's fix. Keep the checkout operational under `environment`; keep benchmark
+provenance and per-case test selectors in `metadata`.
 
 ```yaml
 name: swe-style-regression
 description: Regression tasks against pinned source commits.
 
-workspace:
-  scope: attempt
-  repos:
-    - path: ./repo
-      repo: https://github.com/example/widget.git
-      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
-  hooks:
-    after_each:
-      reset: strict
+environment:
+  type: host
+  workdir: ./workspaces/widget
+  setup:
+    command:
+      - bash
+      - ./scripts/materialize-repo.sh
+      - ./workspaces/widget
+      - https://github.com/example/widget.git
+      - 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+    cwd: "."
+    timeout_ms: 120000
 
 extensions:
   - file://scripts/apply-test-patch.mjs:beforeEach
@@ -118,12 +124,15 @@ assert:
     command: ["python", "./graders/run-focused-tests.py"]
     required: true
 
+prompts:
+  - "{{ task }}"
+
 tests:
   - id: widget-1234
-    criteria: Fix the widget parser regression without breaking existing behavior.
-    input: |
-      Work in repo/. Fix the parser regression described by the failing tests.
-      Do not change unrelated public APIs.
+    vars:
+      task: |
+        Work in the prepared widget checkout. Fix the parser regression
+        described by the failing tests. Do not change unrelated public APIs.
     metadata:
       repo_url: https://github.com/example/widget.git
       source_commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
@@ -133,51 +142,56 @@ tests:
         - tests/parser.test.ts::preserves-widget-id
 ```
 
-In this example, `workspace.repos[].commit` is the actual checkout. The
-matching `metadata.source_commit` is audit data that gets recorded with the case
-and is available to extensions. `apply-test-patch.mjs` can read
+In this example, the setup argv is the operational checkout instruction. The
+matching `metadata.source_commit` is audit data that gets recorded with the
+case and is available to extensions. `apply-test-patch.mjs` can read
 `case_metadata.test_patch` and `case_metadata.fail_to_pass_tests`, then apply
-the patch and write the selected test list into the workspace. The script grader
-can read that workspace file through its `workspace_path` payload. Repo
-acquisition remains outside the eval; use registered projects or
-`git_cache.mirrors` when a local machine needs faster large-repo setup. See
-[Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition).
+the patch and write the selected test list into the prepared workdir. The
+script grader can read that state through its `workspace_path` payload. See
+[Environment Recipes](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition).
 
-## Native AgentV vs Harbor-backed Benchmarks
+## Native AgentV Vs Harbor-Backed Benchmarks
 
-Use native AgentV workspaces for repo-backed evals where AgentV should own the
-run lifecycle: materialize generic repos, run targets, execute hooks and graders,
-gate CI, and write AgentV result bundles. This fits custom internal suites,
-target comparisons, narrow regression suites, and CI checks built from AgentV
-primitives.
+Use native AgentV environment recipes for repo-backed evals where AgentV should
+own the run lifecycle: prepare host or Docker testbeds, run targets, execute
+extensions and graders, gate CI, and write AgentV result bundles. This fits
+custom internal suites, target comparisons, narrow regression suites, and CI
+checks built from AgentV primitives.
 
 ```yaml
 name: repo-regressions
 
-workspace:
-  scope: attempt
-  repos:
-    - path: ./repo
-      repo: https://github.com/example/widget.git
-      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+environment: file://.agentv/environments/widget.yaml
+
+targets:
+  - id: codex-host
+    provider: codex-cli
+    runtime: host
+  - id: claude-host
+    provider: claude-cli
+    runtime: host
 
 extensions:
   - file://scripts/apply-case-fixtures.mjs:beforeEach
 
-target: codex
+prompts:
+  - "{{ task }}"
 
-assert:
-  - metric: tests-pass
-    type: script
-    command: ["python", "./graders/run-tests.py"]
-    required: true
+tests:
+  - id: parser-regression
+    vars:
+      task: Fix the parser regression in the prepared checkout.
+    assert:
+      - type: script
+        command: ["python", "./graders/run-tests.py"]
+        required: true
 ```
 
 Use a Harbor-backed runner for standard benchmark suites Harbor owns, such as
 SWE-Bench Verified, Multi-SWE-Bench, Terminal-Bench, or suites with Harbor-owned
 Docker and Compose adapters. In that path AgentV should stay at the
 orchestration boundary: launch or import the Harbor job, apply AgentV gates to
-the imported results, and link Opik traces when Harbor uploads them.
+the imported results, and link external traces when the runner emits them.
 
 ```yaml
 # Proposed runner boundary, not a current AgentV task schema.
@@ -187,45 +201,29 @@ target: codex-gpt5-mini
 runner:
   type: harbor
   options:
-    opik:
-      enabled: true
+    trace_links: true
 ```
 
 Do not translate Harbor `task.toml`, verifier packaging, or suite-specific
 Docker/Compose adapter fields into AgentV core eval schema. If the benchmark's
 runtime contract is already owned by Harbor, keep those details in Harbor and
-let AgentV consume the job metadata, rewards, artifacts, and trace links.
-Do not add a generic top-level `source` field just to identify Harbor. If a
-future Harbor adapter needs suite selection, keep that selector narrow and
-adapter-owned instead of making it the AgentV workspace model.
-
-## Eval Composition
-
-When one eval references another eval, preserve the task/runtime split:
-
-- The parent runnable eval owns top-level `target` and run controls.
-- Child suite imports preserve task context, while the parent owns the run.
-- Child `workspace` setup is preserved for `type: suite` imports. A parent eval
-  that imports any `type: suite` entry must not define parent `workspace`.
-  Parent workspace context is for parent-owned raw cases, including raw cases
-  imported with `type: tests`.
-- A tests-only import can drop child workspace context only when the import mode
-  says so explicitly.
-- Workspace path collisions or incompatible isolation settings should fail
-  loudly if a future explicit remap mode is added.
-
-That rule keeps imported benchmark cases attached to their setup while still
-letting a parent eval compare targets, repeat policy, and gates consistently.
+let AgentV consume the job metadata, rewards, artifacts, and trace links. Do
+not add a generic top-level `source` field just to identify Harbor. If a future
+Harbor adapter needs suite selection, keep that selector narrow and
+adapter-owned instead of making it the AgentV environment model.
 
 ## Finance-Style Generated Dataset
 
-Generated datasets often need stable row provenance more than workspace setup.
+Generated datasets often need stable row provenance more than repository setup.
 Keep the generated row identity in metadata, use `expected_output` for the gold
 answer, and score with rubrics or an LLM/script grader.
 
 ```yaml
 name: finance-research-generated
 description: Generated finance research cases with row-level provenance.
+
+prompts:
+  - "{{ question }}"
 
 assert:
   - metric: answer-quality
@@ -235,10 +233,10 @@ assert:
 
 tests:
   - id: finance-agent-row-0042
-    criteria: Answer the finance question with the correct conclusion and evidence.
-    input: |
-      Research the company filing and answer:
-      What drove the year-over-year change in gross margin?
+    vars:
+      question: |
+        Research the company filing and answer:
+        What drove the year-over-year change in gross margin?
     expected_output:
       - role: assistant
         content: |
@@ -254,9 +252,9 @@ tests:
 
 Here, `source_repo`, `source_commit`, `source_file`, `source_row`, and
 `question_type` are informational metadata. They support audits, slices, and
-regeneration checks. If a hook or grader needs the source file at runtime, clone
-it through `workspace.repos` or make the generator output available as a normal
-fixture file.
+regeneration checks. If a hook or grader needs the source file at runtime,
+materialize it through `environment.setup.command` or make the generator output
+available as a normal fixture file.
 
 ## Optional Source-Side Case Directories
 
@@ -268,7 +266,7 @@ benchmark starts accumulating bulky authoring resources:
   fixture files.
 - The prompt or expected output is long enough that YAML diffs become hard to
   review.
-- Each task needs a different workspace template or setup files.
+- Each task needs different supporting setup files.
 - A generator emits many rows and reviewers need to inspect individual cases.
 - Hook and grader scripts need stable file paths for per-case resources.
 
@@ -276,7 +274,7 @@ Use an external YAML or JSONL file for many simple generated rows:
 
 ```yaml
 name: generated-finance
-tests: ./cases.jsonl
+tests: file://./cases.jsonl
 ```
 
 Use case directories when each case needs supporting files:
@@ -284,35 +282,33 @@ Use case directories when each case needs supporting files:
 ```text
 swe-benchmark/
   EVAL.yaml
+  .agentv/
+    environments/
+      widget.yaml
   cases/
     widget-1234/
       case.yaml
       prompt.md
       test.patch
       oracle.json
-      workspace/
-        README.md
 ```
 
 ```yaml
 # EVAL.yaml
 name: swe-benchmark
-workspace:
-  repos:
-    - path: ./repo
-      repo: https://github.com/example/widget.git
-      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
-tests: ./cases/
+environment: file://.agentv/environments/widget.yaml
+tests: file://./cases/
 ```
 
 ```yaml
 # cases/widget-1234/case.yaml
-criteria: Fix the widget parser regression.
-input:
-  - role: user
-    content:
-      - type: file
-        value: cases/widget-1234/prompt.md
+id: widget-1234
+vars:
+  task:
+    - role: user
+      content:
+        - type: file
+          value: cases/widget-1234/prompt.md
 metadata:
   repo_url: https://github.com/example/widget.git
   source_commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
@@ -321,19 +317,17 @@ metadata:
 ```
 
 When `tests` points to a directory, AgentV discovers each immediate
-subdirectory's `case.yaml`, uses the directory name as `id` if no `id` is set,
-and automatically uses a `workspace/` subdirectory as that case's
-`workspace.template`. File blocks still use the normal eval-file search roots,
-so include the case directory in paths such as `cases/widget-1234/prompt.md`.
-Metadata paths are not resolved by AgentV; resolve them in your hook or grader
-script.
+subdirectory's `case.yaml` and uses the directory name as `id` if no `id` is
+set. File blocks still use the normal eval-file search roots, so include the
+case directory in paths such as `cases/widget-1234/prompt.md`. Metadata paths
+are not resolved by AgentV; resolve them in your hook or grader script.
 
 ## Authoring Rules
 
-- Do not add benchmark-specific fields when `metadata` plus hooks or custom
-  assert entries can express the need.
+- Do not add benchmark-specific fields when `metadata` plus setup commands,
+  hooks, or custom assert entries can express the need.
 - Do not duplicate operational checkout state only in metadata. Put the real
-  checkout under `workspace.repos`.
+  checkout under `environment`.
 - Keep `metadata` snake_case because it crosses process and result boundaries.
 - Prefer `expected_output` for passive gold answers and `script` for active
   commands, file checks, or generated artifact validation.

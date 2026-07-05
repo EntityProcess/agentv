@@ -240,11 +240,12 @@ env, Docker, and folder isolation. Use `extensions` for lifecycle function hooks
 extensions:
   - file://scripts/setup.mjs:beforeAll
 
-workspace:
-  scope: suite           # suite | attempt
-  hooks:
-    after_each:
-      reset: fast        # none | fast | strict
+environment:
+  type: host
+  workdir: ./workspaces/my-eval
+  setup:
+    command: ["bash", "-lc", "bun install && bun run build"]
+    cwd: "."
 ```
 
 Notes:

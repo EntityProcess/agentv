@@ -65,24 +65,28 @@ Before running or optimizing, understand what you're working with.
 
 AgentV supports two evaluation formats:
 
-**EVAL.yaml** (native, full features) — supports workspaces, script graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
+**EVAL.yaml** (native, full features) — supports environment recipes, script graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, and multi-provider targets. Use this for agent evaluation.
 
 ```yaml
 # example.eval.yaml
+prompts:
+  - "{{ task }}"
+
+environment:
+  type: host
+  workdir: ./workspace-template
+  setup:
+    command: ["bash", "-lc", "bun install && bun run build"]
+    cwd: "."
+
 tests:
   - id: basic-code-review
-    input: "Review this TypeScript file for bugs and suggest improvements"
-    criteria: "Identifies the null pointer bug on line 12 and suggests a fix"
+    vars:
+      task: "Review this TypeScript file for bugs and suggest improvements"
     assert:
       - type: contains
         value: "null"
       - Review identifies the null pointer bug and suggests a concrete fix
-
-workspace:
-  template: ./workspace-template
-  hooks:
-    before_each:
-      reset: fast
 ```
 
 Multi-skill evaluation is handled naturally via input messages — describe the task in the test input, and the agent uses whatever skills it needs.
@@ -255,11 +259,11 @@ All artifacts use established schemas — see `references/schemas.md` for the fu
 
 Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
-### Workspace features (EVAL.yaml only)
+### Environment features (EVAL.yaml only)
 
-- **Workspace scope** — clone repos, run setup/teardown hooks (before_all, before_each, after_each, after_all), and choose `suite` or `attempt` lifetime
+- **Environment recipes** — prepare host or Docker testbeds with `type`, `workdir`, and argv-only `setup.command`
 - **Static local override** — use `--workspace-path` only when an existing local directory should be reused as-is
-- **Multi-repo** — clone multiple repos with sparse checkout and shallow clone support
+- **Multi-repo** — materialize repos from setup scripts when a task needs several checkouts
 - **File change tracking** — grade by diffing workspace files before/after agent execution
 
 ---

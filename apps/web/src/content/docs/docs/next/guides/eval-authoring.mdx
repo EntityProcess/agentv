@@ -1,6 +1,6 @@
 ---
 title: Eval Authoring Guide
-description: Practical guidance for writing workspace-based evals that work reliably across providers.
+description: Practical guidance for writing environment-based evals that work reliably across providers.
 sidebar:
   order: 3
 slug: docs/guides/eval-authoring
@@ -10,8 +10,8 @@ slug: docs/guides/eval-authoring
 
 Use the built-in `agentv:agent-rules` extension when an eval needs to stage or
 expose agent-facing rules, skills, hooks, or subagents. It runs after
-`workspace.template` and `workspace.repos` materialize, then writes
-`agent_rules_paths` into provider context and result metadata.
+the authored `environment` recipe is prepared, then writes `agent_rules_paths`
+into provider context and result metadata.
 
 ```yaml
 extensions:
@@ -22,12 +22,12 @@ extensions:
     agents: agent-rules/agents
     rules: agent-rules/AGENTS.md
 
-workspace:
-  template: ./workspace-template
-  repos:
-    - path: ./app
-      repo: acme/app
-      commit: main
+environment:
+  type: host
+  workdir: ./workspace-template
+  setup:
+    command: ["bash", "./scripts/materialize-repo.sh", "./app", "acme/app", "main"]
+    cwd: "."
 ```
 
 Configured paths are resolved relative to the eval file and staged under the
@@ -39,8 +39,8 @@ extensions:
   - agentv:agent-rules
 ```
 
-Do not move repo acquisition into `agentv:agent-rules`. Repositories remain
-first-class workspace provenance through `workspace.repos`.
+Do not move repo acquisition into `agentv:agent-rules`. Repositories and other
+testbed setup belong in the authored `environment` recipe.
 
 ## Custom Lifecycle Setup
 
@@ -105,27 +105,31 @@ Agents verify `git diff` against prompt claims. If your prompt says "The PR modi
 
 1. If a prompt references specific code changes, the workspace **must** contain those exact changes
 2. Or frame prompts as hypothetical: describe changes inline rather than claiming they exist in the workspace
-3. Use `before_each` hooks to set up per-test git state when tests need different diffs
+3. Use `beforeEach` lifecycle extensions to set up per-test git state when tests need different diffs
 
 ### Example: per-test git state
 
 ```yaml
-workspace:
-  template: ./workspace-template
-  hooks:
-    before_each:
-      command:
-        - node
-        - ../scripts/apply-test-diff.mjs
+environment:
+  type: host
+  workdir: ./workspace-template
+
+extensions:
+  - file://../scripts/apply-test-diff.mjs:beforeEach
+
+prompts:
+  - "{{ task }}"
 
 tests:
   - id: risky-change
     metadata:
       diff_file: diffs/risky-timeout-change.patch
-    input: "Review the current changes and assess risk."
+    vars:
+      task: Review the current changes and assess risk.
 ```
 
-The `before_each` hook reads `metadata.diff_file` from the AgentV payload and applies the patch to the workspace before each test runs.
+The `beforeEach` extension reads `case_metadata.diff_file` from the AgentV
+payload and applies the patch to the prepared workdir before each test runs.
 
 ### Hypothetical framing pattern
 
@@ -150,24 +154,31 @@ When you don't want to maintain actual diffs, describe the changes inline:
 
 This avoids workspace state issues entirely — the agent evaluates the diff as presented without checking `git diff`.
 
-## Historical Repo State: Pin the Checkout
+## Historical Repo State: Pin The Checkout
 
 If a test asks the agent to inspect how a repository looked at a past commit,
-declare that checkout in `workspace.repos[]`. Do not rely on prompt prose that
-mentions a SHA without materializing the repo.
+materialize that checkout in `environment.setup.command`. Do not rely on prompt
+prose that mentions a SHA without preparing the repo.
 
 ```yaml
-workspace:
-  repos:
-    - path: ./agentv
-      repo: https://github.com/EntityProcess/agentv.git
-      commit: 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+environment:
+  type: host
+  workdir: ./workspaces/agentv
+  setup:
+    command:
+      - bash
+      - ./scripts/materialize-repo.sh
+      - ./workspaces/agentv
+      - https://github.com/EntityProcess/agentv.git
+      - 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+    cwd: "."
 
 tests:
   - id: verification-learning-capture
-    input: |
-      The eval harness has prepared ./agentv at the historical commit.
-      Use that checkout to decide which durable guidance should change.
+    vars:
+      input: |
+        The eval harness has prepared the historical AgentV checkout.
+        Use that checkout to decide which durable guidance should change.
     expected_output: |
       The durable repo change is to update .agents/verification.md with the
       reusable verification workflow lessons.

@@ -30,8 +30,8 @@ tests:
 | `expected_output` | No | Passive gold/reference data available to graders (string, object, or message array) |
 | `assert` | Yes | Per-test graders; plain strings become `llm-rubric` rubric checks |
 | `execution` | No | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
-| `workspace` | No | Per-case workspace config (overrides suite-level) |
-| `metadata` | No | Arbitrary key-value pairs passed to graders and workspace scripts |
+| `environment` | No | Per-case environment recipe (overrides suite-level) |
+| `metadata` | No | Arbitrary key-value pairs passed to graders, setup commands, and lifecycle extensions |
 
 ## Input
 
@@ -145,34 +145,40 @@ tests:
     # Does NOT get latency_check
 ```
 
-## Per-Case Workspace Config
+## Per-Case Environment Config
 
-Override the suite-level workspace config for individual tests. Test-level fields replace suite-level fields:
+Override the suite-level environment recipe for individual tests. Test-level
+environment fields replace suite-level fields:
 
 ```yaml
-workspace:
-  hooks:
-    before_all:
-      command: ["bun", "run", "default-setup.ts"]
+environment:
+  type: host
+  workdir: ./workspaces/default
+  setup:
+    command: ["bash", "-lc", "bun install && bun run build"]
+    cwd: "."
 
 tests:
   - id: case-1
     input: Do something
     assert:
       - Completes the requested task
-    workspace:
-      hooks:
-        before_all:
-          command: ["bun", "run", "custom-setup.ts"]
+    environment:
+      type: host
+      workdir: ./workspaces/case-1
+      setup:
+        command: ["bash", "-lc", "bun install && bun run build && bun run setup:case-1"]
+        cwd: "."
 
   - id: case-2
     input: Do something else
     assert:
       - Completes the requested task
-    # Inherits suite-level hooks.before_all
+    # Inherits suite-level environment
 ```
 
-See [Workspace Lifecycle Hooks](/docs/targets/configuration/#workspace-lifecycle-hooks) for the full workspace config reference.
+See [Environment Recipes](/docs/guides/workspace-architecture/) for the full
+environment config reference.
 
 ## Per-Case Metadata
 
@@ -186,17 +192,25 @@ tests:
       source_repo: sympy/sympy
       source_commit: "abc123def"
       test_patch: cases/sympy-20590/test.patch
-    workspace:
-      repos:
-        - path: ./repo
-          repo: sympy/sympy
-          commit: "abc123def"
-      hooks:
-        before_each:
-          command: ["python", "apply_test_patch.py"]
 ```
 
-The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
+The `metadata` field is included in the stdin JSON passed to lifecycle
+extensions as `case_metadata`. Use an `environment` recipe to materialize the
+checkout, then use a `beforeEach` extension when per-case metadata needs to
+drive patch application or fixture selection:
+
+```yaml
+environment:
+  type: host
+  workdir: ./repo
+  setup:
+    command: ["bash", "./scripts/materialize-repo.sh", "./repo", "sympy/sympy", "abc123def"]
+    cwd: "."
+
+extensions:
+  - file://scripts/apply-test-patch.py:beforeEach
+```
+
 Operational checkout state belongs in `environment`; matching metadata fields
 such as `source_commit` are informational only. For historical repo-state evals,
 pin the checkout in an environment setup recipe instead of only mentioning the
