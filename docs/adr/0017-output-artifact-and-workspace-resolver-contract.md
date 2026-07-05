@@ -17,6 +17,12 @@ authoring shape are superseded for coding-agent testbeds. AgentV now uses
 `environment` as the public suite/test/case testbed recipe. `workspace` is no
 longer a locked canonical public testbed term.
 
+Amended (2026-07-05) by Bead `av-kfik.28.6`: the `grading.json`
+contract below supersedes both the earlier agentskills-shaped
+`assertion_results`/`evidence`/`verdict` wording and the intermediate
+`graders[]`/`checks[]` wording. Native AgentV grading artifacts now use a
+recursive Promptfoo-style grading result in `snake_case`.
+
 ## Context
 
 We reviewed the output formats of promptfoo, margin-lab, vercel-agent-eval, and
@@ -74,18 +80,22 @@ protocol payloads. AgentV wrappers around those payloads still use `snake_case`.
    transcript referenced **by path**.
 4. **Per-attempt grading sidecar**: `grading.json` is an AgentV-native public contract
    that keeps Promptfoo's aggregate grading vocabulary while preserving AgentV's richer
-   nested breakdown. It exposes top-level `pass`, `score`, `reason`, optional
-   `threshold`/`details`, and an always-present `graders[]` array. Each grader exposes
-   `name`, `type`, `pass`, `score`, `reason`, optional `threshold`/`details`, and
-   optional `checks[]`. Each check exposes `id?`, `text`, `pass`, optional `score`,
-   `reason`, and optional `evidence` only when the evidence is distinct from `reason`.
-   There are no public top-level `checks`, no dynamic single-grader shortcut, and no
-   public `assertion_results`, `assertions`, `passed`-only aliases, or
-   evidence-as-reason aliases. Authored YAML uses `assert`, `assert-set`, and
-   `llm-rubric`; result artifacts describe evaluated graders and checks. Default judge =
-   skeptical evidence-by-path (opt-out via explicit `prompt`); grader target selection
-   flows through the config graph (`defaults.grader`) or assertion-level target
-   selection, not a system-under-test target field. Evidence stays in `grading.json`.
+   nested breakdown. It is a recursive grading result with top-level `pass`, `score`,
+   and `reason`, plus optional `component_results`, `assertion`, `named_scores`, and
+   `metadata`. Each `component_results[]` entry uses the same shape recursively.
+   `assertion` carries the authored assertion/config metadata that produced that
+   component. SDK/script grader conveniences that still return `checks` are normalized
+   into `component_results` at the artifact boundary. Native AgentV artifacts never emit
+   public `assertion_results`, assertions-as-results, `passed`, `evidence`, `verdict`,
+   `graders`, or `checks` for this contract. Promptfoo import/export adapters may use
+   Promptfoo's `componentResults`/`namedScores` only when the output is explicitly
+   Promptfoo-formatted; AgentV-owned persisted artifacts stay `snake_case`. Authored YAML
+   uses `assert`, `assert-set`, and `llm-rubric`; result artifacts describe evaluated
+   recursive grading components. Default judge = skeptical evidence-by-path (opt-out via
+   explicit `prompt`); grader target selection flows through the config graph
+   (`defaults.grader`) or assertion-level target selection, not a system-under-test
+   target field. Grading rationale stays in `reason`; larger detached evidence belongs
+   in explicit artifact paths, not ad-hoc grading fields.
 5. **Bundle layout / naming**: machine files move under per-run **`.internal/`**
    (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`); run root stays clean
    (`summary.json` + per-case dirs). Rename the reference field `manifest_path` →
@@ -105,7 +115,7 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 
 ### Artifact filenames (locked — accuracy over cosmetic consistency)
 - **`summary.json`** (run-root AND per-case) — the aggregate. Kept over margin's `results.json`: it's a *summary*, not the full results (those are the per-case dirs + `index.jsonl`); avoids the `results/<run_id>/results.json` stutter; symmetric at both levels (run aggregates cases, case aggregates samples); vercel-aligned. We match margin on the aggregate *concept/shape*, not the filename.
-- Per-sample triad (distinct, all kept): **`result.json`** (what happened), **`grading.json`** (aggregate `pass`/`score`/`reason` plus `graders[]`/`checks[]`), **`metrics.json`** (duration+tokens+cost+execution/trajectory; the `timing.json` merge).
+- Per-sample triad (distinct, all kept): **`result.json`** (what happened), **`grading.json`** (recursive aggregate `pass`/`score`/`reason` plus `component_results[]`), **`metrics.json`** (duration+tokens+cost+execution/trajectory; the `timing.json` merge).
 - **`grading.json`** kept (not `grades.json`) — source-consistent with agentskills (whose file is `grading.json`), and "grading" names the grading *result*.
 
 ### `grading.json` wire-format example
@@ -114,33 +124,45 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
   "pass": false,
   "score": 0.62,
   "reason": "The answer names the right API but misses the rollback condition.",
-  "threshold": 0.8,
-  "details": {
-    "aggregation": "weighted_mean"
+  "named_scores": {
+    "api": 1,
+    "rollback": 0
   },
-  "graders": [
+  "metadata": {
+    "aggregation": "weighted_mean",
+    "threshold": 0.8
+  },
+  "component_results": [
     {
-      "name": "rubric",
-      "type": "llm-rubric",
       "pass": false,
       "score": 0.62,
       "reason": "Two of three rubric checks passed.",
-      "threshold": 0.8,
-      "checks": [
+      "assertion": {
+        "name": "rubric",
+        "type": "llm-rubric"
+      },
+      "component_results": [
         {
-          "id": "api",
-          "text": "Identifies the API used to publish result bundles.",
           "pass": true,
           "score": 1,
-          "reason": "Correctly identifies the publish command."
+          "reason": "Correctly identifies the publish command.",
+          "assertion": {
+            "value": "Identifies the API used to publish result bundles."
+          },
+          "metadata": {
+            "id": "api"
+          }
         },
         {
-          "id": "rollback",
-          "text": "Explains when to roll back a failed publish.",
           "pass": false,
           "score": 0,
           "reason": "Mentions retrying but not rollback criteria.",
-          "evidence": "The response says to rerun the command after any failure."
+          "assertion": {
+            "value": "Explains when to roll back a failed publish."
+          },
+          "metadata": {
+            "id": "rollback"
+          }
         }
       ]
     }

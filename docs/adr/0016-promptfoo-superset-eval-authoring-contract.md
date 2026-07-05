@@ -9,18 +9,19 @@ Accepted (2026-07-02). Anchor decision for the eval-authoring restructure — se
 eval-authoring portions of [ADR 0013 (stabilize eval authoring)](0013-stabilize-eval-authoring-contract.md)
 and [ADR 0013 (experiment as tags.experiment)](0013-experiment-is-metadata-expressed-as-tags-experiment.md)**;
 multi-turn is carved out to [ADR 0015](0015-multi-turn-conversation-execution-vs-evaluation.md);
-the output/artifact contract to [ADR 0017](0017-output-artifact-and-workspace-resolver-contract.md).
+	the output/artifact contract to [ADR 0017](0017-output-artifact-and-workspace-resolver-contract.md).
 
 Status note (2026-07-04): implementation settled the grader vocabulary after
 this ADR was accepted. Current authored executable graders use `type: script`.
 `llm-rubric` is the promptfoo-compatible free-form rubric judge. Structured and
 multi-criteria rubric judging uses `g-eval` where itemized rubric semantics are
-needed. The current output contract is owned by ADR 0017 and the active Beads:
-authored YAML uses `assert`, `assert-set`, and `llm-rubric`, while `grading.json`
-describes evaluated `graders[]` and nested `checks[]` with aggregate `pass`,
-`score`, and `reason`. Do not teach `assertion_results`, `assertions`,
-`passed`-only aliases, top-level `checks`, or dynamic one-grader artifact shapes
-as the public contract.
+needed. The current output contract is owned by ADR 0017 and the active Beads.
+As of the 2026-07-05 `av-kfik.28.6` amendment, authored YAML uses `assert`,
+`assert-set`, and `llm-rubric`, while native `grading.json` describes evaluated
+recursive `component_results` with aggregate `pass`, `score`, and `reason`. Do
+not teach `assertion_results`, `assertions`, `passed`-only aliases, `evidence`,
+`verdict`, `graders`, `checks`, top-level `checks`, or dynamic one-grader artifact
+shapes as the public contract.
 
 Status note (2026-07-05): Bead `av-noh3.2.1` supersedes this ADR's earlier
 `workspace` authoring language for coding-agent testbeds. AgentV's canonical
@@ -57,14 +58,14 @@ keep AgentV's only where its semantics are genuinely better.**
    AgentV extension rather than being forced into `llm-rubric`.
    Structured AgentV rubric criteria are preserved, not flattened into a single
    text blob: criteria objects keep `weight`, `operator`, `required`,
-   `score_ranges`, and `min_score`. Result artifacts use the ADR 0017 grader
-   contract: `grading.json.graders[]` records each evaluated grader, and
-   `graders[].checks[]` records criterion- or component-level results when the
-   grader produces them. Deterministic graders usually emit no checks or one
-   check, while multi-aspect graders emit one check per authored criterion or
-   result unit. Structured rubric criteria therefore populate checks so the
-   Dashboard can show criterion-level evidence, using the same mechanism as
-   script graders, field accuracy, execution metrics, and tool trajectory.
+   `score_ranges`, and `min_score`. Result artifacts use the ADR 0017 grading
+   contract: `grading.json.component_results[]` records each evaluated grader,
+   criterion, or component recursively. Deterministic graders usually emit one
+   component, while multi-aspect graders emit one nested component per authored
+   criterion or result unit. Structured rubric criteria therefore populate
+   recursive components so the Dashboard can show criterion-level rationale, using
+   the same mechanism as script graders, field accuracy, execution metrics, and
+   tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
    `script` = the subprocess power tool (`environment.workdir` cwd, arbitrary language).
    `javascript` is NOT desugared to `script`.

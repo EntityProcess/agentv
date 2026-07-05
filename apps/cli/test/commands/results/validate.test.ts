@@ -19,7 +19,7 @@ describe('results validate', () => {
           test_id: 'test-greeting',
           score: 1,
           target: 'gpt-4o',
-          scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
+          scores: [{ name: 'quality', type: 'llm', score: 1, pass: true, reason: 'passed' }],
           execution_status: 'ok',
           summary_path: 'test-greeting/summary.json',
         })}\n`,
@@ -73,7 +73,7 @@ describe('results validate', () => {
           test_id: 'test-greeting',
           score: 1,
           target: 'gpt-4o',
-          scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
+          scores: [{ name: 'quality', type: 'llm', score: 1, pass: true, reason: 'passed' }],
           execution_status: 'ok',
           summary_path: 'test-greeting/summary.json',
           trace_path: 'test-greeting/sample-1/trace.json',
@@ -107,7 +107,7 @@ describe('results validate', () => {
     }
   });
 
-  it('accepts legacy grading assertions with a compatibility warning', () => {
+  it('rejects legacy public grading fields', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-validate-test-'));
 
     try {
@@ -134,16 +134,32 @@ describe('results validate', () => {
           verdict: 'pass',
           assertions: [{ text: 'legacy assertion', passed: true }],
           summary: { passed: 1, failed: 0, total: 1, pass_rate: 1 },
+          metadata: {
+            details: {
+              checks: [{ text: 'legacy check', evidence: 'legacy evidence' }],
+            },
+          },
         })}\n`,
       );
 
       const { diagnostics } = validateRunDirectory(runDir);
 
-      expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
       expect(diagnostics).toContainEqual({
-        severity: 'warning',
+        severity: 'error',
+        message: 'test-greeting: grading.json uses legacy field(s): assertions, verdict',
+      });
+      expect(diagnostics).toContainEqual({
+        severity: 'error',
+        message: 'test-greeting: grading.json must include pass, score, and reason',
+      });
+      expect(diagnostics).toContainEqual({
+        severity: 'error',
+        message: 'test-greeting: grading.json.metadata.details uses legacy field(s): checks',
+      });
+      expect(diagnostics).toContainEqual({
+        severity: 'error',
         message:
-          "test-greeting: grading.json uses legacy 'assertions' array; rewrite the run to emit 'assertion_results'",
+          'test-greeting: grading.json.metadata.details.checks[0] uses legacy field(s): evidence',
       });
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
@@ -170,7 +186,7 @@ describe('results validate', () => {
             test_id: 'test-new',
             score: 1,
             target: 'gpt-4o',
-            scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
+            scores: [{ name: 'quality', type: 'llm', score: 1, pass: true, reason: 'passed' }],
             execution_status: 'ok',
             summary_path: 'test-new/summary.json',
             test_dir: 'test-new/test',
@@ -182,7 +198,7 @@ describe('results validate', () => {
             test_id: 'test-legacy',
             score: 1,
             target: 'gpt-4o',
-            scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
+            scores: [{ name: 'quality', type: 'llm', score: 1, pass: true, reason: 'passed' }],
             execution_status: 'ok',
             summary_path: 'test-legacy/summary.json',
             task_dir: 'test-legacy/task',

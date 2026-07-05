@@ -26,13 +26,35 @@ interface EvaluatorScore {
   readonly assertions: readonly { text: string; passed: boolean; evidence?: string }[];
 }
 
-function toAssertionResult(assertion: { text: string; passed: boolean; evidence?: string }) {
+function toComponentResult(
+  assertion: { text: string; passed: boolean; evidence?: string },
+  evaluator?: Pick<EvaluatorScore, 'name' | 'type'>,
+) {
   return {
-    text: assertion.text,
-    passed: assertion.passed,
-    evidence: assertion.evidence ?? '',
+    pass: assertion.passed,
     score: assertion.passed ? 1 : 0,
-    verdict: assertion.passed ? 'pass' : 'fail',
+    reason: assertion.evidence ?? assertion.text,
+    assertion: {
+      ...(evaluator ? { name: evaluator.name, type: evaluator.type } : {}),
+      value: assertion.text,
+    },
+  };
+}
+
+function evaluatorComponent(evaluator: EvaluatorScore) {
+  const pass = evaluator.score >= DEFAULT_THRESHOLD;
+  return {
+    pass,
+    score: evaluator.score,
+    reason: pass ? 'Grader passed.' : 'Grader failed.',
+    assertion: {
+      name: evaluator.name,
+      type: evaluator.type,
+      weight: evaluator.weight,
+    },
+    component_results: evaluator.assertions.map((assertion) =>
+      toComponentResult(assertion, evaluator),
+    ),
   };
 }
 
@@ -139,20 +161,21 @@ export const evalBenchCommand = command({
       allPassRates.push(passRate);
 
       // Write grading.json
+      const pass = weightedScore >= DEFAULT_THRESHOLD;
       const grading = {
+        pass,
         score: Math.round(weightedScore * 1000) / 1000,
-        verdict: weightedScore >= DEFAULT_THRESHOLD ? 'pass' : 'fail',
-        assertion_results: allAssertions.map(toAssertionResult),
-        summary: { passed, failed, total: allAssertions.length, pass_rate: passRate },
-        graders: evaluators.map((e) => ({
-          name: e.name,
-          type: e.type,
-          score: e.score,
-          verdict: e.score >= DEFAULT_THRESHOLD ? 'pass' : 'fail',
-          reasoning: '',
-          weight: e.weight,
-          assertion_results: e.assertions.map(toAssertionResult),
-        })),
+        reason: pass ? 'All grading components passed.' : 'One or more grading components failed.',
+        component_results:
+          evaluators.length > 0
+            ? evaluators.map(evaluatorComponent)
+            : allAssertions.map((assertion) => toComponentResult(assertion)),
+        metadata: {
+          pass_count: passed,
+          fail_count: failed,
+          sample_count: allAssertions.length,
+          pass_rate: passRate,
+        },
       };
       await writeFile(
         join(testDir, 'grading.json'),
@@ -164,14 +187,10 @@ export const evalBenchCommand = command({
       const scores = evaluators.map((e) => ({
         name: e.name,
         type: e.type,
+        pass: e.score >= DEFAULT_THRESHOLD,
         score: e.score,
         weight: e.weight,
-        verdict: e.score >= 0.5 ? 'pass' : 'fail',
-        assertions: e.assertions.map((a) => ({
-          text: a.text,
-          passed: a.passed,
-          evidence: a.evidence ?? '',
-        })),
+        reason: e.score >= DEFAULT_THRESHOLD ? 'Grader passed.' : 'Grader failed.',
       }));
 
       // Read execution_status from metrics.json (written by pipeline run)

@@ -62,6 +62,8 @@ import { type TranscriptSummaryWire, buildTranscriptSummary } from './transcript
 import type {
   EvalTest,
   EvaluationResult,
+  EvaluationVerdict,
+  GraderCheckResult,
   GraderResult,
   TrialAggregation,
   TrialResult,
@@ -339,42 +341,23 @@ function isRunRuntimeSourceMetadata(value: unknown): value is RunRuntimeSourceMe
   );
 }
 
+export interface GradingAssertionMetadata {
+  readonly id?: string;
+  readonly name?: string;
+  readonly type?: string;
+  readonly value?: unknown;
+  readonly weight?: number;
+  readonly target?: string;
+}
+
 export interface GradingArtifact {
+  readonly pass: boolean;
   readonly score: number;
-  readonly verdict: 'pass' | 'fail' | 'skip';
-  readonly assertion_results: readonly {
-    readonly text: string;
-    readonly passed: boolean;
-    readonly evidence: string;
-    readonly score: number;
-    readonly verdict: 'pass' | 'fail';
-  }[];
-  readonly summary: {
-    readonly passed: number;
-    readonly failed: number;
-    readonly total: number;
-    readonly pass_rate: number;
-  };
-  readonly graders?: readonly {
-    readonly name: string;
-    readonly type: string;
-    readonly score: number;
-    readonly reasoning: string;
-    readonly assertion_results: readonly GradingAssertionResult[];
-    readonly [key: string]: unknown;
-  }[];
-  readonly workspace_changes?: {
-    readonly files_modified: number;
-    readonly files_created: number;
-    readonly files_deleted: number;
-    readonly deleted_file_paths?: readonly string[];
-  };
-  readonly conversation?: {
-    readonly turns: number;
-    readonly conversation_id: string;
-  };
-  readonly attempts?: readonly TrialResultArtifact[];
-  readonly aggregation?: TrialAggregationArtifact;
+  readonly reason: string;
+  readonly component_results?: readonly GradingArtifact[];
+  readonly assertion?: GradingAssertionMetadata;
+  readonly named_scores?: Record<string, number>;
+  readonly metadata?: Record<string, unknown>;
 }
 
 export type TrialResultArtifact = {
@@ -533,25 +516,13 @@ export interface RunConfigArtifact {
 }
 
 export interface AggregateGradingArtifact {
+  readonly pass: boolean;
   readonly score: number;
-  readonly verdict: 'pass' | 'fail' | 'skip';
-  readonly assertion_results: readonly {
-    readonly test_id: string;
-    readonly text: string;
-    readonly passed: boolean;
-    readonly evidence: string;
-    readonly score: number;
-    readonly verdict: 'pass' | 'fail';
-  }[];
-  readonly summary: {
-    readonly passed: number;
-    readonly failed: number;
-    readonly total: number;
-    readonly pass_rate: number;
-  };
+  readonly reason: string;
+  readonly component_results?: readonly GradingArtifact[];
+  readonly named_scores?: Record<string, number>;
+  readonly metadata?: Record<string, unknown>;
 }
-
-type GradingAssertionResult = GradingArtifact['assertion_results'][number];
 
 export interface IndexArtifactEntry {
   readonly timestamp: string;
@@ -728,9 +699,16 @@ function countToolCalls(result: EvaluationResult): {
   return { toolCalls, total };
 }
 
+interface WorkspaceChangesMetadata {
+  readonly files_modified: number;
+  readonly files_created: number;
+  readonly files_deleted: number;
+  readonly deleted_file_paths?: readonly string[];
+}
+
 function parseWorkspaceChanges(
   fileChanges: string | undefined,
-): GradingArtifact['workspace_changes'] | undefined {
+): WorkspaceChangesMetadata | undefined {
   if (!fileChanges) {
     return undefined;
   }
@@ -763,22 +741,7 @@ function parseWorkspaceChanges(
   };
 }
 
-function assertionResultFromAssertion(assertion: EvaluationResult['assertions'][number]) {
-  const passed = assertion.passed;
-  return {
-    text: assertion.text,
-    passed,
-    evidence: assertion.evidence ?? '',
-    score: passed ? 1 : 0,
-    verdict: passed ? ('pass' as const) : ('fail' as const),
-  };
-}
-
-function buildAssertionResults(result: EvaluationResult): GradingArtifact['assertion_results'] {
-  return (result.assertions ?? []).map(assertionResultFromAssertion);
-}
-
-function resultVerdict(result: EvaluationResult): GradingArtifact['verdict'] {
+function resultVerdict(result: EvaluationResult): EvaluationVerdict {
   const scores = result.scores ?? [];
   if (scores.length > 0 && scores.every((score) => score.verdict === 'skip')) {
     return 'skip';
@@ -789,52 +752,176 @@ function resultVerdict(result: EvaluationResult): GradingArtifact['verdict'] {
   return 'fail';
 }
 
-function buildEvaluators(scores: readonly GraderResult[] | undefined): GradingArtifact['graders'] {
-  if (!scores || scores.length === 0) {
-    return undefined;
-  }
-
-  return scores.map((s) => ({
-    name: s.name,
-    type: s.type,
-    score: s.score,
-    reasoning: '',
-    weight: s.weight,
-    verdict: s.verdict,
-    assertion_results: (s.assertions ?? []).map(assertionResultFromAssertion),
-    details: s.details,
-    scores: buildEvaluators(s.scores),
-  }));
+function passFromVerdict(verdict: EvaluationVerdict | undefined, score: number): boolean {
+  return verdict ? verdict === 'pass' : score >= DEFAULT_THRESHOLD;
 }
 
-function toIndexAssertion(
+function assertionMetadata(
+  metadata: GradingAssertionMetadata,
+): GradingAssertionMetadata | undefined {
+  const compact = dropUndefined(metadata as Record<string, unknown>) as GradingAssertionMetadata;
+  return Object.keys(compact).length > 0 ? compact : undefined;
+}
+
+function resultReason(result: EvaluationResult, pass: boolean): string {
+  const reason = result.reason?.trim();
+  if (reason) {
+    return reason;
+  }
+  if (result.error?.trim()) {
+    return result.error;
+  }
+  if (result.executionStatus === 'execution_error') {
+    return 'Execution failed before grading completed.';
+  }
+  if (result.executionStatus === 'quality_failure') {
+    return 'One or more grading components failed.';
+  }
+  return pass ? 'All grading components passed.' : 'One or more grading components failed.';
+}
+
+function assertionToComponent(
   assertion: EvaluationResult['assertions'][number],
-): Record<string, unknown> {
+  parent?: GradingAssertionMetadata,
+): GradingArtifact {
+  const pass = assertion.passed;
   return {
-    text: assertion.text,
-    passed: assertion.passed,
-    evidence: assertion.evidence,
+    pass,
+    score: pass ? 1 : 0,
+    reason: assertion.evidence ?? assertion.text,
+    assertion: assertionMetadata({
+      ...parent,
+      value: assertion.text,
+    }),
   };
 }
 
-function toIndexScore(score: GraderResult): Record<string, unknown> {
+function checkToComponent(
+  check: GraderCheckResult,
+  parent?: GradingAssertionMetadata,
+): GradingArtifact {
+  const score = clampScore(check.score ?? (check.pass ? 1 : 0));
   return {
-    name: score.name,
-    type: score.type,
-    score: score.score,
-    weight: score.weight,
-    verdict: score.verdict,
-    assertions: (score.assertions ?? []).map(toIndexAssertion),
-    raw_request: score.rawRequest,
-    input: score.input,
-    target: score.target,
-    scores: score.scores?.map(toIndexScore),
-    details: score.details,
+    pass: check.pass,
+    score,
+    reason: check.reason || check.evidence || check.text,
+    assertion: assertionMetadata({
+      ...parent,
+      id: check.id ?? parent?.id,
+      value: check.text,
+    }),
+  };
+}
+
+const PUBLIC_GRADING_FORBIDDEN_METADATA_KEYS = new Set([
+  'assertion_results',
+  'assertions',
+  'passed',
+  'evidence',
+  'verdict',
+  'graders',
+  'checks',
+]);
+
+function sanitizePublicGradingMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sanitizePublicGradingMetadata);
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const entries = Object.entries(value)
+    .filter(([key]) => !PUBLIC_GRADING_FORBIDDEN_METADATA_KEYS.has(key))
+    .map(([key, entry]) => [key, sanitizePublicGradingMetadata(entry)] as const)
+    .filter(([, entry]) => entry !== undefined);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function scoreMetadata(score: GraderResult): Record<string, unknown> | undefined {
+  const metadata = dropUndefined({
+    details: sanitizePublicGradingMetadata(score.details),
     token_usage: score.tokenUsage,
     duration_ms: score.durationMs,
     started_at: score.startedAt,
     ended_at: score.endedAt,
-  };
+  });
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
+function scoreReason(score: GraderResult, pass: boolean): string {
+  const reason = score.reason?.trim();
+  if (reason) {
+    return reason;
+  }
+  const failed = (score.checks ?? []).find((check) => !check.pass);
+  if (failed?.reason) {
+    return failed.reason;
+  }
+  const failedAssertion = (score.assertions ?? []).find((assertion) => !assertion.passed);
+  if (failedAssertion?.evidence || failedAssertion?.text) {
+    return failedAssertion.evidence ?? failedAssertion.text;
+  }
+  return pass ? 'Grader passed.' : 'Grader failed.';
+}
+
+function scoreToComponent(score: GraderResult): GradingArtifact {
+  const pass = passFromVerdict(score.verdict, score.score);
+  const assertion = assertionMetadata({
+    name: score.name,
+    type: score.type,
+    weight: score.weight,
+    target: score.target,
+  });
+  const componentResults = [
+    ...(score.checks ?? []).map((check) => checkToComponent(check, assertion)),
+    ...(score.scores ?? []).map(scoreToComponent),
+    ...(score.checks && score.checks.length > 0
+      ? []
+      : (score.assertions ?? []).map((entry) => assertionToComponent(entry, assertion))),
+  ];
+  const namedScores = collectNamedScores(score.scores);
+  return dropUndefined({
+    pass,
+    score: clampScore(score.score),
+    reason: scoreReason(score, pass),
+    component_results: componentResults.length > 0 ? componentResults : undefined,
+    assertion,
+    named_scores: namedScores,
+    metadata: scoreMetadata(score),
+  }) as unknown as GradingArtifact;
+}
+
+function buildComponentResults(result: EvaluationResult): readonly GradingArtifact[] | undefined {
+  if (result.scores && result.scores.length > 0) {
+    return result.scores.map(scoreToComponent);
+  }
+  if (result.checks && result.checks.length > 0) {
+    return result.checks.map((check) => checkToComponent(check));
+  }
+  if (result.assertions && result.assertions.length > 0) {
+    return result.assertions.map((assertion) => assertionToComponent(assertion));
+  }
+  return undefined;
+}
+
+function toIndexScore(score: GraderResult): Record<string, unknown> {
+  const pass = passFromVerdict(score.verdict, score.score);
+  return dropUndefined({
+    name: score.name,
+    type: score.type,
+    pass,
+    score: score.score,
+    reason: scoreReason(score, pass),
+    weight: score.weight,
+    target: score.target,
+    scores: score.scores?.map(toIndexScore),
+    named_scores: collectNamedScores(score.scores),
+    token_usage: score.tokenUsage,
+    duration_ms: score.durationMs,
+    started_at: score.startedAt,
+    ended_at: score.endedAt,
+  });
 }
 
 function toIndexScores(scores: readonly GraderResult[] | undefined): IndexArtifactEntry['scores'] {
@@ -1424,34 +1511,42 @@ export function buildGradingArtifact(
   result: EvaluationResult,
   options?: { includeTrials?: boolean },
 ): GradingArtifact {
-  const assertionResults = buildAssertionResults(result);
-  const passed = assertionResults.filter((e) => e.passed).length;
-  const failed = assertionResults.filter((e) => !e.passed).length;
-  const total = assertionResults.length;
-  const includeTrials = options?.includeTrials ?? true;
-
-  return {
-    score: clampScore(result.score),
-    verdict: resultVerdict(result),
-    assertion_results: assertionResults,
-    summary: {
-      passed,
-      failed,
-      total,
-      pass_rate: total > 0 ? Math.round((passed / total) * 1000) / 1000 : 0,
-    },
-    graders: buildEvaluators(result.scores),
-    workspace_changes: parseWorkspaceChanges(result.fileChanges),
-    conversation: result.conversationId
+  const pass = resultVerdict(result) === 'pass';
+  const componentResults = buildComponentResults(result);
+  const metadata = dropUndefined({
+    ...toIndexMetadata(result.metadata),
+    ...(result.conversationId
       ? {
-          turns:
-            result.trace?.messages.filter((message) => message.role === 'assistant').length ?? 0,
-          conversation_id: result.conversationId,
+          conversation: {
+            turns:
+              result.trace?.messages.filter((message) => message.role === 'assistant').length ?? 0,
+            conversation_id: result.conversationId,
+          },
         }
-      : undefined,
-    attempts: includeTrials ? toIndexTrialArtifacts(result) : undefined,
-    aggregation: includeTrials ? toTrialAggregationArtifact(result.aggregation) : undefined,
-  };
+      : {}),
+    ...(result.fileChanges ? { workspace_changes: parseWorkspaceChanges(result.fileChanges) } : {}),
+    ...(options?.includeTrials
+      ? {
+          attempts: toIndexTrialArtifacts(result),
+          aggregation: toTrialAggregationArtifact(result.aggregation),
+        }
+      : {}),
+    execution_status: result.executionStatus,
+    failure_stage: result.failureStage,
+    failure_reason_code: result.failureReasonCode,
+  });
+
+  return dropUndefined({
+    pass,
+    score: clampScore(result.score),
+    reason: resultReason(result, pass),
+    component_results: componentResults,
+    named_scores: collectNamedScores(result.scores),
+    metadata:
+      Object.keys(metadata).length > 0
+        ? (sanitizePublicGradingMetadata(metadata) as Record<string, unknown> | undefined)
+        : undefined,
+  }) as unknown as GradingArtifact;
 }
 
 function timingMetadataSource(
@@ -1784,7 +1879,7 @@ export function buildRunSummaryArtifact(
   const caseSummaries = [...casesByKey.values()].map((entry) => ({
     ...entry,
     pass_rate: percentage(entry.pass_count, entry.sample_count),
-    pass_at_1: entry.pass_count > 0,
+    pass_any: entry.pass_count > 0,
   }));
   const passedCases = caseSummaries.filter((entry) => entry.pass_count > 0).length;
   const erroredInstances = instances.filter(
@@ -1902,22 +1997,7 @@ export async function readRunConfigArtifact(
 export function buildAggregateGradingArtifact(
   results: readonly EvaluationResult[],
 ): AggregateGradingArtifact {
-  const assertionResults: AggregateGradingArtifact['assertion_results'][number][] = [];
   const qualityResults = results.filter((r) => !isExecutionError(r));
-
-  for (const result of qualityResults) {
-    const testId = result.testId ?? 'unknown';
-    for (const assertion of result.assertions ?? []) {
-      assertionResults.push({
-        test_id: testId,
-        ...assertionResultFromAssertion(assertion),
-      });
-    }
-  }
-
-  const passed = assertionResults.filter((a) => a.passed).length;
-  const failed = assertionResults.filter((a) => !a.passed).length;
-  const total = assertionResults.length;
   const score =
     qualityResults.length > 0
       ? Math.round(
@@ -1926,25 +2006,37 @@ export function buildAggregateGradingArtifact(
             1000,
         ) / 1000
       : 0;
-  const verdict =
-    results.length === 0
-      ? 'skip'
-      : qualityResults.length > 0 &&
-          qualityResults.every((result) => resultVerdict(result) === 'pass')
-        ? 'pass'
-        : 'fail';
+  const pass =
+    qualityResults.length > 0 && qualityResults.every((result) => resultVerdict(result) === 'pass');
+  const componentResults = qualityResults.map((result) => ({
+    ...buildGradingArtifact(result, { includeTrials: false }),
+    assertion: assertionMetadata({
+      id: result.testId ?? 'unknown',
+      name: result.testId ?? 'unknown',
+      type: 'eval-case',
+    }),
+  }));
 
-  return {
+  return dropUndefined({
+    pass,
     score,
-    verdict,
-    assertion_results: assertionResults,
-    summary: {
-      passed,
-      failed,
-      total,
-      pass_rate: total > 0 ? Math.round((passed / total) * 1000) / 1000 : 0,
+    reason:
+      results.length === 0
+        ? 'No results to summarize.'
+        : pass
+          ? 'All quality results passed.'
+          : 'One or more quality results failed.',
+    component_results: componentResults.length > 0 ? componentResults : undefined,
+    named_scores: collectNamedScores(qualityResults.flatMap((result) => result.scores ?? [])),
+    metadata: {
+      pass_count: qualityResults.filter((result) => resultVerdict(result) === 'pass').length,
+      sample_count: qualityResults.length,
+      pass_rate: percentage(
+        qualityResults.filter((result) => resultVerdict(result) === 'pass').length,
+        qualityResults.length,
+      ),
     },
-  };
+  }) as unknown as AggregateGradingArtifact;
 }
 
 function safeArtifactPathSegment(value: string | undefined, fallback: string): string {

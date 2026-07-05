@@ -72,9 +72,10 @@ describe('pipeline bench', () => {
     await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const grading = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'));
-    expect(grading.summary.pass_rate).toBeGreaterThan(0);
-    expect(grading.assertion_results.length).toBeGreaterThan(0);
-    expect(grading.graders).toHaveLength(2);
+    expect(grading.metadata.pass_rate).toBeGreaterThan(0);
+    expect(grading.component_results).toHaveLength(2);
+    expect(grading).not.toHaveProperty('assertion_results');
+    expect(grading).not.toHaveProperty('graders');
 
     const indexContent = await readFile(join(OUT_DIR, '.internal', 'index.jsonl'), 'utf8');
     const lines = indexContent

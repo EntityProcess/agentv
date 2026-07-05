@@ -39,10 +39,19 @@ export function formatSummary(
   let passRate: number;
 
   if (grading) {
-    // Use pre-computed assertion-level counts from grading artifact
-    passed = grading.summary.passed;
-    failed = grading.summary.failed;
-    passRate = grading.summary.pass_rate;
+    const metadata = grading.metadata ?? {};
+    passed =
+      typeof metadata.pass_count === 'number' ? metadata.pass_count : grading.pass ? total : 0;
+    failed =
+      typeof metadata.sample_count === 'number' && typeof metadata.pass_count === 'number'
+        ? metadata.sample_count - metadata.pass_count
+        : total - passed;
+    passRate =
+      typeof metadata.pass_rate === 'number'
+        ? metadata.pass_rate
+        : total > 0
+          ? Math.round((passed / total) * 1000) / 1000
+          : 0;
   } else {
     // Fall back to computing from per-test scores
     passed = results.filter((r) => r.score >= 1.0).length;

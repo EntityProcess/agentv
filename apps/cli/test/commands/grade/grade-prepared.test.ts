@@ -209,8 +209,8 @@ describe('agentv grade prepared attempts', () => {
     );
 
     const grading = JSON.parse(await readFile(path.join(runDir, row.grading_path), 'utf8'));
-    expect(grading.workspace_changes).not.toHaveProperty('diff_summary');
-    expect(grading.workspace_changes.files_modified).toBeGreaterThanOrEqual(1);
+    expect(grading.metadata.workspace_changes).not.toHaveProperty('diff_summary');
+    expect(grading.metadata.workspace_changes.files_modified).toBeGreaterThanOrEqual(1);
   }, 20_000);
 
   it('fails clearly when the prepared manifest is missing', async () => {
@@ -289,10 +289,8 @@ describe('agentv grade prepared attempts', () => {
       name: 'expected-tool-sequence',
       type: 'tool-trajectory',
       score: 0,
-    });
-    expect(row.scores[0].assertions[0]).toMatchObject({
-      text: 'No trace available for evaluation',
-      passed: false,
+      pass: false,
+      reason: 'No trace available for evaluation',
     });
   });
 
@@ -401,7 +399,8 @@ describe('agentv grade prepared attempts', () => {
       name: 'expected-tool-sequence',
       type: 'tool-trajectory',
       score: 1,
-      assertions: [{ text: 'Found Read at position 0', passed: true }],
+      pass: true,
+      reason: 'Grader passed.',
     });
     expect(row.metadata.prepared_attempt.trace_path).toBe(tracePath);
   });

@@ -290,40 +290,33 @@ describe('results shared source resolution', () => {
     writeFileSync(
       path.join(runDir, 'nested-graders/grading.json'),
       `${JSON.stringify({
+        pass: false,
         score: 1,
-        verdict: 'pass',
-        assertion_results: [{ text: 'top-level', passed: true, evidence: 'top evidence' }],
-        summary: { passed: 1, failed: 0, total: 1, pass_rate: 1 },
-        graders: [
+        reason: 'One nested component failed.',
+        component_results: [
           {
-            name: 'parent',
-            type: 'assert-set',
+            pass: true,
             score: 1,
-            assertion_results: [
-              { text: 'parent assertion', passed: true, evidence: 'parent evidence' },
-            ],
-            scores: [
+            reason: 'top evidence',
+            assertion: { value: 'top-level' },
+          },
+          {
+            pass: false,
+            score: 0.5,
+            reason: 'parent evidence',
+            assertion: { name: 'parent', type: 'assert-set' },
+            component_results: [
               {
-                name: 'child',
-                type: 'contains',
+                pass: true,
                 score: 1,
-                assertion_results: [
-                  { text: 'child assertion', passed: true, evidence: 'child evidence' },
-                ],
-                scores: [
-                  {
-                    name: 'legacy-grandchild',
-                    type: 'regex',
-                    score: 0,
-                    assertions: [
-                      {
-                        text: 'legacy grandchild assertion',
-                        passed: false,
-                        evidence: 'legacy child evidence',
-                      },
-                    ],
-                  },
-                ],
+                reason: 'child evidence',
+                assertion: { name: 'child', type: 'contains', value: 'child assertion' },
+              },
+              {
+                pass: false,
+                score: 0,
+                reason: 'grandchild evidence',
+                assertion: { name: 'grandchild', type: 'regex', value: 'grandchild assertion' },
               },
             ],
           },
@@ -346,15 +339,18 @@ describe('results shared source resolution', () => {
 
     expect(results[0].assertions).toEqual([
       { text: 'top-level', passed: true, evidence: 'top evidence' },
+      { text: 'child assertion', passed: true, evidence: 'child evidence' },
+      { text: 'grandchild assertion', passed: false, evidence: 'grandchild evidence' },
     ]);
     expect(results[0].scores?.[0]?.assertions).toEqual([
-      { text: 'parent assertion', passed: true, evidence: 'parent evidence' },
+      { text: 'top-level', passed: true, evidence: 'top evidence' },
     ]);
-    expect(results[0].scores?.[0]?.scores?.[0]?.assertions).toEqual([
+    expect(results[0].scores?.[1]?.assertions).toEqual([
       { text: 'child assertion', passed: true, evidence: 'child evidence' },
+      { text: 'grandchild assertion', passed: false, evidence: 'grandchild evidence' },
     ]);
-    expect(results[0].scores?.[0]?.scores?.[0]?.scores?.[0]?.assertions).toEqual([
-      { text: 'legacy grandchild assertion', passed: false, evidence: 'legacy child evidence' },
+    expect(results[0].scores?.[1]?.scores?.[1]?.assertions).toEqual([
+      { text: 'grandchild assertion', passed: false, evidence: 'grandchild evidence' },
     ]);
   });
 
