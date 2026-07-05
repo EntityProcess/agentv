@@ -1,0 +1,64 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-da7209a35017ed29d126",
+  "generated_at": "2026-07-05T03:56:42.343Z",
+  "test_id": "sdk-live-marker",
+  "target": "pi-sdk-local",
+  "suite": "av-t2o5-3-sdk-child-runner-live",
+  "category": ".agentv/results/av-t2o5-3-inputs/live-marker",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-da7209a35017ed29d126",
+    "trace_id": "e4af5f332940c29291f07d27e3e53063",
+    "root_span_id": "915d604d63d1c671"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 29,
+    "transcript_chars": 1410,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 4206,
+    "total_seconds": 4.206,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 9791,
+    "input": 9768,
+    "output": 23,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": 0.0074295,
+    "source": "provider_reported"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

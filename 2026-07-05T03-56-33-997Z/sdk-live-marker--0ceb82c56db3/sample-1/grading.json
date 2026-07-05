@@ -1,0 +1,76 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Output contains \"AGENTV_SDK_CHILD_RUNNER_READY\"",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Included the exact required marker",
+      "passed": true,
+      "evidence": "The response is exactly `AGENTV_SDK_CHILD_RUNNER_READY`.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Did not refuse the request",
+      "passed": true,
+      "evidence": "No refusal language or additional explanation was present.",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "contains-AGENTV_SDK_CHILD_RUNNER_READY",
+      "type": "contains",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Output contains \"AGENTV_SDK_CHILD_RUNNER_READY\"",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Included the exact required marker",
+          "passed": true,
+          "evidence": "The response is exactly `AGENTV_SDK_CHILD_RUNNER_READY`.",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Did not refuse the request",
+          "passed": true,
+          "evidence": "No refusal language or additional explanation was present.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    }
+  ]
+}
