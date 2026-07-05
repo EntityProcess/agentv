@@ -1,0 +1,64 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-a54c25b3328dff681b31",
+  "generated_at": "2026-07-05T03:43:55.842Z",
+  "test_id": "spreadsheet-output",
+  "target": "file_output",
+  "suite": "suite",
+  "category": "examples/features/file-transforms",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-a54c25b3328dff681b31",
+    "trace_id": "5abd634f4380da71ff39b322fa156342",
+    "root_span_id": "3ee71594efa420e4"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 32,
+    "transcript_chars": 831,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 86,
+    "total_seconds": 0.086,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "quality_failure"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

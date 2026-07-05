@@ -1,0 +1,22 @@
+{
+  "score": 0,
+  "verdict": "fail",
+  "assertion_results": [],
+  "summary": {
+    "passed": 0,
+    "failed": 0,
+    "total": 0,
+    "pass_rate": 0
+  },
+  "graders": [
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 0,
+      "reasoning": "",
+      "weight": 2,
+      "verdict": "fail",
+      "assertion_results": []
+    }
+  ]
+}
