@@ -1,0 +1,20 @@
+targets:
+  - id: pi-cli-proxy
+    provider: pi-cli
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    grader_target: grader-openai-proxy
+    config:
+      subprovider: azure
+      base_url: http://127.0.0.1:10531/v1
+      api_key: "[redacted]"
+      thinking: low
+      timeout_seconds: 120
+      system_prompt: Answer the user's task directly and concisely.
+  - id: grader-openai-proxy
+    provider: openai
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    config:
+      base_url: http://127.0.0.1:10531/v1
+      api_key: "[redacted]"
+      api_format: chat
+      max_output_tokens: 600

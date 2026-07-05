@@ -1,0 +1,80 @@
+{
+  "pass": true,
+  "score": 1,
+  "reason": "All grading components passed.",
+  "component_results": [
+    {
+      "pass": true,
+      "score": 1,
+      "reason": "Grader passed.",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The answer says \"2 + 2 = 4\".",
+          "assertion": {
+            "name": "answer_quality",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "grader-openai-proxy",
+            "value": "States 2 + 2 equals 4"
+          }
+        },
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The answer includes the exact required word.",
+          "assertion": {
+            "name": "answer_quality",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "grader-openai-proxy",
+            "value": "Includes exact word component-results"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "answer_quality",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "grader-openai-proxy"
+      },
+      "metadata": {
+        "details": {
+          "pass": true,
+          "score": 1,
+          "reason": "The response correctly states that 2 + 2 = 4 and includes the exact word component-results.",
+          "checks": [
+            {
+              "text": "States 2 + 2 equals 4",
+              "pass": true,
+              "score": 1,
+              "reason": "The answer says \"2 + 2 = 4\".",
+              "evidence": "\"2 + 2 = 4\""
+            },
+            {
+              "text": "Includes exact word component-results",
+              "pass": true,
+              "score": 1,
+              "reason": "The answer includes the exact required word.",
+              "evidence": "\"component-results\""
+            }
+          ]
+        },
+        "token_usage": {
+          "input": 0,
+          "output": 0
+        },
+        "duration_ms": 2739,
+        "started_at": "2026-07-05T10:00:41.757Z",
+        "ended_at": "2026-07-05T10:00:44.496Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "answer_quality": 1
+  },
+  "metadata": {
+    "execution_status": "ok"
+  }
+}
