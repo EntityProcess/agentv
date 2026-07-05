@@ -1,0 +1,5 @@
+targets:
+  - id: docker-cli
+    provider: cli
+    config:
+      command: test "$(pwd)" = /app && printf '{"text":"docker-workdir-ok"}' > {OUTPUT_FILE}

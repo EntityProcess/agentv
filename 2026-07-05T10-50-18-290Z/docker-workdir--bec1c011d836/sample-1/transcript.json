@@ -1,0 +1,55 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "cli",
+  "target": "docker-cli",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "Failed to read output file '/tmp/agentv-docker-workdir-1783248620958-3io6tl6.json': ENOENT: no such file or directory, open '/tmp/agentv-docker-workdir-1783248620958-3io6tl6.json'"
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "cli",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Confirm the Docker environment workdir."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "cli",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Error: Failed to read output file '/tmp/agentv-docker-workdir-1783248620958-3io6tl6.json': ENOENT: no such file or directory, open '/tmp/agentv-docker-workdir-1783248620958-3io6tl6.json'"
+        }
+      ]
+    }
+  ]
+}

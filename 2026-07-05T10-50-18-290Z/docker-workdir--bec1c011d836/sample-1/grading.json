@@ -1,0 +1,43 @@
+{
+  "pass": false,
+  "score": 0,
+  "reason": "Failed to read output file '/tmp/agentv-docker-workdir-1783248620958-3io6tl6.json': ENOENT: no such file or directory, open '/tmp/agentv-docker-workdir-1783248620958-3io6tl6.json'",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "Output does not contain \"docker-workdir-ok\"",
+      "component_results": [
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "Output does not contain \"docker-workdir-ok\"",
+          "assertion": {
+            "name": "contains-docker-workdir-ok",
+            "type": "contains",
+            "weight": 1,
+            "value": "Output does not contain \"docker-workdir-ok\""
+          }
+        }
+      ],
+      "assertion": {
+        "name": "contains-docker-workdir-ok",
+        "type": "contains",
+        "weight": 1
+      },
+      "metadata": {
+        "duration_ms": 0,
+        "started_at": "2026-07-05T10:50:22.713Z",
+        "ended_at": "2026-07-05T10:50:22.713Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "contains-docker-workdir-ok": 0
+  },
+  "metadata": {
+    "execution_status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "target_malformed_output"
+  }
+}
