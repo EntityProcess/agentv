@@ -1,0 +1,19 @@
+{
+  "score": 0,
+  "verdict": "fail",
+  "assertion_results": [
+    {
+      "text": "Error: Transform failed ([inline transform]: return (() => { const content = Array.isArray(output) ? output : []; const matc...): stdio must be an array of 'inherit', 'pipe', 'ignore', Bun.file(pathOrFd), number, or null",
+      "passed": false,
+      "evidence": "",
+      "score": 0,
+      "verdict": "fail"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1,
+    "pass_rate": 0
+  }
+}

@@ -1,0 +1,12 @@
+targets:
+  - id: file_output
+    provider: file-output
+    grader_target: grader_check
+    config:
+      command: bun run .agentv/providers/file-output.ts {OUTPUT_FILE}
+      cwd: ..
+  - id: grader_check
+    provider: grader-check
+    config:
+      command: bun run .agentv/providers/grader-check.ts {PROMPT_FILE} {OUTPUT_FILE}
+      cwd: ..
