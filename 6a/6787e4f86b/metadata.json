@@ -3,7 +3,7 @@
   "checkpoint_id": "6a6787e4f86b",
   "strategy": "manual-commit",
   "branch": "runtime-sdk-child-runner-deps",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/cli/package.json",
     "apps/web/src/content/docs/docs/next/targets/coding-agents.mdx",
@@ -14,6 +14,7 @@
     "packages/core/src/evaluation/providers/codex.ts",
     "packages/core/src/evaluation/providers/copilot-sdk.ts",
     "packages/core/src/evaluation/providers/pi-coding-agent.ts",
+    "packages/core/src/evaluation/providers/sdk-child-provider.ts",
     "packages/core/test/evaluation/providers/sdk-child-provider.test.ts",
     "packages/core/test/evaluation/providers/sdk-provider-registry.test.ts"
   ],
@@ -23,13 +24,19 @@
       "transcript": "/6a/6787e4f86b/0/full.jsonl",
       "content_hash": "/6a/6787e4f86b/0/content_hash.txt",
       "prompt": "/6a/6787e4f86b/0/prompt.txt"
+    },
+    {
+      "metadata": "/6a/6787e4f86b/1/metadata.json",
+      "transcript": "/6a/6787e4f86b/1/full.jsonl",
+      "content_hash": "/6a/6787e4f86b/1/content_hash.txt",
+      "prompt": "/6a/6787e4f86b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 15517,
+    "input_tokens": 31045,
     "cache_creation_tokens": 0,
     "cache_read_tokens": 0,
-    "output_tokens": 45,
-    "api_call_count": 1
+    "output_tokens": 84,
+    "api_call_count": 2
   }
 }
