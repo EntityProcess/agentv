@@ -120,6 +120,29 @@ Run bundles preserve target id, provider kind, runtime mode, command argv, cwd,
 stdout/stderr, transcripts or logs, final output when available, timing,
 timeouts, exit codes, signals, and partial artifacts on failure.
 
+## SDK beta optional dependencies
+
+The SDK providers are beta surfaces and run only inside the AgentV SDK child
+runner. AgentV declares their packages as optional dependencies so a normal
+`bun install`, `npm install`, or package install can hydrate them, while the
+main CLI still does not import the SDK packages during startup or non-SDK
+runs.
+
+If your package manager omitted optional dependencies, install the SDK package
+for the provider you use:
+
+```bash
+bun add --optional @openai/codex-sdk
+bun add --optional @earendil-works/pi-coding-agent
+bun add --optional @anthropic-ai/claude-agent-sdk
+bun add --optional @github/copilot-sdk
+```
+
+Missing SDK packages are reported as target execution failures from the child
+runner. Prefer the process/protocol providers for default local and CI runs,
+and choose an SDK provider only when SDK-native events or lifecycle control are
+the behavior under test.
+
 ## Codex
 
 Use `codex-app-server` when you want rich protocol control:
