@@ -1,0 +1,21 @@
+target: file_output
+prompts:
+  - "{{ input }}"
+tests:
+  - id: spreadsheet-output
+    vars:
+      input: Generate the spreadsheet report
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        rubrics:
+          - id: rubric-1
+            outcome: Output contains the transformed spreadsheet text including the revenue rows
+            weight: 1
+            required: true
+          - id: rubric-2
+            outcome: The extracted spreadsheet content includes the revenue rows
+            weight: 1
+            required: true
+        weight: 2
