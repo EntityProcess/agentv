@@ -1,5 +1,5 @@
-description: "Demonstrates workspace repo lifecycle: clone a git repo into the workspace, check out
-  a specific commit, and have the agent work on it."
+description: "Demonstrates environment repo lifecycle: clone a git repo into the prepared workdir,
+  check out a specific commit, and have the agent work on it."
 environment:
   type: host
   workdir: ./repo

@@ -78,7 +78,7 @@ Use `--response` when the final answer text should be graded independently of th
 - For Opik, Langfuse, or another export-capable backend, treat their traces as external artifacts that can be imported or projected back into AgentV later.
 - For Phoenix, use only optional link-out correlation when safe `external_trace` metadata points to spans already emitted independently by Codex, Arize, or another hook.
 
-AgentV remains responsible for eval definitions, workspace setup, grading, result bundles, and CI gates. Live trace storage, dashboards, and provider-specific run monitoring belong in the observability backend or the external harness.
+AgentV remains responsible for eval definitions, environment setup, grading, result bundles, and CI gates. Live trace storage, dashboards, and provider-specific run monitoring belong in the observability backend or the external harness.
 
 There is no `agentv watch` command.
 

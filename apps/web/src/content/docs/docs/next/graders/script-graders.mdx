@@ -385,7 +385,8 @@ Use `expected_output` for reference answers and `output` for the actual final an
 
 ## Workspace Access
 
-When `workspace` is configured in the eval YAML (via `workspace.template`, `workspace.repos`, or lifecycle hooks), script graders receive the prepared workspace path in two ways:
+When an `environment` recipe prepares a coding-agent testbed, script graders
+receive the prepared workspace path in two ways:
 
 1. **JSON payload**: `workspace_path` field in the stdin input
 2. **Environment variable**: `AGENTV_WORKSPACE_PATH`
@@ -396,7 +397,7 @@ This enables **functional grading** — running commands like `npm test`, `pytes
 
 `file_changes` is a unified diff built from two sources, merged in order:
 
-1. **Git baseline**: `git diff` against a baseline commit taken before the agent ran. Captures edits, new files at workspace root, and changes inside any nested git repos materialized via `workspace.repos` or set up via a `before_all` hook.
+1. **Git baseline**: `git diff` against a baseline commit taken before the agent ran. Captures edits, new files at workspace root, and changes inside any nested git repos materialized by `environment.setup.command` or set up via a lifecycle hook.
 2. **Provider-reported artifacts**: Copilot providers scan their session-state `files/` directory after each run and append those as synthetic diffs. This surfaces files the agent wrote *outside* `workspace_path` entirely (e.g. `~/.copilot/session-state/<uuid>/files/`).
 
 ### Example: Deploy-and-Test Pattern
@@ -440,8 +441,9 @@ console.log(JSON.stringify({
 
 ```yaml
 # suite.yaml
-workspace:
-  template: ./workspace-template   # copied into a temp dir before each run
+environment:
+  type: host
+  workdir: ./workspace-template
 
 target: my_agent
 

@@ -96,12 +96,12 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 
 ---
 
-### Workspace and agent setup
+### Environment and agent setup
 | Example | Description |
 |---------|-------------|
 | [workspace-setup-script](workspace-setup-script/) | Multi-step setup with a `beforeAll` lifecycle extension |
-| [workspace-multi-repo](workspace-multi-repo/) | Multi-repo workspace using a VS Code `.code-workspace` file |
-| [workspace-shared-config](workspace-shared-config/) | Define a `workspace.yaml` once and reference it across eval files |
+| [workspace-multi-repo](workspace-multi-repo/) | Multi-repo environment using a VS Code `.code-workspace` file |
+| [workspace-shared-config](workspace-shared-config/) | Define an environment recipe once and reference it across eval files |
 | [repo-lifecycle](repo-lifecycle/) | Clone a git repo into the workspace and target the agent at it |
 | [file-changes](file-changes/) | Capture workspace file changes made by the agent across test runs |
 | [file-changes-graders](file-changes-graders/) | Grade file diffs with rubrics and LLM graders |

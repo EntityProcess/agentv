@@ -547,11 +547,13 @@ vars:
 
 - **Directory name as `id`:** If `case.yaml` doesn't specify an `id`, the directory name is used (e.g., `fix-null-check`)
 - **Alphabetical ordering:** Subdirectories are sorted alphabetically for deterministic order
-- **Per-case workspace:** A `workspace/` subdirectory inside the case directory automatically sets `workspace.template` to that path, unless the case already defines a `workspace` field
+- **Per-case files:** Put bulky case-local prompts, patches, fixtures, and oracle files beside `case.yaml`; reference them with `type: file` blocks or read them from lifecycle extensions via `case_metadata`
 - **Skipped directories:** Subdirectories without `case.yaml` are skipped with a warning
-- **Suite-level config applies:** Suite-level `assert`, `prompts`, `workspace`, `target`, and top-level run controls still apply to directory-discovered cases
+- **Suite-level config applies:** Suite-level `assert`, `prompts`, `environment`, `target`, and top-level run controls still apply to directory-discovered cases
 
-This pattern is useful for benchmarks with many cases, where each case benefits from its own directory for workspace templates, supporting files, or documentation.
+This pattern is useful for benchmarks with many cases, where each case benefits
+from its own directory for supporting files, patches, fixtures, or
+documentation.
 For guidance on keeping provenance metadata, patches, oracle files, and generated
 dataset rows out of oversized inline YAML, see [Benchmark Provenance](/docs/guides/benchmark-provenance/).
 
@@ -560,11 +562,20 @@ dataset rows out of oversized inline YAML, see [Benchmark Provenance](/docs/guid
 All string fields in eval files support `{{ env.VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
 
 ```yaml
-workspace:
-  repos:
-    - path: ./RepoA
-      repo: "{{ env.REPO_A_URL }}"
-      commit: "{{ env.REPO_A_COMMIT }}"
+environment:
+  type: host
+  workdir: ./workspaces/repo-a
+  setup:
+    command:
+      - bash
+      - ./scripts/materialize-repo.sh
+      - ./workspaces/repo-a
+      - "{{ env.REPO_A_URL }}"
+      - "{{ env.REPO_A_COMMIT }}"
+    cwd: "."
+
+env:
+  OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"
 
 prompts:
   - "{{ prompt }}"
@@ -583,17 +594,23 @@ tests:
 - **Partial interpolation** is supported: `{{ env.HOME }}/repos/{{ env.PROJECT }}` becomes `/home/user/repos/myproject`
 - **Non-string values** (numbers, booleans) are not affected
 - Interpolation is applied recursively to all nested objects and arrays
-- Works in YAML eval files, external YAML/JSONL case files, and external workspace config files
+- Works in YAML eval files, external YAML/JSONL case files, and external environment recipe files
 - `.env` files in the directory hierarchy are loaded automatically before interpolation
 
-### Example: Portable Workspace Config
+### Example: Portable Environment Recipe
 
 ```yaml
-# workspace.yaml — works on any machine
-repos:
-  - path: ./my-repo
-    repo: "{{ env.MY_REPO_URL }}"
-    commit: "{{ env.MY_REPO_COMMIT }}"
+# .agentv/environments/repo.yaml — works on any machine
+type: host
+workdir: ./workspaces/my-repo
+setup:
+  command:
+    - bash
+    - ./scripts/materialize-repo.sh
+    - ./workspaces/my-repo
+    - "{{ env.MY_REPO_URL }}"
+    - "{{ env.MY_REPO_COMMIT }}"
+  cwd: "."
 ```
 
 ```bash

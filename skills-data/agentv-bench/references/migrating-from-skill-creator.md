@@ -64,7 +64,7 @@ When evals.json becomes limiting, convert to EVAL.yaml for the full feature set:
 # Convert evals.json to EVAL.yaml
 agentv convert evals.json
 
-# Edit the generated YAML to add workspace config, script graders, etc.
+# Edit the generated YAML to add environment setup, script graders, etc.
 # Then run with the full lifecycle
 agentv eval eval.yaml
 ```

@@ -247,14 +247,13 @@ target:
 Use `defaults.grader` for the project default grader. A specific evaluator can
 still choose its own grader target when the evaluator supports that override.
 
-### Lifecycle Extensions
+### Environment And Lifecycle Extensions
 
-Run non-provisioning setup at AgentV lifecycle points using top-level
-`extensions`. The harness materializes `workspace.template` and
-`workspace.repos` first, then runs `beforeAll` extensions. Use extensions for
-dependency installs, builds, fixture generation, and agent-rule staging. Use
-target hooks for runner-specific setup. Keep repo identity and checkout pins in
-`workspace.repos`; extensions must not become the default repo acquisition path.
+Use `environment` for the authored coding-agent testbed recipe: host or Docker
+placement, workdir, setup argv, fixtures, services, and repository
+materialization scripts. Use top-level `extensions` for Promptfoo-style
+lifecycle callbacks and instrumentation that run after the environment is
+prepared. Use target hooks only for runner-specific setup.
 
 ```yaml
 extensions:
@@ -267,22 +266,29 @@ extensions:
     skills: agent-rules/skills
     rules: agent-rules/AGENTS.md
 
-workspace:
-  template: ./workspace-templates/my-project
-  hooks:
-    after_each:
-      reset: fast
+environment:
+  type: host
+  workdir: ./workspaces/my-project
+  setup:
+    command: ["bash", "-lc", "bun install && bun run build"]
+    cwd: "."
+    timeout_ms: 120000
 ```
 
 | Field | Description |
 |-------|-------------|
-| `template` | Directory to copy as workspace |
+| `environment.type` | `host` or `docker` |
+| `environment.workdir` | Cwd used by targets and graders inside the prepared testbed |
+| `environment.setup.command` | Non-empty argv setup command; use `["bash", "-lc", "..."]` for shell behavior |
+| Top-level `env` | Provider/eval variables and template inputs |
 | `extensions[]` | `file://...:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, or `agentv:agent-rules` |
-| `hooks.after_each.reset` | Reset mode: `none`, `fast`, `strict` |
 
-**Lifecycle order:** template copy → repo materialization → `extensions.beforeAll` → target `hooks.before_all` → git baseline → (`extensions.beforeEach` → target `hooks.before_each` → agent runs → file changes captured → target `hooks.after_each` → `extensions.afterEach` → `workspace.hooks.after_each.reset`) × N tests → target `hooks.after_all` → `extensions.afterAll` → cleanup
-
-**Shared workspace:** The workspace is created once and shared across all tests in a suite. Use `hooks.after_each.reset` to reset state between tests (e.g., `fast`/`strict`).
+**Lifecycle order:** resolve environment → prepare host or Docker testbed →
+`environment.setup.command` → `extensions.beforeAll` → target
+`hooks.before_all` → git baseline → (`extensions.beforeEach` → target
+`hooks.before_each` → agent runs → file changes captured → target
+`hooks.after_each` → `extensions.afterEach`) × N tests → target
+`hooks.after_all` → `extensions.afterAll` → cleanup
 
 **Error handling:**
 - `beforeAll` / `beforeEach` extension failure aborts the affected run with an error result
@@ -301,74 +307,43 @@ case context:
 }
 ```
 
-`workspace.hooks` is the reset-policy home for `after_each.reset`. Use
-`extensions` for executable setup.
+`extensions` are callbacks, not the canonical place to hide repository
+materialization, Docker/image selection, cwd, or testbed provenance. Put that
+contract in `environment`.
 
-### Repository Lifecycle
+### Repository Setup
 
-Materialize git repositories into the shared eval workspace. Repo entries declare provenance only: the repository identity and checkout pin. AgentV resolves acquisition separately using registered projects, configured mirrors, its git cache, and finally remote clone. Define repos at the suite level or per test:
+Materialize git repositories through the environment recipe. A setup command can
+call your normal clone, checkout, fixture, or build script with explicit argv
+inputs:
 
 ```yaml
-workspace:
-  repos:
-    - path: ./my-repo
-      repo: https://github.com/org/repo.git
-      commit: main
-      ancestor: 1          # check out the parent commit
-  hooks:
-    after_each:
-      reset: fast             # none | fast | strict
-  scope: suite                # suite (default) | attempt
+environment:
+  type: host
+  workdir: ./workspaces/my-repo
+  setup:
+    command:
+      - bash
+      - ./scripts/materialize-repo.sh
+      - ./workspaces/my-repo
+      - https://github.com/org/repo.git
+      - main
+    cwd: "."
+    timeout_ms: 120000
 ```
 
-`repo` declares the repository identity. Acquisition is harness-owned: AgentV first applies configured `repo_resolvers`, then uses the built-in git path of registered projects, configured mirrors, AgentV's git cache, and remote clone. See [Workspace Architecture](/docs/guides/workspace-architecture/#acquisition-resolver) for the resolver order, command resolver protocol, and `git_cache.mirrors` config.
+Keep the same repo URL and commit in `tests[].metadata` only when you also need
+audit fields in results or extensions. Metadata by itself is not an operational
+checkout.
 
 | Field | Description |
 |-------|-------------|
-| `repos[].path` | Directory within the workspace to clone into |
-| `repos[].repo` | Repository identity: full clone URL or GitHub `org/name` shorthand |
-| `repos[].commit` | Branch, tag, or SHA to check out (default: `HEAD`) |
-| `repos[].ancestor` | Walk N commits back from the checked-out ref (e.g., `1` for parent) |
-| `repos[].sparse` | Sparse checkout paths |
-| `hooks.after_each.reset` | Reset policy after each test: `none`, `fast`, `strict` |
-| `scope` | `suite` reuses one harness-managed workspace for the suite; `attempt` creates a clean workspace for each resolved execution attempt |
-| `hooks.enabled` | Boolean (default: `true`). Set `false` to skip all lifecycle hooks. |
-
-Use `scope: attempt` when mutating agents need clean filesystem state for every prompt-target-test-repeat execution. Use `scope: suite` when the suite intentionally shares state across tests.
+| `setup.command[0]` | Executable |
+| `setup.command[1...]` | Arguments passed unchanged to the executable |
+| `setup.cwd` | Directory for the setup command |
+| `setup.timeout_ms` | Setup timeout in milliseconds |
 
 **Existing local workspaces:** do not commit local paths in eval YAML. Use `--workspace-path /path/to/workspace` for a one-off run, or put `execution.workspace_path` in `.agentv/config.local.yaml`.
-
-Workspace command:
-- `agentv workspace deps <eval-paths>` — scan eval files and output a JSON manifest of required git repos (for CI pre-cloning)
-
-**Common patterns:**
-
-```yaml
-# Pinned commit
-workspace:
-  repos:
-    - path: ./repo
-      repo: https://github.com/org/repo.git
-      commit: abc123def
-
-# Multi-repo shared workspace with reset
-workspace:
-  repos:
-    - path: ./frontend
-      repo: https://github.com/org/frontend.git
-    - path: ./backend
-      repo: https://github.com/org/backend.git
-  hooks:
-    after_each:
-      reset: fast
-
-# GitHub shorthand with a pinned commit
-workspace:
-  repos:
-    - path: ./repo
-      repo: org/repo
-      commit: abc123def
-```
 
 ### Cleanup Behavior
 
@@ -386,9 +361,14 @@ Use `cwd` on a target to run in an existing directory (shared across tests). If 
 
 ## Target Hooks
 
-Eval files can define per-target hooks that run setup/teardown scripts to customize the workspace for each target variant. This enables comparing different harness configurations (e.g., baseline vs with-plugins) in a single eval file.
+Eval files can define per-target hooks that run setup/teardown scripts to
+customize each target variant. This enables comparing different harness
+configurations, such as baseline vs with-plugins, in a single eval file.
 
-Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as enabling wrappers or changing provider-local config. Keep installs, builds, fixture generation, and case setup in top-level lifecycle `extensions`.
+Targets do not declare testbed setup. The shared `environment` prepares the
+world so every target runs against the same files, fixtures, cwd, and services.
+Target hooks customize the harness under evaluation, such as enabling wrappers
+or changing provider-local config.
 
 Target hooks can be scoped to an eval-local target object:
 
@@ -402,22 +382,23 @@ target:
 
 ### Hook execution order
 
-Target hooks run after workspace hooks on setup, before workspace hooks on teardown:
+Target hooks run after environment setup and lifecycle extensions on setup.
+Teardown runs target hooks before lifecycle extensions:
 
 1. Extension `beforeAll`
 2. **Target `before_all`**
 3. For each test:
-   - Workspace `before_each`
+   - Extension `beforeEach`
    - **Target `before_each`**
    - Test executes
    - **Target `after_each`**
-   - Workspace `after_each`
+   - Extension `afterEach`
 4. **Target `after_all`**
-5. Workspace `after_all`
+5. Extension `afterAll`
 
 ### Hook schema
 
-Target hooks follow the same schema as workspace hooks:
+Target hooks follow the same command schema as lifecycle hook commands:
 
 ```yaml
 hooks:

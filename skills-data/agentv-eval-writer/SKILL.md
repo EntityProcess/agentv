@@ -61,7 +61,7 @@ agentv convert evals.json
 agentv eval evals.json
 ```
 
-The converter maps `prompt` → `input`, `expected_output` → `expected_output`, and Agent Skills `assertions` → AgentV `assert` (`llm-rubric` checks), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, script graders, rubrics, required gates).
+The converter maps `prompt` → `input`, `expected_output` → `expected_output`, and Agent Skills `assertions` → AgentV `assert` (`llm-rubric` checks), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (environment setup, script graders, rubrics, required gates).
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
@@ -333,19 +333,29 @@ For repo-state evals, combine a pinned checkout, a golden answer, and assertion
 shorthand:
 
 ```yaml
-workspace:
-  repos:
-    - path: ./agentv
-      repo: https://github.com/EntityProcess/agentv.git
-      commit: 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+environment:
+  type: host
+  workdir: ./agentv
+  setup:
+    command:
+      - bash
+      - ./scripts/materialize-repo.sh
+      - ./agentv
+      - https://github.com/EntityProcess/agentv.git
+      - 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+    cwd: "."
+
+prompts:
+  - "{{ task }}"
 
 tests:
   - id: verification-learning-capture
-    input: |
-      The eval harness has prepared ./agentv at the commit before the
-      verification guidance was added.
+    vars:
+      task: |
+        The eval harness has prepared ./agentv at the commit before the
+        verification guidance was added.
 
-      Decide what durable repo change should be made and explain why.
+        Decide what durable repo change should be made and explain why.
     expected_output: |
       The durable repo change is to update .agents/verification.md with the
       reusable verification workflow lessons. AGENTS.md already routes this
@@ -482,10 +492,23 @@ setup:
   timeout_ms: 120000
 ```
 
+```yaml
+# .agentv/environments/docker-repo.yaml
+type: docker
+context: ./environment
+dockerfile: Dockerfile
+workdir: /app
+setup:
+  command: ["bash", "-lc", "bun install && bun run build"]
+  cwd: "."
+  timeout_ms: 120000
+```
+
 - `type`: `host` or `docker`
 - `workdir`: path the target and graders should use
 - `setup`: argv command, optional `cwd`, and optional `timeout_ms` for repository/testbed materialization
 - Top-level `env`: provider/eval environment overrides
+- `environment.env`: recipe-scoped process environment, distinct from top-level `env`
 - `extensions`: lifecycle hooks such as `beforeAll`, `beforeEach`, `afterEach`, and `afterAll`
 
 ## Grader Types
@@ -503,7 +526,7 @@ Configure via the `assert` array. Multiple graders produce a weighted average sc
 Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], reasoning}`
 Raw stdin uses snake_case and includes: `input`, `expected_output`, `output` (final answer string), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 SDK handlers receive the same payload in camelCase: `expectedOutput`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`, `fileChanges`, `workspacePath`.
-When a workspace is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
+When an environment prepares a workspace directory, `workspace_path` is the absolute path to that directory (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the prepared workdir).
 For deterministic workspace checks that fit normal Vitest `expect(...)` tests, prefer a plain verifier file and the built-in adapter:
 ```yaml
 - name: welcome_banner

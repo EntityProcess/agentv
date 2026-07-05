@@ -54,7 +54,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [compare](features/compare/) - Baseline comparison
 - [deterministic-graders](features/deterministic-graders/) - Deterministic assertions (contains, regex, JSON validation)
 - [vitest-workspace-grader](features/vitest-workspace-grader/) - Vitest-style deterministic workspace verifiers
-- [workspace-setup-script](features/workspace-setup-script/) - Multi-step workspace setup with a `beforeAll` lifecycle extension
+- [workspace-setup-script](features/workspace-setup-script/) - Multi-step environment setup with a `beforeAll` lifecycle extension
 
 ### SDK
 

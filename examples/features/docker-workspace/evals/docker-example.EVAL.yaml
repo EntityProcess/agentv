@@ -1,5 +1,5 @@
 name: docker-workspace-example
-description: Example eval using Docker workspace for grading
+description: Example eval using a Docker environment for grading
 target: mock_agent
 environment:
   type: docker

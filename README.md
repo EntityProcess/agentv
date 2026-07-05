@@ -5,7 +5,7 @@ Test AI targets on real repo tasks and measure what actually works.
 ## Why?
 
 - **Local-first** — runs on your machine, no cloud accounts or API keys for eval infrastructure
-- **Repo-backed workspaces** — reuse real repos, setup scripts, and existing harnesses instead of rebuilding synthetic tasks
+- **Repo-backed environments** — reuse real repos, setup scripts, Docker images, and existing harnesses instead of rebuilding synthetic tasks
 - **Portable artifacts** — results, traces, and reports are saved in a durable format other tools can consume
 - **Version-controlled** — evals, judges, and results all live in Git
 - **Hybrid graders** — deterministic code checks + LLM-based subjective scoring
@@ -14,9 +14,9 @@ Test AI targets on real repo tasks and measure what actually works.
 
 ## Core Concepts
 
-- **Eval suite / imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
+- **Eval suite / tests** are the task corpus: the prompts, cases, datasets, and reusable field-local files you want to evaluate.
 - **Category** is derived from where the eval lives, such as folder path and file name. Use paths to organize the corpus instead of repeating category labels in every eval.
-- **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
+- **Environment / fixtures / graders** are task-owned context: host or Docker setup, repos, setup scripts, files, fixtures, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target` by configured target `id` or with an eval-local target object.
 - **Tags** are run/result grouping labels. `tags.experiment` is the default experiment namespace, such as `with-skills` or `without-skills`; keep suite/category and target/model names out of that tag.
 - **Evaluate options** configure eval run behavior such as `max_concurrency`, repeat policy, and budgets.
@@ -259,15 +259,19 @@ export default defineEval({
   },
   threshold: 0.8,
   prompts: ['{{ input }}'],
-  workspace: {
-    scope: 'attempt',
-    repos: [
-      {
-        path: './fixture',
-        repo: 'EntityProcess/agentv-contract-fixture',
-        commit: '21a34daed7ebcfe36cbed053607622a55e5e94cb',
-      },
-    ],
+  environment: {
+    type: 'host',
+    workdir: './fixture',
+    setup: {
+      command: [
+        'bash',
+        './scripts/materialize-repo.sh',
+        './fixture',
+        'EntityProcess/agentv-contract-fixture',
+        '21a34daed7ebcfe36cbed053607622a55e5e94cb',
+      ],
+      cwd: '.',
+    },
   },
   tests: [
     {
