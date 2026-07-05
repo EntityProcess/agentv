@@ -425,7 +425,7 @@ const WorkspaceSchema = z
   })
   .strict();
 
-const EnvironmentSetupSchema = z
+const EnvironmentSetupBaseSchema = z
   .object({
     command: z
       .array(z.string().min(1), {
@@ -439,8 +439,14 @@ const EnvironmentSetupSchema = z
     cwd: z.string().min(1).optional(),
     timeout_ms: z.number().gt(0).optional(),
   })
-  .passthrough()
+  .strict();
+
+const EnvironmentSetupSchema = z
+  .unknown()
   .superRefine((value, ctx) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return;
+    }
     const record = value as Record<string, unknown>;
     if (Object.prototype.hasOwnProperty.call(record, 'args')) {
       ctx.addIssue({
@@ -475,7 +481,8 @@ const EnvironmentSetupSchema = z
         });
       }
     }
-  });
+  })
+  .pipe(EnvironmentSetupBaseSchema);
 
 const EnvironmentBaseSchema = z.object({
   workdir: z.string().min(1),

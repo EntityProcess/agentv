@@ -1614,43 +1614,33 @@
                                 "minLength": 1
                               },
                               "setup": {
-                                "type": "object",
-                                "properties": {
-                                  "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string",
-                                        "minLength": 1
-                                      },
-                                      {
+                                "allOf": [
+                                  {},
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "command": {
                                         "type": "array",
                                         "items": {
                                           "type": "string",
                                           "minLength": 1
                                         },
                                         "minItems": 1
+                                      },
+                                      "cwd": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "timeout_ms": {
+                                        "type": "number",
+                                        "exclusiveMinimum": true,
+                                        "minimum": 0
                                       }
-                                    ]
-                                  },
-                                  "args": {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {}
-                                  },
-                                  "env": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "timeout_seconds": {
-                                    "type": "number",
-                                    "exclusiveMinimum": true,
-                                    "minimum": 0
+                                    },
+                                    "required": ["command"],
+                                    "additionalProperties": false
                                   }
-                                },
-                                "required": ["command"],
-                                "additionalProperties": false
+                                ]
                               },
                               "env": {
                                 "type": "object",
@@ -1674,43 +1664,33 @@
                                 "minLength": 1
                               },
                               "setup": {
-                                "type": "object",
-                                "properties": {
-                                  "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string",
-                                        "minLength": 1
-                                      },
-                                      {
+                                "allOf": [
+                                  {},
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "command": {
                                         "type": "array",
                                         "items": {
                                           "type": "string",
                                           "minLength": 1
                                         },
                                         "minItems": 1
+                                      },
+                                      "cwd": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "timeout_ms": {
+                                        "type": "number",
+                                        "exclusiveMinimum": true,
+                                        "minimum": 0
                                       }
-                                    ]
-                                  },
-                                  "args": {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {}
-                                  },
-                                  "env": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "timeout_seconds": {
-                                    "type": "number",
-                                    "exclusiveMinimum": true,
-                                    "minimum": 0
+                                    },
+                                    "required": ["command"],
+                                    "additionalProperties": false
                                   }
-                                },
-                                "required": ["command"],
-                                "additionalProperties": false
+                                ]
                               },
                               "env": {
                                 "type": "object",
@@ -3724,43 +3704,33 @@
                                 "minLength": 1
                               },
                               "setup": {
-                                "type": "object",
-                                "properties": {
-                                  "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string",
-                                        "minLength": 1
-                                      },
-                                      {
+                                "allOf": [
+                                  {},
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "command": {
                                         "type": "array",
                                         "items": {
                                           "type": "string",
                                           "minLength": 1
                                         },
                                         "minItems": 1
+                                      },
+                                      "cwd": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "timeout_ms": {
+                                        "type": "number",
+                                        "exclusiveMinimum": true,
+                                        "minimum": 0
                                       }
-                                    ]
-                                  },
-                                  "args": {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {}
-                                  },
-                                  "env": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "timeout_seconds": {
-                                    "type": "number",
-                                    "exclusiveMinimum": true,
-                                    "minimum": 0
+                                    },
+                                    "required": ["command"],
+                                    "additionalProperties": false
                                   }
-                                },
-                                "required": ["command"],
-                                "additionalProperties": false
+                                ]
                               },
                               "env": {
                                 "type": "object",
@@ -3784,43 +3754,33 @@
                                 "minLength": 1
                               },
                               "setup": {
-                                "type": "object",
-                                "properties": {
-                                  "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string",
-                                        "minLength": 1
-                                      },
-                                      {
+                                "allOf": [
+                                  {},
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "command": {
                                         "type": "array",
                                         "items": {
                                           "type": "string",
                                           "minLength": 1
                                         },
                                         "minItems": 1
+                                      },
+                                      "cwd": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "timeout_ms": {
+                                        "type": "number",
+                                        "exclusiveMinimum": true,
+                                        "minimum": 0
                                       }
-                                    ]
-                                  },
-                                  "args": {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {}
-                                  },
-                                  "env": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "timeout_seconds": {
-                                    "type": "number",
-                                    "exclusiveMinimum": true,
-                                    "minimum": 0
+                                    },
+                                    "required": ["command"],
+                                    "additionalProperties": false
                                   }
-                                },
-                                "required": ["command"],
-                                "additionalProperties": false
+                                ]
                               },
                               "env": {
                                 "type": "object",
@@ -6835,43 +6795,33 @@
                   "minLength": 1
                 },
                 "setup": {
-                  "type": "object",
-                  "properties": {
-                    "command": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
+                  "allOf": [
+                    {},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "command": {
                           "type": "array",
                           "items": {
                             "type": "string",
                             "minLength": 1
                           },
                           "minItems": 1
+                        },
+                        "cwd": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "timeout_ms": {
+                          "type": "number",
+                          "exclusiveMinimum": true,
+                          "minimum": 0
                         }
-                      ]
-                    },
-                    "args": {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": {}
-                    },
-                    "env": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "string"
-                      }
-                    },
-                    "timeout_seconds": {
-                      "type": "number",
-                      "exclusiveMinimum": true,
-                      "minimum": 0
+                      },
+                      "required": ["command"],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": ["command"],
-                  "additionalProperties": false
+                  ]
                 },
                 "env": {
                   "type": "object",
@@ -6895,43 +6845,33 @@
                   "minLength": 1
                 },
                 "setup": {
-                  "type": "object",
-                  "properties": {
-                    "command": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
+                  "allOf": [
+                    {},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "command": {
                           "type": "array",
                           "items": {
                             "type": "string",
                             "minLength": 1
                           },
                           "minItems": 1
+                        },
+                        "cwd": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "timeout_ms": {
+                          "type": "number",
+                          "exclusiveMinimum": true,
+                          "minimum": 0
                         }
-                      ]
-                    },
-                    "args": {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": {}
-                    },
-                    "env": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "string"
-                      }
-                    },
-                    "timeout_seconds": {
-                      "type": "number",
-                      "exclusiveMinimum": true,
-                      "minimum": 0
+                      },
+                      "required": ["command"],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": ["command"],
-                  "additionalProperties": false
+                  ]
                 },
                 "env": {
                   "type": "object",
@@ -9700,43 +9640,33 @@
                               "minLength": 1
                             },
                             "setup": {
-                              "type": "object",
-                              "properties": {
-                                "command": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    {
+                              "allOf": [
+                                {},
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "command": {
                                       "type": "array",
                                       "items": {
                                         "type": "string",
                                         "minLength": 1
                                       },
                                       "minItems": 1
+                                    },
+                                    "cwd": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "timeout_ms": {
+                                      "type": "number",
+                                      "exclusiveMinimum": true,
+                                      "minimum": 0
                                     }
-                                  ]
-                                },
-                                "args": {
-                                  "type": "object",
-                                  "properties": {},
-                                  "additionalProperties": {}
-                                },
-                                "env": {
-                                  "type": "object",
-                                  "additionalProperties": {
-                                    "type": "string"
-                                  }
-                                },
-                                "timeout_seconds": {
-                                  "type": "number",
-                                  "exclusiveMinimum": true,
-                                  "minimum": 0
+                                  },
+                                  "required": ["command"],
+                                  "additionalProperties": false
                                 }
-                              },
-                              "required": ["command"],
-                              "additionalProperties": false
+                              ]
                             },
                             "env": {
                               "type": "object",
@@ -9760,43 +9690,33 @@
                               "minLength": 1
                             },
                             "setup": {
-                              "type": "object",
-                              "properties": {
-                                "command": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    {
+                              "allOf": [
+                                {},
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "command": {
                                       "type": "array",
                                       "items": {
                                         "type": "string",
                                         "minLength": 1
                                       },
                                       "minItems": 1
+                                    },
+                                    "cwd": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "timeout_ms": {
+                                      "type": "number",
+                                      "exclusiveMinimum": true,
+                                      "minimum": 0
                                     }
-                                  ]
-                                },
-                                "args": {
-                                  "type": "object",
-                                  "properties": {},
-                                  "additionalProperties": {}
-                                },
-                                "env": {
-                                  "type": "object",
-                                  "additionalProperties": {
-                                    "type": "string"
-                                  }
-                                },
-                                "timeout_seconds": {
-                                  "type": "number",
-                                  "exclusiveMinimum": true,
-                                  "minimum": 0
+                                  },
+                                  "required": ["command"],
+                                  "additionalProperties": false
                                 }
-                              },
-                              "required": ["command"],
-                              "additionalProperties": false
+                              ]
                             },
                             "env": {
                               "type": "object",
