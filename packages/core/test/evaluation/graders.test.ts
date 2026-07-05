@@ -1,4 +1,6 @@
 import { describe, expect, it, spyOn } from 'bun:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -1464,29 +1466,34 @@ describe('ScriptGrader', () => {
 
   it('passes workspace_path to script grader via payload and env var', async () => {
     const graderProvider = new StubProvider(textResponse('{}'));
+    const workspacePath = await mkdtemp(join(tmpdir(), 'agentv-script-grader-workspace-'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-grader-workspace.cjs')];
 
     const evaluator = new ScriptGrader({ command: script });
 
-    const result = await evaluator.evaluate({
-      evalCase: baseTestCase,
-      candidate: 'Test candidate',
-      target: baseTarget,
-      provider: graderProvider,
-      attempt: 0,
-      promptInputs: { question: '' },
-      now: new Date(),
-      workspacePath: '/tmp/test-workspace',
-    });
+    try {
+      const result = await evaluator.evaluate({
+        evalCase: baseTestCase,
+        candidate: 'Test candidate',
+        target: baseTarget,
+        provider: graderProvider,
+        attempt: 0,
+        promptInputs: { question: '' },
+        now: new Date(),
+        workspacePath,
+      });
 
-    expect(result.score).toBe(1);
-    expect(result.verdict).toBe('pass');
-    const passedTexts2 = result.assertions.filter((a) => a.passed).map((a) => a.text);
-    expect(passedTexts2).toContain('workspace_path present in payload');
-    expect(passedTexts2).toContain('AGENTV_WORKSPACE_PATH env var set');
-    expect(passedTexts2).toContain('payload and env var match');
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+      const passedTexts2 = result.assertions.filter((a) => a.passed).map((a) => a.text);
+      expect(passedTexts2).toContain('workspace_path present in payload');
+      expect(passedTexts2).toContain('AGENTV_WORKSPACE_PATH env var set');
+      expect(passedTexts2).toContain('payload and env var match');
+    } finally {
+      await rm(workspacePath, { recursive: true, force: true });
+    }
   });
 
   it('omits details when not returned by script grader', async () => {
