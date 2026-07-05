@@ -410,18 +410,7 @@ when the agent output is a `ContentFile` block rather than plain text:
 ```yaml
 default_test:
   options:
-    transform: >-
-      return (() => {
-        const file = Array.isArray(output)
-          ? output.find((block) => block?.type === "file" && block.path?.endsWith(".xlsx"))
-          : undefined;
-        if (!file) return output;
-        const result = Bun.spawnSync(["bun", "run", "scripts/transforms/xlsx-to-csv.ts"], {
-          stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
-        });
-        if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr).trim());
-        return new TextDecoder().decode(result.stdout).trim();
-      })()
+    transform: file://scripts/transforms/xlsx-to-csv.ts
 
 tests:
   - id: spreadsheet-eval
@@ -492,6 +481,12 @@ tests:
       - type: contains
         value: "fix"
 ```
+
+`default_test.options.transform` is inherited by every test. A
+`tests[].options.transform` entry overrides that inherited transform for one
+test, and assertion-level `transform` applies only to that assertion after the
+test/default transform has produced the candidate text for the rest of the
+graders.
 
 ## Metadata
 

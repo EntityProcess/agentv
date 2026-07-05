@@ -111,18 +111,7 @@ description: Grade spreadsheet output via a transform
 target: file_output
 default_test:
   options:
-    transform: >-
-      return (() => {
-        const file = Array.isArray(output)
-          ? output.find((block) => block?.type === "file" && block.path?.endsWith(".xlsx"))
-          : undefined;
-        if (!file) return output;
-        const result = Bun.spawnSync(["bun", "run", "../scripts/transforms/xlsx-to-csv.ts"], {
-          stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
-        });
-        if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr).trim());
-        return new TextDecoder().decode(result.stdout).trim();
-      })()
+    transform: file://../scripts/transforms/xlsx-to-csv.ts
 
 tests:
   - id: spreadsheet-output

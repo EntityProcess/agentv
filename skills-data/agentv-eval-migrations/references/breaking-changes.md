@@ -48,9 +48,12 @@ For a v4.42.4-era eval:
 13. Replace workspace hook `script:` with `command:`.
 14. For executable setup, prefer top-level `extensions`; keep
     `workspace.hooks.after_each.reset` for reset policy.
-15. Keep raw cases under `tests` or `imports.tests`; import full eval suites
+15. Replace authored `preprocessors` and deprecated Promptfoo `postprocess`
+    with `transform` at `default_test.options`, `tests[].options`, or the
+    assertion that needs the shaped output.
+16. Keep raw cases under `tests` or `imports.tests`; import full eval suites
     with `imports.suites`.
-16. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
+17. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
 
 ## Assertions Renamed To `assert`
 

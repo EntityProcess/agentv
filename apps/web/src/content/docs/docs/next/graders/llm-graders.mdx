@@ -201,18 +201,7 @@ AgentV always tries a default UTF-8 text read first. That is enough for text-bas
 ```yaml
 default_test:
   options:
-    transform: >-
-      return (() => {
-        const file = Array.isArray(output)
-          ? output.find((block) => block?.type === "file" && block.path?.endsWith(".xlsx"))
-          : undefined;
-        if (!file) return output;
-        const result = Bun.spawnSync(["bun", "run", "scripts/transforms/xlsx-to-csv.ts"], {
-          stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
-        });
-        if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr).trim());
-        return new TextDecoder().decode(result.stdout).trim();
-      })()
+    transform: file://scripts/transforms/xlsx-to-csv.ts
 
 tests:
   - id: spreadsheet-output
@@ -230,8 +219,9 @@ tests:
 
 Resolution order:
 
-- `tests[].options.transform` overrides `default_test.options.transform`
-- assertion-level `transform` applies to that grader only
+- `default_test.options.transform` applies to every test unless overridden
+- `tests[].options.transform` overrides `default_test.options.transform` for that test
+- assertion-level `transform` applies to that grader only, after the test/default transform
 - if no transform is configured, AgentV falls back to a UTF-8 text read
 - if the fallback read looks binary or invalid, the grader receives a warning note instead of failing the test run
 
