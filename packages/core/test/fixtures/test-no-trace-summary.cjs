@@ -4,12 +4,19 @@ const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const hasSummary = input.trace !== null && input.trace !== undefined;
+const pass = !hasSummary;
 
 console.log(
   JSON.stringify({
-    score: hasSummary ? 0 : 1,
-    assertions: hasSummary
-      ? [{ text: 'Expected no summary', passed: false }]
-      : [{ text: 'Correctly handled missing summary', passed: true }],
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass ? 'Correctly handled missing summary' : 'Expected no summary',
+    checks: [
+      {
+        text: pass ? 'Correctly handled missing summary' : 'Expected no summary',
+        pass,
+        reason: pass ? 'No trace summary was present' : 'Trace summary was present',
+      },
+    ],
   }),
 );

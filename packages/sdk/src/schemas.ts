@@ -313,21 +313,23 @@ export const ScriptGraderInputSchema = z.object({
   config: z.record(z.unknown()).nullable().optional(),
 });
 
+export const ScriptGraderCheckSchema = z.object({
+  id: z.string().optional(),
+  text: z.string(),
+  pass: z.boolean(),
+  score: z.number().min(0).max(1).optional(),
+  reason: z.string(),
+  evidence: z.string().optional(),
+});
+
 /**
  * Script grader result schema (validated before output).
  */
 export const ScriptGraderResultSchema = z.object({
+  pass: z.boolean(),
   score: z.number().min(0).max(1),
-  assertions: z
-    .array(
-      z.object({
-        text: z.string(),
-        passed: z.boolean(),
-        evidence: z.string().optional(),
-      }),
-    )
-    .optional()
-    .default([]),
+  reason: z.string(),
+  checks: z.array(ScriptGraderCheckSchema).optional().default([]),
   /** Optional structured details for domain-specific metrics (e.g., TP/TN/FP/FN counts, alignments). */
   details: z.record(z.unknown()).optional(),
 });
@@ -336,6 +338,7 @@ export const ScriptGraderResultSchema = z.object({
  * Inferred types from schemas.
  */
 export type ScriptGraderInput = z.infer<typeof ScriptGraderInputSchema>;
+export type ScriptGraderCheck = z.infer<typeof ScriptGraderCheckSchema>;
 export type ScriptGraderResult = z.infer<typeof ScriptGraderResultSchema>;
 
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;

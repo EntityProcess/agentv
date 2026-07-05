@@ -33,8 +33,10 @@ async function createPayloadEchoGrader(dir: string): Promise<readonly string[]> 
     `const input = require('fs').readFileSync(0, 'utf8');
 const payload = JSON.parse(input);
 console.log(JSON.stringify({
+  pass: true,
   score: 1.0,
-  assertions: [{ text: 'ok', passed: true }],
+  reason: 'Payload captured',
+  checks: [{ text: 'ok', pass: true, reason: 'Payload captured' }],
   details: { payload },
 }));
 `,

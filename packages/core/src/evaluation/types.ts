@@ -9,6 +9,16 @@ export interface AssertionEntry {
   readonly evidence?: string;
 }
 
+/** A grader-produced check using the public pass/reason result vocabulary. */
+export interface GraderCheckResult {
+  readonly id?: string;
+  readonly text: string;
+  readonly pass: boolean;
+  readonly score?: number;
+  readonly reason: string;
+  readonly evidence?: string;
+}
+
 /**
  * JSON primitive values appearing in AgentV payloads.
  */
@@ -1255,6 +1265,8 @@ export interface EvaluationResult {
   readonly category?: string;
   readonly conversationId?: string;
   readonly score: number;
+  readonly reason?: string;
+  readonly checks?: readonly GraderCheckResult[];
   readonly assertions: readonly AssertionEntry[];
   readonly target: string;
   /** Optional explicit comparable variant. Path segments are not authoritative for this value. */
@@ -1342,6 +1354,8 @@ export interface GraderResult {
   readonly name: string;
   readonly type: GraderKind;
   readonly score: number;
+  readonly reason?: string;
+  readonly checks?: readonly GraderCheckResult[];
   readonly weight?: number;
   readonly verdict?: EvaluationVerdict;
   readonly assertions: readonly AssertionEntry[];

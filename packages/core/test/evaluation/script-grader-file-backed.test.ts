@@ -27,9 +27,14 @@ async function createEchoGrader(dir: string): Promise<readonly string[]> {
     `const input = require('fs').readFileSync(0, 'utf8');
 const payload = JSON.parse(input);
 console.log(JSON.stringify({
-  hasOutputPath: !!payload.output_path,
-  outputIsNull: payload.output === null,
-  outputPath: payload.output_path || null,
+  pass: true,
+  score: 1,
+  reason: 'Payload parsed',
+  details: {
+    hasOutputPath: !!payload.output_path,
+    outputIsNull: payload.output === null,
+    outputPath: payload.output_path || null,
+  },
 }));
 `,
     'utf8',
@@ -42,7 +47,7 @@ async function createScoringGrader(dir: string): Promise<readonly string[]> {
   const script = join(dir, 'score-grader.js');
   await writeFile(
     script,
-    `console.log(JSON.stringify({ score: 1.0, assertions: [{ text: 'ok', passed: true }] }));
+    `console.log(JSON.stringify({ pass: true, score: 1.0, reason: 'ok', checks: [{ text: 'ok', pass: true, reason: 'ok' }] }));
 `,
     'utf8',
   );
@@ -56,14 +61,19 @@ async function createPayloadShapeGrader(dir: string): Promise<readonly string[]>
     `const input = require('fs').readFileSync(0, 'utf8');
 const payload = JSON.parse(input);
 console.log(JSON.stringify({
+  pass: payload.expected_output?.[0]?.content?.answer === 'Paris' &&
+    payload.config?.mode === 'strict' &&
+    payload.input?.[0]?.content === 'Test input',
   score: payload.expected_output?.[0]?.content?.answer === 'Paris' &&
     payload.config?.mode === 'strict' &&
     payload.input?.[0]?.content === 'Test input' ? 1 : 0,
-  assertions: [{
+  reason: 'Structured stdin preservation check',
+  checks: [{
     text: 'structured stdin preserved',
-    passed: payload.expected_output?.[0]?.content?.answer === 'Paris' &&
+    pass: payload.expected_output?.[0]?.content?.answer === 'Paris' &&
       payload.config?.mode === 'strict' &&
-      payload.input?.[0]?.content === 'Test input'
+      payload.input?.[0]?.content === 'Test input',
+    reason: 'expected_output, config, and input are present'
   }],
   details: { expected_output: payload.expected_output, config: payload.config, input: payload.input }
 }));
@@ -113,6 +123,7 @@ describe('ScriptGrader file-backed output', () => {
     });
 
     expect(result.score).toBe(1.0);
+    expect(result.checks?.filter((check) => check.pass).map((check) => check.text)).toEqual(['ok']);
     expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['ok']);
 
     // Temp files should be cleaned up
@@ -152,6 +163,13 @@ describe('ScriptGrader file-backed output', () => {
     });
 
     expect(result.score).toBe(1);
+    expect(result.checks).toEqual([
+      {
+        text: 'structured stdin preserved',
+        pass: true,
+        reason: 'expected_output, config, and input are present',
+      },
+    ]);
     expect(result.assertions).toEqual([{ text: 'structured stdin preserved', passed: true }]);
     expect(result.details?.expected_output).toEqual([
       { role: 'assistant', content: { answer: 'Paris' } },

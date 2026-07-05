@@ -118,7 +118,8 @@ Then write type-safe script graders:
 import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output }) => ({
+  pass: (output ?? '').includes('expected'),
   score: (output ?? '').includes('expected') ? 1.0 : 0.0,
-  assert: [{ text: 'Found expected content', passed: (output ?? '').includes('expected') }],
+  reason: (output ?? '').includes('expected') ? 'Found expected content' : 'Missing expected content',
 }));
 ```

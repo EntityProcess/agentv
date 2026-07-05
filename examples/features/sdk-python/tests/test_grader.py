@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from agentv_py.grader import Assertion, ScriptGraderContext, ScriptGraderResult, load_grader_input, run_script_grader
+from agentv_py.grader import Check, ScriptGraderContext, ScriptGraderResult, load_grader_input, run_script_grader
 
 
 def canonical_payload() -> dict:
@@ -62,8 +62,10 @@ def test_load_grader_input_reads_output_path(tmp_path: Path) -> None:
 def test_run_script_grader_emits_canonical_result(capsys: pytest.CaptureFixture[str]) -> None:
     def handler(_: ScriptGraderContext) -> ScriptGraderResult:
         return ScriptGraderResult(
+            pass_=True,
             score=1.0,
-            assertions=[Assertion(text="Exact match", passed=True)],
+            reason="Exact match",
+            checks=[Check(text="Exact match", pass_=True, reason="Output matched expected text")],
             details={"source": "pytest"},
         )
 
@@ -72,7 +74,9 @@ def test_run_script_grader_emits_canonical_result(capsys: pytest.CaptureFixture[
     assert exit_code == 0
     emitted = json.loads(capsys.readouterr().out)
     assert emitted == {
+        "pass": True,
         "score": 1.0,
-        "assertions": [{"text": "Exact match", "passed": True}],
+        "reason": "Exact match",
+        "checks": [{"text": "Exact match", "pass": True, "reason": "Output matched expected text"}],
         "details": {"source": "pytest"},
     }

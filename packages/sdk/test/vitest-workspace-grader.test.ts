@@ -67,15 +67,22 @@ describe('Vitest workspace grader adapter', () => {
     }
   });
 
-  it('maps individual Vitest test outcomes to AgentV assertions', () => {
+  it('maps individual Vitest test outcomes to AgentV checks', () => {
     const result = vitestReportToScriptGraderResult(mixedVitestReport);
 
     expect(result.score).toBe(0.5);
-    expect(result.assertions).toEqual([
-      { text: 'welcome banner contains status', passed: true },
+    expect(result.pass).toBe(false);
+    expect(result.reason).toBe('1/2 Vitest tests passed.');
+    expect(result.checks).toEqual([
+      {
+        text: 'welcome banner contains status',
+        pass: true,
+        reason: 'Vitest test passed.',
+      },
       {
         text: 'welcome banner links to dashboard',
-        passed: false,
+        pass: false,
+        reason: 'Vitest test failed.',
         evidence: 'AssertionError: expected href to equal /dashboard',
       },
     ]);
@@ -113,7 +120,7 @@ process.exit(1);
     );
 
     expect(result.score).toBe(0.5);
-    expect(result.assertions.map((item) => item.text)).toEqual([
+    expect(result.checks.map((item) => item.text)).toEqual([
       'welcome banner contains status',
       'welcome banner links to dashboard',
     ]);
@@ -191,7 +198,7 @@ process.exit(1);
     );
 
     expect(result.score).toBe(0.5);
-    expect(result.assertions[1].passed).toBe(false);
+    expect(result.checks[1].pass).toBe(false);
   });
 
   it('returns a failed AgentV result when workspace_path is unavailable', async () => {
@@ -203,9 +210,9 @@ process.exit(1);
     );
 
     expect(result.score).toBe(0);
-    expect(result.assertions[0]).toMatchObject({
+    expect(result.checks[0]).toMatchObject({
       text: 'Vitest workspace verifier requires workspace_path',
-      passed: false,
+      pass: false,
     });
   });
 });

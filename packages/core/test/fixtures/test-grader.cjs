@@ -23,14 +23,17 @@ try {
 } catch {}
 
 const ok = hasExpected && hasCandidate && candidateDecisionOk;
+const checks = [
+  { text: 'expected_output present', pass: hasExpected, reason: 'expected_output was present' },
+  { text: 'output present', pass: hasCandidate, reason: 'output was present' },
+  { text: 'output parses', pass: candidateDecisionOk, reason: 'output JSON has decision ACCEPT' },
+];
 
 console.log(
   JSON.stringify({
+    pass: ok,
     score: ok ? 1 : 0,
-    assertions: [
-      { text: 'expected_output present', passed: hasExpected },
-      { text: 'output present', passed: hasCandidate },
-      { text: 'output parses', passed: candidateDecisionOk },
-    ].filter((a) => a.passed !== undefined),
+    reason: ok ? 'All script checks passed' : 'One or more script checks failed',
+    checks,
   }),
 );

@@ -66,24 +66,38 @@ export type AssertionType =
   | (string & {});
 
 /**
+ * Check returned from an assertion handler.
+ */
+export interface AssertionCheck {
+  readonly id?: string;
+  readonly text: string;
+  readonly pass: boolean;
+  readonly score?: number;
+  readonly reason: string;
+  readonly evidence?: string;
+}
+
+/**
  * Result returned from an assertion handler.
  *
  * @example Pass with score
  * ```ts
- * { pass: true, assertions: [{ text: 'Output contains expected keywords', passed: true }] }
+ * { pass: true, score: 1, reason: 'Output contains expected keywords' }
  * ```
  *
- * @example Fail with evidence
+ * @example Fail with checks
  * ```ts
- * { pass: false, score: 0.3, assertions: [{ text: 'Missing required header', passed: false }] }
+ * { pass: false, score: 0.3, reason: 'Missing required header', checks: [
+ *   { text: 'Header present', pass: false, reason: 'No header found' },
+ * ] }
  * ```
  *
  * @example Granular score (0-1)
  * ```ts
- * { score: 0.75, assertions: [
- *   { text: 'Format correct', passed: true },
- *   { text: 'Content relevant', passed: true },
- *   { text: 'Missing citation', passed: false },
+ * { score: 0.75, reason: 'Two of three checks passed', checks: [
+ *   { text: 'Format correct', pass: true, reason: 'Matches expected format' },
+ *   { text: 'Content relevant', pass: true, reason: 'Addresses the request' },
+ *   { text: 'Citation present', pass: false, reason: 'Missing citation' },
  * ] }
  * ```
  */
@@ -92,12 +106,10 @@ export interface AssertionScore {
   readonly pass?: boolean;
   /** Numeric score between 0 and 1. Defaults to 1 if pass=true, 0 if pass=false. */
   readonly score?: number;
-  /** Per-assertion verdicts with optional evidence. */
-  readonly assertions?: readonly {
-    readonly text: string;
-    readonly passed: boolean;
-    readonly evidence?: string;
-  }[];
+  /** Explanation for the aggregate pass/fail decision. */
+  readonly reason?: string;
+  /** Per-check verdicts with optional score and evidence. */
+  readonly checks?: readonly AssertionCheck[];
   /** Optional structured details for domain-specific metrics. */
   readonly details?: Record<string, unknown>;
 }
@@ -143,10 +155,18 @@ function normalizeScore(result: AssertionScore): ScriptGraderResult {
   } else {
     score = 0;
   }
+  const pass = result.pass ?? score >= 0.5;
 
   return {
+    pass,
     score,
-    assertions: result.assertions ? [...result.assertions] : [],
+    reason: result.reason ?? (pass ? 'Assertion passed' : 'Assertion failed'),
+    checks: result.checks
+      ? result.checks.map((check) => ({
+          ...check,
+          ...(check.score !== undefined ? { score: clampScore(check.score) } : {}),
+        }))
+      : [],
     details: result.details,
   };
 }
@@ -189,8 +209,10 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
   } catch (error) {
     const errorMessage = formatError(error);
     const errorResult: ScriptGraderResult = {
+      pass: false,
       score: 0,
-      assertions: [{ text: `Assertion failed: ${errorMessage}`, passed: false }],
+      reason: `Assertion failed: ${errorMessage}`,
+      checks: [{ text: 'Assertion execution', pass: false, reason: errorMessage }],
     };
     console.log(JSON.stringify(errorResult, null, 2));
     process.exit(1);

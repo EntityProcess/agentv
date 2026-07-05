@@ -14,7 +14,7 @@ function fileName(path: string): string {
 
 export default defineScriptGrader(({ expectedOutput, output, inputFiles }) => {
   const outputText = output ?? '';
-  const assertions: Array<{ text: string; passed: boolean }> = [];
+  const checks: Array<{ text: string; pass: boolean; reason: string }> = [];
 
   // Check if candidate matches expected message
   const expectedMessage = expectedOutput[0];
@@ -24,24 +24,42 @@ export default defineScriptGrader(({ expectedOutput, output, inputFiles }) => {
       : undefined;
 
   if (expectedContent && outputText.trim() === expectedContent.trim()) {
-    assertions.push({ text: 'Candidate output matches expected message', passed: true });
+    checks.push({
+      text: 'Candidate output matches expected message',
+      pass: true,
+      reason: 'Candidate output exactly matched the expected message.',
+    });
   } else {
-    assertions.push({ text: 'Candidate output does not match expected message', passed: false });
+    checks.push({
+      text: 'Candidate output matches expected message',
+      pass: false,
+      reason: 'Candidate output did not exactly match the expected message.',
+    });
   }
 
   // Check if attachments are mentioned
   const attachmentNames = inputFiles.map(fileName);
   for (const name of attachmentNames) {
     if (outputText.includes(name)) {
-      assertions.push({ text: `Mentions attachment: ${name}`, passed: true });
+      checks.push({
+        text: `Mentions attachment: ${name}`,
+        pass: true,
+        reason: `Candidate output mentions ${name}.`,
+      });
     } else {
-      assertions.push({ text: `Missing attachment: ${name}`, passed: false });
+      checks.push({
+        text: `Mentions attachment: ${name}`,
+        pass: false,
+        reason: `Candidate output does not mention ${name}.`,
+      });
     }
   }
 
-  const passed = assertions.filter((assertion) => assertion.passed).length;
+  const passed = checks.filter((check) => check.pass).length;
   return {
-    score: assertions.length > 0 ? passed / assertions.length : 0,
-    assertions,
+    pass: checks.length > 0 && passed === checks.length,
+    score: checks.length > 0 ? passed / checks.length : 0,
+    reason: `${passed}/${checks.length} attachment checks passed.`,
+    checks,
   };
 });

@@ -4,7 +4,7 @@ This example is the smallest repo-local Python helper surface for AgentV.
 
 It is intentionally scoped to two jobs:
 
-- build Python `script-grader` scripts over the existing stdin/stdout contract
+- build Python `script-grader` scripts over the stdin/stdout contract with `pass`, `score`, `reason`, and optional `checks`
 - author AgentV-shaped eval definitions and emit canonical YAML/JSONL
 
 It does **not** add a native Python runner. Evaluations still run through the AgentV CLI.

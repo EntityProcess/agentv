@@ -9,7 +9,7 @@ const input = JSON.parse(readFileSync(0, 'utf8')) as {
   readonly criteria?: string;
 };
 
-const assertions: { text: string; passed: boolean }[] = [];
+const checks: { text: string; pass: boolean; reason: string }[] = [];
 
 // `output` is the final answer/scored result. Transcript-aware graders should
 // use messages/trace instead.
@@ -22,14 +22,30 @@ const candidateWords = candidateText.toLowerCase().split(/\s+/);
 
 for (const word of outcomeWords) {
   if (word.length > 3 && candidateWords.includes(word)) {
-    assertions.push({ text: `Contains keyword: ${word}`, passed: true });
+    checks.push({ text: `Contains keyword: ${word}`, pass: true, reason: `Found keyword ${word}` });
   }
 }
 
-if (assertions.length === 0) {
-  assertions.push({ text: 'No matching keywords found', passed: false });
+if (checks.length === 0) {
+  checks.push({
+    text: 'No matching keywords found',
+    pass: false,
+    reason: 'No criteria words matched',
+  });
 }
 
-const score = assertions.some((a) => a.passed) ? 1.0 : 0.0;
+const pass = checks.some((check) => check.pass);
+const score = pass ? 1.0 : 0.0;
 
-console.log(JSON.stringify({ score, assertions }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      pass,
+      score,
+      reason: pass ? 'At least one criteria keyword matched' : 'No criteria keywords matched',
+      checks,
+    },
+    null,
+    2,
+  ),
+);

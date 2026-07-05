@@ -39,7 +39,7 @@ describe('workspace grader helpers', () => {
     }
   });
 
-  it('runs compact workspace file assertions and aggregates passing checks', async () => {
+  it('runs compact workspace file checks and aggregates passing checks', async () => {
     writeFileSync(
       join(tmpDir, 'app/page.tsx'),
       '<main>Status: All systems ready <a href="/dashboard">Open dashboard</a></main>',
@@ -56,11 +56,13 @@ describe('workspace grader helpers', () => {
     );
 
     expect(result.score).toBe(1);
-    expect(result.assertions).toHaveLength(4);
-    expect(result.assertions.every((item) => item.passed)).toBe(true);
+    expect(result.pass).toBe(true);
+    expect(result.reason).toBe('4/4 checks passed.');
+    expect(result.checks).toHaveLength(4);
+    expect(result.checks.every((item) => item.pass)).toBe(true);
   });
 
-  it('scores failed file assertions by passed assertion count', async () => {
+  it('scores failed file checks by passed check count', async () => {
     writeFileSync(join(tmpDir, 'app/page.tsx'), '<main>Hello TODO</main>');
 
     const result = await runWorkspaceGrader(
@@ -74,9 +76,10 @@ describe('workspace grader helpers', () => {
     );
 
     expect(result.score).toBe(0.25);
-    expect(result.assertions.map((item) => item.passed)).toEqual([true, false, false, false]);
-    expect(result.assertions[1].evidence).toContain('Open dashboard');
-    expect(result.assertions[3].evidence).toContain('no such file');
+    expect(result.pass).toBe(false);
+    expect(result.checks.map((item) => item.pass)).toEqual([true, false, false, false]);
+    expect(result.checks[1].reason).toContain('Open dashboard');
+    expect(result.checks[3].reason).toContain('no such file');
   });
 
   it('uses AGENTV_WORKSPACE_PATH when the stdin payload omits workspacePath', async () => {
@@ -85,7 +88,11 @@ describe('workspace grader helpers', () => {
 
     const result = await runWorkspaceGrader(
       async ({ workspace }) => [
-        { text: 'Workspace env fallback is exposed', passed: workspace.path === tmpDir },
+        {
+          text: 'Workspace env fallback is exposed',
+          pass: workspace.path === tmpDir,
+          reason: 'Workspace path came from AGENTV_WORKSPACE_PATH.',
+        },
         await workspace.file('app/page.tsx').contains('Ready'),
       ],
       buildInput(),
@@ -94,7 +101,7 @@ describe('workspace grader helpers', () => {
     expect(result.score).toBe(1);
   });
 
-  it('returns failed assertions instead of requiring manual workspace path checks', async () => {
+  it('returns failed checks instead of requiring manual workspace path checks', async () => {
     process.env.AGENTV_WORKSPACE_PATH = undefined;
 
     const result = await runWorkspaceGrader(
@@ -103,11 +110,11 @@ describe('workspace grader helpers', () => {
     );
 
     expect(result.score).toBe(0);
-    expect(result.assertions[0]).toMatchObject({
+    expect(result.checks[0]).toMatchObject({
       text: 'app/page.tsx contains "Ready"',
-      passed: false,
+      pass: false,
     });
-    expect(result.assertions[0].evidence).toContain('Workspace path is not available');
+    expect(result.checks[0].reason).toContain('Workspace path is not available');
   });
 
   it('rejects file paths outside the workspace', async () => {
@@ -118,23 +125,27 @@ describe('workspace grader helpers', () => {
     ]);
 
     expect(result.score).toBe(0);
-    expect(result.assertions[0].passed).toBe(false);
-    expect(result.assertions[0].evidence).toContain('inside the workspace');
+    expect(result.checks[0].pass).toBe(false);
+    expect(result.checks[0].reason).toContain('inside the workspace');
   });
 
   it('passes through explicit ScriptGraderResult objects', async () => {
     const result = await runWorkspaceGrader(
       () => ({
+        pass: true,
         score: 0.75,
-        assertions: [{ text: 'custom weighted result', passed: true }],
+        reason: 'Custom weighted result',
+        checks: [{ text: 'custom weighted result', pass: true, reason: 'Matched custom rule' }],
         details: { matched: 3, total: 4 },
       }),
       buildInput({ workspacePath: tmpDir }),
     );
 
     expect(result).toEqual({
+      pass: true,
       score: 0.75,
-      assertions: [{ text: 'custom weighted result', passed: true }],
+      reason: 'Custom weighted result',
+      checks: [{ text: 'custom weighted result', pass: true, reason: 'Matched custom rule' }],
       details: { matched: 3, total: 4 },
     });
   });

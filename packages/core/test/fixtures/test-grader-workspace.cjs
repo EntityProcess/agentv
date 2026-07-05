@@ -3,31 +3,58 @@ const fs = require('node:fs');
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
-const assertions = [];
+const checks = [];
 
 // Check workspace_path in JSON payload
 if (typeof input.workspace_path === 'string' && input.workspace_path.length > 0) {
-  assertions.push({ text: 'workspace_path present in payload', passed: true });
+  checks.push({
+    text: 'workspace_path present in payload',
+    pass: true,
+    reason: 'workspace_path is present',
+  });
 } else {
-  assertions.push({ text: 'workspace_path missing from payload', passed: false });
+  checks.push({
+    text: 'workspace_path present in payload',
+    pass: false,
+    reason: 'workspace_path is missing',
+  });
 }
 
 // Check AGENTV_WORKSPACE_PATH env var
 const envPath = process.env.AGENTV_WORKSPACE_PATH;
 if (typeof envPath === 'string' && envPath.length > 0) {
-  assertions.push({ text: 'AGENTV_WORKSPACE_PATH env var set', passed: true });
+  checks.push({
+    text: 'AGENTV_WORKSPACE_PATH env var set',
+    pass: true,
+    reason: 'AGENTV_WORKSPACE_PATH is set',
+  });
 } else {
-  assertions.push({ text: 'AGENTV_WORKSPACE_PATH env var missing', passed: false });
+  checks.push({
+    text: 'AGENTV_WORKSPACE_PATH env var set',
+    pass: false,
+    reason: 'AGENTV_WORKSPACE_PATH is missing',
+  });
 }
 
 // Check that both match when present
 if (input.workspace_path && envPath && input.workspace_path === envPath) {
-  assertions.push({ text: 'payload and env var match', passed: true });
+  checks.push({
+    text: 'payload and env var match',
+    pass: true,
+    reason: 'Both workspace paths match',
+  });
 } else if (input.workspace_path && envPath) {
-  assertions.push({ text: 'payload and env var do not match', passed: false });
+  checks.push({
+    text: 'payload and env var match',
+    pass: false,
+    reason: 'Workspace paths do not match',
+  });
 }
 
-const passed = assertions.filter((a) => a.passed).length;
-const score = assertions.every((a) => a.passed) ? 1.0 : passed / assertions.length;
+const passed = checks.filter((check) => check.pass).length;
+const pass = checks.length > 0 && passed === checks.length;
+const score = pass ? 1.0 : passed / checks.length;
 
-console.log(JSON.stringify({ score, assertions }));
+console.log(
+  JSON.stringify({ pass, score, reason: `${passed}/${checks.length} checks passed`, checks }),
+);

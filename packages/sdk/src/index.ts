@@ -12,7 +12,8 @@
  *   const answer = output ?? '';
  *   return {
  *     pass: answer.includes('hello'),
- *     assertions: [{ text: 'Checks greeting', passed: answer.includes('hello') }],
+ *     score: answer.includes('hello') ? 1 : 0,
+ *     reason: answer.includes('hello') ? 'Greeting found' : 'Greeting missing',
  *   };
  * }));
  * ```
@@ -25,9 +26,11 @@
  * export default defineScriptGrader(({ output, traceSummary }) => {
  *   return {
  *     score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
- *     assertions: [
- *       { text: 'Answer is not empty', passed: (output ?? '').length > 0 },
- *       { text: 'Efficient tool usage', passed: (traceSummary?.eventCount ?? 0) <= 5 },
+ *     pass: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5,
+ *     reason: 'Checks answer text and trace size',
+ *     checks: [
+ *       { text: 'Answer is not empty', pass: (output ?? '').length > 0, reason: 'Output text is present' },
+ *       { text: 'Efficient tool usage', pass: (traceSummary?.eventCount ?? 0) <= 5, reason: 'Trace event count is within limit' },
  *     ],
  *   };
  * }));
@@ -63,6 +66,7 @@
 // Re-export schemas and types
 export {
   ScriptGraderInputSchema,
+  ScriptGraderCheckSchema,
   ScriptGraderResultSchema,
   CodeGraderInputSchema,
   CodeGraderResultSchema,
@@ -93,6 +97,7 @@ export {
   ContentFileSchema,
   ContentSchema,
   type ScriptGraderInput,
+  type ScriptGraderCheck,
   type ScriptGraderResult,
   type CodeGraderInput,
   type CodeGraderResult,
@@ -215,6 +220,7 @@ export {
   runWorkspaceGrader,
   type Workspace,
   type WorkspaceAssertion,
+  type WorkspaceCheck,
   type WorkspaceFile,
   type WorkspaceFileAssertionOptions,
   type WorkspaceGraderContext,
@@ -236,6 +242,7 @@ export { z } from 'zod';
 
 // Re-export assertion types
 export type {
+  AssertionCheck,
   AssertionContext,
   AssertionHandler,
   AssertionScore,
@@ -273,13 +280,15 @@ export type { PromptTemplateHandler };
  *
  * export default defineScriptGrader(({ trace }) => {
  *   if (!trace) {
- *     return { score: 0.5, assertions: [{ text: 'No trace available', passed: false }] };
+ *     return { pass: false, score: 0.5, reason: 'No trace available' };
  *   }
  *
  *   const efficient = trace.eventCount <= 10;
  *   return {
+ *     pass: efficient,
  *     score: efficient ? 1.0 : 0.5,
- *     assertions: [{ text: efficient ? 'Efficient execution' : 'Too many tool calls', passed: efficient }],
+ *     reason: efficient ? 'Efficient execution' : 'Too many tool calls',
+ *     checks: [{ text: 'Trace event count within limit', pass: efficient, reason: `${trace.eventCount} events observed` }],
  *   };
  * });
  * ```
@@ -366,7 +375,7 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  *   const text = output ?? '';
  *   return {
  *     pass: text.toLowerCase().includes('hello'),
- *     assertions: [{ text: 'Checks for greeting', passed: text.toLowerCase().includes('hello') }],
+ *     reason: text.toLowerCase().includes('hello') ? 'Greeting found' : 'Greeting missing',
  *   };
  * }));
  * ```
@@ -381,9 +390,10 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  *   const isEfficient = (traceSummary?.eventCount ?? 0) <= 5 ? 0.5 : 0;
  *   return {
  *     score: hasContent + isEfficient,
- *     assertions: [
- *       { text: 'Has content', passed: !!hasContent },
- *       { text: 'Efficient', passed: !!isEfficient },
+ *     reason: 'Checks content exists and trace size',
+ *     checks: [
+ *       { text: 'Has content', pass: !!hasContent, reason: hasContent ? 'Output is non-empty' : 'Output is empty' },
+ *       { text: 'Efficient', pass: !!isEfficient, reason: isEfficient ? 'Trace is within limit' : 'Trace exceeds limit' },
  *     ],
  *   };
  * }));

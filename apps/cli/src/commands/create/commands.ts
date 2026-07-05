@@ -12,7 +12,8 @@ export default defineAssertion(({ output }) => {
   const pass = text.length > 0;
   return {
     pass,
-    assertions: [{ text: pass ? 'Output has content' : 'Output is empty', passed: pass }],
+    score: pass ? 1 : 0,
+    reason: pass ? 'Output has content' : 'Output is empty',
   };
 });
 `,
@@ -26,7 +27,14 @@ export default defineAssertion(({ output }) => {
   return {
     pass: score >= 0.5,
     score,
-    assertions: [{ text: 'Output has content', passed: score === 1.0 }],
+    reason: score === 1.0 ? 'Output has content' : 'Output is empty',
+    checks: [
+      {
+        text: 'Output has content',
+        pass: score === 1.0,
+        reason: score === 1.0 ? 'Output is non-empty' : 'Output is empty',
+      },
+    ],
   };
 });
 `,

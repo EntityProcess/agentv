@@ -53,21 +53,25 @@ Emit a JSON object for numeric scores or multi-aspect results:
 
 ```json
 {
+  "pass": true,
   "score": 1.0,
-  "assertions": [
-    { "text": "Answer contains correct value (42)", "passed": true }
+  "reason": "Answer contains the correct value.",
+  "checks": [
+    { "text": "Answer contains correct value (42)", "pass": true, "reason": "42 appears in the output." }
   ]
 }
 ```
 
 | Output Field | Type | Description |
 |-------------|------|-------------|
+| `pass` | `boolean` | Aggregate pass/fail decision |
 | `score` | `number` | 0.0 to 1.0 |
-| `assertions` | `Array<{ text, passed, evidence? }>` | Per-aspect results with verdict and optional evidence |
+| `reason` | `string` | Explanation for the aggregate decision |
+| `checks` | `Array<{ text, pass, score?, reason, evidence? }>` | Optional per-aspect results with verdict, optional score, reason, and evidence |
 
 ### Plain-text output (exit-code convention)
 
-For simple pass/fail checks, skip the JSON protocol entirely. The exit code determines the score and stdout becomes the assertion text:
+For simple pass/fail checks, skip the JSON protocol entirely. The exit code determines the score and stdout becomes the check text:
 
 | Exit code | Score | Verdict |
 |-----------|-------|---------|
@@ -112,37 +116,42 @@ import json, sys
 data = json.load(sys.stdin)
 output = data.get("output") or ""
 
-assertions = []
+checks = []
 
 if "42" in output:
-    assertions.append({"text": "Output contains correct value (42)", "passed": True})
+    checks.append({"text": "Output contains correct value (42)", "pass": True, "reason": "42 appears in the output"})
 else:
-    assertions.append({"text": "Output does not contain expected value (42)", "passed": False})
+    checks.append({"text": "Output contains correct value (42)", "pass": False, "reason": "42 is missing from the output"})
 
-passed = sum(1 for a in assertions if a["passed"])
-score = passed / len(assertions) if assertions else 0.0
+passed = sum(1 for check in checks if check["pass"])
+score = passed / len(checks) if checks else 0.0
 
 print(json.dumps({
+    "pass": passed == len(checks),
     "score": score,
-    "assertions": assertions,
+    "reason": f"{passed}/{len(checks)} checks passed",
+    "checks": checks,
 }))
 ```
 
 The repo-local helper in `examples/features/sdk-python/` wraps the same contract for that example checkout:
 
 ```python
-from agentv_py.grader import Assertion, ScriptGraderResult, define_script
+from agentv_py.grader import Check, ScriptGraderResult, define_script
 
 
 def evaluate(context):
     candidate = context.output or ""
     passed = "42" in candidate
     return ScriptGraderResult(
+        pass_=passed,
         score=1.0 if passed else 0.0,
-        assertions=[
-            Assertion(
+        reason="Answer contains the correct value" if passed else "Answer is missing the correct value",
+        checks=[
+            Check(
                 text="Output contains correct value (42)",
-                passed=passed,
+                pass_=passed,
+                reason="42 appears in the output" if passed else "42 is missing from the output",
             )
         ],
     )
@@ -162,19 +171,21 @@ import { readFileSync } from "fs";
 const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
 const output: string = data.output ?? "";
 
-const assertions: Array<{ text: string; passed: boolean }> = [];
+const checks: Array<{ text: string; pass: boolean; reason: string }> = [];
 
 if (output.includes("42")) {
-  assertions.push({ text: "Output contains correct value (42)", passed: true });
+  checks.push({ text: "Output contains correct value (42)", pass: true, reason: "42 appears in the output" });
 } else {
-  assertions.push({ text: "Output does not contain expected value (42)", passed: false });
+  checks.push({ text: "Output contains correct value (42)", pass: false, reason: "42 is missing from the output" });
 }
 
-const passed = assertions.filter(a => a.passed).length;
+const passed = checks.filter(check => check.pass).length;
 
 console.log(JSON.stringify({
-  score: passed > 0 ? 1.0 : 0.0,
-  assertions,
+  pass: passed === checks.length,
+  score: checks.length === 0 ? 0.0 : passed / checks.length,
+  reason: `${passed}/${checks.length} checks passed`,
+  checks,
 }));
 ```
 
@@ -197,18 +208,20 @@ import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output, criteria }) => {
   const outputText = output ?? '';
-  const assertions: Array<{ text: string; passed: boolean }> = [];
+  const checks: Array<{ text: string; pass: boolean; reason: string }> = [];
 
   if (outputText.includes(criteria)) {
-    assertions.push({ text: 'Output matches expected outcome', passed: true });
+    checks.push({ text: 'Output matches expected outcome', pass: true, reason: 'Criteria text appears in the output.' });
   } else {
-    assertions.push({ text: 'Output does not match expected outcome', passed: false });
+    checks.push({ text: 'Output matches expected outcome', pass: false, reason: 'Criteria text is missing from the output.' });
   }
 
-  const passed = assertions.filter(a => a.passed).length;
+  const passed = checks.filter(check => check.pass).length;
   return {
-    score: assertions.length === 0 ? 0 : passed / assertions.length,
-    assertions,
+    pass: checks.length > 0 && passed === checks.length,
+    score: checks.length === 0 ? 0 : passed / checks.length,
+    reason: `${passed}/${checks.length} checks passed`,
+    checks,
   };
 });
 ```
@@ -240,7 +253,7 @@ describe('welcome banner', () => {
 });
 ```
 
-Then use AgentV's built-in Vitest adapter as the `script` command. The adapter copies verifier files into a temporary workspace-local path when needed, runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV assertion:
+Then use AgentV's built-in Vitest adapter as the `script` command. The adapter copies verifier files into a temporary workspace-local path when needed, runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV check:
 
 ```yaml
 assert:
@@ -253,7 +266,7 @@ AgentV infers the Vitest adapter for verifier-looking files such as `*.test.ts`,
 
 ### Lower-Level Workspace Helpers
 
-For tiny one-off file checks, `defineWorkspaceGrader` can resolve the workspace path, read files relative to the workspace, build assertions, and aggregate the score:
+For tiny one-off file checks, `defineWorkspaceGrader` can resolve the workspace path, read files relative to the workspace, build checks, and aggregate the score:
 
 ```typescript
 #!/usr/bin/env bun
@@ -269,7 +282,7 @@ export default defineWorkspaceGrader(async ({ workspace }) => [
 
 Prefer Vitest verifiers when the checks naturally fit `expect(...)`. Use `defineWorkspaceGrader` when you need a very small custom script, custom weighting, or details that do not map cleanly to individual test outcomes.
 
-**SDK exports:** `defineScriptGrader`, `defineVitestWorkspaceGrader`, `defineWorkspaceGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `ScriptGraderInput`, `ScriptGraderResult`, `Workspace`, `WorkspaceAssertion`
+**SDK exports:** `defineScriptGrader`, `defineVitestWorkspaceGrader`, `defineWorkspaceGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `ScriptGraderInput`, `ScriptGraderResult`, `ScriptGraderCheck`, `Workspace`, `WorkspaceCheck`
 
 ## Target Access
 
@@ -303,7 +316,7 @@ export default defineScriptGrader(async ({ input, output }) => {
     .join('\n');
   const outputText = output ?? '';
   const target = createTargetClient();
-  if (!target) return { score: 0, assertions: [{ text: 'Target not configured', passed: false }] };
+  if (!target) return { pass: false, score: 0, reason: 'Target not configured' };
 
   const response = await target.invoke({
     question: `Is this relevant to: ${inputText}? Response: ${outputText}`,
@@ -311,7 +324,11 @@ export default defineScriptGrader(async ({ input, output }) => {
   });
 
   const result = JSON.parse(response.rawText ?? '{}');
-  return { score: result.relevant ? 1.0 : 0.0 };
+  return {
+    pass: result.relevant === true,
+    score: result.relevant === true ? 1.0 : 0.0,
+    reason: result.relevant === true ? 'Response is relevant' : 'Response is not relevant',
+  };
 });
 ```
 
@@ -392,30 +409,32 @@ import { execFileSync } from "child_process";
 const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
 const cwd = input.workspace_path;
 
-const assertions: Array<{ text: string; passed: boolean }> = [];
+const checks: Array<{ text: string; pass: boolean; reason: string }> = [];
 
 // Stage 1: Install dependencies
 try {
   execFileSync("npm", ["install"], { cwd, stdio: "pipe" });
-  assertions.push({ text: "npm install passed", passed: true });
-} catch { assertions.push({ text: "npm install failed", passed: false }); }
+  checks.push({ text: "npm install", pass: true, reason: "npm install passed" });
+} catch { checks.push({ text: "npm install", pass: false, reason: "npm install failed" }); }
 
 // Stage 2: Typecheck
 try {
   execFileSync("npx", ["tsc", "--noEmit"], { cwd, stdio: "pipe" });
-  assertions.push({ text: "typecheck passed", passed: true });
-} catch { assertions.push({ text: "typecheck failed", passed: false }); }
+  checks.push({ text: "typecheck", pass: true, reason: "typecheck passed" });
+} catch { checks.push({ text: "typecheck", pass: false, reason: "typecheck failed" }); }
 
 // Stage 3: Run tests
 try {
   execFileSync("npm", ["test"], { cwd, stdio: "pipe" });
-  assertions.push({ text: "tests passed", passed: true });
-} catch { assertions.push({ text: "tests failed", passed: false }); }
+  checks.push({ text: "tests", pass: true, reason: "tests passed" });
+} catch { checks.push({ text: "tests", pass: false, reason: "tests failed" }); }
 
-const passed = assertions.filter(a => a.passed).length;
+const passed = checks.filter(check => check.pass).length;
 console.log(JSON.stringify({
-  score: assertions.length > 0 ? passed / assertions.length : 0,
-  assertions,
+  pass: checks.length > 0 && passed === checks.length,
+  score: checks.length > 0 ? passed / checks.length : 0,
+  reason: `${passed}/${checks.length} checks passed`,
+  checks,
 }));
 ```
 
