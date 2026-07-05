@@ -1,0 +1,53 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "pi-cli",
+  "target": "pi-cli-local",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "pi-cli",
+      "type": "user",
+      "ts": "2026-07-05T03:21:04.316Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "Return exactly this marker and nothing else:\nAGENTV-LIVE-MATRIX-OK"
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "pi-cli",
+      "type": "assistant",
+      "ts": "2026-07-05T03:21:04.599Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "AGENTV-LIVE-MATRIX-OK"
+        }
+      ]
+    }
+  ]
+}

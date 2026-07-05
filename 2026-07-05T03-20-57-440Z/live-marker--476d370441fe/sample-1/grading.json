@@ -1,0 +1,76 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Output contains \"AGENTV-LIVE-MATRIX-OK\"",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[rubric-1] The response contains the exact marker AGENTV-LIVE-MATRIX-OK.",
+      "passed": true,
+      "evidence": "The answer exactly matches the required marker: \"AGENTV-LIVE-MATRIX-OK\".",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[rubric-2] The response is concise and does not claim the task could not be performed.",
+      "passed": true,
+      "evidence": "The response is concise and only contains the marker; it does not claim the task could not be performed.",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "contains-AGENTV-LIVE-MATRIX-OK",
+      "type": "contains",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Output contains \"AGENTV-LIVE-MATRIX-OK\"",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "[rubric-1] The response contains the exact marker AGENTV-LIVE-MATRIX-OK.",
+          "passed": true,
+          "evidence": "The answer exactly matches the required marker: \"AGENTV-LIVE-MATRIX-OK\".",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "[rubric-2] The response is concise and does not claim the task could not be performed.",
+          "passed": true,
+          "evidence": "The response is concise and only contains the marker; it does not claim the task could not be performed.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    }
+  ]
+}
