@@ -4,9 +4,9 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Providers and Targets
 
-**Provider** — an adapter plugin that connects AgentV's evaluation engine to a specific AI system (e.g., copilot CLI, copilot SDK, Claude API, pi). Each provider implements the request/response contract: given a test case, invoke the AI system and return its output. Providers are selected per-target in eval YAML and can be extended via the provider registry.
+**Provider** — an adapter plugin that connects AgentV's evaluation engine to a specific AI system (e.g., copilot CLI, copilot SDK, Claude API, pi). Each provider implements the request/response contract: given a test case, invoke the AI system and return its output. Providers are selected inside `targets[]` in eval YAML and can be extended via the provider registry. Top-level Promptfoo `providers` is useful reference evidence, but it is not the canonical AgentV authoring key.
 
-**Target** — The eval YAML or config declaration that activates a specific provider for an evaluation run. A target has a stable `id`, a `provider` backend kind, an optional `runtime`, and provider settings under `config`; field-level `file://` references can load prompts, defaults, or other config fragments at the boundary. A single eval file can declare multiple targets to compare AI systems side by side. Targets select agents/providers; they do not own the authored host/Docker testbed recipe.
+**Target** — The eval YAML or config declaration for a system under test. A target has a stable AgentV `id`, a `provider` backend or adapter kind, an optional `runtime`, and provider settings under `config`; field-level `file://` references can load prompts, defaults, or other config fragments at the boundary. A single eval file can declare multiple targets to compare AI systems side by side. Targets select agents/providers; they do not own the authored host/Docker testbed recipe.
 
 **Target runtime** — The placement/transport mode for invoking a target provider, such as host execution, sandbox/container placement, CLI subprocess, app-server protocol, RPC, or SDK child runner. Runtime describes how the selected agent is invoked. Advanced home/env/profile-style overlays are provider or runtime configuration details, not the authored testbed recipe. Runtime is separate from the environment that prepares files, services, and cwd.
 
@@ -14,13 +14,15 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Evaluation Model
 
-**Eval / Eval YAML** — The only composable and runnable AgentV authoring primitive. An eval YAML file can be a reusable task suite that owns task context, a wrapper eval that imports suites and binds top-level runtime policy, or a sidecar around raw JSONL cases. AgentV does not have a separate runnable `experiment.yaml` artifact.
+**Eval / Eval YAML** — The composable and runnable AgentV authoring primitive. An eval YAML file describes the prompts, tests, variables, targets, assertions, environments, tags, and run policy for an evaluation. AgentV does not have a separate runnable `experiment.yaml` artifact.
 
-**Task suite** — Eval YAML that owns what is being tested: prompts, datasets, input files, fixtures, `environment`, assertions, expected references, and judge criteria. It can run directly or be imported by another eval with `tests[].include` and `type: suite`.
+**Matrix authoring** — The Promptfoo-compatible shape AgentV adopts where useful: `prompts x tests/vars x targets`, with repeat samples and retries applied as run policy after the authored matrix is resolved. AgentV uses this matrix model without copying Promptfoo wholesale. AgentV-native boundaries remain: `targets` identify systems under test, `provider` names the backend/adapter kind inside a target, `environment` recipes prepare coding-agent testbeds, `env` carries provider/eval variables, `extensions` are lifecycle hooks, reusable content uses field-local `file://` refs, and grouping uses tags plus run-bundle metadata.
 
-**Raw case file** — YAML, JSONL, or directory case data imported with `tests: ./cases.yaml`, string shorthand, or `type: tests`. Raw cases are reusable data inputs; they do not carry imported suite context such as shared `environment`, shared `input`, or shared `assertions`.
+**Task suite** — Eval YAML that owns what is being tested: prompts, datasets, input files, fixtures, `environment`, assertions, expected references, and judge criteria. It can run directly or share reusable parts through field-local `file://` refs such as `prompts: file://...`, `tests: file://...`, `defaults: file://...`, and `environment: file://...`.
 
-**Wrapper eval** — Eval YAML whose main job is to import task suites and bind top-level runtime policy such as target selection, repeat count, timeout, budget, and thresholds. Wrapper evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. A wrapper that imports suites with `type: suite` does not define parent `environment`; imported suites own task environment unless a future scoped feature explicitly defines environment override semantics.
+**Raw case file** — YAML, JSONL, or directory case data loaded with `tests: file://./cases.yaml`, string shorthand, or another supported field-local tests reference. Raw cases are reusable data inputs; they do not carry imported suite context such as shared `environment`, shared `input`, or shared `assertions`.
+
+**Policy eval** — Eval YAML whose main job is to bind top-level runtime policy such as target selection, repeat count, timeout, budget, thresholds, and tags around explicit prompts/tests/targets refs. Policy evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. Use tags and run-bundle metadata for grouping rather than experiment path buckets, Vercel path layout, or model-as-experiment grouping.
 
 **Experiment** — A string metadata/run-grouping label such as `baseline`, `candidate`, `with_skills`, or `without_skills`. It is not a runtime-policy object and not a result path namespace. Experiment is expressed as the reserved `tags.experiment` key (see **Tags**); there is no top-level `experiment` field. Runtime policy belongs in top-level eval fields or target objects; the experiment label is recorded in `summary.json` and `.internal/index.jsonl` for Dashboard grouping and comparison. Lifecycle setup belongs in `extensions` or target hooks, not in a separate experiment artifact.
 
@@ -72,7 +74,7 @@ env:
   OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"
 ```
 
-**Run bundle** — A committed local result directory at `.agentv/results/<run_id>/`. `summary.json` records run metadata such as `run_id` and `experiment`; `.internal/index.jsonl` records per-case rows.
+**Run bundle** — A committed local result directory at `.agentv/results/<run_id>/`. `summary.json` records run metadata such as `run_id` and `experiment`; `.internal/index.jsonl` records per-case rows. Run bundles, traces, transcripts, datasets, indexes, and Git-backed artifacts stay AgentV-owned. They are not discovered through an Opik export path or a Phoenix projection path; optional Phoenix integration is link-out correlation only through safe `external_trace` metadata.
 
 **Run manifest** — The root `summary.json` file in a run bundle. It owns aggregate run metadata and rollups such as `run_id`, `experiment`, timestamps, planned/completed counts, pass rate, score summaries, duration, tokens, and cost.
 

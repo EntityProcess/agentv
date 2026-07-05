@@ -12,6 +12,48 @@ AgentV aims to be the repo-native, workspace-native evaluation framework for AI 
 - Adapter boundaries: integrate with Phoenix, Harbor, Opik, and provider-specific systems through narrow adapters instead of absorbing their concepts into core.
 - AI-native extensibility: keep the core small and composable so engineers and coding agents can extend it with plugins, wrappers, and harness-specific glue.
 
+Eval authoring mental model:
+
+- AgentV adopts Promptfoo-compatible matrix authoring where it helps: an eval expands `prompts x tests/vars x targets`, then applies repeat samples/retries as run policy. This is compatibility by composition, not a wholesale copy of Promptfoo's schema.
+- Author systems under test as `targets`. A target `id` is the stable AgentV identity; `provider` inside the target names the backend or adapter kind. Top-level Promptfoo `providers` is reference evidence, not the canonical AgentV authoring key.
+- Use `environment` recipes for coding-agent testbeds, including host/Docker setup, repo materialization, fixtures, services, and cwd. Do not use Promptfoo `extensions` or public `workspace` authoring as the canonical testbed contract.
+- Use top-level `env` for provider/eval environment variables. Use `extensions` for lifecycle hooks. Use field-local `file://` refs for reusable prompts, tests, defaults, and environments.
+- Use `tags` and run-bundle metadata for grouping and Dashboard navigation. Do not use experiment path buckets, Vercel path layout, or model-as-experiment grouping as canonical AgentV semantics.
+- AgentV run bundles, traces, transcripts, datasets, indexes, and Git-backed artifacts stay AgentV-owned. Do not design an Opik export path or Phoenix projection path for them; Phoenix correlation is link-out only when `external_trace` metadata already exists.
+
+Concrete matrix example:
+
+```yaml
+prompts:
+  - file://prompts/fix-bug.md
+  - file://prompts/add-test.md
+
+tests:
+  - vars:
+      issue: "Repair the failing parser case"
+      repo: "file://fixtures/parser"
+    assert:
+      - type: llm-rubric
+        value: "The answer identifies the parser bug and includes a test."
+  - vars:
+      issue: "Explain the flaky retry behavior"
+      repo: "file://fixtures/retry"
+
+targets:
+  - id: codex-host
+    provider: codex-cli
+    runtime: host
+  - id: claude-docker
+    provider: claude-cli
+    runtime: docker
+
+environment: file://.agentv/environments/local-repo.yaml
+tags:
+  experiment: prompt-compare
+```
+
+This produces eight authored target-case executions before repeat policy: 2 prompts x 2 `tests[].vars` cases x 2 targets.
+
 Phoenix boundary after the 2026-06-20 product decision:
 
 - AgentV-owned run bundles, traces, transcripts, datasets, experiments, indexes, and Git-backed artifacts are not exported or projected into Phoenix.
