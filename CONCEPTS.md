@@ -34,7 +34,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **`environment.env`** — Future or recipe-scoped variables for the host/Docker testbed itself, such as container process environment. It is distinct from top-level `env`, which feeds provider/eval config templating.
 
-**Extensions** — Promptfoo-compatible lifecycle hooks such as `beforeAll`, `beforeEach`, `afterEach`, and `afterAll`. Extensions can customize eval flow, but they are not the canonical contract for materializing repositories, Docker images, fixtures, or cwd. Use `environment.setup` for authored testbed setup.
+**Extensions** — Promptfoo-compatible lifecycle hooks such as `beforeAll`, `beforeEach`, `afterEach`, and `afterAll`. Extensions can customize eval flow, but they are not the canonical contract for materializing repositories, Docker images, fixtures, or cwd. A `beforeAll` hook can run setup code, but then cwd, Docker/image/resource config, and testbed provenance are hidden in executable hook side effects instead of authored data. Use `environment.setup` for authored testbed setup.
 
 **Workspace** — Not the public AgentV coding-agent testbed contract. Where older docs or code use `workspace` or `workspace.repos[]` to mean the authored testbed, that naming is migration debt toward `environment`. The word may still describe ordinary mutable directories, local checkout state, or implementation-specific working folders when it is not a competing authored YAML primitive.
 

@@ -237,6 +237,36 @@ env:
   OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"
 ```
 
+### Why not Promptfoo `extensions` as the testbed contract?
+
+Promptfoo-compatible extensions remain supported lifecycle hooks, and they can
+mechanically run setup code. For example, an eval could author a reusable
+`beforeAll` setup hook:
+
+```yaml
+extensions:
+  - file://.agentv/extensions/setup-workspace.ts:beforeAll
+
+targets:
+  - id: codex
+    provider: codex-cli
+```
+
+That shape is not a good canonical product contract for coding-agent eval
+testbeds. The working directory becomes an implicit side effect of hook code
+rather than a typed field in the authored suite/test/case. The target has no
+obvious typed place to receive cwd after the hook runs. Docker image, build
+context, resource, mount, and service configuration disappear into executable
+hook code instead of staying visible as reviewable data. Multiple suites can
+share the hook file, but reviewers and coding agents still cannot quickly see
+the testbed from the YAML that defines the benchmark case. It also diverges
+from Harbor, Margin, and Terminal-Bench-style explicit task
+environment/testbed contracts, where task substrate and agent selection are
+separate visible concepts.
+
+Therefore `extensions` stay lifecycle hooks for customizing eval flow, while
+`environment` is the explicit AgentV substrate, setup, and `workdir` contract.
+
 1. **`environment` is the authored testbed recipe** at suite/test/case scope.
    It may be inline or loaded through a field-level `file://` reference. Shared
    `file://` recipes are the canonical reusable form.
