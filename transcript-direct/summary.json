@@ -68,7 +68,7 @@
   "metadata": {
     "run_id": "transcript-direct",
     "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/coding-replay-contract/examples/showcase/trace-evaluation/evals/transcript-import.eval.yaml",
-    "timestamp": "2026-07-05T03:32:08.891Z",
+    "timestamp": "2026-07-05T03:37:35.260Z",
     "targets": [
       "transcript"
     ],
