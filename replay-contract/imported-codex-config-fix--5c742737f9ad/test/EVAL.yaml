@@ -1,0 +1,38 @@
+target: replay_imported_codex_transcript
+prompts:
+  - "{{ input }}"
+tests:
+  - id: imported-codex-config-fix
+    vars:
+      input:
+        - role: user
+          content: Inspect the project and change the default request timeout to 5000ms.
+    assert:
+      - metric: imported-tool-sequence
+        type: tool-trajectory
+        mode: in_order
+        expected:
+          - tool: Read
+            args:
+              path: package.json
+          - tool: Grep
+            args:
+              pattern: timeout
+          - tool: Edit
+            args:
+              path: src/config.ts
+        args_match: superset
+      - metric: imported-execution-budget
+        type: execution-metrics
+        max_tool_calls: 5
+        max_llm_calls: 5
+        max_duration_ms: 5000
+      - metric: replay-proof
+        type: script
+        command:
+          - bun
+          - run
+          - ../graders/replay-proof.ts
+        cwd: undefined
+        config:
+          require_metrics: false

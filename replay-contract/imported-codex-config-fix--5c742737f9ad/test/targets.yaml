@@ -1,0 +1,6 @@
+targets:
+  - id: replay_imported_codex_transcript
+    provider: replay
+    config:
+      transcripts: ../fixtures/imported-codex-transcript.jsonl
+      source_target: codex
