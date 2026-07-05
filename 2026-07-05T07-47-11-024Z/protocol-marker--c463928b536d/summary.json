@@ -1,0 +1,43 @@
+{
+  "total_attempts": 1,
+  "passed_attempts": 1,
+  "pass_rate": "100%",
+  "mean_duration_ms": 9840,
+  "mean_duration_seconds": 9.84,
+  "fingerprint": "agentv-prj-1fa185989a8011608b30380bbbeace1d",
+  "duration": {
+    "total_ms": 9840,
+    "total_seconds": 9.84,
+    "source": "provider_reported",
+    "mean_ms": 9840,
+    "mean_seconds": 9.84,
+    "stats": {
+      "count": 1,
+      "mean_ms": 9840,
+      "mean_seconds": 9.84,
+      "stddev_ms": 0,
+      "stddev_seconds": 0,
+      "min_ms": 9840,
+      "max_ms": 9840
+    }
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "execution_status": "ok",
+  "verdict": "pass",
+  "sample_index": 0,
+  "retry_index": 0,
+  "target_execution": {
+    "schema_version": "agentv.target_execution.v1",
+    "target_id": "codex-app-server-local",
+    "provider_id": "codex-app-server:codex-app-server-local",
+    "provider_kind": "codex-app-server",
+    "runtime_mode": "host",
+    "command": {
+      "argv": [
+        "/home/entity/.local/bin/codex",
+        "-c",
+        "model_provider=\"agentv-openai\"",
+        "-c",
+        "model_providers.agentv-openai.name=\"agentv-openai\"",
+        "-c",
+        "model_providers.agentv-openai.base_url=\"http://127.0.0.1:10531/v1\"",
+        "-c",
+        "model_providers.agentv-openai.env_key=\"CODEX_API_KEY\"",
+        "-c",
+        "model_providers.agentv-openai.wire_api=\"responses\"",
+        "app-server",
+        "--stdio"
+      ],
+      "command_line": "/home/entity/.local/bin/codex -c 'model_provider=\"agentv-openai\"' -c 'model_providers.agentv-openai.name=\"agentv-openai\"' -c 'model_providers.agentv-openai.base_url=\"http://127.0.0.1:10531/v1\"' -c 'model_providers.agentv-openai.env_key=\"CODEX_API_KEY\"' -c 'model_providers.agentv-openai.wire_api=\"responses\"' app-server --stdio",
+      "cwd": "/tmp/agentv-codex-3wncnE"
+    },
+    "timeout_ms": 120000,
+    "started_at": "2026-07-05T07:47:12.582Z",
+    "ended_at": "2026-07-05T07:47:22.423Z",
+    "duration_ms": 9841,
+    "exit_code": 0,
+    "signal": null,
+    "logs": {
+      "stdout": {
+        "text": "{\"id\":1,\"result\":{\"userAgent\":\"agentv/0.142.5 (Ubuntu 24.4.0; x86_64) xterm-256color (agentv; 0.0.0)\",\"codexHome\":\"/home/entity/.codex\",\"platformFamily\":\"unix\",\"platformOs\":\"linux\"}}\n{\"method\":\"remoteControl/status/changed\",\"params\":{\"status\":\"disabled\",\"serverName\":\"entity-vps\",\"installationId\":\"347a9d51-921e-42b8-8f96-06a3ad288454\",\"environmentId\":null}}\n{\"id\":2,\"result\":{\"thread\":{\"id\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"sessionId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"forkedFromId\":null,\"parentThreadId\":null,\"preview\":\"\",\"ephemeral\":true,\"modelProvider\":\"agentv-openai\",\"createdAt\":1783237637,\"updatedAt\":1783237637,\"recencyAt\":1783237637,\"status\":{\"type\":\"idle\"},\"path\":null,\"cwd\":\"/tmp/agentv-codex-3wncnE\",\"cliVersion\":\"0.142.5\",\"source\":\"vscode\",\"threadSource\":null,\"agentNickname\":null,\"agentRole\":null,\"gitInfo\":null,\"name\":null,\"turns\":[]},\"model\":\"gpt-5.4-mini\",\"modelProvider\":\"agentv-openai\",\"serviceTier\":null,\"cwd\":\"/tmp/agentv-codex-3wncnE\",\"runtimeWorkspaceRoots\":[\"/tmp/agentv-codex-3wncnE\"],\"instructionSources\":[],\"approvalPolicy\":\"never\",\"approvalsReviewer\":\"user\",\"sandbox\":{\"type\":\"workspaceWrite\",\"writableRoots\":[],\"networkAccess\":false,\"excludeTmpdirEnvVar\":false,\"excludeSlashTmp\":false},\"activePermissionProfile\":null,\"reasoningEffort\":\"high\",\"multiAgentMode\":\"explicitRequestOnly\"}}\n{\"method\":\"thread/started\",\"params\":{\"thread\":{\"id\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"sessionId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"forkedFromId\":null,\"parentThreadId\":null,\"preview\":\"\",\"ephemeral\":true,\"modelProvider\":\"agentv-openai\",\"createdAt\":1783237637,\"updatedAt\":1783237637,\"recencyAt\":1783237637,\"status\":{\"type\":\"idle\"},\"path\":null,\"cwd\":\"/tmp/agentv-codex-3wncnE\",\"cliVersion\":\"0.142.5\",\"source\":\"vscode\",\"threadSource\":null,\"agentNickname\":null,\"agentRole\":null,\"gitInfo\":null,\"name\":null,\"turns\":[]}}}\n{\"method\":\"mcpServer/startupStatus/updated\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"name\":\"deepwiki\",\"status\":\"starting\",\"error\":null}}\n{\"method\":\"mcpServer/startupStatus/updated\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"name\":\"codex_apps\",\"status\":\"starting\",\"error\":null}}\n{\"id\":3,\"result\":{\"turn\":{\"id\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"items\":[],\"itemsView\":\"notLoaded\",\"status\":\"inProgress\",\"error\":null,\"startedAt\":null,\"completedAt\":null,\"durationMs\":null}}}\n{\"method\":\"thread/status/changed\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"status\":{\"type\":\"active\",\"activeFlags\":[]}}}\n{\"method\":\"turn/started\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turn\":{\"id\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"items\":[],\"itemsView\":\"notLoaded\",\"status\":\"inProgress\",\"error\":null,\"startedAt\":1783237637,\"completedAt\":null,\"durationMs\":null}}}\n{\"method\":\"mcpServer/startupStatus/updated\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"name\":\"codex_apps\",\"status\":\"ready\",\"error\":null}}\n{\"method\":\"mcpServer/startupStatus/updated\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"name\":\"deepwiki\",\"status\":\"ready\",\"error\":null}}\n{\"method\":\"hook/started\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"session-start:5:/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"eventName\":\"sessionStart\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"thread\",\"sourcePath\":\"/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"source\":\"plugin\",\"displayOrder\":5,\"status\":\"running\",\"statusMessage\":\"Loading Beads context\",\"startedAt\":1783237638,\"completedAt\":null,\"durationMs\":null,\"entries\":[]}}}\n{\"method\":\"hook/completed\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"session-start:5:/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"eventName\":\"sessionStart\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"thread\",\"sourcePath\":\"/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"source\":\"plugin\",\"displayOrder\":5,\"status\":\"completed\",\"statusMessage\":\"Loading Beads context\",\"startedAt\":1783237638,\"completedAt\":1783237639,\"durationMs\":381,\"entries\":[]}}}\n{\"method\":\"hook/started\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"user-prompt-submit:1:/home/entity/.codex/hooks.json\",\"eventName\":\"userPromptSubmit\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"turn\",\"sourcePath\":\"/home/entity/.codex/hooks.json\",\"source\":\"user\",\"displayOrder\":1,\"status\":\"running\",\"statusMessage\":null,\"startedAt\":1783237639,\"completedAt\":null,\"durationMs\":null,\"entries\":[]}}}\n{\"method\":\"hook/started\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"user-prompt-submit:6:/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"eventName\":\"userPromptSubmit\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"turn\",\"sourcePath\":\"/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"source\":\"plugin\",\"displayOrder\":6,\"status\":\"running\",\"statusMessage\":\"Refreshing Beads context\",\"startedAt\":1783237639,\"completedAt\":null,\"durationMs\":null,\"entries\":[]}}}\n{\"method\":\"hook/completed\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"user-prompt-submit:1:/home/entity/.codex/hooks.json\",\"eventName\":\"userPromptSubmit\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"turn\",\"sourcePath\":\"/home/entity/.codex/hooks.json\",\"source\":\"user\",\"displayOrder\":1,\"status\":\"completed\",\"statusMessage\":null,\"startedAt\":1783237639,\"completedAt\":1783237639,\"durationMs\":172,\"entries\":[]}}}\n{\"method\":\"hook/completed\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"user-prompt-submit:6:/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"eventName\":\"userPromptSubmit\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"turn\",\"sourcePath\":\"/home/entity/.codex/plugins/cache/beads-marketplace/beads/1.1.0/.codex-plugin/hooks/hooks.json\",\"source\":\"plugin\",\"displayOrder\":6,\"status\":\"completed\",\"statusMessage\":\"Refreshing Beads context\",\"startedAt\":1783237639,\"completedAt\":1783237639,\"durationMs\":304,\"entries\":[]}}}\n{\"method\":\"item/started\",\"params\":{\"item\":{\"type\":\"userMessage\",\"id\":\"9e6b57ad-00b6-4fd8-a147-cd585a4aff89\",\"clientId\":null,\"content\":[{\"type\":\"text\",\"text\":\"[[ ## user_query ## ]]\\n\\nReply with the exact phrase: agentv protocol provider ok\",\"text_elements\":[]}]},\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"startedAtMs\":1783237639619}}\n{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"userMessage\",\"id\":\"9e6b57ad-00b6-4fd8-a147-cd585a4aff89\",\"clientId\":null,\"content\":[{\"type\":\"text\",\"text\":\"[[ ## user_query ## ]]\\n\\nReply with the exact phrase: agentv protocol provider ok\",\"text_elements\":[]}]},\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"completedAtMs\":1783237639619}}\n{\"method\":\"item/started\",\"params\":{\"item\":{\"type\":\"reasoning\",\"id\":\"rs_015a0e5fc28ae244016a4a0c09c5608191aa2b9e17dee814a2\",\"summary\":[],\"content\":[]},\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"startedAtMs\":1783237641805}}\n{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"reasoning\",\"id\":\"rs_015a0e5fc28ae244016a4a0c09c5608191aa2b9e17dee814a2\",\"summary\":[],\"content\":[]},\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"completedAtMs\":1783237641945}}\n{\"method\":\"item/started\",\"params\":{\"item\":{\"type\":\"agentMessage\",\"id\":\"msg_015a0e5fc28ae244016a4a0c09ea688191a6c63b269097d929\",\"text\":\"\",\"phase\":\"final_answer\",\"memoryCitation\":null},\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"startedAtMs\":1783237641945}}\n{\"method\":\"item/agentMessage/delta\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"itemId\":\"msg_015a0e5fc28ae244016a4a0c09ea688191a6c63b269097d929\",\"delta\":\"agent\"}}\n{\"method\":\"item/agentMessage/delta\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"itemId\":\"msg_015a0e5fc28ae244016a4a0c09ea688191a6c63b269097d929\",\"delta\":\"v\"}}\n{\"method\":\"item/agentMessage/delta\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"itemId\":\"msg_015a0e5fc28ae244016a4a0c09ea688191a6c63b269097d929\",\"delta\":\" protocol\"}}\n{\"method\":\"item/agentMessage/delta\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"itemId\":\"msg_015a0e5fc28ae244016a4a0c09ea688191a6c63b269097d929\",\"delta\":\" provider\"}}\n{\"method\":\"item/agentMessage/delta\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"itemId\":\"msg_015a0e5fc28ae244016a4a0c09ea688191a6c63b269097d929\",\"delta\":\" ok\"}}\n{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"agentMessage\",\"id\":\"msg_015a0e5fc28ae244016a4a0c09ea688191a6c63b269097d929\",\"text\":\"agentv protocol provider ok\",\"phase\":\"final_answer\",\"memoryCitation\":null},\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"completedAtMs\":1783237642102}}\n{\"method\":\"thread/tokenUsage/updated\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"tokenUsage\":{\"total\":{\"totalTokens\":13746,\"inputTokens\":13727,\"cachedInputTokens\":4480,\"outputTokens\":19,\"reasoningOutputTokens\":8},\"last\":{\"totalTokens\":13746,\"inputTokens\":13727,\"cachedInputTokens\":4480,\"outputTokens\":19,\"reasoningOutputTokens\":8},\"modelContextWindow\":258400}}}\n{\"method\":\"account/rateLimits/updated\",\"params\":{\"rateLimits\":{\"limitId\":\"codex\",\"limitName\":null,\"primary\":null,\"secondary\":null,\"credits\":null,\"individualLimit\":null,\"planType\":null,\"rateLimitReachedType\":null}}}\n{\"method\":\"hook/started\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"stop:2:/home/entity/.codex/hooks.json\",\"eventName\":\"stop\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"turn\",\"sourcePath\":\"/home/entity/.codex/hooks.json\",\"source\":\"user\",\"displayOrder\":2,\"status\":\"running\",\"statusMessage\":null,\"startedAt\":1783237642,\"completedAt\":null,\"durationMs\":null,\"entries\":[]}}}\n{\"method\":\"hook/completed\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turnId\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"run\":{\"id\":\"stop:2:/home/entity/.codex/hooks.json\",\"eventName\":\"stop\",\"handlerType\":\"command\",\"executionMode\":\"sync\",\"scope\":\"turn\",\"sourcePath\":\"/home/entity/.codex/hooks.json\",\"source\":\"user\",\"displayOrder\":2,\"status\":\"completed\",\"statusMessage\":null,\"startedAt\":1783237642,\"completedAt\":1783237642,\"durationMs\":119,\"entries\":[]}}}\n{\"method\":\"thread/status/changed\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"status\":{\"type\":\"idle\"}}}\n{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"019f313e-e623-7452-9b0d-c11454492c59\",\"turn\":{\"id\":\"019f313e-f435-7b62-a879-69c890af4a7d\",\"items\":[],\"itemsView\":\"notLoaded\",\"status\":\"completed\",\"error\":null,\"startedAt\":1783237637,\"completedAt\":1783237642,\"durationMs\":5050}}}\n",
+        "truncated": false,
+        "bytes": 11735,
+        "stored_bytes": 11735
+      },
+      "stderr": {
+        "text": "2026-07-05T07:47:13.701473Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: failed to decode models response: missing field `models` at line 1 column 408; body: {\"object\":\"list\",\"data\":[{\"id\":\"gpt-5.5\",\"object\":\"model\",\"created\":0,\"owned_by\":\"codex-oauth\"},{\"id\":\"gpt-5.4\",\"object\":\"model\",\"created\":0,\"owned_by\":\"codex-oauth\"},{\"id\":\"gpt-5.4-mini\",\"object\":\"model\",\"created\":0,\"owned_by\":\"codex-oauth\"},{\"id\":\"gpt-5.3-codex-spark\",\"object\":\"model\",\"created\":0,\"owned_by\":\"codex-oauth\"},{\"id\":\"codex-auto-review\",\"object\":\"model\",\"created\":0,\"owned_by\":\"codex-oauth\"}]}\n",
+        "truncated": false,
+        "bytes": 634,
+        "stored_bytes": 634
+      }
+    },
+    "status": "success",
+    "transcript": {
+      "messages": [
+        {
+          "role": "assistant",
+          "content": "agentv protocol provider ok"
+        }
+      ],
+      "final_output": "agentv protocol provider ok"
+    },
+    "details": {
+      "prompt_file": "/tmp/agentv-codex-3wncnE/prompt.md",
+      "workspace": "/tmp/agentv-codex-3wncnE",
+      "input_files": [],
+      "log_file": "/tmp/agentv-provider-streams/2026-07-05T07-47-11-024Z-827f839171be/av-t2o5-7-host-protocol-provider-fixes/protocol-marker/logs/codex/2026-07-05T07-47-12-569Z_codex-app-server-local_protocol-marker_attempt-1_3b00a7e5.log"
+    },
+    "artifacts": {
+      "target_execution_path": "target-execution.json",
+      "stdout_path": "stdout.txt",
+      "stderr_path": "stderr.txt",
+      "transcript_path": "transcript.json",
+      "transcript_raw_path": "transcript-raw.jsonl",
+      "summary_path": "summary.json",
+      "metrics_path": "metrics.json",
+      "output_path": "outputs/answer.md",
+      "answer_path": "outputs/answer.md"
+    }
+  },
+  "target_execution_path": "./target-execution.json",
+  "stdout_path": "./stdout.txt",
+  "stderr_path": "./stderr.txt",
+  "duration_ms": 9840,
+  "duration_seconds": 9.84,
+  "model": "codex-app-server-local",
+  "grading_path": "./grading.json",
+  "metrics_path": "./metrics.json",
+  "transcript_path": "./transcript.json",
+  "transcript_raw_path": "./transcript-raw.jsonl",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "o11y": {
+    "total_turns": 1,
+    "tool_calls": {},
+    "total_tool_calls": 0,
+    "web_fetches": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_deleted": [],
+    "shell_commands": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "output_paths": {
+    "answer": "./outputs/answer.md"
+  }
+}
