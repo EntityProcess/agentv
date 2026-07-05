@@ -1316,7 +1316,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.runtime_source).toBeUndefined();
   });
 
-  it('writes host environment provenance as a sidecar with redacted setup inputs and logs', async () => {
+  it('writes host environment provenance as a sidecar with redacted setup argv and logs', async () => {
     const result = makeResult({
       testId: 'host-env',
       environmentProvenance: {
@@ -1331,11 +1331,8 @@ describe('writeArtifactsFromResults', () => {
         workdir: '/repo/workspaces/app',
         setup: {
           command: ['node', 'setup.mjs', '--api-key', '<redacted>'],
-          args: {
-            repo: 'example/app',
-            commit: 'abc123',
-            api_key: '<redacted>',
-          },
+          cwd: '.',
+          timeoutMs: 120000,
         },
         setupExecutions: [
           {
@@ -1379,7 +1376,9 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.environment).not.toHaveProperty('setup_executions');
     expect(JSON.stringify(indexLine)).not.toContain('used <redacted>');
     expect(environment.setup.command).toEqual(['node', 'setup.mjs', '--api-key', '<redacted>']);
-    expect(environment.setup.args.api_key).toBe('<redacted>');
+    expect(environment.setup).not.toHaveProperty('args');
+    expect(environment.setup.cwd).toBe('.');
+    expect(environment.setup.timeout_ms).toBe(120000);
     expect(environment.setup_executions[0].output).toContain('used <redacted>');
     expect(environment.repo_provenance).toEqual({ repo: 'example/app', commit: 'abc123' });
     expect(resultJson.environment_path).toBe('./environment.json');

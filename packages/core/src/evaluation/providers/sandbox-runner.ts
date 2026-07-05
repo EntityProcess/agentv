@@ -35,14 +35,18 @@ export interface SandboxCommandRunResult {
 
 const DOCKER_INFRA_EXIT_CODES = new Set([125]);
 
+interface DockerSetupCommand {
+  readonly command: readonly string[];
+  readonly cwd?: string;
+  readonly stdin?: string;
+  readonly timeoutMs?: number;
+}
+
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function asStringArray(value: unknown): readonly string[] {
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return [value.trim()];
-  }
   if (!Array.isArray(value)) {
     return [];
   }
@@ -116,8 +120,39 @@ function dockerNetwork(runtime: TargetRuntimeConfig): string {
   return network ?? 'none';
 }
 
-function dockerSetupCommands(runtime: TargetRuntimeConfig): readonly string[] {
-  return asStringArray(runtime.setup);
+function asDockerSetupCommand(value: unknown): DockerSetupCommand | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const command = asStringArray(record.command);
+  if (command.length === 0) {
+    return undefined;
+  }
+  const cwd = asString(record.cwd);
+  const stdin = typeof record.stdin === 'string' ? record.stdin : undefined;
+  const timeoutMs =
+    typeof record.timeout_ms === 'number' && record.timeout_ms > 0
+      ? record.timeout_ms
+      : typeof record.timeoutMs === 'number' && record.timeoutMs > 0
+        ? record.timeoutMs
+        : undefined;
+  return {
+    command,
+    ...(cwd !== undefined ? { cwd } : {}),
+    ...(stdin !== undefined ? { stdin } : {}),
+    ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+  };
+}
+
+function dockerSetupCommands(runtime: TargetRuntimeConfig): readonly DockerSetupCommand[] {
+  if (!Array.isArray(runtime.setup)) {
+    return [];
+  }
+  return runtime.setup.flatMap((entry) => {
+    const setupCommand = asDockerSetupCommand(entry);
+    return setupCommand ? [setupCommand] : [];
+  });
 }
 
 function dockerMemory(runtime: TargetRuntimeConfig): string | undefined {
@@ -126,6 +161,111 @@ function dockerMemory(runtime: TargetRuntimeConfig): string | undefined {
 
 function dockerCpus(runtime: TargetRuntimeConfig): number | undefined {
   return typeof runtime.cpus === 'number' && runtime.cpus > 0 ? runtime.cpus : undefined;
+}
+
+async function runDockerCli(
+  args: readonly string[],
+  options: {
+    readonly cwd?: string;
+    readonly timeoutMs?: number;
+    readonly signal?: AbortSignal;
+    readonly stdin?: string;
+    readonly sandboxDetails: Record<string, unknown>;
+  },
+): Promise<SandboxCommandRunResult> {
+  return new Promise((resolve) => {
+    const child = spawn('docker', args, {
+      cwd: options.cwd,
+      env: process.env,
+      windowsHide: true,
+      stdio: options.stdin !== undefined ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let cancelled = false;
+    let settled = false;
+
+    const append = (current: string, chunk: Buffer) => `${current}${chunk.toString('utf8')}`;
+
+    const terminate = () => {
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 2_000).unref?.();
+    };
+
+    const timeout = options.timeoutMs
+      ? setTimeout(() => {
+          timedOut = true;
+          terminate();
+        }, options.timeoutMs)
+      : undefined;
+    timeout?.unref?.();
+
+    const abort = () => {
+      cancelled = true;
+      terminate();
+    };
+    if (options.signal) {
+      if (options.signal.aborted) {
+        abort();
+      } else {
+        options.signal.addEventListener('abort', abort, { once: true });
+      }
+    }
+
+    if (options.stdin !== undefined) {
+      child.stdin?.end(options.stdin);
+    }
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      stdout = append(stdout, chunk);
+    });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr = append(stderr, chunk);
+    });
+
+    child.on('error', (error: NodeJS.ErrnoException) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      if (options.signal) options.signal.removeEventListener('abort', abort);
+      resolve({
+        stdout,
+        stderr: stderr || error.message,
+        exitCode: null,
+        failed: true,
+        timedOut,
+        signal: null,
+        spawnErrorCode: error.code,
+        sandboxInfraFailure: true,
+        sandboxDetails: options.sandboxDetails,
+      });
+    });
+
+    child.on('close', (code, signal) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      if (options.signal) options.signal.removeEventListener('abort', abort);
+      const sandboxInfraFailure =
+        code !== null && DOCKER_INFRA_EXIT_CODES.has(code) && !timedOut && !cancelled;
+      resolve({
+        stdout,
+        stderr,
+        exitCode: code,
+        failed: code !== 0 || signal !== null || timedOut || cancelled,
+        timedOut,
+        signal,
+        sandboxInfraFailure,
+        sandboxDetails: options.sandboxDetails,
+      });
+    });
+  });
 }
 
 export async function runDockerSandboxCommand(
@@ -157,9 +297,10 @@ export async function runDockerSandboxCommand(
   }
 
   const containerName = `agentv-sandbox-${randomUUID()}`;
+  const setupCommands = dockerSetupCommands(options.runtime);
   const argv = [
-    'run',
-    '--rm',
+    setupCommands.length > 0 ? 'create' : 'run',
+    ...(setupCommands.length === 0 ? ['--rm'] : []),
     '--name',
     containerName,
     '--network',
@@ -189,8 +330,99 @@ export async function runDockerSandboxCommand(
     argv.push('--volume', `${mount.source}:${mount.target}:${mountAccessSuffix(mount.access)}`);
   }
 
-  const commandLine = [...dockerSetupCommands(options.runtime), command].join(' && ');
-  argv.push(image, '/bin/sh', '-lc', commandLine);
+  argv.push(
+    image,
+    ...(setupCommands.length > 0 ? ['sleep', 'infinity'] : ['/bin/sh', '-lc', command]),
+  );
+
+  if (setupCommands.length > 0) {
+    const dockerCwd = dockerHostCwd(options.runtime) ?? options.cwd;
+    const createResult = await runDockerCli(argv, {
+      cwd: dockerCwd,
+      timeoutMs: 30_000,
+      signal: options.signal,
+      sandboxDetails: { engine, image, containerName, argv: ['docker', ...argv] },
+    });
+    if (createResult.failed) {
+      return createResult;
+    }
+
+    const cleanupContainer = async () => {
+      await runDockerCli(['rm', '-f', containerName], {
+        cwd: dockerCwd,
+        timeoutMs: 30_000,
+        sandboxDetails: {
+          engine,
+          image,
+          containerName,
+          argv: ['docker', 'rm', '-f', containerName],
+        },
+      });
+    };
+
+    try {
+      const startArgs = ['start', containerName];
+      const startResult = await runDockerCli(startArgs, {
+        cwd: dockerCwd,
+        timeoutMs: 30_000,
+        signal: options.signal,
+        sandboxDetails: { engine, image, containerName, argv: ['docker', ...startArgs] },
+      });
+      if (startResult.failed) {
+        return startResult;
+      }
+
+      let setupStdout = '';
+      let setupStderr = '';
+      for (const setup of setupCommands) {
+        const setupArgs = [
+          'exec',
+          ...(setup.stdin !== undefined ? ['-i'] : []),
+          ...(setup.cwd !== undefined ? ['--workdir', setup.cwd] : []),
+          containerName,
+          ...setup.command,
+        ];
+        const setupResult = await runDockerCli(setupArgs, {
+          cwd: dockerCwd,
+          timeoutMs: setup.timeoutMs,
+          signal: options.signal,
+          stdin: setup.stdin,
+          sandboxDetails: { engine, image, containerName, argv: ['docker', ...setupArgs] },
+        });
+        setupStdout += setupResult.stdout;
+        setupStderr += setupResult.stderr;
+        if (setupResult.failed) {
+          return {
+            ...setupResult,
+            stdout: setupStdout,
+            stderr: setupStderr,
+          };
+        }
+      }
+
+      const targetArgs = [
+        'exec',
+        ...(workdir ? ['--workdir', workdir] : []),
+        containerName,
+        '/bin/sh',
+        '-lc',
+        command,
+      ];
+      const targetResult = await runDockerCli(targetArgs, {
+        cwd: dockerCwd,
+        timeoutMs: options.timeoutMs,
+        signal: options.signal,
+        sandboxDetails: { engine, image, containerName, argv: ['docker', ...targetArgs] },
+      });
+      return {
+        ...targetResult,
+        stdout: `${setupStdout}${targetResult.stdout}`,
+        stderr: `${setupStderr}${targetResult.stderr}`,
+      };
+    } finally {
+      await cleanupContainer();
+    }
+  }
 
   return new Promise((resolve) => {
     const child = spawn('docker', argv, {

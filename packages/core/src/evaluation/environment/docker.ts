@@ -7,7 +7,6 @@ import type {
   EnvironmentSetupConfig,
 } from '../loaders/environment-recipe.js';
 import type { TargetRuntimeConfig } from '../providers/sandbox-runner.js';
-import type { JsonObject } from '../types.js';
 import {
   type CommandExecutor,
   DefaultCommandExecutor,
@@ -21,9 +20,8 @@ export interface DockerEnvironmentSetupResult {
   readonly image: string;
   readonly workdir: string;
   readonly status: DockerEnvironmentSetupStatus;
-  readonly command?: readonly string[] | string;
+  readonly command?: readonly string[];
   readonly cwd?: string;
-  readonly args?: JsonObject;
   readonly stdout?: string;
   readonly stderr?: string;
   readonly exitCode?: number;
@@ -50,13 +48,8 @@ function dockerImageTag(recipe: DockerEnvironmentRecipe): string {
   return `agentv-environment:${hash}`;
 }
 
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-function setupPayload(recipe: DockerEnvironmentRecipe): JsonObject {
+function setupPayload(recipe: DockerEnvironmentRecipe) {
   return {
-    args: recipe.setup?.args ?? {},
     environment: {
       type: 'docker',
       workdir: recipe.workdir,
@@ -64,24 +57,16 @@ function setupPayload(recipe: DockerEnvironmentRecipe): JsonObject {
       ...(recipe.context ? { context: recipe.context } : {}),
       ...(recipe.dockerfile ? { dockerfile: recipe.dockerfile } : {}),
     },
-    ...(recipe.setup?.env ? { env: recipe.setup.env } : {}),
   };
 }
 
-function setupCommandLine(setup: EnvironmentSetupConfig, payload: string): string {
-  const envPrefix = Object.entries(setup.env ?? {})
-    .map(([key, value]) => `${key}=${shellQuote(value)}`)
-    .join(' ');
-  const command =
-    typeof setup.command === 'string'
-      ? setup.command
-      : setup.command.map((entry) => shellQuote(entry)).join(' ');
-  const setupCommand = envPrefix ? `${envPrefix} ${command}` : command;
-  return `printf %s ${shellQuote(payload)} | (${setupCommand})`;
-}
-
-function setupTimeoutSeconds(setup: EnvironmentSetupConfig | undefined): number | undefined {
-  return setup?.timeout_seconds;
+function setupCwd(setup: EnvironmentSetupConfig, recipe: DockerEnvironmentRecipe): string {
+  if (!setup.cwd) {
+    return recipe.workdir;
+  }
+  return path.posix.isAbsolute(setup.cwd)
+    ? setup.cwd
+    : path.posix.resolve(recipe.workdir, setup.cwd);
 }
 
 function dockerRuntimeForRecipe(
@@ -113,9 +98,17 @@ function dockerRuntimeForRecipe(
     mounts,
     ...(recipe.resources?.memory !== undefined ? { memory: recipe.resources.memory } : {}),
     ...(recipe.resources?.cpus !== undefined ? { cpus: recipe.resources.cpus } : {}),
-    ...(setup !== undefined ? { setup: [setupCommandLine(setup, payload)] } : {}),
-    ...(setupTimeoutSeconds(setup) !== undefined
-      ? { setup_timeout: setupTimeoutSeconds(setup) }
+    ...(setup !== undefined
+      ? {
+          setup: [
+            {
+              command: setup.command,
+              cwd: setupCwd(setup, recipe),
+              stdin: payload,
+              ...(setup.timeoutMs !== undefined ? { timeout_ms: setup.timeoutMs } : {}),
+            },
+          ],
+        }
       : {}),
   };
 }
@@ -185,8 +178,7 @@ export async function prepareDockerEnvironment(
     workdir: recipe.workdir,
     status: recipe.setup ? 'success' : 'skipped',
     ...(recipe.setup?.command !== undefined ? { command: recipe.setup.command } : {}),
-    cwd: recipe.sourceDir,
-    ...(recipe.setup?.args !== undefined ? { args: recipe.setup.args } : {}),
+    ...(recipe.setup !== undefined ? { cwd: setupCwd(recipe.setup, recipe) } : {}),
     targetRuntime: runtime,
   };
 }

@@ -249,11 +249,13 @@ targets:
 type: host
 workdir: ./workspaces/bottle
 setup:
-  command: ./scripts/setup-workspace.sh
-  args:
-    repo: https://github.com/bottlepy/bottle.git
-    commit: 0207a34f0c5716cd292dd4480253ad35d3da49f3
-    path: ./workspaces/bottle
+  command:
+    - bash
+    - ./scripts/setup-workspace.sh
+    - https://github.com/bottlepy/bottle.git
+    - 0207a34f0c5716cd292dd4480253ad35d3da49f3
+    - ./workspaces/bottle
+  timeout_ms: 120000
 ```
 
 ```yaml
@@ -310,8 +312,9 @@ Therefore `extensions` stay lifecycle hooks for customizing eval flow, while
    explicitly overrides it. Target configs may still expose provider-specific
    knobs, but the canonical testbed cwd comes from the environment recipe.
 4. **`environment.setup` materializes testbed state.** Setup is declarative data
-   plus a command and typed `args`: repos, archives, patches, generated
-   fixtures, installed dependencies, services, and other case state. Setup runs
+   plus an argv `command`: repos, archives, patches, generated fixtures,
+   installed dependencies, services, and other case state. Shell behavior is
+   explicit by authoring an argv such as `["bash", "-lc", "..."]`. Setup runs
    before target execution and before ordinary promptfoo lifecycle hooks.
 5. **Top-level `env` remains promptfoo-compatible.** It is for provider/eval env
    overrides and load-time `{{ env.VAR }}` rendering. Do not move it under

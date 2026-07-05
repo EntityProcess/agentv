@@ -4,15 +4,12 @@ environment:
   type: host
   workdir: ../workspace-template
   setup:
-    command: ../scripts/materialize-repos.sh
-    args:
-      repos:
-        - path: ./agentv
-          repo: https://github.com/EntityProcess/agentv.git
-          commit: main
-        - path: ./allagents
-          repo: https://github.com/EntityProcess/allagents.git
-          commit: main
+    command:
+      - bash
+      - ../scripts/materialize-repos.sh
+      - ./agentv=https://github.com/EntityProcess/agentv.git@main
+      - ./allagents=https://github.com/EntityProcess/allagents.git@main
+    cwd: "."
 tags:
   - agent
 prompts:

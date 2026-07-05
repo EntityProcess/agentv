@@ -42,12 +42,9 @@ describe('environment recipe loading', () => {
           '  type: host',
           '  workdir: ./workspaces/app',
           '  setup:',
-          '    command: ./scripts/setup.sh',
-          '    args:',
-          '      repo: https://github.com/example/app.git',
-          '      commit: abc123',
-          '    env:',
-          '      SETUP_MODE: test',
+          '    command: ["bash", "-lc", "bun install && bun run build"]',
+          '    cwd: "."',
+          '    timeout_ms: 120000',
           '  env:',
           '    NODE_ENV: test',
           baseCase,
@@ -62,12 +59,9 @@ describe('environment recipe loading', () => {
         sourceDir: dir,
         recipeSha256: expect.any(String),
         setup: {
-          command: './scripts/setup.sh',
-          args: {
-            repo: 'https://github.com/example/app.git',
-            commit: 'abc123',
-          },
-          env: { SETUP_MODE: 'test' },
+          command: ['bash', '-lc', 'bun install && bun run build'],
+          cwd: '.',
+          timeoutMs: 120000,
         },
         env: { NODE_ENV: 'test' },
       });
@@ -80,7 +74,13 @@ describe('environment recipe loading', () => {
       mkdirSync(recipeDir, { recursive: true });
       writeFileSync(
         path.join(recipeDir, 'host.yaml'),
-        ['type: host', 'workdir: ./checkout', 'setup:', '  command: ./setup.sh', ''].join('\n'),
+        [
+          'type: host',
+          'workdir: ./checkout',
+          'setup:',
+          '  command: ["bash", "./setup.sh"]',
+          '',
+        ].join('\n'),
       );
       const evalPath = writeEval(
         dir,
@@ -96,6 +96,48 @@ describe('environment recipe loading', () => {
         recipeFileSha256: expect.any(String),
         recipeSha256: expect.any(String),
       });
+    });
+  });
+
+  it('rejects setup command strings in authored environment recipes', async () => {
+    await withTempDir('agentv-env-string-command-', async (dir) => {
+      const evalPath = writeEval(
+        dir,
+        [
+          'environment:',
+          '  type: host',
+          '  workdir: ./workspaces/app',
+          '  setup:',
+          '    command: ./scripts/setup.sh',
+          baseCase,
+        ].join('\n'),
+      );
+
+      await expect(loadTests(evalPath, dir)).rejects.toThrow(
+        'environment.setup.command must be a non-empty string array',
+      );
+    });
+  });
+
+  it('rejects setup args in authored environment recipes', async () => {
+    await withTempDir('agentv-env-setup-args-', async (dir) => {
+      const evalPath = writeEval(
+        dir,
+        [
+          'environment:',
+          '  type: host',
+          '  workdir: ./workspaces/app',
+          '  setup:',
+          '    command: ["bash", "./scripts/setup.sh"]',
+          '    args:',
+          '      repo: example/app',
+          baseCase,
+        ].join('\n'),
+      );
+
+      await expect(loadTests(evalPath, dir)).rejects.toThrow(
+        'environment.setup.args is not supported',
+      );
     });
   });
 

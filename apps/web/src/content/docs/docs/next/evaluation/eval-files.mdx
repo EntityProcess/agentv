@@ -56,10 +56,9 @@ environment:
   type: host
   workdir: ./support-app
   setup:
-    command: ./scripts/materialize-repo.sh
-    args:
-      repo: acme/support-app
-      commit: main
+    command: ["bash", "./scripts/materialize-repo.sh", "acme/support-app", "main"]
+    cwd: "."
+    timeout_ms: 120000
 prompts:
   - Answer using the refund policy in {{ repo_path }}.
 default_test:

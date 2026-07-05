@@ -255,7 +255,7 @@ tests:
     );
   });
 
-  it('parses Docker environment recipes without repo identity', async () => {
+  it('parses Docker environment setup argv without repo identity', async () => {
     const evalFile = path.join(testDir, 'environment-docker-no-source.yaml');
     await writeFile(
       evalFile,
@@ -269,9 +269,9 @@ tests:
       image: swebench/sweb.eval.django__django:latest
       workdir: /testbed
       setup:
-        command: ./setup.sh
-        args:
-          commit: abc123def
+        command: ["bash", "./setup.sh", "abc123def"]
+        cwd: "."
+        timeout_ms: 120000
     vars:
       input: Do something
 `,
@@ -284,13 +284,14 @@ tests:
       image: 'swebench/sweb.eval.django__django:latest',
       workdir: '/testbed',
       setup: {
-        command: './setup.sh',
-        args: { commit: 'abc123def' },
+        command: ['bash', './setup.sh', 'abc123def'],
+        cwd: '.',
+        timeoutMs: 120000,
       },
     });
   });
 
-  it('parses Docker environment setup args with path + commit metadata', async () => {
+  it('rejects Docker environment setup args', async () => {
     const evalFile = path.join(testDir, 'environment-path-checkout-only.yaml');
     await writeFile(
       evalFile,
@@ -304,7 +305,7 @@ tests:
       image: myimage:latest
       workdir: /workspace/project
       setup:
-        command: ./setup.sh
+        command: ["bash", "./setup.sh"]
         args:
           commit: v2.0.0
     vars:
@@ -312,14 +313,9 @@ tests:
 `,
     );
 
-    const cases = await loadTests(evalFile, testDir);
-    expect(cases).toHaveLength(1);
-    expect(cases[0].environment).toMatchObject({
-      type: 'docker',
-      image: 'myimage:latest',
-      workdir: '/workspace/project',
-      setup: { args: { commit: 'v2.0.0' } },
-    });
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      'environment.setup.args is not supported',
+    );
   });
 
   it('rejects public workspace repos authoring', async () => {

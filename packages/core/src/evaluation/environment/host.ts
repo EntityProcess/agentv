@@ -1,12 +1,11 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-import { execFileWithStdin, execShellWithStdin } from '../../runtime/exec.js';
+import { execFileWithStdin } from '../../runtime/exec.js';
 import type {
   EnvironmentSetupConfig,
   HostEnvironmentRecipe,
 } from '../loaders/environment-recipe.js';
-import type { JsonObject } from '../types.js';
 
 export type HostEnvironmentSetupStatus = 'skipped' | 'success' | 'failed';
 
@@ -14,9 +13,8 @@ export interface HostEnvironmentSetupResult {
   readonly type: 'host';
   readonly workdir: string;
   readonly status: HostEnvironmentSetupStatus;
-  readonly command?: readonly string[] | string;
+  readonly command?: readonly string[];
   readonly cwd?: string;
-  readonly args?: JsonObject;
   readonly stdout?: string;
   readonly stderr?: string;
   readonly exitCode?: number;
@@ -33,12 +31,11 @@ export class HostEnvironmentSetupError extends Error {
 }
 
 function timeoutMs(setup: EnvironmentSetupConfig): number | undefined {
-  return setup.timeout_seconds !== undefined ? setup.timeout_seconds * 1000 : undefined;
+  return setup.timeoutMs;
 }
 
-function setupPayload(recipe: HostEnvironmentRecipe): JsonObject {
+function setupPayload(recipe: HostEnvironmentRecipe) {
   return {
-    args: recipe.setup?.args ?? {},
     environment: {
       type: 'host',
       workdir: recipe.workdir,
@@ -47,14 +44,20 @@ function setupPayload(recipe: HostEnvironmentRecipe): JsonObject {
 }
 
 function formatSetupFailure(result: HostEnvironmentSetupResult): string {
-  const command =
-    typeof result.command === 'string' ? result.command : (result.command ?? []).join(' ');
+  const command = (result.command ?? []).join(' ');
   const stderr = result.stderr?.trim();
   const stdout = result.stdout?.trim();
   const details = stderr || stdout;
   return details
     ? `environment.setup failed with exit code ${result.exitCode ?? 1} (${command}): ${details}`
     : `environment.setup failed with exit code ${result.exitCode ?? 1} (${command})`;
+}
+
+function setupCwd(setup: EnvironmentSetupConfig, recipe: HostEnvironmentRecipe): string {
+  if (!setup.cwd) {
+    return path.resolve(recipe.sourceDir);
+  }
+  return path.isAbsolute(setup.cwd) ? setup.cwd : path.resolve(recipe.workdir, setup.cwd);
 }
 
 export async function prepareHostEnvironment(
@@ -72,28 +75,20 @@ export async function prepareHostEnvironment(
     };
   }
 
-  const cwd = path.resolve(recipe.sourceDir);
+  const cwd = setupCwd(setup, { ...recipe, workdir });
   const env = {
     ...(recipe.env ?? {}),
-    ...(setup.env ?? {}),
     AGENTV_ENVIRONMENT_WORKDIR: workdir,
   };
   const payload = JSON.stringify(setupPayload({ ...recipe, workdir }), null, 2);
 
   let result: { readonly stdout: string; readonly stderr: string; readonly exitCode: number };
   try {
-    result =
-      typeof setup.command === 'string'
-        ? await execShellWithStdin(setup.command, payload, {
-            cwd,
-            env,
-            timeoutMs: timeoutMs(setup),
-          })
-        : await execFileWithStdin(setup.command, payload, {
-            cwd,
-            env,
-            timeoutMs: timeoutMs(setup),
-          });
+    result = await execFileWithStdin(setup.command, payload, {
+      cwd,
+      env,
+      timeoutMs: timeoutMs(setup),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const failure: HostEnvironmentSetupResult = {
@@ -102,7 +97,6 @@ export async function prepareHostEnvironment(
       status: 'failed',
       command: setup.command,
       cwd,
-      ...(setup.args !== undefined ? { args: setup.args } : {}),
       stderr: message,
       exitCode: 1,
     };
@@ -115,7 +109,6 @@ export async function prepareHostEnvironment(
     status: result.exitCode === 0 ? 'success' : 'failed',
     command: setup.command,
     cwd,
-    ...(setup.args !== undefined ? { args: setup.args } : {}),
     stdout: result.stdout,
     stderr: result.stderr,
     exitCode: result.exitCode,

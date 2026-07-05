@@ -439,10 +439,9 @@ environment:
   type: host
   workdir: ./repo
   setup:
-    command: ["bun", "run", "setup.ts"]
-    args:
-      repo: sympy/sympy
-      commit: "abc123"
+    command: ["bun", "run", "setup.ts", "sympy/sympy", "abc123"]
+    cwd: "."
+    timeout_ms: 120000
 extensions:
   - file://scripts/teardown.mjs:afterAll
 
@@ -456,10 +455,11 @@ tests:
 
 **Lifecycle:** environment setup → lifecycle extensions → target setup → agent → grading → teardown extensions → cleanup
 **Merge:** Case-level environment fields replace suite-level fields.
-**Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
+**Setup commands:** `setup.command` is an argv command. `command[0]` is the executable and `command[1...]` are CLI arguments. Use `["bash", "-lc", "..."]` when shell behavior is required.
+**Setup stdin:** AgentV sends environment metadata JSON on stdin for setup commands.
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
 For SWE-bench-style evals, put operational checkout state under
-`environment` setup args; treat `metadata.source_commit` as informational only.
+`environment.setup.command` CLI arguments; treat `metadata.source_commit` as informational only.
 A SHA in the prompt or metadata without a matching environment setup recipe is
 not an operational checkout.
 
@@ -477,16 +477,14 @@ environment: file://.agentv/environments/repo.yaml
 type: host
 workdir: ./repo
 setup:
-  command: ./scripts/materialize-repo.sh
-  args:
-    repo: https://github.com/org/repo.git
-    commit: main
-    ancestor: 1
+  command: ["bash", "./scripts/materialize-repo.sh", "https://github.com/org/repo.git", "main", "1"]
+  cwd: "."
+  timeout_ms: 120000
 ```
 
 - `type`: `host` or `docker`
 - `workdir`: path the target and graders should use
-- `setup`: command and args for repository/testbed materialization
+- `setup`: argv command, optional `cwd`, and optional `timeout_ms` for repository/testbed materialization
 - Top-level `env`: provider/eval environment overrides
 - `extensions`: lifecycle hooks such as `beforeAll`, `beforeEach`, `afterEach`, and `afterAll`
 

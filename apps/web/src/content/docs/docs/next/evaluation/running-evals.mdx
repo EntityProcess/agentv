@@ -233,8 +233,8 @@ agentv eval evals/my-eval.yaml --workspace-path /path/to/workspace
 agentv eval evals/my-eval.yaml --retain-on-success cleanup --retain-on-failure keep
 ```
 
-Portable eval YAML keeps workspace intent under templates, repos, env, Docker,
-and folder isolation. Use top-level extensions for executable setup:
+Portable eval YAML keeps testbed intent under `environment`: workdir, setup,
+env, Docker, and folder isolation. Use `extensions` for lifecycle function hooks:
 
 ```yaml
 extensions:

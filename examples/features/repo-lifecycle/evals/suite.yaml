@@ -4,11 +4,13 @@ environment:
   type: host
   workdir: ./repo
   setup:
-    command: ../scripts/materialize-repo.sh
-    args:
-      repo: https://github.com/EntityProcess/agentv.git
-      commit: main
-      path: ./repo
+    command:
+      - bash
+      - ../scripts/materialize-repo.sh
+      - https://github.com/EntityProcess/agentv.git
+      - main
+      - ./repo
+    cwd: "."
 tags:
   - agent
 prompts:
