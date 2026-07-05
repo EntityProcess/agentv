@@ -28,9 +28,11 @@ async function loadCodexSdk(): Promise<any> {
     try {
       codexSdkModule = await import('@openai/codex-sdk');
     } catch (error) {
-      throw new Error(
+      const missing = new Error(
         `Failed to load @openai/codex-sdk. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @openai/codex-sdk\n  npm install @openai/codex-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
       );
+      missing.name = 'MissingSdkDependency';
+      throw missing;
     }
   }
   return codexSdkModule;

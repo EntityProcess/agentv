@@ -40,5 +40,12 @@
     "tsup": "8.3.5",
     "typescript": "5.8.3",
     "yaml": "^2.8.3"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.89",
+    "@earendil-works/pi-ai": "^0.74.0",
+    "@earendil-works/pi-coding-agent": "^0.74.0",
+    "@github/copilot-sdk": "^1.0.3",
+    "@openai/codex-sdk": "^0.136.0"
   }
 }

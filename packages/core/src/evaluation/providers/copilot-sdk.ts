@@ -46,9 +46,11 @@ async function loadCopilotSdk(): Promise<any> {
             '  Set provider: copilot-cli in your eval YAML',
         );
       }
-      throw new Error(
+      const missing = new Error(
         `Failed to load @github/copilot-sdk. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @github/copilot-sdk\n  npm install @github/copilot-sdk\n\nOriginal error: ${message}`,
       );
+      missing.name = 'MissingSdkDependency';
+      throw missing;
     }
   }
   return copilotSdkModule;

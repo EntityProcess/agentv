@@ -27,9 +27,11 @@ async function loadClaudeSdk(): Promise<typeof import('@anthropic-ai/claude-agen
     try {
       claudeSdkModule = await import('@anthropic-ai/claude-agent-sdk');
     } catch (error) {
-      throw new Error(
-        `Failed to load @anthropic-ai/claude-agent-sdk. Please install it:\n  npm install @anthropic-ai/claude-agent-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
+      const missing = new Error(
+        `Failed to load @anthropic-ai/claude-agent-sdk. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @anthropic-ai/claude-agent-sdk\n  npm install @anthropic-ai/claude-agent-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
       );
+      missing.name = 'MissingSdkDependency';
+      throw missing;
     }
   }
   return claudeSdkModule;

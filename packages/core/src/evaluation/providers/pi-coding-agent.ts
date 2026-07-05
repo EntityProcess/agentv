@@ -224,9 +224,11 @@ async function doLoadSdkModules(): Promise<void> {
     }
   }
 
-  throw new Error(
-    'pi-coding-agent SDK is not installed. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @earendil-works/pi-coding-agent\n  npm install @earendil-works/pi-coding-agent',
+  const missing = new Error(
+    'pi-coding-agent SDK dependencies are not installed. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install the Pi SDK packages explicitly:\n  bun add --optional @earendil-works/pi-coding-agent @earendil-works/pi-ai\n  npm install @earendil-works/pi-coding-agent @earendil-works/pi-ai',
   );
+  missing.name = 'MissingSdkDependency';
+  throw missing;
 }
 
 async function loadSdkModules() {
