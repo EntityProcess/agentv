@@ -15,13 +15,17 @@ export type EnvironmentSetupConfig = {
   readonly timeout_seconds?: number;
 };
 
+type EnvironmentRecipeSource = {
+  readonly recipeFilePath?: string;
+  readonly sourceDir: string;
+};
+
 export type HostEnvironmentRecipe = {
   readonly type: 'host';
   readonly workdir: string;
   readonly setup?: EnvironmentSetupConfig;
   readonly env?: Readonly<Record<string, string>>;
-  readonly recipeFilePath?: string;
-};
+} & EnvironmentRecipeSource;
 
 export type DockerEnvironmentMount = {
   readonly source: string;
@@ -48,8 +52,7 @@ export type DockerEnvironmentRecipe = {
   readonly mounts?: readonly DockerEnvironmentMount[];
   readonly secrets?: Readonly<Record<string, string>>;
   readonly setup?: EnvironmentSetupConfig;
-  readonly recipeFilePath?: string;
-};
+} & EnvironmentRecipeSource;
 
 export type EnvironmentRecipe = HostEnvironmentRecipe | DockerEnvironmentRecipe;
 
@@ -116,6 +119,7 @@ function parseEnvironmentRecipe(
     return {
       type,
       workdir: resolveHostPath(workdir, baseDir),
+      sourceDir: baseDir,
       ...(setup !== undefined && { setup }),
       ...(env !== undefined && { env }),
       ...(recipeFilePath !== undefined && { recipeFilePath }),
@@ -144,6 +148,7 @@ function parseEnvironmentRecipe(
   return {
     type,
     workdir,
+    sourceDir: baseDir,
     ...(context !== undefined && { context: resolveHostPath(context, baseDir) }),
     ...(dockerfile !== undefined && { dockerfile: resolveHostPath(dockerfile, baseDir) }),
     ...(image !== undefined && { image }),

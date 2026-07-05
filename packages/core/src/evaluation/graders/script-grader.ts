@@ -310,6 +310,8 @@ export class ScriptGrader implements Grader {
       getProxyUsage = proxy.getUsageMetadata;
     }
 
+    const effectiveCwd = this.cwd ?? context.workspacePath;
+
     // Build workspace env if workspace path is available
     const workspaceEnv = context.workspacePath
       ? { AGENTV_WORKSPACE_PATH: context.workspacePath }
@@ -339,7 +341,7 @@ export class ScriptGrader implements Grader {
           this.command,
           inputPayload,
           this.agentTimeoutMs,
-          this.cwd,
+          effectiveCwd,
           env,
         );
         exitCode = result.exitCode;
@@ -385,7 +387,7 @@ export class ScriptGrader implements Grader {
       const proxyUsage = getProxyUsage?.();
       const graderRawRequest: JsonObject = {
         command: this.command,
-        ...(this.cwd ? { cwd: this.cwd } : {}),
+        ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
         ...(proxyUsage
           ? {
               target_proxy: {
@@ -426,7 +428,7 @@ export class ScriptGrader implements Grader {
         expectedAspectCount: 1,
         graderRawRequest: {
           command: this.command,
-          ...(this.cwd ? { cwd: this.cwd } : {}),
+          ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
           ...(proxyUsage
             ? {
                 target_proxy: {

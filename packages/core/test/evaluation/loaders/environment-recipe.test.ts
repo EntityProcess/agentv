@@ -59,6 +59,7 @@ describe('environment recipe loading', () => {
       expect(tests[0].environment).toEqual({
         type: 'host',
         workdir: path.join(dir, 'workspaces/app'),
+        sourceDir: dir,
         setup: {
           command: './scripts/setup.sh',
           args: {
@@ -127,6 +128,7 @@ describe('environment recipe loading', () => {
         context: path.join(dir, 'environment'),
         dockerfile: path.join(dir, 'Dockerfile'),
         workdir: '/app',
+        sourceDir: dir,
         env: { NODE_ENV: 'test' },
         resources: { cpus: 2, memory: '4g' },
         mounts: [{ source: path.join(dir, 'fixtures'), target: '/fixtures', access: 'ro' }],
