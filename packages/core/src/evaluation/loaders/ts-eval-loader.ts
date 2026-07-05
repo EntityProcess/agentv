@@ -79,7 +79,7 @@ export async function loadTsEvalSuite(
       absolutePath,
       config[SDK_TO_EVAL_YAML_OBJECT_SYMBOL](),
       repoRoot,
-      options,
+      { ...options, allowInternalExpectedOutput: true },
     );
   }
 

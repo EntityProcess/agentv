@@ -20,20 +20,6 @@ tests:
       - |-
         Must identify 'level_2_emotion' as Resentment/Despair (not just anger).
         Must identify 'level_3_process' as Pursuer-Distancer shift or Testing the relationship.
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "analysis": {
-              "level_1_content": "Client stopped verbally fighting about chores/neglect; observed husband's continued disengagement; considering passive-aggressive action (cutting internet).",
-              "level_2_emotion": "Resentment, Despair, Numbness/Detachment, Cold Anger.",
-              "level_3_process": "Shift from 'Pursuer' (screaming) to 'Distancer' (silence). Testing the relationship's viability. Using withdrawal as a final attempt to gain attention or preparing to detach completely."
-            },
-            "suggested_response": {
-              "focus": "Validation of the shift",
-              "draft_response": "It seems you have moved past the point of screaming and are now sitting with a heavy silence, wondering if he can see you at all."
-            }
-          }
     vars:
       input:
         - role: system
@@ -52,24 +38,24 @@ tests:
             overflowing. I didn't say a word. I just cooked dinner, ate with the kids, and went to
             bed. He didn't even look up. I wonder... if I stopped paying the internet bill, would he
             notice me then?"
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "analysis": {
+                "level_1_content": "Client stopped verbally fighting about chores/neglect; observed husband's continued disengagement; considering passive-aggressive action (cutting internet).",
+                "level_2_emotion": "Resentment, Despair, Numbness/Detachment, Cold Anger.",
+                "level_3_process": "Shift from 'Pursuer' (screaming) to 'Distancer' (silence). Testing the relationship's viability. Using withdrawal as a final attempt to gain attention or preparing to detach completely."
+              },
+              "suggested_response": {
+                "focus": "Validation of the shift",
+                "draft_response": "It seems you have moved past the point of screaming and are now sitting with a heavy silence, wondering if he can see you at all."
+              }
+            }
   - id: listening-basic-traditional-mother
     assert:
       - Must identify Patriarchal values (Financial exploitation framed as help) and
         Gaslighting/Enmeshment in 'level_3_process'.
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "analysis": {
-              "level_1_content": "Mother asked successful daughter to pay for struggling son's down payment; Daughter cut contact; Mother frames this as 'family help' and daughter as 'cold'.",
-              "level_2_emotion": "Confusion (feigned or genuine), Self-righteousness, Victimhood, Indignation.",
-              "level_3_process": "Manipulative Reframing: Defines 'financial exploitation' as 'family values'. Gaslighting: Labels daughter's boundary setting as 'being cold'. Enmeshment: Fails to see daughter as a separate entity with rights."
-            },
-            "suggested_response": {
-              "focus": "Reflection of value conflict",
-              "draft_response": "You feel deeply confused because, for you, family means sharing everything, and her boundary feels like a rejection of the family itself."
-            }
-          }
     vars:
       input:
         - role: system
@@ -88,23 +74,23 @@ tests:
             help him with the down payment. It's an investment for the family's future. But she
             stopped talking to me! I don't understand. Isn't family about sharing? Why is she being
             so calculated and cold with her own flesh and blood?"
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "analysis": {
+                "level_1_content": "Mother asked successful daughter to pay for struggling son's down payment; Daughter cut contact; Mother frames this as 'family help' and daughter as 'cold'.",
+                "level_2_emotion": "Confusion (feigned or genuine), Self-righteousness, Victimhood, Indignation.",
+                "level_3_process": "Manipulative Reframing: Defines 'financial exploitation' as 'family values'. Gaslighting: Labels daughter's boundary setting as 'being cold'. Enmeshment: Fails to see daughter as a separate entity with rights."
+              },
+              "suggested_response": {
+                "focus": "Reflection of value conflict",
+                "draft_response": "You feel deeply confused because, for you, family means sharing everything, and her boundary feels like a rejection of the family itself."
+              }
+            }
   - id: listening-basic-returning-mother
     assert:
       - Must identify Internalizing rejection as worthlessness in 'level_3_process'.
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "analysis": {
-              "level_1_content": "Transitioning from full-time Motherhood to Workforce; loss of previous role clarity; repeated rejection.",
-              "level_2_emotion": "Pain, Unhappiness, Self-doubt, Anxiety, Confusion.",
-              "level_3_process": "Overgeneralization and Internalization: Views job rejection as proof of total personal incompetence ('unable to do anything'). Loss of identity (not just a job)."
-            },
-            "suggested_response": {
-              "focus": "Validation of Identity Crisis",
-              "draft_response": "It sounds like the rejection makes you question your entire worth, not just your skills."
-            }
-          }
     vars:
       input:
         - role: system
@@ -123,23 +109,23 @@ tests:
             many resumes with no response. I finally got an interview but didn't pass. I can't find
             a suitable job. I doubt myself—am I unable to do anything? I am in pain, unhappy every
             day, and don't know what to do."
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "analysis": {
+                "level_1_content": "Transitioning from full-time Motherhood to Workforce; loss of previous role clarity; repeated rejection.",
+                "level_2_emotion": "Pain, Unhappiness, Self-doubt, Anxiety, Confusion.",
+                "level_3_process": "Overgeneralization and Internalization: Views job rejection as proof of total personal incompetence ('unable to do anything'). Loss of identity (not just a job)."
+              },
+              "suggested_response": {
+                "focus": "Validation of Identity Crisis",
+                "draft_response": "It sounds like the rejection makes you question your entire worth, not just your skills."
+              }
+            }
   - id: listening-adv-somatic-mask
     assert:
       - Must identify Alexithymia and Somatic Displacement (Stress -> Throat) in 'level_3_process'.
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "analysis": {
-              "level_1_content": "Reports 'perfect life' and career success; Denies anxiety/stress explicitly; Seeks medical fix for 'throat lump' (Globus sensation).",
-              "level_2_emotion": "Disconnected/Numb (Alexithymia), Defensive pride. Implicit: Panic (displaced).",
-              "level_3_process": "Alexithymia: Inability to identify/verbalize feelings. Somatic Displacement: Stress is converted into physical symptoms (throat tightness) because emotional expression is viewed as weakness."
-            },
-            "suggested_response": {
-              "focus": "Connecting Body and Mind safely",
-              "draft_response": "It sounds like your mind is handling the pressure perfectly, but your throat seems to be carrying a tension that doesn't fit the 'perfect' picture."
-            }
-          }
     vars:
       input:
         - role: system
@@ -157,25 +143,25 @@ tests:
             pressure. I just need you to recommend a specialist for this weird tightness in my
             throat. It's like a lump that won't go away. My wife keeps asking if I'm 'anxious',
             which is ridiculous. I don't do anxiety. I just have a throat issue."
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "analysis": {
+                "level_1_content": "Reports 'perfect life' and career success; Denies anxiety/stress explicitly; Seeks medical fix for 'throat lump' (Globus sensation).",
+                "level_2_emotion": "Disconnected/Numb (Alexithymia), Defensive pride. Implicit: Panic (displaced).",
+                "level_3_process": "Alexithymia: Inability to identify/verbalize feelings. Somatic Displacement: Stress is converted into physical symptoms (throat tightness) because emotional expression is viewed as weakness."
+              },
+              "suggested_response": {
+                "focus": "Connecting Body and Mind safely",
+                "draft_response": "It sounds like your mind is handling the pressure perfectly, but your throat seems to be carrying a tension that doesn't fit the 'perfect' picture."
+              }
+            }
   - id: listening-adv-gatekeeper
     assert:
       - |-
         Must identify Gatekeeping/Triangulation in 'level_3_process'.
         Must identify the distinction between 'Helping' vs 'Blocking Intimacy'.
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "analysis": {
-              "level_1_content": "Client actively 'translates' (distorts) critical messages between wife and mother to prevent conflict; Reports exhaustion.",
-              "level_2_emotion": "Exhaustion, Anxiety, Fear of conflict, False pride in being the 'bridge'.",
-              "level_3_process": "Gatekeeping/Triangulation: By 'translating', the client prevents direct contact and authentic relationship (even conflict) between the women. He maintains the dysfunction by absorbing the tension."
-            },
-            "suggested_response": {
-              "focus": "Highlighting the Cost of the Role",
-              "draft_response": "You are working incredibly hard to protect them from each other, but it sounds like you are the one absorbing all the impact."
-            }
-          }
     vars:
       input:
         - role: system
@@ -193,23 +179,23 @@ tests:
             wife that Mom is just worried about her salt intake. When my wife rolls her eyes at
             Mom's stories, I tell Mom she's just tired from work. I work so hard to translate for
             them so they don't get hurt. Why do I feel so exhausted if I'm doing such a good thing?"
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "analysis": {
+                "level_1_content": "Client actively 'translates' (distorts) critical messages between wife and mother to prevent conflict; Reports exhaustion.",
+                "level_2_emotion": "Exhaustion, Anxiety, Fear of conflict, False pride in being the 'bridge'.",
+                "level_3_process": "Gatekeeping/Triangulation: By 'translating', the client prevents direct contact and authentic relationship (even conflict) between the women. He maintains the dysfunction by absorbing the tension."
+              },
+              "suggested_response": {
+                "focus": "Highlighting the Cost of the Role",
+                "draft_response": "You are working incredibly hard to protect them from each other, but it sounds like you are the one absorbing all the impact."
+              }
+            }
   - id: listening-adv-intellectualizer
     assert:
       - Must identify Intellectualization as a defense mechanism in 'level_3_process'.
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "analysis": {
-              "level_1_content": "Client discusses the theory/mechanism of the technique ('cortisol', 'Gestalt', 'efficacy rates') instead of doing it.",
-              "level_2_emotion": "Detachment, Superiority (intellectual), Fear of vulnerability/loss of control.",
-              "level_3_process": "Intellectualization: Moving the conversation to the 'head' (theory/data) to avoid the 'heart' (experiencing the anger). Using analysis as a shield against the therapeutic intervention."
-            },
-            "suggested_response": {
-              "focus": "Bypassing the Intellect",
-              "draft_response": "Your understanding of the theory is spot on. I'm curious though—while your brain knows how cortisol works, what is your stomach feeling right now as we talk about this?"
-            }
-          }
     vars:
       input:
         - role: system
@@ -228,3 +214,17 @@ tests:
             understand the theoretical mechanism—catharsis reduces cortisol levels. It's fascinating
             how the brain processes repressed anger. I'd love to discuss the efficacy rates of this
             method compared to CBT before we try it."
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "analysis": {
+                "level_1_content": "Client discusses the theory/mechanism of the technique ('cortisol', 'Gestalt', 'efficacy rates') instead of doing it.",
+                "level_2_emotion": "Detachment, Superiority (intellectual), Fear of vulnerability/loss of control.",
+                "level_3_process": "Intellectualization: Moving the conversation to the 'head' (theory/data) to avoid the 'heart' (experiencing the anger). Using analysis as a shield against the therapeutic intervention."
+              },
+              "suggested_response": {
+                "focus": "Bypassing the Intellect",
+                "draft_response": "Your understanding of the theory is spot on. I'm curious though—while your brain knows how cortisol works, what is your stomach feeling right now as we talk about this?"
+              }
+            }

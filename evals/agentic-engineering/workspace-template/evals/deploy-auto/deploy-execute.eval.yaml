@@ -37,10 +37,6 @@ tests:
               value: The API service health check is failing after deployment. What should happen?
   - id: run-tests
     criteria: Runs integration tests after deployment
-    expected_output:
-      - role: assistant
-        content: The agent should run the test suite using python -m unittest discover to verify the
-          deployment.
     vars:
       input:
         - role: user
@@ -49,3 +45,7 @@ tests:
               value: /plugins/deploy-auto/skills/deploy-execute/SKILL.md
             - type: text
               value: Deployment is complete. Run the integration tests.
+      expected_output:
+        - role: assistant
+          content: The agent should run the test suite using python -m unittest discover to verify the
+            deployment.

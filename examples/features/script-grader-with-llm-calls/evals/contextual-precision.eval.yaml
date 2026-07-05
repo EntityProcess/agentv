@@ -14,60 +14,60 @@ tests:
   - id: perfect-ranking
     assert:
       - TypeScript is based on JavaScript
-    expected_output:
-      - role: assistant
-        tool_calls:
-          - tool: vector_search
-            input:
-              query: TypeScript based on
-            output:
-              results:
-                - TypeScript is a strongly typed programming language that builds on JavaScript.
-                - TypeScript was developed by Microsoft and first released in 2012.
-                - Python is a high-level programming language known for its readability.
-      - role: assistant
-        content: TypeScript is a superset of JavaScript.
     vars:
       input:
         - role: user
           content: What programming language is TypeScript based on?
+      expected_output:
+        - role: assistant
+          tool_calls:
+            - tool: vector_search
+              input:
+                query: TypeScript based on
+              output:
+                results:
+                  - TypeScript is a strongly typed programming language that builds on JavaScript.
+                  - TypeScript was developed by Microsoft and first released in 2012.
+                  - Python is a high-level programming language known for its readability.
+        - role: assistant
+          content: TypeScript is a superset of JavaScript.
   - id: mixed-ranking
     assert:
       - The capital of France is Paris.
-    expected_output:
-      - role: assistant
-        tool_calls:
-          - tool: vector_search
-            input:
-              query: capital of France
-            output:
-              results:
-                - Paris is the capital and most populous city of France.
-                - The Eiffel Tower was built in 1887.
-                - Paris is often referred to as the City of Light.
-      - role: assistant
-        content: Paris is the capital of France.
     vars:
       input:
         - role: user
           content: What is the capital of France?
+      expected_output:
+        - role: assistant
+          tool_calls:
+            - tool: vector_search
+              input:
+                query: capital of France
+              output:
+                results:
+                  - Paris is the capital and most populous city of France.
+                  - The Eiffel Tower was built in 1887.
+                  - Paris is often referred to as the City of Light.
+        - role: assistant
+          content: Paris is the capital of France.
   - id: relevant-node-last
     assert:
       - The sky is blue
-    expected_output:
-      - role: assistant
-        tool_calls:
-          - tool: vector_search
-            input:
-              query: color of sky
-            output:
-              results:
-                - Grass is typically green in color.
-                - Roses can be red, pink, or white.
-                - The sky appears blue due to Rayleigh scattering of sunlight.
-      - role: assistant
-        content: The sky appears blue during the day.
     vars:
       input:
         - role: user
           content: What color is the sky?
+      expected_output:
+        - role: assistant
+          tool_calls:
+            - tool: vector_search
+              input:
+                query: color of sky
+              output:
+                results:
+                  - Grass is typically green in color.
+                  - Roses can be red, pink, or white.
+                  - The sky appears blue due to Rayleigh scattering of sunlight.
+        - role: assistant
+          content: The sky appears blue during the day.

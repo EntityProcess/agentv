@@ -81,67 +81,6 @@ tests:
         - role: user
           content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
   - id: combined-validation
-    expected_output:
-      - name: ProductResearchAgent
-        role: assistant
-        tool_calls:
-          - tool: webSearch
-            input:
-              query: ThinkPad X1 Carbon Gen 11 specifications
-              num: 5
-            output:
-              results:
-                - link: https://www.lenovo.com/thinkpad-x1-carbon-gen11
-                  title: ThinkPad X1 Carbon Gen 11 | Lenovo US
-                  snippet: 14-inch business ultrabook with Intel Core processors
-                - link: https://www.notebookcheck.net/ThinkPad-X1-Carbon-review
-                  title: Lenovo ThinkPad X1 Carbon Gen 11 Review
-                  snippet: Premium build quality with excellent keyboard...
-      - name: ProductResearchAgent
-        role: assistant
-        tool_calls:
-          - tool: fetchPage
-            input:
-              url: https://www.lenovo.com/thinkpad-x1-carbon-gen11
-            output:
-              title: ThinkPad X1 Carbon Gen 11 | Premium Business Laptop
-              text: |
-                Display: 14" 2.8K OLED or 14" 2K IPS
-                Processor: Up to Intel Core i7-1365U
-                Memory: Up to 64GB LPDDR5
-                Storage: Up to 2TB PCIe Gen 4 SSD
-                Weight: Starting at 2.48 lbs (1.12 kg)
-                Battery: Up to 15 hours
-      - name: ProductResearchAgent
-        role: assistant
-        tool_calls:
-          - tool: webSearch
-            input:
-              query: ThinkPad X1 Carbon Gen 11 user reviews pros cons
-              num: 3
-            output:
-              results:
-                - link: https://www.reddit.com/r/thinkpad/comments/x1carbon11
-                  title: X1 Carbon Gen 11 - 6 months later
-                  snippet: Still loving it. Battery life and keyboard are stellar...
-      - name: ProductResearchAgent
-        role: assistant
-        content:
-          recommendation: Highly Recommended
-          summary: |-
-            The ThinkPad X1 Carbon Gen 11 is an excellent choice for business professionals
-            seeking a lightweight, powerful ultrabook. Key strengths include the legendary
-            ThinkPad keyboard, premium OLED display option, and strong battery life.
-          pros:
-            - Exceptional keyboard quality
-            - Lightweight at 2.48 lbs
-            - Bright OLED display option
-            - Strong battery life (up to 15 hours)
-          cons:
-            - Premium pricing
-            - Limited port selection
-            - No discrete GPU option
-          confidence: High
     assert:
       - metric: workflow-validator
         type: tool-trajectory
@@ -167,3 +106,64 @@ tests:
       input:
         - role: user
           content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+      expected_output:
+        - name: ProductResearchAgent
+          role: assistant
+          tool_calls:
+            - tool: webSearch
+              input:
+                query: ThinkPad X1 Carbon Gen 11 specifications
+                num: 5
+              output:
+                results:
+                  - link: https://www.lenovo.com/thinkpad-x1-carbon-gen11
+                    title: ThinkPad X1 Carbon Gen 11 | Lenovo US
+                    snippet: 14-inch business ultrabook with Intel Core processors
+                  - link: https://www.notebookcheck.net/ThinkPad-X1-Carbon-review
+                    title: Lenovo ThinkPad X1 Carbon Gen 11 Review
+                    snippet: Premium build quality with excellent keyboard...
+        - name: ProductResearchAgent
+          role: assistant
+          tool_calls:
+            - tool: fetchPage
+              input:
+                url: https://www.lenovo.com/thinkpad-x1-carbon-gen11
+              output:
+                title: ThinkPad X1 Carbon Gen 11 | Premium Business Laptop
+                text: |
+                  Display: 14" 2.8K OLED or 14" 2K IPS
+                  Processor: Up to Intel Core i7-1365U
+                  Memory: Up to 64GB LPDDR5
+                  Storage: Up to 2TB PCIe Gen 4 SSD
+                  Weight: Starting at 2.48 lbs (1.12 kg)
+                  Battery: Up to 15 hours
+        - name: ProductResearchAgent
+          role: assistant
+          tool_calls:
+            - tool: webSearch
+              input:
+                query: ThinkPad X1 Carbon Gen 11 user reviews pros cons
+                num: 3
+              output:
+                results:
+                  - link: https://www.reddit.com/r/thinkpad/comments/x1carbon11
+                    title: X1 Carbon Gen 11 - 6 months later
+                    snippet: Still loving it. Battery life and keyboard are stellar...
+        - name: ProductResearchAgent
+          role: assistant
+          content:
+            recommendation: Highly Recommended
+            summary: |-
+              The ThinkPad X1 Carbon Gen 11 is an excellent choice for business professionals
+              seeking a lightweight, powerful ultrabook. Key strengths include the legendary
+              ThinkPad keyboard, premium OLED display option, and strong battery life.
+            pros:
+              - Exceptional keyboard quality
+              - Lightweight at 2.48 lbs
+              - Bright OLED display option
+              - Strong battery life (up to 15 hours)
+            cons:
+              - Premium pricing
+              - Limited port selection
+              - No discrete GPU option
+            confidence: High

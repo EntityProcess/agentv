@@ -5,18 +5,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: code-explanation-simple
-    expected_output:
-      - role: assistant
-        content: |-
-          Quicksort is a divide-and-conquer sorting algorithm:
-
-          1. Choose a pivot element from the array
-          2. Partition: rearrange elements so smaller values are on the left, larger on the right
-          3. Recursively apply quicksort to the left and right partitions
-
-          Time Complexity:
-          - Best/Average: O(n log n)
-          - Worst case: O(n²) when poorly chosen pivots
     assert:
       - Mentions divide-and-conquer approach
       - Explains the partition step
@@ -26,22 +14,19 @@ tests:
       input:
         - role: user
           content: Explain how the quicksort algorithm works
+      expected_output:
+        - role: assistant
+          content: |-
+            Quicksort is a divide-and-conquer sorting algorithm:
+
+            1. Choose a pivot element from the array
+            2. Partition: rearrange elements so smaller values are on the left, larger on the right
+            3. Recursively apply quicksort to the left and right partitions
+
+            Time Complexity:
+            - Best/Average: O(n log n)
+            - Worst case: O(n²) when poorly chosen pivots
   - id: technical-writing-detailed
-    expected_output:
-      - role: assistant
-        content: |-
-          # HTTP Status Codes Guide
-
-          ## 2xx Success
-          - 200 OK: Request succeeded
-          - 201 Created: Resource created successfully
-
-          ## 4xx Client Errors
-          - 400 Bad Request: Invalid syntax
-          - 404 Not Found: Resource doesn't exist
-
-          ## 5xx Server Errors
-          - 500 Internal Server Error: Server-side error
     assert:
       - type: llm-rubric
         value:
@@ -70,28 +55,22 @@ tests:
       input:
         - role: user
           content: Write a guide explaining HTTP status codes
-  - id: code-quality-multi-eval
-    expected_output:
-      - role: assistant
-        content: |-
-          import re
-          from typing import Optional
+      expected_output:
+        - role: assistant
+          content: |-
+            # HTTP Status Codes Guide
 
-          def validate_email(email: str) -> bool:
-              """
-              Validates if a string is a properly formatted email address.
-              
-              Args:
-                  email: The email string to validate
-                  
-              Returns:
-                  True if valid email format, False otherwise
-              """
-              if not email or not isinstance(email, str):
-                  return False
-              
-              pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-              return bool(re.match(pattern, email))
+            ## 2xx Success
+            - 200 OK: Request succeeded
+            - 201 Created: Resource created successfully
+
+            ## 4xx Client Errors
+            - 400 Bad Request: Invalid syntax
+            - 404 Not Found: Resource doesn't exist
+
+            ## 5xx Server Errors
+            - 500 Internal Server Error: Server-side error
+  - id: code-quality-multi-eval
     assert:
       - type: llm-rubric
         value:
@@ -111,15 +90,30 @@ tests:
       input:
         - role: user
           content: Write a Python function to validate email addresses
+      expected_output:
+        - role: assistant
+          content: |-
+            import re
+            from typing import Optional
+
+            def validate_email(email: str) -> bool:
+                """
+                Validates if a string is a properly formatted email address.
+
+                Args:
+                    email: The email string to validate
+
+                Returns:
+                    True if valid email format, False otherwise
+                """
+                if not email or not isinstance(email, str):
+                    return False
+
+                pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+                return bool(re.match(pattern, email))
   - id: summary-task
     assert:
       - Provide a concise summary of the key points in under 50 words
-    expected_output:
-      - role: assistant
-        content: |-
-          Climate change accelerates with rapid Arctic ice loss and rising seas.
-          Extreme weather increases. Scientists call for urgent carbon emission
-          cuts and renewable energy adoption.
     vars:
       input:
         - role: user
@@ -130,13 +124,13 @@ tests:
             Arctic ice melting at unprecedented rates, sea levels rising, and extreme
             weather events becoming more frequent. Scientists urge immediate action to
             reduce carbon emissions and transition to renewable energy sources.
+      expected_output:
+        - role: assistant
+          content: |-
+            Climate change accelerates with rapid Arctic ice loss and rising seas.
+            Extreme weather increases. Scientists call for urgent carbon emission
+            cuts and renewable energy adoption.
   - id: summary-multi-criteria-score-ranges-proposed
-    expected_output:
-      - role: assistant
-        content: |-
-          Climate change is accelerating with rapid Arctic ice loss, rising seas, and
-          more extreme weather. Scientists urge urgent emissions cuts and a transition
-          to renewable energy.
     assert:
       - type: llm-rubric
         value:
@@ -168,3 +162,9 @@ tests:
             Arctic ice melting at unprecedented rates, sea levels rising, and extreme
             weather events becoming more frequent. Scientists urge immediate action to
             reduce carbon emissions and transition to renewable energy sources.
+      expected_output:
+        - role: assistant
+          content: |-
+            Climate change is accelerating with rapid Arctic ice loss, rising seas, and
+            more extreme weather. Scientists urge urgent emissions cuts and a transition
+            to renewable energy.

@@ -1308,7 +1308,7 @@ tests:
     );
   });
 
-  it('validates eval file with expected_output alias string shorthand', async () => {
+  it('rejects eval file with test-level expected_output', async () => {
     const filePath = path.join(tempDir, 'output-string.yaml');
     await writeFile(
       filePath,
@@ -1325,24 +1325,63 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].expected_output',
+        message: expect.stringContaining('tests[].expected_output has been removed'),
+      }),
+    );
   });
 
-  it('validates eval file with expected_output alias object shorthand', async () => {
+  it('rejects eval file with default_test expected_output', async () => {
     const filePath = path.join(tempDir, 'output-object.yaml');
     await writeFile(
       filePath,
-      `prompts:
+      `default_test:
+  expected_output: Shared reference
+prompts:
   - "{{ prompt }}"
 tests:
   - id: test-1
-    criteria: Goal
     vars:
       prompt: Query
-    expected_output:
-      riskLevel: High
-      confidence: 0.95
+    assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'default_test.expected_output',
+        message: expect.stringContaining('default_test.expected_output has been removed'),
+      }),
+    );
+  });
+
+  it('validates vars.expected_output when an explicit assertion consumes it', async () => {
+    const filePath = path.join(tempDir, 'vars-expected-output.yaml');
+    await writeFile(
+      filePath,
+      `default_test:
+  assert:
+    - type: llm-rubric
+      value: "Matches the reference answer: {{ expected_output }}"
+prompts:
+  - "{{ prompt }}"
+tests:
+  - id: test-1
+    vars:
+      prompt: Query
+      expected_output:
+        riskLevel: High
+        confidence: 0.95
 `,
     );
 
@@ -1451,7 +1490,6 @@ tests:
       expected:
         answer: "4"
     criteria: "Answers {{question}} correctly"
-    expected_output: "{{expected.answer}}"
 `,
     );
 
@@ -2453,7 +2491,8 @@ tests:
   - id: test-1
     input: "Hello"
     criteria: Some criteria
-    expected_output: "World"
+    vars:
+      expected_output: "World"
     assert:
       - type: contains
         value: "world"

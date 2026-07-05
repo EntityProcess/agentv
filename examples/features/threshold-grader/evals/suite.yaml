@@ -5,11 +5,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: flexible-gate
-    expected_output:
-      - role: assistant
-        content: >
-          Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and
-          decreases dependence on finite fossil fuels.
     assert:
       - metric: flexible_gate
         type: assert-set
@@ -33,3 +28,8 @@ tests:
       input:
         - role: user
           content: Summarize the benefits of renewable energy.
+      expected_output:
+        - role: assistant
+          content: >
+            Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and
+            decreases dependence on finite fossil fuels.

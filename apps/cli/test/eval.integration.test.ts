@@ -91,24 +91,24 @@ prompts:
 tests:
   - id: case-alpha
     criteria: System responds with alpha
-    expected_output:
-      - role: assistant
-        content: Alpha
     vars:
       input:
         - role: user
           content: |
             Please respond with alpha
+      expected_output:
+        - role: assistant
+          content: Alpha
   - id: case-beta
     criteria: System responds with beta
-    expected_output:
-      - role: assistant
-        content: Beta
     vars:
       input:
         - role: user
           content: |
             Please respond with beta
+      expected_output:
+        - role: assistant
+          content: Beta
 `;
   await writeFile(testFilePath, testFileContent, 'utf8');
 
@@ -144,24 +144,24 @@ prompts:
 tests:
   - id: case-alpha
     criteria: System responds with alpha
-    expected_output:
-      - role: assistant
-        content: Alpha
     vars:
       input:
         - role: user
           content: |
             Please respond with alpha
+      expected_output:
+        - role: assistant
+          content: Alpha
   - id: case-beta
     criteria: System responds with beta
-    expected_output:
-      - role: assistant
-        content: Beta
     vars:
       input:
         - role: user
           content: |
             Please respond with beta
+      expected_output:
+        - role: assistant
+          content: Beta
 `;
   await writeFile(testFilePath, testFileContent, 'utf8');
 
@@ -670,9 +670,9 @@ describe('agentv eval CLI', () => {
           'tests:',
           '  - id: case-unused',
           '    criteria: System responds with unused',
-          '    expected_output: unused',
           '    vars:',
           '      input: unused',
+          '      expected_output: unused',
         ].join('\n'),
         'utf8',
       );
@@ -1025,34 +1025,34 @@ prompts:
 tests:
   - id: case-alpha
     criteria: System responds with alpha
-    expected_output:
-      - role: assistant
-        content: Alpha
     vars:
       input:
         - role: user
           content: |
             Please respond with alpha
+      expected_output:
+        - role: assistant
+          content: Alpha
   - id: case-beta
     criteria: System responds with beta
-    expected_output:
-      - role: assistant
-        content: Beta
     vars:
       input:
         - role: user
           content: |
             Please respond with beta
+      expected_output:
+        - role: assistant
+          content: Beta
   - id: case-gamma
     criteria: System responds with gamma
-    expected_output:
-      - role: assistant
-        content: Gamma
     vars:
       input:
         - role: user
           content: |
             Please respond with gamma
+      expected_output:
+        - role: assistant
+          content: Gamma
 `,
         'utf8',
       );
@@ -1094,14 +1094,14 @@ prompts:
 tests:
   - id: shared-case
     criteria: System responds
-    expected_output:
-      - role: assistant
-        content: Shared
     vars:
       input:
         - role: user
           content: |
             Please respond for ${name}
+      expected_output:
+        - role: assistant
+          content: Shared
 `;
       await writeFile(firstEvalPath, evalContent('collision a'), 'utf8');
       await writeFile(secondEvalPath, evalContent('collision b'), 'utf8');

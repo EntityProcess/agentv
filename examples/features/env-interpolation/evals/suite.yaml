@@ -6,9 +6,9 @@ tests:
   - id: full-value
     assert:
       - "{{ env.EVAL_ASSERTION | default(\"Responds with a friendly greeting\") }}"
-    expected_output: "{{ env.EXPECTED_GREETING }}"
     vars:
       input: Hello!
+      expected_output: "{{ env.EXPECTED_GREETING }}"
   - id: partial-value
     assert:
       - Response uses the system prompt persona

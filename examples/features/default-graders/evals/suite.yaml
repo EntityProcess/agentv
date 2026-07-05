@@ -9,20 +9,18 @@ tests:
   - id: greeting
     assert:
       - The assistant responds with a friendly greeting
-    expected_output: Hello! How can I help you today?
     vars:
       input: Hello!
+      expected_output: Hello! How can I help you today?
   - id: with-custom-eval
-    expected_output: I'd be happy to help you with a refund. Could you provide your order number?
     assert:
       - metric: helpfulness
         type: llm-rubric
       - The assistant provides a helpful response about refunds
     vars:
       input: I want a refund
+      expected_output: I'd be happy to help you with a refund. Could you provide your order number?
   - id: skip-defaults
-    expected_output: I understand this is urgent. Let me help you right away. Can you tell me which
-      system is affected so I can start troubleshooting?
     execution:
       skip_defaults: true
     assert:
@@ -36,3 +34,5 @@ tests:
             offer to help immediately. Do not ask clarifying questions first.
         - role: user
           content: "URGENT: System is down"
+      expected_output: I understand this is urgent. Let me help you right away. Can you tell me which
+        system is affected so I can start troubleshooting?

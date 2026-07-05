@@ -4,7 +4,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: exact-match
-    expected_output: Paris
     assert:
       - metric: keyword-grader
         type: script
@@ -15,8 +14,8 @@ tests:
       - Answer must name the capital city of France.
     vars:
       input: What is the capital of France?
+      expected_output: Paris
   - id: partial-match
-    expected_output: red, blue, yellow
     assert:
       - metric: keyword-grader
         type: script
@@ -27,3 +26,4 @@ tests:
       - Answer must mention red, blue, and yellow.
     vars:
       input: Name the primary colors.
+      expected_output: red, blue, yellow

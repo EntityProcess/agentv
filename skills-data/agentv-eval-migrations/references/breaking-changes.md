@@ -142,34 +142,40 @@ for authored eval YAML and assertion template YAML.
 preferred way to express the whole semantic contract. Put actual grading checks
 in `assert`, usually as plain strings.
 
-## `criteria` Is Optional, `expected_output` Is Passive
+## `criteria` Is Optional, Reference Answers Live In Vars
 
 ### v4.42.4 Shape
 
-v4.42.4 docs treated `criteria` as required, and when no `assertions` were
-present a default `llm-grader` evaluated the case against `criteria`:
+v4.42.4 docs treated `criteria` as required. Older AgentV YAML also allowed
+`expected_output` as a sibling field on test cases:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Assistant correctly explains the bug and proposes a fix
     input: "Debug this function..."
+    expected_output: The answer explains the root cause and fix.
 ```
 
 ### Current Shape
 
 Current docs and schema make `criteria` optional. Authored graders live under
-`assert`. Plain strings in `assert` become an `llm-rubric` check. `expected_output`
-is reference data available to graders; by itself it does not choose a grader.
+`assert`. Plain strings in `assert` become an `llm-rubric` check.
+Promptfoo-aligned reference answers live in `vars.expected_output`, and only
+affect grading when an explicit assertion consumes them.
 
 ```yaml
+default_test:
+  assert:
+    - type: llm-rubric
+      value: "Matches the reference answer: {{ expected_output }}"
+prompts:
+  - "{{ input }}"
 tests:
   - id: simple-eval
-    input: "Debug this function..."
-    expected_output: The answer explains the root cause and fix.
-    assert:
-      - Assistant correctly explains the bug
-      - Assistant proposes a concrete fix
+    vars:
+      input: "Debug this function..."
+      expected_output: The answer explains the root cause and fix.
 ```
 
 ### Migration Steps
@@ -178,14 +184,18 @@ tests:
   `assert` as one or more plain strings.
 - Keep `criteria` only when multiple graders need shared context that is not
   itself the asserted checklist.
-- If `expected_output` was being used as "the rubric", add explicit `assert`
-  entries that state how the reference should be used.
+- Move `tests[].expected_output` or `default_test.expected_output` to
+  `vars.expected_output`.
+- Add or keep an explicit assertion strategy. Use `llm-rubric` with
+  `{{ expected_output }}` for semantic reference-answer checks, or deterministic
+  assertion `value: "{{ expected_output }}"` when the grader type compares a
+  concrete value.
 
 ### Verification
 
 ```bash
 bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
-rg -n "criteria:" path/to/evals
+rg -n "expected_output:" path/to/evals
 ```
 
 For any remaining `criteria`, confirm it is shared grader context and not a

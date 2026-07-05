@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { loadTests } from '../../src/evaluation/yaml-parser.js';
 
-describe('criteria is optional when expected_output or assertions is present', () => {
+describe('criteria is optional when assertions are present', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -17,19 +17,19 @@ describe('criteria is optional when expected_output or assertions is present', (
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('accepts test with expected_output and no criteria', async () => {
+  it('accepts test with vars.expected_output when an assertion consumes it', async () => {
     await writeFile(
       path.join(tempDir, 'expected-output.eval.yaml'),
       `prompts:
   - "{{ input }}"
 tests:
   - id: test-01
-    expected_output: sample expected output
     assert:
       - type: contains
-        value: sample
+        value: "{{ expected_output }}"
     vars:
       input: sample prompt
+      expected_output: sample expected output
 `,
     );
 
@@ -37,6 +37,10 @@ tests:
     expect(tests).toHaveLength(1);
     expect(tests[0].id).toBe('test-01');
     expect(tests[0].criteria).toBe('');
+    expect(tests[0].assertions?.[0]).toMatchObject({
+      type: 'contains',
+      value: 'sample expected output',
+    });
   });
 
   it('accepts test with assertions only and no criteria', async () => {
@@ -76,7 +80,7 @@ tests:
     expect(tests).toHaveLength(0);
   });
 
-  it('skips test with no criteria, no expected_output, and no assertions', async () => {
+  it('skips test with no criteria and no assertions', async () => {
     await writeFile(
       path.join(tempDir, 'no-eval-spec.eval.yaml'),
       `prompts:
@@ -89,6 +93,23 @@ tests:
     );
 
     const tests = await loadTests(path.join(tempDir, 'no-eval-spec.eval.yaml'), tempDir);
+    expect(tests).toHaveLength(0);
+  });
+
+  it('does not treat vars.expected_output as an evaluation spec by itself', async () => {
+    await writeFile(
+      path.join(tempDir, 'vars-reference-only.eval.yaml'),
+      `prompts:
+  - "{{ input }}"
+tests:
+  - id: test-06
+    vars:
+      input: sample prompt
+      expected_output: sample expected output
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'vars-reference-only.eval.yaml'), tempDir);
     expect(tests).toHaveLength(0);
   });
 

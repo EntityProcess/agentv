@@ -13,19 +13,19 @@ tests:
   - id: math-basics
     assert:
       - Assistant correctly answers the math question and shows reasoning
-    expected_output:
-      - role: assistant
-        content: |-
-          15 * 7 = 105
-
-          Reasoning: 15 * 7 = (10 * 7) + (5 * 7) = 70 + 35 = 105
     vars:
       input:
         - role: user
           content: What is 15 * 7? Show your reasoning step by step.
+      expected_output:
+        - role: assistant
+          content: |-
+            15 * 7 = 105
+
+            Reasoning: 15 * 7 = (10 * 7) + (5 * 7) = 70 + 35 = 105
   - id: capital-knowledge
     assert:
       - Assistant correctly identifies the capital city
-    expected_output: The capital of Australia is Canberra.
     vars:
       input: What is the capital of Australia?
+      expected_output: The capital of Australia is Canberra.

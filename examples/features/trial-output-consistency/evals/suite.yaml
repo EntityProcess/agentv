@@ -4,9 +4,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: high-consistency
-    expected_output:
-      - role: assistant
-        content: The capital of France is Paris.
     assert:
       - metric: trial-consistency
         type: script
@@ -25,10 +22,10 @@ tests:
       input:
         - role: user
           content: What is the capital of France?
+      expected_output:
+        - role: assistant
+          content: The capital of France is Paris.
   - id: low-consistency
-    expected_output:
-      - role: assistant
-        content: Any creative tagline.
     assert:
       - metric: trial-consistency
         type: script
@@ -47,10 +44,10 @@ tests:
       input:
         - role: user
           content: Write a creative tagline for a coffee shop.
+      expected_output:
+        - role: assistant
+          content: Any creative tagline.
   - id: single-trial
-    expected_output:
-      - role: assistant
-        content: "4"
     assert:
       - metric: trial-consistency
         type: script
@@ -67,10 +64,10 @@ tests:
       input:
         - role: user
           content: What is 2 + 2?
+      expected_output:
+        - role: assistant
+          content: "4"
   - id: zero-trials
-    expected_output:
-      - role: assistant
-        content: Hi
     assert:
       - metric: trial-consistency
         type: script
@@ -86,3 +83,6 @@ tests:
       input:
         - role: user
           content: Hello
+      expected_output:
+        - role: assistant
+          content: Hi

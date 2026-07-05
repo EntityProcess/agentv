@@ -5,25 +5,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: code-review-javascript
-    expected_output:
-      - role: assistant
-        content: >-
-          The function has a critical bug in the loop condition. Here's my analysis
-          (SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT):
-
-
-          **Critical Issue:**
-
-          - Loop condition `i < 0` means the loop never executes (should be `i < items.length`)
-
-
-          **Suggestions:**
-
-          - Fix the loop: `for (let i = 0; i < items.length; i++)`
-
-          - Consider using `reduce()` for a more functional approach
-
-          - Add input validation for edge cases
     assert:
       - Assistant provides helpful code analysis and mentions
         SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
@@ -48,6 +29,25 @@ tests:
                 ```
             - type: file
               value: javascript.instructions.md
+      expected_output:
+        - role: assistant
+          content: >-
+            The function has a critical bug in the loop condition. Here's my analysis
+            (SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT):
+
+
+            **Critical Issue:**
+
+            - Loop condition `i < 0` means the loop never executes (should be `i < items.length`)
+
+
+            **Suggestions:**
+
+            - Fix the loop: `for (let i = 0; i < items.length; i++)`
+
+            - Consider using `reduce()` for a more functional approach
+
+            - Add input validation for edge cases
   - id: code-gen-python-comprehensive
     conversation_id: python-code-generation
     assert:
@@ -63,13 +63,6 @@ tests:
       - metric: code_correctness
         type: llm-rubric
         prompt: file://code-correctness-grader.md
-    expected_output:
-      - role: assistant
-        content:
-          - type: file
-            value: ./snippets/python-second-largest.md
-          - type: file
-            value: ./snippets/python-second-largest-comments.md
     vars:
       input:
         - role: system
@@ -85,6 +78,13 @@ tests:
                 4. Raises appropriate exceptions for invalid input
             - type: file
               value: python.instructions.md
+      expected_output:
+        - role: assistant
+          content:
+            - type: file
+              value: ./snippets/python-second-largest.md
+            - type: file
+              value: ./snippets/python-second-largest-comments.md
   - id: feature-proposal-brainstorm
     assert:
       - >-
@@ -115,24 +115,6 @@ tests:
 
             Please brainstorm 3-5 innovative features we should consider building.
   - id: coding-multiturn-debug-session
-    expected_output:
-      - role: assistant
-        content: |-
-          You have an off-by-one error in your loop bounds.
-          You're iterating with `range(len(items) - 1)`, which stops before the last index.
-          To include all items, you can either:
-          - Use `range(len(items))`, or
-          - Iterate directly over the list: `for item in items:`
-
-          Here's a corrected version:
-
-          ```python
-          def get_items(items):
-              result = []
-              for item in items:
-                  result.append(item)
-              return result
-          ```
     assert:
       - |-
         Assistant conducts a multi-turn debugging session, asking clarification
@@ -163,17 +145,31 @@ tests:
             - What output you actually get
         - role: user
           content: For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
+      expected_output:
+        - role: assistant
+          content: |-
+            You have an off-by-one error in your loop bounds.
+            You're iterating with `range(len(items) - 1)`, which stops before the last index.
+            To include all items, you can either:
+            - Use `range(len(items))`, or
+            - Iterate directly over the list: `for item in items:`
+
+            Here's a corrected version:
+
+            ```python
+            def get_items(items):
+                result = []
+                for item in items:
+                    result.append(item)
+                return result
+            ```
   - id: shorthand-string-example
-    expected_output: The answer is 4.
     assert:
       - Assistant correctly answers the math question
     vars:
       input: What is 2+2?
+      expected_output: The answer is 4.
   - id: shorthand-structured-output
-    expected_output:
-      riskLevel: Low
-      confidence: 0.95
-      reasoning: Transaction amount and pattern are within normal bounds
     assert:
       - Agent returns properly structured risk assessment
     vars:
@@ -192,10 +188,11 @@ tests:
             velocity=low
         - role: user
           content: Analyze transaction ID 12345 for fraud risk
+      expected_output:
+        riskLevel: Low
+        confidence: 0.95
+        reasoning: Transaction amount and pattern are within normal bounds
   - id: shorthand-array-syntax
-    expected_output:
-      - role: assistant
-        content: Hello! How can I help you today?
     assert:
       - Assistant provides a greeting response
     vars:
@@ -204,3 +201,6 @@ tests:
           content: You are a friendly assistant.
         - role: user
           content: Hello!
+      expected_output:
+        - role: assistant
+          content: Hello! How can I help you today?

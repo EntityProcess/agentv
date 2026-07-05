@@ -126,6 +126,8 @@ type LoadOptions = {
   readonly category?: string;
   /** Internal DFS stack for detecting circular `type: suite` imports. */
   readonly suiteImportStack?: readonly SuiteImportStackEntry[];
+  /** Internal TS SDK bridge compatibility; authored YAML files must keep the default strict mode. */
+  readonly allowInternalExpectedOutput?: boolean;
 };
 
 type SuiteImportStackEntry = {
@@ -1153,7 +1155,7 @@ export async function loadTestSuite(
     return loadTsEvalSuite(evalFilePath, resolveToAbsolutePath(repoRoot), options);
   }
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
-  return buildEvalSuiteResult(parsed, tests);
+  return buildEvalSuiteResult(parsed, tests, options);
 }
 
 /** @deprecated Use `loadTestSuite` instead */
@@ -1172,7 +1174,7 @@ export async function loadTestSuiteFromYamlObject(
     options,
   );
 
-  return buildEvalSuiteResult(parsed, tests);
+  return buildEvalSuiteResult(parsed, tests, options);
 }
 
 export async function loadTests(
@@ -1245,6 +1247,9 @@ async function loadTestsFromParsedYamlValue(
   }
   rejectAuthoredWorkers(interpolated);
   rejectAuthoredDirectInput(interpolated);
+  if (options?.allowInternalExpectedOutput !== true) {
+    rejectAuthoredExpectedOutput(interpolated);
+  }
 
   const rawSuite = rawParsed as RawTestSuite;
   const resolvedDefaultTest = await resolveDefaultTestValue(
@@ -1679,8 +1684,15 @@ async function loadTestsFromParsedYamlValue(
   };
 }
 
-function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): EvalSuiteResult {
+function buildEvalSuiteResult(
+  parsed: JsonObject,
+  tests: readonly EvalTest[],
+  options?: LoadOptions,
+): EvalSuiteResult {
   rejectAuthoredWorkers(parsed);
+  if (options?.allowInternalExpectedOutput !== true) {
+    rejectAuthoredExpectedOutput(parsed);
+  }
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
@@ -1787,6 +1799,34 @@ function rejectAuthoredDirectInput(parsed: JsonObject): void {
     }
     throw new Error(
       `tests[${index}].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.`,
+    );
+  }
+}
+
+function rejectAuthoredExpectedOutput(parsed: JsonObject): void {
+  if (parsed.expected_output !== undefined) {
+    throw new Error(
+      "Top-level 'expected_output' has been removed from authored eval YAML. Put reference answers in default_test.vars.expected_output or tests[].vars.expected_output and consume them with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.",
+    );
+  }
+
+  if (isJsonObject(parsed.default_test) && parsed.default_test.expected_output !== undefined) {
+    throw new Error(
+      "default_test.expected_output has been removed from authored eval YAML. Put shared reference answers in default_test.vars.expected_output and consume them with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.",
+    );
+  }
+
+  if (!Array.isArray(parsed.tests)) {
+    return;
+  }
+
+  for (let index = 0; index < parsed.tests.length; index++) {
+    const entry = parsed.tests[index];
+    if (!isJsonObject(entry) || entry.expected_output === undefined) {
+      continue;
+    }
+    throw new Error(
+      `tests[${index}].expected_output has been removed from authored eval YAML. Put the reference answer in tests[].vars.expected_output and consume it with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.`,
     );
   }
 }

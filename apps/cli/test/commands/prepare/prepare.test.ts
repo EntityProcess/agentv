@@ -104,10 +104,10 @@ prompts:
   - "{{ input }}"
 tests:
   - id: case-1
-    expected_output: SECRET_EXPECTED_OUTPUT
     criteria: SECRET_RUBRIC_DETAIL
     vars:
       input: Fix the workspace file.
+      expected_output: SECRET_EXPECTED_OUTPUT
 `,
     'utf8',
   );

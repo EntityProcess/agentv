@@ -257,7 +257,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  - id: docs',
         '    vars:',
         '      topic: release notes',
-        '    expected_output: concise release-note summary',
+        '    criteria: Writes a concise release-note summary',
         '',
       ].join('\n'),
     );
@@ -305,12 +305,12 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  - id: inherited-defaults',
         '    vars:',
         '      topic: release notes',
-        '    expected_output: concise release-note summary',
+        '    criteria: Writes a concise release-note summary',
         '  - id: overrides-default',
         '    vars:',
         '      audience: executives',
         '      topic: migration plan',
-        '    expected_output: executive migration summary',
+        '    criteria: Writes an executive migration summary',
         '',
       ].join('\n'),
     );
@@ -347,13 +347,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '    vars:',
         '      question: How do I reset my password?',
         '      input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
-        '    expected_output: password reset guidance',
+        '    criteria: Gives password reset guidance',
         '  - id: direct-override',
         '    vars:',
         '      category: onboarding',
         '      question: Where is the getting started guide?',
         '      input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
-        '    expected_output: getting started guidance',
+        '    criteria: Gives getting started guidance',
       ].join('\n'),
     );
 
@@ -384,7 +384,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  - id: docs',
         '    vars:',
         '      topic: release notes',
-        '    expected_output: concrete release-note explanation',
+        '    criteria: Gives a concrete release-note explanation',
         '',
       ].join('\n'),
     );

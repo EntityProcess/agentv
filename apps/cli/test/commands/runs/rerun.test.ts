@@ -54,8 +54,11 @@ prompts:
   - "{{ input }}"
 tests:
   - id: ${options.testId}
-    expected_output: []
+    assert:
+      - type: contains
+        value: "{{ expected_output }}"
     vars:
+      expected_output: answer
       input:
         - role: user
           content: Prompt for ${options.testId}

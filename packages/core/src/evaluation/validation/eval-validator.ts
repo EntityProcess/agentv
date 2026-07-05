@@ -142,6 +142,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'tags',
   'license',
   'requires',
+  'expected_output',
   'input',
   'input_files',
   'prompts',
@@ -185,7 +186,6 @@ const KNOWN_DEFAULT_TEST_FIELDS = new Set([
   'providers',
   'prompts',
   'provider_output',
-  'expected_output',
   'assert',
   'assert_scoring_function',
   'options',
@@ -220,6 +220,10 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 
 /** Removed top-level fields with migration hints. */
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
+  [
+    'expected_output',
+    "Top-level 'expected_output' has been removed from authored eval YAML. Put reference answers in default_test.vars.expected_output or tests[].vars.expected_output and consume them with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.",
+  ],
   [
     'input',
     "Top-level 'input' has been removed from authored eval YAML. Author prompt text or chat messages in top-level 'prompts' and put shared data in default_test.vars or per-row data in tests[].vars.",
@@ -273,7 +277,6 @@ const KNOWN_TEST_FIELDS = new Set([
   'provider_output',
   'input',
   'input_files',
-  'expected_output',
   'assert',
   'assert_scoring_function',
   'options',
@@ -639,36 +642,15 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         evalCase.provider_output === undefined,
     });
 
-    // expected_output field (string/object shorthand or message array)
     const expectedOutputField = evalCase.expected_output;
     if (expectedOutputField !== undefined) {
-      if (typeof expectedOutputField === 'string') {
-        // String shorthand is valid - no further validation needed
-      } else if (Array.isArray(expectedOutputField)) {
-        // Check if it looks like a message array (first element has 'role')
-        if (
-          expectedOutputField.length > 0 &&
-          isObject(expectedOutputField[0]) &&
-          'role' in expectedOutputField[0]
-        ) {
-          validateMessages(
-            expectedOutputField,
-            `${location}.expected_output`,
-            absolutePath,
-            errors,
-          );
-        }
-        // Otherwise it's treated as structured array content - valid
-      } else if (isObject(expectedOutputField)) {
-        // Object shorthand or single message - both are valid
-      } else {
-        errors.push({
-          severity: 'error',
-          filePath: absolutePath,
-          location: `${location}.expected_output`,
-          message: "Invalid 'expected_output' field (must be a string, object, or array)",
-        });
-      }
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.expected_output`,
+        message:
+          "tests[].expected_output has been removed from authored eval YAML. Put the reference answer in tests[].vars.expected_output and consume it with an explicit assertion, for example { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.",
+      });
     }
 
     validateAssertArray(
@@ -1337,9 +1319,19 @@ function validateDefaultTest(
         filePath,
         location: `default_test.${key}`,
         message:
-          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, expected_output, assert, assert_scoring_function, options, threshold, metadata.',
+          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, assert, assert_scoring_function, options, threshold, metadata.',
       });
     }
+  }
+
+  if (defaultTest.expected_output !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'default_test.expected_output',
+      message:
+        "default_test.expected_output has been removed from authored eval YAML. Put shared reference answers in default_test.vars.expected_output and consume them with an explicit assertion, for example { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.",
+    });
   }
 
   validateAssertArray(

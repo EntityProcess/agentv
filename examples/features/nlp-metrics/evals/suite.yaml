@@ -5,9 +5,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: summarisation-rouge
-    expected_output:
-      - role: assistant
-        content: The quick brown fox jumps over the lazy dog near the river bank.
     assert:
       - metric: rouge-score
         type: script
@@ -20,10 +17,10 @@ tests:
       input:
         - role: user
           content: Summarise the following article in one sentence.
+      expected_output:
+        - role: assistant
+          content: The quick brown fox jumps over the lazy dog near the river bank.
   - id: translation-bleu
-    expected_output:
-      - role: assistant
-        content: The cat sat on the mat and watched the birds in the garden.
     assert:
       - metric: bleu-score
         type: script
@@ -36,10 +33,10 @@ tests:
       input:
         - role: user
           content: Translate the following sentence to English.
+      expected_output:
+        - role: assistant
+          content: The cat sat on the mat and watched the birds in the garden.
   - id: paraphrase-similarity
-    expected_output:
-      - role: assistant
-        content: Machine learning models require large amounts of training data to perform well.
     assert:
       - metric: cosine-similarity
         type: script
@@ -52,10 +49,10 @@ tests:
       input:
         - role: user
           content: Paraphrase the following sentence.
+      expected_output:
+        - role: assistant
+          content: Machine learning models require large amounts of training data to perform well.
   - id: extraction-levenshtein
-    expected_output:
-      - role: assistant
-        content: Widget Pro 3000
     assert:
       - metric: edit-distance
         type: script
@@ -68,11 +65,10 @@ tests:
       input:
         - role: user
           content: Extract the product name from this invoice.
+      expected_output:
+        - role: assistant
+          content: Widget Pro 3000
   - id: multi-metric-evaluation
-    expected_output:
-      - role: assistant
-        content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and
-          personalised treatment plans.
     assert:
       - metric: rouge-score
         type: script
@@ -97,3 +93,7 @@ tests:
       input:
         - role: user
           content: Rewrite the following paragraph more concisely.
+      expected_output:
+        - role: assistant
+          content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and
+            personalised treatment plans.

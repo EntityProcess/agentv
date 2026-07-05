@@ -19,35 +19,6 @@ tests:
       - |-
         Must select 'three_levels_listening'.
         Rationale should mention "complex grievance", "venting", or "need for understanding".
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "routing_decision": {
-              "selected_framework": "three_levels_listening",
-              "confidence": "high",
-              "rationale": "The client is expressing deep grievance, anger, and confusion about a relationship dynamic. They need to feel heard and have the dynamic ('Pursuer-Distancer') analyzed before moving to solutions."
-            },
-            "client_statement_analysis": {
-              "primary_indicators": [
-                "Expressing complex grievance about household responsibilities",
-                "Venting frustration about relationship dynamic",
-                "Describing pursuer-distancer pattern"
-              ],
-              "contraindications": [],
-              "therapeutic_urgency": "routine"
-            },
-            "framework_output": {},
-            "metadata": {
-              "alternative_frameworks_considered": [
-                {
-                  "framework": "resource_focused_encouragement",
-                  "score": 0.3,
-                  "reason_not_selected": "Client needs understanding and validation of the dynamic first, not reframing"
-                }
-              ]
-            }
-          }
     vars:
       input:
         - role: user
@@ -65,6 +36,35 @@ tests:
                 when I ask him to help get something, he moves so slowly. It really makes me angry."
             - type: file
               value: ../skills/routing.md
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "routing_decision": {
+                "selected_framework": "three_levels_listening",
+                "confidence": "high",
+                "rationale": "The client is expressing deep grievance, anger, and confusion about a relationship dynamic. They need to feel heard and have the dynamic ('Pursuer-Distancer') analyzed before moving to solutions."
+              },
+              "client_statement_analysis": {
+                "primary_indicators": [
+                  "Expressing complex grievance about household responsibilities",
+                  "Venting frustration about relationship dynamic",
+                  "Describing pursuer-distancer pattern"
+                ],
+                "contraindications": [],
+                "therapeutic_urgency": "routine"
+              },
+              "framework_output": {},
+              "metadata": {
+                "alternative_frameworks_considered": [
+                  {
+                    "framework": "resource_focused_encouragement",
+                    "score": 0.3,
+                    "reason_not_selected": "Client needs understanding and validation of the dynamic first, not reframing"
+                  }
+                ]
+              }
+            }
   - id: route-to-encouragement-father
     assert:
       - >-
@@ -72,35 +72,6 @@ tests:
 
         Rationale should mention "finding the resource", "reframing self-blame", or "validating
         restraint".
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "routing_decision": {
-              "selected_framework": "resource_focused_encouragement",
-              "confidence": "high",
-              "rationale": "The client is expressing hopelessness and self-blame ('raised for nothing'), but the narrative contains a hidden positive resource (self-control). The most effective intervention is to reframe this restraint as a success."
-            },
-            "client_statement_analysis": {
-              "primary_indicators": [
-                "Self-blame ('raised this son for nothing')",
-                "Hidden resource (restraint from hitting)",
-                "Behavior they dislike but has positive protective intent"
-              ],
-              "contraindications": [],
-              "therapeutic_urgency": "elevated"
-            },
-            "framework_output": {},
-            "metadata": {
-              "alternative_frameworks_considered": [
-                {
-                  "framework": "three_levels_listening",
-                  "score": 0.4,
-                  "reason_not_selected": "Client needs immediate reframing of restraint as strength, not just understanding"
-                }
-              ]
-            }
-          }
     vars:
       input:
         - role: user
@@ -116,40 +87,40 @@ tests:
                 raise my hand. I feel like I raised this son for nothing."
             - type: file
               value: ../skills/routing.md
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "routing_decision": {
+                "selected_framework": "resource_focused_encouragement",
+                "confidence": "high",
+                "rationale": "The client is expressing hopelessness and self-blame ('raised for nothing'), but the narrative contains a hidden positive resource (self-control). The most effective intervention is to reframe this restraint as a success."
+              },
+              "client_statement_analysis": {
+                "primary_indicators": [
+                  "Self-blame ('raised this son for nothing')",
+                  "Hidden resource (restraint from hitting)",
+                  "Behavior they dislike but has positive protective intent"
+                ],
+                "contraindications": [],
+                "therapeutic_urgency": "elevated"
+              },
+              "framework_output": {},
+              "metadata": {
+                "alternative_frameworks_considered": [
+                  {
+                    "framework": "three_levels_listening",
+                    "score": 0.4,
+                    "reason_not_selected": "Client needs immediate reframing of restraint as strength, not just understanding"
+                  }
+                ]
+              }
+            }
   - id: route-to-encouragement-job
     assert:
       - |-
         Must select 'resource_focused_encouragement'.
         Rationale should mention "low self-efficacy", "empowerment", or "normalization of failure".
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "routing_decision": {
-              "selected_framework": "resource_focused_encouragement",
-              "confidence": "high",
-              "rationale": "The client is in a state of low self-worth and despair ('unable to do anything'). They require Normalization (job market is tough) and Resource identification (persistence) to rebuild self-efficacy."
-            },
-            "client_statement_analysis": {
-              "primary_indicators": [
-                "Self-blame and hopelessness ('unable to do anything')",
-                "Expressing stuckness ('don't know what to do')",
-                "Hidden resource (persistence in sending resumes)"
-              ],
-              "contraindications": [],
-              "therapeutic_urgency": "elevated"
-            },
-            "framework_output": {},
-            "metadata": {
-              "alternative_frameworks_considered": [
-                {
-                  "framework": "three_levels_listening",
-                  "score": 0.35,
-                  "reason_not_selected": "Client needs empowerment and normalization more than deep understanding at this stage"
-                }
-              ]
-            }
-          }
     vars:
       input:
         - role: user
@@ -165,6 +136,35 @@ tests:
                 am in pain, unhappy every day, and don't know what to do."
             - type: file
               value: ../skills/routing.md
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "routing_decision": {
+                "selected_framework": "resource_focused_encouragement",
+                "confidence": "high",
+                "rationale": "The client is in a state of low self-worth and despair ('unable to do anything'). They require Normalization (job market is tough) and Resource identification (persistence) to rebuild self-efficacy."
+              },
+              "client_statement_analysis": {
+                "primary_indicators": [
+                  "Self-blame and hopelessness ('unable to do anything')",
+                  "Expressing stuckness ('don't know what to do')",
+                  "Hidden resource (persistence in sending resumes)"
+                ],
+                "contraindications": [],
+                "therapeutic_urgency": "elevated"
+              },
+              "framework_output": {},
+              "metadata": {
+                "alternative_frameworks_considered": [
+                  {
+                    "framework": "three_levels_listening",
+                    "score": 0.35,
+                    "reason_not_selected": "Client needs empowerment and normalization more than deep understanding at this stage"
+                  }
+                ]
+              }
+            }
   - id: route-to-listening-gatekeeper
     assert:
       - >-
@@ -172,37 +172,6 @@ tests:
 
         Rationale should mention "dysfunctional dynamic", "lack of insight", or "need to analyze the
         process". Encouragement here would likely reinforce the triangulation.
-    expected_output:
-      - role: assistant
-        content: >-
-          {
-            "routing_decision": {
-              "selected_framework": "three_levels_listening",
-              "confidence": "high",
-              "rationale": "The client is engaging in 'Triangulation' (blocking direct communication) but frames it as 'doing a good thing'. Encouraging this would reinforce the pathology. Listening/Process analysis is needed to help him see the cost of his gatekeeping role."
-            },
-            "client_statement_analysis": {
-              "primary_indicators": [
-                "Dysfunctional dynamic (triangulation)",
-                "Lack of insight ('doing a good thing')",
-                "Confusion about exhaustion despite 'good intentions'"
-              ],
-              "contraindications": [
-                "Resource-focused encouragement would reinforce the pathological pattern"
-              ],
-              "therapeutic_urgency": "routine"
-            },
-            "framework_output": {},
-            "metadata": {
-              "alternative_frameworks_considered": [
-                {
-                  "framework": "resource_focused_encouragement",
-                  "score": 0.2,
-                  "reason_not_selected": "Encouraging the 'translation' behavior would enable and reinforce the triangulation dynamic"
-                }
-              ]
-            }
-          }
     vars:
       input:
         - role: user
@@ -219,3 +188,34 @@ tests:
                 doing such a good thing?"
             - type: file
               value: ../skills/routing.md
+      expected_output:
+        - role: assistant
+          content: >-
+            {
+              "routing_decision": {
+                "selected_framework": "three_levels_listening",
+                "confidence": "high",
+                "rationale": "The client is engaging in 'Triangulation' (blocking direct communication) but frames it as 'doing a good thing'. Encouraging this would reinforce the pathology. Listening/Process analysis is needed to help him see the cost of his gatekeeping role."
+              },
+              "client_statement_analysis": {
+                "primary_indicators": [
+                  "Dysfunctional dynamic (triangulation)",
+                  "Lack of insight ('doing a good thing')",
+                  "Confusion about exhaustion despite 'good intentions'"
+                ],
+                "contraindications": [
+                  "Resource-focused encouragement would reinforce the pathological pattern"
+                ],
+                "therapeutic_urgency": "routine"
+              },
+              "framework_output": {},
+              "metadata": {
+                "alternative_frameworks_considered": [
+                  {
+                    "framework": "resource_focused_encouragement",
+                    "score": 0.2,
+                    "reason_not_selected": "Encouraging the 'translation' behavior would enable and reinforce the triangulation dynamic"
+                  }
+                ]
+              }
+            }

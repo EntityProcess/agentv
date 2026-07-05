@@ -6,9 +6,6 @@ prompts:
   - "{{ input }}"
 tests:
   - id: script-grader-sdk-attachments
-    expected_output:
-      - role: assistant
-        content: "Attachments detected (2): example.txt, python.instructions.md."
     assert:
       - metric: attachment-check
         type: script
@@ -29,3 +26,6 @@ tests:
               value: Please echo this request in one short sentence and mention all attached files by name.
             - type: file
               value: example.txt
+      expected_output:
+        - role: assistant
+          content: "Attachments detected (2): example.txt, python.instructions.md."
