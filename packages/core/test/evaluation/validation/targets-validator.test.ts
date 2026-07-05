@@ -588,6 +588,26 @@ targets:
     ).toBe(false);
   });
 
+  it('accepts replay targets backed by normalized transcripts', async () => {
+    const filePath = path.join(tempDir, 'replay-transcripts.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - id: replay-transcript
+    provider: replay
+    transcripts: ./fixtures/transcript.jsonl
+    source_target: live-agent
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some((error) => error.message.includes("Unknown setting 'transcripts'")),
+    ).toBe(false);
+  });
+
   it('rejects replay targets with ambiguous source configuration', async () => {
     const filePath = path.join(tempDir, 'replay-ambiguous-source.yaml');
     await writeFile(

@@ -132,7 +132,7 @@ agentv import claude --list
 agentv import claude --session-id <uuid>
 
 # Run deterministic graders against the imported transcript
-agentv eval EVAL.yaml --target copilot-log
+agentv eval EVAL.yaml --transcript .agentv/transcripts/claude-<session-id-short>.jsonl
 ```
 
 Offline grading is useful when you want to evaluate skills with agents that don't have a direct API integration — import the session transcript and run deterministic graders.

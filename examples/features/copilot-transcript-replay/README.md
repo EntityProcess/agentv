@@ -1,7 +1,9 @@
-# Copilot Log Evaluation Example
+# Copilot Transcript Replay Example
 
-Demonstrates the `copilot-log` provider reading Copilot CLI session transcripts
-from disk with deterministic graders. **No LLM API key needed.**
+Demonstrates provider-agnostic recorded trajectory replay for a Copilot CLI
+session. Copilot `events.jsonl` data is normalized into AgentV transcript JSONL,
+then `provider: replay` runs deterministic graders without invoking Copilot
+again. **No LLM API key needed for replay.**
 
 Graders used:
 - `skill-trigger` — checks whether a specific skill was invoked
@@ -25,15 +27,28 @@ copilot --model gpt-5-mini
 > Analyze this CSV file and tell me the top 5 months by revenue
 ```
 
-### 2. Run the eval
+Import the session into a normalized AgentV transcript:
 
 ```bash
-agentv eval evals/skill-trigger.EVAL.yaml --target copilot-log
+agentv import copilot \
+  --session-id <uuid> \
+  --test-id should-not-trigger-csv-analyzer \
+  --target copilot-cli \
+  -o fixtures/copilot-transcript.jsonl
 ```
 
-The `before_all` hook runs `allagents workspace init` to sync the agentv-dev
-plugin skills into the workspace. The `copilot-log` provider then auto-discovers
-the latest session from `~/.copilot/session-state/` and runs all graders.
+The checked-in fixture already uses this normalized shape for deterministic
+example runs.
+
+### 2. Run the replay eval
+
+```bash
+agentv eval evals/skill-trigger.EVAL.yaml --target copilot-transcript-replay
+```
+
+The `before_all` hook syncs the agentv-dev plugin skills into the workspace.
+The replay target matches the eval case by `test_id`, reads the normalized
+transcript rows from `fixtures/copilot-transcript.jsonl`, and runs all graders.
 
 ## How it works
 
@@ -41,8 +56,10 @@ the latest session from `~/.copilot/session-state/` and runs all graders.
 allagents workspace init (setup hook)
   ↓ syncs agentv-dev plugin skills from marketplace
 ~/.copilot/session-state/{uuid}/events.jsonl
-  ↓ copilot-log provider (reads from disk)
-Message[] with tool calls
+  ↓ agentv import copilot
+AgentV transcript JSONL (agentv.transcript.v1)
+  ↓ provider: replay with transcripts: fixtures/copilot-transcript.jsonl
+Message[] with tool calls and raw source provenance
   ├─ skill-trigger grader (deterministic) → pass/fail
   └─ script-grader (graders/transcript-quality.ts) → pass/fail
 ```

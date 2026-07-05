@@ -47,7 +47,6 @@ const PROVIDER_ALIASES: Readonly<Record<string, ProviderKind>> = {
   copilot: 'copilot-sdk',
   'copilot-cli': 'copilot-cli',
   'copilot-sdk': 'copilot-sdk',
-  'copilot-log': 'copilot-log',
   pi: 'pi-cli',
   'pi-cli': 'pi-cli',
   'pi-rpc': 'pi-rpc',

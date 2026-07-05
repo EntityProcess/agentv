@@ -493,19 +493,6 @@ export interface CopilotSdkResolvedConfig {
   readonly customProvider?: CopilotCustomProviderConfig;
 }
 
-export interface CopilotLogResolvedConfig {
-  /** Explicit path to a session directory containing events.jsonl. */
-  readonly sessionDir?: string;
-  /** Session UUID — combined with sessionStateDir to build the path. */
-  readonly sessionId?: string;
-  /** Auto-discovery mode. 'latest' picks the most recent session. */
-  readonly discover?: 'latest';
-  /** Override the default ~/.copilot/session-state directory. */
-  readonly sessionStateDir?: string;
-  /** Filter discovery by working directory. */
-  readonly cwd?: string;
-}
-
 export interface PiCodingAgentResolvedConfig {
   readonly subprovider?: string;
   readonly model?: string;
@@ -605,6 +592,7 @@ export interface AgentVResolvedConfig {
 export interface ReplayResolvedConfig {
   readonly source?: ReplayResolvedSource;
   readonly fixturesPath?: string;
+  readonly transcriptsPath?: string;
   readonly sourceTarget: string;
   readonly suite?: string;
   readonly evalPath?: string;
@@ -613,7 +601,8 @@ export interface ReplayResolvedConfig {
 
 export type ReplayResolvedSource =
   | { readonly kind: 'fixtures'; readonly path: string }
-  | { readonly kind: 'execution_traces'; readonly path: string };
+  | { readonly kind: 'execution_traces'; readonly path: string }
+  | { readonly kind: 'transcripts'; readonly path: string };
 
 export interface TargetDeprecationWarning {
   readonly location: string;
@@ -879,10 +868,6 @@ export type ResolvedTarget =
       readonly config: CopilotCliResolvedConfig;
     })
   | (ResolvedTargetBase & {
-      readonly kind: 'copilot-log';
-      readonly config: CopilotLogResolvedConfig;
-    })
-  | (ResolvedTargetBase & {
       readonly kind: 'pi-sdk' | 'pi-coding-agent';
       readonly config: PiCodingAgentResolvedConfig;
     })
@@ -1115,6 +1100,11 @@ export function resolveTargetDefinition(
       `Target "${parsed.name}" uses ambiguous provider '${provider}'. Choose an explicit provider such as '${provider}-cli' or '${provider}-sdk'.`,
     );
   }
+  if (provider === 'copilot-log') {
+    throw new Error(
+      `Target "${parsed.name}" uses removed provider 'copilot-log'. Import Copilot events with 'agentv import copilot' and replay the normalized transcript with provider: replay and transcripts: <path>.`,
+    );
+  }
   const providerBatching = resolveOptionalBoolean(parsed.batch_requests);
   const subagentModeAllowed = resolveOptionalBoolean(parsed.subagent_mode_allowed);
 
@@ -1185,12 +1175,6 @@ export function resolveTargetDefinition(
         kind: 'copilot-cli',
         ...base,
         config: resolveCopilotCliConfig(parsed, env, evalFilePath),
-      };
-    case 'copilot-log':
-      return {
-        kind: 'copilot-log',
-        ...base,
-        config: resolveCopilotLogConfig(parsed, env),
       };
     case 'pi-sdk':
     case 'pi-coding-agent':
@@ -2481,18 +2465,31 @@ function resolveReplayConfig(
       allowLiteral: true,
     },
   );
-  if ((fixtures ? 1 : 0) + (executionTraces ? 1 : 0) !== 1) {
+  const transcripts = resolveOptionalString(
+    target.transcripts,
+    env,
+    `${target.name} replay transcripts`,
+    {
+      allowLiteral: true,
+    },
+  );
+  if ((fixtures ? 1 : 0) + (executionTraces ? 1 : 0) + (transcripts ? 1 : 0) !== 1) {
     throw new Error(
-      `Target "${target.name}" (provider: replay) requires exactly one replay source: "fixtures" or "execution_traces"`,
+      `Target "${target.name}" (provider: replay) requires exactly one replay source: "fixtures", "execution_traces", or "transcripts"`,
     );
   }
   const fixturesPath = fixtures ? resolveReplaySourcePath(fixtures, evalFilePath) : undefined;
   const executionTracesPath = executionTraces
     ? resolveReplaySourcePath(executionTraces, evalFilePath)
     : undefined;
+  const transcriptsPath = transcripts
+    ? resolveReplaySourcePath(transcripts, evalFilePath)
+    : undefined;
   const source: ReplayResolvedSource = fixturesPath
     ? { kind: 'fixtures', path: fixturesPath }
-    : { kind: 'execution_traces', path: executionTracesPath as string };
+    : executionTracesPath
+      ? { kind: 'execution_traces', path: executionTracesPath }
+      : { kind: 'transcripts', path: transcriptsPath as string };
   const sourceTarget = resolveString(
     target.source_target,
     env,
@@ -2515,6 +2512,7 @@ function resolveReplayConfig(
   return {
     source,
     fixturesPath,
+    transcriptsPath,
     sourceTarget,
     suite,
     evalPath,
@@ -2717,49 +2715,6 @@ function resolveString(
     throw new Error(`${description} is required`);
   }
   return value;
-}
-
-function resolveDiscover(value: unknown, targetName: string): 'latest' | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (value === 'latest') return 'latest';
-  throw new Error(`Target "${targetName}": discover must be "latest" (got "${String(value)}")`);
-}
-
-function resolveCopilotLogConfig(
-  target: z.infer<typeof BASE_TARGET_SCHEMA>,
-  env: EnvLookup,
-): CopilotLogResolvedConfig {
-  const sessionDirSource = target.session_dir;
-  const sessionIdSource = target.session_id;
-  const discoverSource = target.discover;
-  const sessionStateDirSource = target.session_state_dir;
-  const cwdSource = target.cwd;
-
-  return {
-    sessionDir: resolveOptionalString(
-      sessionDirSource,
-      env,
-      `${target.name} copilot-log session_dir`,
-      { allowLiteral: true, optionalEnv: true },
-    ),
-    sessionId: resolveOptionalString(
-      sessionIdSource,
-      env,
-      `${target.name} copilot-log session_id`,
-      { allowLiteral: true, optionalEnv: true },
-    ),
-    discover: resolveDiscover(discoverSource, target.name),
-    sessionStateDir: resolveOptionalString(
-      sessionStateDirSource,
-      env,
-      `${target.name} copilot-log session_state_dir`,
-      { allowLiteral: true, optionalEnv: true },
-    ),
-    cwd: resolveOptionalString(cwdSource, env, `${target.name} copilot-log cwd`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }),
-  };
 }
 
 /**

@@ -122,7 +122,7 @@ Grade existing agent sessions offline by importing transcripts and running the a
 agentv import claude --list
 agentv import claude --session-id <uuid>
 
-agentv eval evals.json --target copilot-log
+agentv eval evals.json --transcript .agentv/transcripts/claude-<session-id-short>.jsonl
 ```
 
 If another tool owns the original `evals.json`, keep that file as the source and run it through the read adapter. Convert only when you need to edit the AgentV-native form.

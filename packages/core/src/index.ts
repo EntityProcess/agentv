@@ -10,6 +10,7 @@ export * from './evaluation/external-trace.js';
 export * from './evaluation/projection-identity.js';
 export * from './evaluation/replay-fixtures.js';
 export * from './evaluation/replay-trace-envelopes.js';
+export * from './evaluation/replay-transcripts.js';
 export {
   ResultRowSchemaError,
   normalizeResultRow,

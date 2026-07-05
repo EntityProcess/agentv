@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeToolCall } from '../../../src/evaluation/providers/normalize-tool-call.js';
+import {
+  type ToolNormalizationSource,
+  normalizeToolCall,
+} from '../../../src/evaluation/providers/normalize-tool-call.js';
 import type { ProviderKind } from '../../../src/evaluation/providers/types.js';
 import type { ToolCall } from '../../../src/evaluation/providers/types.js';
 
@@ -49,10 +52,10 @@ describe('normalizeToolCall', () => {
     for (const provider of [
       'copilot-cli',
       'copilot-sdk',
-      'copilot-log',
+      'copilot-events',
       'vscode',
       'vscode-insiders',
-    ] as ProviderKind[]) {
+    ] as ToolNormalizationSource[]) {
       it(`${provider}: skill (lowercase) → Skill`, () => {
         const result = normalizeToolCall(provider, tc('skill', { skill: 'my-skill' }));
         expect(result.tool).toBe('Skill');

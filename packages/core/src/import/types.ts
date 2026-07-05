@@ -927,6 +927,7 @@ export function groupTranscriptJsonLines(
   const grouped = new Map<
     string,
     {
+      testId: string;
       target: string;
       tokenUsage?: ProviderTokenUsage;
       durationMs?: number;
@@ -937,7 +938,8 @@ export function groupTranscriptJsonLines(
   >();
 
   for (const line of lines) {
-    const existing = grouped.get(line.test_id);
+    const groupKey = transcriptGroupKey(line.test_id, line.target);
+    const existing = grouped.get(groupKey);
     const source: TranscriptSource = {
       kind: line.source.kind,
       provider: line.source.provider,
@@ -965,7 +967,8 @@ export function groupTranscriptJsonLines(
       continue;
     }
 
-    grouped.set(line.test_id, {
+    grouped.set(groupKey, {
+      testId: line.test_id,
       target: line.target,
       tokenUsage: transcriptTokenUsage,
       durationMs: line.transcript_duration_ms,
@@ -975,8 +978,8 @@ export function groupTranscriptJsonLines(
     });
   }
 
-  return [...grouped.entries()].map(([testId, entry]) => ({
-    testId,
+  return [...grouped.values()].map((entry) => ({
+    testId: entry.testId,
     target: entry.target,
     tokenUsage: entry.tokenUsage,
     durationMs: entry.durationMs,
@@ -986,6 +989,10 @@ export function groupTranscriptJsonLines(
       .sort((first, second) => first.index - second.index)
       .map((item) => item.message),
   }));
+}
+
+function transcriptGroupKey(testId: string, target: string): string {
+  return `${testId}\u0000${target}`;
 }
 
 /**

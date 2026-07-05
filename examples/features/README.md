@@ -60,7 +60,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 ### Evaluate without re-running the agent (offline)
 | Example | Description |
 |---------|-------------|
-| [copilot-log-eval](copilot-log-eval/) | Replay Copilot CLI session transcripts from disk — no LLM API key needed |
+| [copilot-transcript-replay](copilot-transcript-replay/) | Replay normalized Copilot CLI transcript rows — no LLM API key needed |
 | [trace-analysis](trace-analysis/) | Inspect eval results with `agentv trace` — summaries, trees, latency percentiles |
 | [agent-skills-evals](agent-skills-evals/) | Evaluate Claude Code skills with `EVAL.yaml` or Agent Skills `evals.json` |
 
@@ -143,7 +143,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [script-grader-with-llm-calls](script-grader-with-llm-calls/) | Custom graders |
 | [compare](compare/) | Benchmarking |
 | [assert-set](assert-set/) | LLM grading |
-| [copilot-log-eval](copilot-log-eval/) | Offline evaluation |
+| [copilot-transcript-replay](copilot-transcript-replay/) | Offline evaluation |
 | [default-graders](default-graders/) | Getting started |
 | [deterministic-graders](deterministic-graders/) | Deterministic assertions |
 | [document-extraction](document-extraction/) | Document extraction |

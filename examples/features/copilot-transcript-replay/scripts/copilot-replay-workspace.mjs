@@ -12,7 +12,7 @@ const REQUIRED_FILES = ['.github/skills/agentv-bench/SKILL.md'];
 export function beforeAll(context) {
   const workspacePath = context.workspace_path;
   if (!workspacePath) {
-    throw new Error('workspace_path not provided to copilot-log setup extension');
+    throw new Error('workspace_path not provided to copilot replay setup extension');
   }
 
   rmSync(join(workspacePath, '.allagents'), { recursive: true, force: true });

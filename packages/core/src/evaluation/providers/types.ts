@@ -23,7 +23,6 @@ export type ProviderKind =
   | 'codex-sdk'
   | 'copilot-sdk'
   | 'copilot-cli'
-  | 'copilot-log'
   | 'pi-sdk'
   | 'pi-coding-agent'
   | 'pi-cli'
@@ -42,9 +41,8 @@ export type ProviderKind =
  * Agent providers that spawn interactive sessions with filesystem access.
  * These providers read files directly from the filesystem using file:// URIs.
  *
- * Note: copilot-log is intentionally excluded — it is a passive transcript
- * reader, not an interactive agent. This allows deterministic-only evals
- * (e.g., skill-trigger) to run without a grader_target or LLM API key.
+ * Passive transcript replay is handled by provider: replay or --transcript,
+ * not by provider-specific log targets.
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex-cli',
@@ -67,7 +65,7 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
  * Used by the orchestrator to decide whether a target can double as its own
  * grader when no explicit grader_target is configured.
  *
- * Providers NOT in this list (agent providers, transcript, cli, copilot-log)
+ * Providers NOT in this list (agent providers, transcript, cli, replay)
  * cannot produce grader responses and should not be used as graders.
  */
 export const LLM_GRADER_CAPABLE_KINDS: readonly ProviderKind[] = [
@@ -95,7 +93,6 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'codex-sdk',
   'copilot-sdk',
   'copilot-cli',
-  'copilot-log',
   'pi-sdk',
   'pi-coding-agent',
   'pi-cli',
@@ -493,6 +490,7 @@ export interface TargetDefinition {
   // Replay fixture fields
   readonly fixtures?: string | unknown | undefined;
   readonly execution_traces?: string | unknown | undefined;
+  readonly transcripts?: string | unknown | undefined;
   readonly source_target?: string | unknown | undefined;
   readonly eval_path?: string | unknown | undefined;
   // VSCode fields
@@ -504,11 +502,6 @@ export interface TargetDefinition {
   readonly attachments_format?: string | unknown | undefined;
   readonly env?: unknown | undefined;
   readonly healthcheck?: unknown | undefined;
-  // Copilot-log fields
-  readonly session_dir?: string | unknown | undefined;
-  readonly session_id?: string | unknown | undefined;
-  readonly discover?: string | unknown | undefined;
-  readonly session_state_dir?: string | unknown | undefined;
   // Copilot SDK fields
   readonly cli_url?: string | unknown | undefined;
   readonly cli_path?: string | unknown | undefined;
