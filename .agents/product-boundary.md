@@ -7,7 +7,13 @@ This file expands the summary in [AGENTS.md](../AGENTS.md). Read it when proposi
 - Durable product boundary: [STRATEGY.md](../STRATEGY.md)
 - Current phases and priorities: [ROADMAP.md](../ROADMAP.md)
 - Architecture decisions: [docs/adr/](../docs/adr/)
+- Reusable research, rationale, and workflow lessons: [docs/solutions/](../docs/solutions/)
 - Shared vocabulary: [CONCEPTS.md](../CONCEPTS.md)
+
+For architecture or product-boundary work, use ADRs for accepted decisions,
+`CONCEPTS.md` for vocabulary, and `docs/solutions/` for reusable research or
+rationale. Search `docs/solutions/` by category and frontmatter such as
+`module`, `problem_type`, and `tags` when a decision touches a documented area.
 
 ## High-Level Goals
 

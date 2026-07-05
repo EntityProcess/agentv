@@ -202,8 +202,17 @@ contract than this ADR's original `workspace` decision:
   `53fb2fd080689efaf7934573d8759d14fc1043e4` keeps case image/cwd separate
   from selected agent configuration.
 
-AgentV combines promptfoo-compatible eval authoring with
-Harbor/Terminal-Bench/Margin-style coding-agent environments:
+AgentV combines promptfoo-compatible eval authoring with an AgentV-owned
+environment recipe informed by Margin, Harbor, and Terminal-Bench evidence:
+Promptfoo is the compatibility baseline for prompts, vars, tests, assertions,
+targets/providers, top-level `env`, and lifecycle `extensions`; Margin Evals is
+the closest reference for local coding-agent UX, filesystem-native suite
+ergonomics, immutable run bundles, resume/artifact discipline, and per-case
+image/cwd/test execution; Harbor and Terminal-Bench 2 are the strongest
+references for explicit Docker substrate, resources/env/workdir controls,
+dataset/runtime separation, and runner boundaries. The reusable rationale lives
+in
+[`docs/solutions/architecture-patterns/blend-promptfoo-margin-harbor-environment-recipes.md`](../solutions/architecture-patterns/blend-promptfoo-margin-harbor-environment-recipes.md).
 
 ```yaml
 environment: file://.agentv/environments/local-python.yaml
