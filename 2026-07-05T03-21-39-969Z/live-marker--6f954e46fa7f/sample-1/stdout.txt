@@ -1,0 +1,3 @@
+{"type":"extension_ui_request","id":"ad7169b7-fef9-4c56-98c8-1a3fa206ffb3","method":"setWidget","widgetKey":"subagent-async"}
+{"id":"70ad318b-63d8-46f8-8599-aee0e3fdaa4f","type":"response","success":false,"error":"Unknown command: undefined"}
+{"type":"extension_ui_request","id":"90b70302-7eda-4be4-8713-5aeff6625953","method":"setWidget","widgetKey":"subagent-async"}

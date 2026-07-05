@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-7e6fdad1e98dc4753372",
+  "generated_at": "2026-07-05T03:21:46.778Z",
+  "test_id": "live-marker",
+  "target": "pi-rpc-local",
+  "suite": "av-y7eq-9-host-runtime-live-marker",
+  "category": ".agentv/results/av-y7eq-9-inputs/live-marker",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-7e6fdad1e98dc4753372",
+    "trace_id": "c5949461e827cfdb9f3576f8e271704b",
+    "root_span_id": "2a8aa3b4524d6602"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "Unknown command: undefined",
+        "stage": "agent"
+      },
+      {
+        "message": "Unknown command: undefined",
+        "event_id": "error-3"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 33,
+    "transcript_chars": 979,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 2632,
+    "total_seconds": 2.632,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "target_target_task_failure"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

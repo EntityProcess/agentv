@@ -1,0 +1,146 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T03-21-39-969Z",
+  "status": {
+    "passed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "failed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "errored": {
+      "count": 1,
+      "percentage": 1
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 0,
+    "failed_cases": 1,
+    "errored_instances": 1
+  },
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 1,
+    "reasons": [
+      {
+        "reason": "target_target_task_failure",
+        "count": 1
+      }
+    ]
+  },
+  "cases": [
+    {
+      "test_id": "live-marker",
+      "suite": "av-y7eq-9-host-runtime-live-marker",
+      "eval_path": ".agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml",
+      "target": "pi-rpc-local",
+      "sample_count": 1,
+      "pass_count": 0,
+      "status_counts": {
+        "execution_error": 1
+      },
+      "samples": [
+        {
+          "test_id": "live-marker",
+          "suite": "av-y7eq-9-host-runtime-live-marker",
+          "eval_path": ".agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml",
+          "target": "pi-rpc-local",
+          "sample_index": 1,
+          "verdict": "fail",
+          "score": 0,
+          "execution_status": "execution_error",
+          "failure_stage": "agent",
+          "failure_reason_code": "target_target_task_failure",
+          "duration_ms": 2632
+        }
+      ],
+      "pass_rate": 0,
+      "pass_at_1": false
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-05T03-21-39-969Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/coding-runtime-live-matrix/.agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml",
+    "timestamp": "2026-07-05T03:21:46.707Z",
+    "targets": [
+      "pi-rpc-local"
+    ],
+    "tests_run": [
+      "live-marker"
+    ],
+    "experiment": "av-y7eq-9-host-runtime-live-marker",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        ".agentv/results/av-y7eq-9-inputs/live-marker.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "pi-rpc-local": {
+      "pass_rate": {
+        "mean": 0,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 2.632,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "target_error_summary": {
+    "target_task_failure": 1
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 2632,
+      "total_seconds": 2.632,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 0,
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "source": "unavailable"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "execution_error",
+      "failure_stage": "agent",
+      "failure_reason_code": "target_target_task_failure"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": [
+    "1 test(s) had execution errors and are excluded from quality pass_rate",
+    "Target runtime errors are reported separately from AgentV orchestrator errors"
+  ]
+}

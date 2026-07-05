@@ -1,0 +1,74 @@
+{
+  "schema_version": "agentv.target_execution.v1",
+  "status": "error",
+  "target_id": "pi-rpc-local",
+  "provider_id": "pi-rpc:pi-rpc-local",
+  "provider_kind": "pi-rpc",
+  "runtime_mode": "host",
+  "command": {
+    "argv": [
+      "pi",
+      "--mode",
+      "rpc"
+    ],
+    "cwd": "/home/entity/projects/EntityProcess/agentv__worktrees/coding-runtime-live-matrix/.agentv/results/av-y7eq-9-workspace"
+  },
+  "timeout_ms": 90000,
+  "started_at": "2026-07-05T03:21:41.538Z",
+  "ended_at": "2026-07-05T03:21:44.170Z",
+  "duration_ms": 2632,
+  "exit_code": 0,
+  "signal": null,
+  "error_kind": "target_task_failure",
+  "message": "Unknown command: undefined",
+  "logs": {
+    "stdout": {
+      "text": "{\"type\":\"extension_ui_request\",\"id\":\"ad7169b7-fef9-4c56-98c8-1a3fa206ffb3\",\"method\":\"setWidget\",\"widgetKey\":\"subagent-async\"}\n{\"id\":\"70ad318b-63d8-46f8-8599-aee0e3fdaa4f\",\"type\":\"response\",\"success\":false,\"error\":\"Unknown command: undefined\"}\n{\"type\":\"extension_ui_request\",\"id\":\"90b70302-7eda-4be4-8713-5aeff6625953\",\"method\":\"setWidget\",\"widgetKey\":\"subagent-async\"}\n",
+      "truncated": false,
+      "bytes": 369,
+      "stored_bytes": 369
+    },
+    "stderr": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    }
+  },
+  "transcript": {
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Error: Unknown command: undefined"
+      }
+    ],
+    "final_output": "Error: Unknown command: undefined"
+  },
+  "details": {
+    "events": [
+      {
+        "type": "extension_ui_request",
+        "id": "ad7169b7-fef9-4c56-98c8-1a3fa206ffb3",
+        "method": "setWidget",
+        "widget_key": "subagent-async"
+      },
+      {
+        "type": "extension_ui_request",
+        "id": "90b70302-7eda-4be4-8713-5aeff6625953",
+        "method": "setWidget",
+        "widget_key": "subagent-async"
+      }
+    ]
+  },
+  "artifacts": {
+    "target_execution_path": "target-execution.json",
+    "stdout_path": "stdout.txt",
+    "stderr_path": "stderr.txt",
+    "transcript_path": "transcript.json",
+    "transcript_raw_path": "transcript-raw.jsonl",
+    "summary_path": "summary.json",
+    "metrics_path": "metrics.json",
+    "output_path": "outputs/answer.md",
+    "answer_path": "outputs/answer.md"
+  }
+}
