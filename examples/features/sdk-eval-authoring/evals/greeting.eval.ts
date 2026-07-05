@@ -5,12 +5,9 @@ export default defineEval({
   description: 'YAML-aligned TypeScript eval authoring with @agentv/sdk',
   inputFiles: ['../fixtures/shared-context.md'],
   target: 'mock-sdk',
-  workspace: {
-    hooks: {
-      beforeAll: {
-        command: ['echo', 'suite-start'],
-      },
-    },
+  environment: {
+    type: 'host',
+    workdir: '../fixtures',
   },
   tests: [
     {
@@ -22,14 +19,6 @@ export default defineEval({
         graders.contains('Hello', { name: 'mentions-hello' }),
         graders.regex(/mock target/i, { name: 'mentions-mock-target' }),
       ],
-      workspace: {
-        hooks: {
-          beforeEach: {
-            command: ['echo', 'per-test-setup'],
-            timeoutMs: 1_000,
-          },
-        },
-      },
     },
   ],
 });

@@ -6,13 +6,13 @@ Evaluates whether a coding agent can keep two public repos in sync after one cha
 
 When **AgentV** (EntityProcess/agentv) ships a feature, the **agentevals** (agentevals/agentevals) spec docs must be updated to reflect the change. This eval measures how well an agent handles that cross-repo synchronization.
 
-## Workspace Features Demonstrated
+## Environment Features Demonstrated
 
 | Feature | Usage |
 |---------|-------|
-| `workspace.template` | AGENTS.md + skills dir copied to workspace |
-| `workspace.before_each` | Clones agentevals at "before" state per test |
-| `workspace.after_each` | Resets git state between tests |
+| `environment.workdir` | AGENTS.md + skills dir available to the task environment |
+| `extensions.beforeEach` | Clones agentevals at "before" state per test |
+| `extensions.afterEach` | Resets git state between tests |
 | `metadata` | Commit SHAs passed to setup via stdin JSON |
 | `fileChanges` | Unified diff of agent's edits |
 

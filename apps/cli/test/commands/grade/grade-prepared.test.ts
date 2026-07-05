@@ -92,8 +92,9 @@ targets:
   await writeFile(
     evalPath,
     `
-workspace:
-  template: ../template
+environment:
+  type: host
+  workdir: ../template
 assert:
 ${assertionYaml
   .trim()

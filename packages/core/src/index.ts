@@ -29,6 +29,11 @@ export {
   loadTsEvalFile,
   type TsEvalResult,
 } from './evaluation/loaders/ts-eval-loader.js';
+export type {
+  DockerEnvironmentRecipe,
+  EnvironmentRecipe,
+  HostEnvironmentRecipe,
+} from './evaluation/loaders/environment-recipe.js';
 export {
   transpileEvalYaml,
   transpileEvalYamlFile,

@@ -1,7 +1,7 @@
 description: Verify file_changes diffs are accessible to LLM grader (llm-rubric, built-in, and copilot-cli)
-workspace:
-  scope: suite
-  template: ../workspace-template
+environment:
+  type: host
+  workdir: ../workspace-template
 target: mock_agent
 prompts:
   - "{{ input }}"

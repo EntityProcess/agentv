@@ -11,7 +11,7 @@ const minimalEvalPrefix = `tests:
     input: hello
 `;
 
-describe('validateWorkspacePaths', () => {
+describe('validateWorkspacePaths legacy internal workspace checks', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -30,7 +30,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('returns no errors when workspace file reference exists (with no internal paths)', async () => {
+  it('returns no errors when a legacy internal workspace file reference exists', async () => {
     const wsFilePath = path.join(tempDir, 'workspace.yaml');
     await writeFile(wsFilePath, 'template: ~\n');
 
@@ -41,7 +41,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('returns no errors when workspace file is missing (eval-validator owns that check)', async () => {
+  it('returns no errors when legacy workspace file is missing (eval-validator owns that check)', async () => {
     const evalFilePath = path.join(tempDir, 'eval-ws-ref-missing.yaml');
     await writeFile(evalFilePath, `${minimalEvalPrefix}workspace: missing-workspace.yaml\n`);
 
@@ -50,7 +50,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('errors when workspace.template does not exist (inline workspace)', async () => {
+  it('errors when legacy internal workspace.template does not exist', async () => {
     const evalFilePath = path.join(tempDir, 'eval-inline-template.yaml');
     await writeFile(
       evalFilePath,
@@ -64,7 +64,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors[0]?.message).toContain('Template path not found');
   });
 
-  it('returns no errors when workspace.template exists', async () => {
+  it('returns no errors when legacy internal workspace.template exists', async () => {
     const templateDir = path.join(tempDir, 'my-template');
     await mkdir(templateDir, { recursive: true });
 
@@ -75,7 +75,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('errors when hook before_all command has a missing relative script', async () => {
+  it('errors when legacy internal workspace hook command has a missing script', async () => {
     const evalFilePath = path.join(tempDir, 'eval-hook-missing.yaml');
     await writeFile(
       evalFilePath,
@@ -95,7 +95,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors[0]?.message).toContain('setup.mjs');
   });
 
-  it('returns no errors when hook script exists at resolved path', async () => {
+  it('returns no errors when legacy internal workspace hook script exists', async () => {
     const scriptsDir = path.join(tempDir, 'scripts');
     await mkdir(scriptsDir, { recursive: true });
     const setupScript = path.join(scriptsDir, 'setup.mjs');
@@ -135,7 +135,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('checks hooks inside external workspace file', async () => {
+  it('checks hooks inside a legacy external workspace file', async () => {
     const wsFilePath = path.join(tempDir, 'ws-with-hooks.yaml');
     await writeFile(
       wsFilePath,
@@ -155,7 +155,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors[0]?.message).toContain('missing-setup.mjs');
   });
 
-  it('checks template inside external workspace file', async () => {
+  it('checks template inside a legacy external workspace file', async () => {
     const wsFilePath = path.join(tempDir, 'ws-with-template.yaml');
     await writeFile(wsFilePath, 'template: ./missing-template\n');
 

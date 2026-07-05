@@ -2,14 +2,13 @@ description: Demonstrates using a beforeAll lifecycle extension with the VSCode 
   suite.yaml but uses vscode instead of copilot.
 extensions:
   - file://../scripts/workspace-setup.mjs:beforeAll
-workspace:
-  scope: suite
-  template: ../workspace-template
-  hooks:
-    after_each:
-      reset: fast
-  repos:
-    - path: ./my-repo
+environment:
+  type: host
+  workdir: ../workspace-template
+  setup:
+    command: ../scripts/materialize-repo.sh
+    args:
+      path: ./my-repo
       repo: https://github.com/EntityProcess/agentv.git
       commit: main
 tags:

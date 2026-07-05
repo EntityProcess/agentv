@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { scanRepoDeps } from '../../../src/evaluation/workspace/deps-scanner.js';
 
-describe('scanRepoDeps', () => {
+describe('scanRepoDeps legacy internal workspace compatibility', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -23,7 +23,7 @@ describe('scanRepoDeps', () => {
     return filePath;
   }
 
-  it('extracts repos from suite-level workspace', async () => {
+  it('extracts repos from legacy suite-level workspace config', async () => {
     const file = await writeYaml(
       'suite-level.eval.yaml',
       `
@@ -52,7 +52,7 @@ tests:
     expect(result.repos[0].usedBy).toEqual([file]);
   });
 
-  it('extracts repos from per-case workspace', async () => {
+  it('extracts repos from legacy per-case workspace config', async () => {
     const file = await writeYaml(
       'per-test.eval.yaml',
       `
@@ -173,7 +173,7 @@ tests:
     expect(urls).toContain('https://github.com/org/repo.git@develop');
   });
 
-  it('resolves external workspace file references', async () => {
+  it('resolves legacy external workspace file references', async () => {
     await writeYaml(
       'shared/workspace.yaml',
       `

@@ -93,11 +93,11 @@ await Bun.write(\`\${payload.workspace_path}/hook-ran.txt\`, 'ok\\n');
     const evalPath = path.join(sourceDir, 'evals', 'demo.eval.yaml');
     const sourceEvalBefore = `name: portable-demo
 target: inherited
-workspace:
-  template: ../workspace-template
-  hooks:
-    before_each:
-      command: ["bun", "../scripts/setup.ts"]
+environment:
+  type: host
+  workdir: ../workspace-template
+  setup:
+    command: ["bun", "../scripts/setup.ts"]
 tests: ../data/cases.yaml
 `;
     await writeFile(evalPath, sourceEvalBefore, 'utf8');
@@ -105,7 +105,7 @@ tests: ../data/cases.yaml
     return { sourceDir, bundleDir, evalPath, sourceEvalBefore };
   }
 
-  it('bundles inherited targets, relative data, workspace templates, and scripts into a runnable directory', async () => {
+  it('bundles inherited targets, relative data, environment workdirs, and scripts into a runnable directory', async () => {
     const { sourceDir, bundleDir, evalPath, sourceEvalBefore } =
       await createPortableSourceFixture();
 
@@ -145,9 +145,10 @@ tests: ../data/cases.yaml
     expect(bundledEval.execution).toBeUndefined();
     const [testCase] = bundledEval.tests as Record<string, unknown>[];
     expect(testCase.id).toBe('case-alpha');
-    expect(testCase.workspace).toMatchObject({
-      template: 'workspaces/workspace-template',
-      hooks: { before_each: { command: ['bun', 'scripts/scripts/setup.ts'] } },
+    expect(testCase.environment).toMatchObject({
+      type: 'host',
+      workdir: 'workspaces/workspace-template',
+      setup: { command: ['bun', 'scripts/scripts/setup.ts'] },
     });
     expect(bundledEval.prompts).toEqual(['{{ input }}']);
     const input = (testCase.vars as Record<string, unknown>).input as Array<{
@@ -212,7 +213,7 @@ tests:
     expect(bundledTargets).toContain('inline bundled response');
   }, 30_000);
 
-  it('reports unbundleable workspace references with their eval location', async () => {
+  it('reports unbundleable environment references with their eval location', async () => {
     const sourceDir = path.join(tempDir, 'missing-source');
     const bundleDir = path.join(tempDir, 'missing-bundle');
     await mkdir(path.join(sourceDir, '.agentv'), { recursive: true });
@@ -227,8 +228,9 @@ tests:
     );
     await writeFile(
       path.join(sourceDir, 'evals', 'missing-template.eval.yaml'),
-      `workspace:
-  template: ../does-not-exist
+      `environment:
+  type: host
+  workdir: ../does-not-exist
 prompts:
   - "{{ input }}"
 tests:
@@ -253,7 +255,7 @@ tests:
     expect(result.exitCode).toBe(1);
     const output = `${result.stdout}\n${result.stderr}`;
     expect(output).toContain('Cannot bundle eval');
-    expect(output).toContain('workspace.template for test "missing-template"');
+    expect(output).toContain('environment.workdir for test "missing-template"');
     expect(output).toContain('not found');
   }, 30_000);
 });

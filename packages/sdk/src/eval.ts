@@ -32,6 +32,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   onDependencyFailure: 'on_dependency_failure',
   onTurnFailure: 'on_turn_failure',
   outputPath: 'output_path',
+  readOnly: 'read_only',
   reasoningEffort: 'reasoning_effort',
   scoreRange: 'score_range',
   scoreRanges: 'score_ranges',
@@ -115,6 +116,49 @@ export interface EvalWorkspace {
   readonly docker?: EvalDockerWorkspace;
 }
 
+export interface EvalEnvironmentSetup {
+  readonly command: string | readonly string[];
+  readonly args?: Readonly<Record<string, unknown>>;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly timeoutSeconds?: number;
+}
+
+export interface EvalDockerEnvironmentMount {
+  readonly source: string;
+  readonly target: string;
+  readonly access?: 'ro' | 'rw';
+  readonly readOnly?: boolean;
+}
+
+export interface EvalDockerEnvironmentResources {
+  readonly cpus?: number;
+  readonly memory?: string;
+  readonly disk?: string;
+  readonly gpu?: boolean | string;
+}
+
+export interface EvalHostEnvironment {
+  readonly type: 'host';
+  readonly workdir: string;
+  readonly setup?: EvalEnvironmentSetup;
+  readonly env?: Readonly<Record<string, string>>;
+}
+
+export interface EvalDockerEnvironment {
+  readonly type: 'docker';
+  readonly workdir: string;
+  readonly context?: string;
+  readonly dockerfile?: string;
+  readonly image?: string;
+  readonly setup?: EvalEnvironmentSetup;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly resources?: EvalDockerEnvironmentResources;
+  readonly mounts?: readonly EvalDockerEnvironmentMount[];
+  readonly secrets?: Readonly<Record<string, string>>;
+}
+
+export type EvalEnvironment = EvalHostEnvironment | EvalDockerEnvironment;
+
 export interface EvalTargetRef {
   readonly label: string;
   readonly id?: string;
@@ -174,6 +218,7 @@ export interface EvalTest {
   readonly expectedOutput?: string | Readonly<Record<string, unknown>> | readonly EvalMessage[];
   readonly assert?: readonly EvalAssertionConfig[];
   readonly execution?: EvalExecution;
+  readonly environment?: EvalEnvironment | string;
   readonly workspace?: EvalWorkspace;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly conversationId?: string;
@@ -223,6 +268,7 @@ export interface EvalDefinition {
   readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly assert?: readonly EvalAssertionConfig[];
+  readonly environment?: EvalEnvironment | string;
   readonly workspace?: EvalWorkspace | string;
 }
 

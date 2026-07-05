@@ -68,19 +68,9 @@ targets:
   );
   await writeFile(
     evalPath,
-    `workspace:
-  template: ../template
-  hooks:
-    before_all:
-      command:
-        - bun
-        - ../scripts/hook.ts
-        - workspace_before_all
-    before_each:
-      command:
-        - bun
-        - ../scripts/hook.ts
-        - workspace_before_each
+    `environment:
+  type: host
+  workdir: ../template
 target:
   extends: codex
   hooks:
@@ -163,22 +153,12 @@ describe('agentv prepare', () => {
     expect(await exists(promptPath)).toBe(true);
     expect(await exists(manifestPath)).toBe(true);
 
-    for (const step of [
-      'workspace_before_all',
-      'target_before_all',
-      'workspace_before_each',
-      'target_before_each',
-    ]) {
+    for (const step of ['target_before_all', 'target_before_each']) {
       expect(await exists(path.join(workspacePath, `${step}.txt`))).toBe(true);
     }
     expect(
       (await readFile(path.join(workspacePath, 'hook-order.txt'), 'utf8')).trim().split('\n'),
-    ).toEqual([
-      'workspace_before_all',
-      'target_before_all',
-      'workspace_before_each',
-      'target_before_each',
-    ]);
+    ).toEqual(['target_before_all', 'target_before_each']);
 
     expect(await exists(targetMarker)).toBe(false);
     expect(await exists(graderMarker)).toBe(false);
@@ -283,8 +263,9 @@ targets:
   - id: agentv:agent-rules
     hook: beforeAll
     rules: ../rules/AGENTS.md
-workspace:
-  template: ../template
+environment:
+  type: host
+  workdir: ../template
 prompts:
   - "{{ input }}"
 tests:

@@ -2,14 +2,18 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+const workspacePath = process.env.AGENTV_WORKSPACE_PATH;
+
 function readWorkspaceFile(relativePath: string) {
-  return readFileSync(
-    join(process.env.AGENTV_WORKSPACE_PATH ?? process.cwd(), relativePath),
-    'utf8',
-  );
+  if (!workspacePath) {
+    throw new Error('AGENTV_WORKSPACE_PATH is required');
+  }
+  return readFileSync(join(workspacePath, relativePath), 'utf8');
 }
 
-describe('welcome banner', () => {
+const describeWithWorkspace = workspacePath ? describe : describe.skip;
+
+describeWithWorkspace('welcome banner', () => {
   const page = () => readWorkspaceFile('app/page.tsx');
 
   it('shows ready status text', () => {

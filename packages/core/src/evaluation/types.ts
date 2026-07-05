@@ -1,3 +1,4 @@
+import type { EnvironmentRecipe } from './loaders/environment-recipe.js';
 import type { TransformSpec } from './output-transform.js';
 import type { TargetExecutionEnvelope } from './providers/types.js';
 import type { TokenUsage, ToolTrajectoryGraderConfig, Trace } from './trace.js';
@@ -1077,6 +1078,8 @@ export interface EvalTest {
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
   /** Promptfoo-style lifecycle extensions inherited from the suite. */
   readonly extensions?: readonly AgentVExtensionConfig[];
+  /** AgentV-authored host/Docker testbed recipe inherited from suite or authored per case. */
+  readonly environment?: EnvironmentRecipe;
   /** Workspace configuration (merged from suite-level and case-level) */
   readonly workspace?: WorkspaceConfig;
   /** Arbitrary metadata passed to workspace scripts via stdin */

@@ -1,11 +1,11 @@
 name: docker-workspace-example
 description: Example eval using Docker workspace for grading
 target: mock_agent
-workspace:
-  scope: suite
-  docker:
-    image: python:3.11-slim
-    timeout: 300
+environment:
+  type: docker
+  image: python:3.11-slim
+  workdir: /workspace
+  resources:
     memory: 2g
     cpus: 1
 prompts:

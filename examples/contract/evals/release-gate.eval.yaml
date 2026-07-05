@@ -1,8 +1,8 @@
 name: release-contract
 description: Lightweight release gate for npm latest promotion.
-workspace:
-  scope: suite
-  template: ../workspace-template
+environment:
+  type: host
+  workdir: ../workspace-template
 target: github-models-contract
 prompts:
   - "{{ input }}"

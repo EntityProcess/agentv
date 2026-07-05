@@ -40,6 +40,7 @@ import {
   loadConfig,
   parseTargetHooks,
 } from './loaders/config-loader.js';
+import { resolveEnvironmentRecipe } from './loaders/environment-recipe.js';
 import {
   buildSearchRoots,
   resolveFileReference,
@@ -70,7 +71,6 @@ import type {
   ConversationAggregation,
   ConversationMode,
   ConversationTurn,
-  DockerWorkspaceConfig,
   EvalGraderSource,
   EvalPromptIdentity,
   EvalRunOverride,
@@ -81,7 +81,6 @@ import type {
   GraderConfig,
   JsonObject,
   JsonValue,
-  RepoConfig,
   TargetHooksConfig,
   TestMessage,
   TestMessageContent,
@@ -93,7 +92,6 @@ import type {
   WorkspaceScriptConfig,
 } from './types.js';
 import { isJsonObject, isTestMessage } from './types.js';
-import { parseRepoConfig } from './workspace/repo-config-parser.js';
 import { parseYamlValue } from './yaml-loader.js';
 
 // Re-export public APIs from modules
@@ -213,6 +211,7 @@ type RawTestSuite = JsonObject & {
   readonly budget_usd?: JsonValue;
   readonly threshold?: JsonValue;
   readonly default_test?: JsonValue;
+  readonly environment?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assert?: JsonValue;
   readonly preprocessors?: JsonValue;
@@ -250,6 +249,7 @@ type RawEvalCase = JsonObject & {
   readonly execution?: JsonValue;
   readonly run?: JsonValue;
   readonly assert?: JsonValue;
+  readonly environment?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
   readonly depends_on?: JsonValue;
@@ -1247,6 +1247,7 @@ async function loadTestsFromParsedYamlValue(
   }
   rejectAuthoredWorkers(interpolated);
   rejectAuthoredDirectInput(interpolated);
+  rejectTargetTestbedFields(interpolated);
   if (options?.allowInternalExpectedOutput !== true) {
     rejectAuthoredExpectedOutput(interpolated);
   }
@@ -1284,10 +1285,16 @@ async function loadTestsFromParsedYamlValue(
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global');
   const defaultTestRubricPrompt = extractDefaultTestRubricPrompt(suite);
   const suiteExtensions = parseExtensions(suite.extensions, evalFileDir);
+  const suiteEnvironment = await resolveEnvironmentRecipe(
+    suite.environment,
+    evalFileDir,
+    'environment',
+  );
 
   const importedSuiteTests: EvalTest[] = [];
   const nunjucksFilters = await loadNunjucksFilters(suite.nunjucks_filters, evalFileDir);
   const parentWorkspace = parentWorkspaceLocation(suite);
+  const parentEnvironment = parentEnvironmentLocation(suite);
   const importEntries = readImports(suite.imports);
   const expandedImports = await expandImportEntries({
     entries: importEntries,
@@ -1295,6 +1302,7 @@ async function loadTestsFromParsedYamlValue(
     repoRoot,
     suiteMetadataPayload,
     parentWorkspaceLocation: parentWorkspace,
+    parentEnvironmentLocation: parentEnvironment,
     options,
   });
   importedSuiteTests.push(...expandedImports.importedSuiteTests);
@@ -1313,6 +1321,7 @@ async function loadTestsFromParsedYamlValue(
       repoRoot,
       suiteMetadataPayload,
       parentWorkspaceLocation: parentWorkspace,
+      parentEnvironmentLocation: parentEnvironment,
       options,
     });
     expandedTestCases = [...expandedImports.rawCases, ...expanded.rawCases];
@@ -1576,6 +1585,12 @@ async function loadTestsFromParsedYamlValue(
       // Parse per-case workspace config and merge with suite-level
       const caseWorkspace = await resolveWorkspaceConfig(renderedCase.workspace, evalFileDir);
       const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
+      const caseEnvironment = await resolveEnvironmentRecipe(
+        renderedCase.environment,
+        evalFileDir,
+        `test '${id ?? 'unknown'}'.environment`,
+      );
+      const environment = caseEnvironment ?? suiteEnvironment;
 
       // Parse per-case metadata, then merge suite-level metadata payload.
       // Arrays concatenate (suite-first, deduplicated), scalars on the case win.
@@ -1649,6 +1664,7 @@ async function loadTestsFromParsedYamlValue(
         ...(caseVars ? { vars: caseVars } : {}),
         ...(outputTransform ? { outputTransform } : {}),
         ...(suiteExtensions.length > 0 ? { extensions: suiteExtensions } : {}),
+        ...(environment ? { environment } : {}),
         workspace: mergedWorkspace,
         metadata,
         ...(caseRun?.threshold !== undefined ? { threshold: caseRun.threshold } : {}),
@@ -1800,6 +1816,38 @@ function rejectAuthoredDirectInput(parsed: JsonObject): void {
     throw new Error(
       `tests[${index}].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.`,
     );
+  }
+}
+
+function rejectTargetTestbedFields(parsed: JsonObject): void {
+  rejectSingleTargetTestbedFields((parsed as RawTestSuite).target, 'target');
+  const rawTargets = (parsed as RawTestSuite).targets;
+  const targets = Array.isArray(rawTargets)
+    ? rawTargets
+    : rawTargets === undefined
+      ? []
+      : [rawTargets];
+  targets.forEach((target, index) => {
+    rejectSingleTargetTestbedFields(target, `targets[${index}]`);
+  });
+}
+
+function rejectSingleTargetTestbedFields(rawTarget: JsonValue | undefined, location: string): void {
+  if (!isJsonObject(rawTarget)) {
+    return;
+  }
+  if (rawTarget.environment !== undefined) {
+    throw new Error(
+      `${location}.environment is not supported. Author environment at suite/test/case scope, not under targets.`,
+    );
+  }
+  if (rawTarget.container !== undefined) {
+    throw new Error(
+      `${location}.container is not supported. Use an environment recipe for testbed setup.`,
+    );
+  }
+  if (rawTarget.install !== undefined) {
+    throw new Error(`${location}.install is not supported. Use environment.setup.`);
   }
 }
 
@@ -2218,6 +2266,7 @@ async function expandImportEntries(params: {
   readonly repoRoot: URL | string;
   readonly suiteMetadataPayload?: Record<string, unknown>;
   readonly parentWorkspaceLocation?: string;
+  readonly parentEnvironmentLocation?: string;
   readonly options?: LoadOptions;
 }): Promise<ExpandedInlineTestEntries> {
   const rawCases: JsonValue[] = [];
@@ -2231,6 +2280,11 @@ async function expandImportEntries(params: {
         if (params.parentWorkspaceLocation) {
           throw new Error(
             `Parent workspace is not allowed when importing eval suites (${params.parentWorkspaceLocation}): ${entry.path}. Move workspace into the child suite, or import raw cases with imports.tests when you intentionally want parent workspace context.`,
+          );
+        }
+        if (params.parentEnvironmentLocation) {
+          throw new Error(
+            `Parent environment is not allowed when importing eval suites (${params.parentEnvironmentLocation}): ${entry.path}. Imported suites own task environment. Move environment into the child suite, or import raw cases with imports.tests when you intentionally want parent environment context.`,
           );
         }
         const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
@@ -2333,6 +2387,7 @@ async function expandInlineTestEntries(params: {
   readonly repoRoot: URL | string;
   readonly suiteMetadataPayload?: Record<string, unknown>;
   readonly parentWorkspaceLocation?: string;
+  readonly parentEnvironmentLocation?: string;
   readonly options?: LoadOptions;
 }): Promise<ExpandedInlineTestEntries> {
   const withFileReferences = await expandFileReferences(params.entries, params.evalFileDir);
@@ -2356,6 +2411,7 @@ async function expandInlineTestEntries(params: {
       repoRoot: params.repoRoot,
       suiteMetadataPayload: params.suiteMetadataPayload,
       parentWorkspaceLocation: params.parentWorkspaceLocation,
+      parentEnvironmentLocation: params.parentEnvironmentLocation,
       options: params.options,
     });
     rawCases.push(...expanded.rawCases);
@@ -2368,6 +2424,14 @@ async function expandInlineTestEntries(params: {
 function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
   if (suite.workspace !== undefined) {
     return 'workspace';
+  }
+
+  return undefined;
+}
+
+function parentEnvironmentLocation(suite: RawTestSuite): string | undefined {
+  if (suite.environment !== undefined) {
+    return 'environment';
   }
 
   return undefined;
@@ -3090,39 +3154,38 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
       'workspace.path has been removed from eval YAML. Put existing workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
     );
   }
-
-  let template = typeof obj.template === 'string' ? obj.template : undefined;
-  if (template && !path.isAbsolute(template)) {
-    template = path.resolve(evalFileDir, template);
+  if ('template' in obj) {
+    throw new Error(
+      'workspace.template has been removed from public eval YAML. Use environment.workdir and environment.setup for authored testbed setup.',
+    );
+  }
+  if ('repos' in obj) {
+    throw new Error(
+      'workspace.repos has been removed from public eval YAML. Use an environment recipe with setup args to materialize repositories.',
+    );
+  }
+  if ('docker' in obj) {
+    throw new Error(
+      'workspace.docker has been removed from public eval YAML. Use environment.type: docker with image or context.',
+    );
+  }
+  if ('scope' in obj) {
+    throw new Error(
+      'workspace.scope has been removed from public eval YAML. Use environment at suite/test scope and let runtime manage workspace lifetime.',
+    );
   }
 
   if ('isolation' in obj) {
     throw new Error('workspace.isolation has been removed. Use workspace.scope: suite|attempt.');
   }
-  if (obj.scope !== undefined && obj.scope !== 'suite' && obj.scope !== 'attempt') {
-    throw new Error("workspace.scope must be 'suite' or 'attempt'.");
-  }
-  const scope = obj.scope === 'suite' || obj.scope === 'attempt' ? obj.scope : undefined;
-
-  const repos = Array.isArray(obj.repos)
-    ? ((obj.repos as Record<string, unknown>[])
-        .map(parseRepoConfig)
-        .filter(Boolean) as RepoConfig[])
-    : undefined;
 
   const hooks = parseWorkspaceHooksConfig(obj.hooks, evalFileDir);
-
-  const docker = parseDockerWorkspaceConfig(obj.docker);
   const env = parseWorkspaceEnvConfig(obj.env);
 
-  if (!template && !scope && !repos && !hooks && !docker && !env) return undefined;
+  if (!hooks && !env) return undefined;
 
   return {
-    ...(template !== undefined && { template }),
-    ...(scope !== undefined && { scope }),
-    ...(repos !== undefined && { repos }),
     ...(hooks !== undefined && { hooks }),
-    ...(docker !== undefined && { docker }),
     ...(env !== undefined && { env }),
   };
 }
@@ -3143,22 +3206,6 @@ function parseWorkspaceEnvConfig(raw: unknown): WorkspaceEnvConfig | undefined {
   return {
     ...(required_commands?.length && { required_commands }),
     ...(required_python_modules?.length && { required_python_modules }),
-  };
-}
-
-/**
- * Parse a DockerWorkspaceConfig from raw YAML value.
- */
-function parseDockerWorkspaceConfig(raw: unknown): DockerWorkspaceConfig | undefined {
-  if (!isJsonObject(raw)) return undefined;
-  const obj = raw as Record<string, unknown>;
-  if (typeof obj.image !== 'string') return undefined;
-
-  return {
-    image: obj.image,
-    ...(typeof obj.timeout === 'number' && { timeout: obj.timeout }),
-    ...(typeof obj.memory === 'string' && { memory: obj.memory }),
-    ...(typeof obj.cpus === 'number' && { cpus: obj.cpus }),
   };
 }
 

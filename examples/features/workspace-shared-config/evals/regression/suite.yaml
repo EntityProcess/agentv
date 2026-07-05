@@ -1,6 +1,6 @@
-description: Regression eval that references the same shared workspace config file. Demonstrates
-  workspace config reuse across eval files in different directories.
-workspace: ../../workspace.yaml
+description: Regression eval that references the same shared environment recipe file. Demonstrates
+  environment recipe reuse across eval files in different directories.
+environment: file://../../workspace.yaml
 tags:
   - agent
 prompts:

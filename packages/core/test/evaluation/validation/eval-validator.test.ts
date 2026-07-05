@@ -942,8 +942,9 @@ tests:
   it('warns when imports.tests-style raw imports drop eval suite context', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-tests-import.eval.yaml'),
-      `workspace:
-  template: ./child-workspace
+      `environment:
+  type: host
+  workdir: ./child-workspace
 input: child suite input
 assert:
   - type: contains
@@ -957,8 +958,9 @@ tests:
     const filePath = path.join(tempDir, 'composition-parent-tests-import.eval.yaml');
     await writeFile(
       filePath,
-      `workspace:
-  template: ./parent-workspace
+      `environment:
+  type: host
+  workdir: ./parent-workspace
 tests:
   - include: composition-child-tests-import.eval.yaml
     type: tests
@@ -2199,17 +2201,15 @@ tests:
     });
   });
 
-  describe('workspace repo validation', () => {
-    it('errors when legacy source is set', async () => {
-      const filePath = path.join(tempDir, 'workspace-legacy-source-error.yaml');
+  describe('environment recipe validation and workspace hard-deprecation', () => {
+    it('errors when public suite workspace repos are authored', async () => {
+      const filePath = path.join(tempDir, 'workspace-repos-error.yaml');
       await writeFile(
         filePath,
         `workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
+      repo: https://github.com/org/repo.git
 tests:
   - id: test-1
     criteria: Goal
@@ -2224,13 +2224,13 @@ tests:
         result.errors.some(
           (e) =>
             e.severity === 'error' &&
-            e.message.includes('workspace.repos[].source has been removed'),
+            e.message.includes('workspace.repos has been removed from public eval YAML'),
         ),
       ).toBe(true);
     });
 
-    it('errors when legacy checkout is set in a per-case workspace', async () => {
-      const filePath = path.join(tempDir, 'workspace-legacy-checkout-error.yaml');
+    it('errors when public per-case workspace repos are authored', async () => {
+      const filePath = path.join(tempDir, 'case-workspace-repos-error.yaml');
       await writeFile(
         filePath,
         `tests:
@@ -2241,8 +2241,6 @@ tests:
       repos:
         - path: ./repo
           repo: https://github.com/org/repo.git
-          checkout:
-            ref: main
 `,
       );
 
@@ -2253,120 +2251,54 @@ tests:
         result.errors.some(
           (e) =>
             e.severity === 'error' &&
-            e.message.includes('workspace.repos[].checkout has been removed'),
+            e.message.includes('workspace.repos has been removed from public eval YAML'),
         ),
       ).toBe(true);
     });
 
-    it('errors when legacy clone is set', async () => {
-      const filePath = path.join(tempDir, 'workspace-legacy-clone-error.yaml');
-      await writeFile(
-        filePath,
-        `workspace:
-  repos:
-    - path: ./repo
-      repo: https://github.com/org/repo.git
-      clone:
-        depth: 1
-tests:
-  - id: test-1
-    criteria: Goal
-    input: "Query"
-`,
-      );
-
-      const result = await validateEvalFile(filePath);
-
-      expect(result.valid).toBe(false);
-      expect(
-        result.errors.some(
-          (e) =>
-            e.severity === 'error' &&
-            e.message.includes('workspace.repos[].clone has been removed'),
-        ),
-      ).toBe(true);
-    });
-
-    it('errors when removed repo acquisition fields are set', async () => {
-      const filePath = path.join(tempDir, 'workspace-removed-acquisition-fields-error.yaml');
-      await writeFile(
-        filePath,
-        `workspace:
-  repos:
-    - path: ./repo
-      repo: https://github.com/org/repo.git
-      type: git
-      resolve: custom
-      resolver: custom
-tests:
-  - id: test-1
-    criteria: Goal
-    input: "Query"
-`,
-      );
-
-      const result = await validateEvalFile(filePath);
-
-      expect(result.valid).toBe(false);
-      expect(
-        result.errors.some(
-          (e) =>
-            e.severity === 'error' && e.message.includes('workspace.repos[].type has been removed'),
-        ),
-      ).toBe(true);
-      expect(
-        result.errors.some(
-          (e) =>
-            e.severity === 'error' &&
-            e.message.includes('workspace.repos[].resolve has been removed'),
-        ),
-      ).toBe(true);
-      expect(
-        result.errors.some(
-          (e) =>
-            e.severity === 'error' &&
-            e.message.includes('workspace.repos[].resolver has been removed'),
-        ),
-      ).toBe(true);
-    });
-
-    it('errors when non-Docker repo omits repo identity', async () => {
-      const filePath = path.join(tempDir, 'workspace-missing-repo-error.yaml');
-      await writeFile(
-        filePath,
-        `workspace:
-  repos:
-    - path: ./repo
-      commit: main
-tests:
-  - id: test-1
-    criteria: Goal
-    input: "Query"
-`,
-      );
-
-      const result = await validateEvalFile(filePath);
-
-      expect(result.valid).toBe(false);
-      expect(
-        result.errors.some(
-          (e) =>
-            e.severity === 'error' && e.message.includes('repos[].repo is required for non-Docker'),
-        ),
-      ).toBe(true);
-    });
-
-    it('allows Docker repo hints without repo identity', async () => {
-      const filePath = path.join(tempDir, 'workspace-docker-repo-hint.yaml');
+    it('accepts host environment setup args with repo provenance', async () => {
+      const filePath = path.join(tempDir, 'environment-host.yaml');
       await writeFile(
         filePath,
         `prompts:
   - "{{ prompt }}"
-workspace:
-  docker:
-    image: swebench/sweb.eval.django__django:latest
-  repos:
-    - path: /testbed
+environment:
+  type: host
+  workdir: ./repo
+  setup:
+    command: ./setup.sh
+    args:
+      repo: https://github.com/org/repo.git
+      commit: main
+      sparse:
+        include: src/**
+tests:
+  - id: test-1
+    criteria: Goal
+    vars:
+      prompt: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
+    });
+
+    it('accepts Docker environment setup args without repo identity', async () => {
+      const filePath = path.join(tempDir, 'environment-docker.yaml');
+      await writeFile(
+        filePath,
+        `prompts:
+  - "{{ prompt }}"
+environment:
+  type: docker
+  image: swebench/sweb.eval.django__django:latest
+  workdir: /testbed
+  setup:
+    command: ./setup.sh
+    args:
       commit: abc123
 tests:
   - id: test-1
@@ -2382,22 +2314,13 @@ tests:
       expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
     });
 
-    it('errors when an external workspace file uses legacy source', async () => {
-      const workspaceFile = path.join(tempDir, 'external-workspace.yaml');
-      await writeFile(
-        workspaceFile,
-        `repos:
-  - path: ./repo
-    source:
-      type: git
-      url: https://github.com/org/repo.git
-`,
-      );
-
-      const filePath = path.join(tempDir, 'workspace-legacy-source-external-error.yaml');
+    it('errors when Docker environment omits both image and context', async () => {
+      const filePath = path.join(tempDir, 'environment-docker-missing-source.yaml');
       await writeFile(
         filePath,
-        `workspace: ./external-workspace.yaml
+        `environment:
+  type: docker
+  workdir: /testbed
 tests:
   - id: test-1
     criteria: Goal
@@ -2411,18 +2334,27 @@ tests:
       expect(
         result.errors.some(
           (e) =>
-            e.filePath === workspaceFile &&
             e.severity === 'error' &&
-            e.message.includes('workspace.repos[].source has been removed'),
+            e.location === 'environment' &&
+            e.message.includes("docker recipes must define either 'image' or 'context'"),
         ),
       ).toBe(true);
     });
 
-    it('rejects a missing external workspace file', async () => {
-      const filePath = path.join(tempDir, 'workspace-missing-external.yaml');
+    it('errors when an external environment file wraps the recipe', async () => {
+      const environmentFile = path.join(tempDir, 'external-environment.yaml');
+      await writeFile(
+        environmentFile,
+        `environment:
+  type: host
+  workdir: ./repo
+`,
+      );
+
+      const filePath = path.join(tempDir, 'environment-wrapped-external-error.yaml');
       await writeFile(
         filePath,
-        `workspace: ./does-not-exist.yaml
+        `environment: file://external-environment.yaml
 tests:
   - id: test-1
     criteria: Goal
@@ -2436,7 +2368,32 @@ tests:
       expect(
         result.errors.some(
           (e) =>
-            e.severity === 'error' && e.message.includes('Failed to load external workspace file'),
+            e.severity === 'error' &&
+            e.message.includes('must contain the environment recipe directly'),
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects a missing external environment file', async () => {
+      const filePath = path.join(tempDir, 'environment-missing-external.yaml');
+      await writeFile(
+        filePath,
+        `environment: file://does-not-exist.yaml
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.message.includes('environment recipe file not found or unreadable'),
         ),
       ).toBe(true);
     });

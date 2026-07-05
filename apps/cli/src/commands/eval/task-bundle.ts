@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
+  type EnvironmentRecipe,
   type EvalSourceReference,
   type EvalTest,
   type JsonObject,
@@ -116,6 +117,8 @@ export interface MaterializedEvalBundlePaths {
 type BundleReferenceKind =
   | EvalSourceReference['kind']
   | 'expected_output_file'
+  | 'environment_workdir'
+  | 'environment_setup_command'
   | 'workspace_template'
   | 'workspace_hook_command';
 
@@ -188,7 +191,13 @@ function referenceBucket(
   if (reference.kind === 'workspace_template') {
     return BUNDLE_WORKSPACES_DIRNAME;
   }
-  if (reference.kind === 'workspace_hook_command') {
+  if (reference.kind === 'environment_workdir') {
+    return BUNDLE_WORKSPACES_DIRNAME;
+  }
+  if (
+    reference.kind === 'workspace_hook_command' ||
+    reference.kind === 'environment_setup_command'
+  ) {
     return BUNDLE_SCRIPTS_DIRNAME;
   }
   return TASK_GRADERS_DIRNAME;
@@ -798,6 +807,14 @@ function serializeWorkspace(
   return rewritePathsDeep(portableWorkspace, rewrites) as Record<string, unknown>;
 }
 
+function serializeEnvironment(
+  environment: EnvironmentRecipe,
+  rewrites: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const { recipeFilePath: _recipeFilePath, ...portableEnvironment } = environment;
+  return rewritePathsDeep(portableEnvironment, rewrites) as Record<string, unknown>;
+}
+
 function buildPortableEvalCase(
   test: EvalTest,
   rewrites: ReadonlyMap<string, string>,
@@ -819,6 +836,9 @@ function buildPortableEvalCase(
   }
   if (test.workspace) {
     testCase.workspace = serializeWorkspace(test.workspace, rewrites);
+  }
+  if (test.environment) {
+    testCase.environment = serializeEnvironment(test.environment, rewrites);
   }
   if (test.metadata && Object.keys(test.metadata).length > 0) {
     testCase.metadata = rewritePathsDeep(test.metadata, rewrites);
@@ -892,6 +912,58 @@ async function maybeWorkspaceHookCommandReference(options: {
     resolvedPath,
     location: `workspace.hooks.${options.hookName}.command for test "${options.testId}"`,
   };
+}
+
+function environmentBaseDir(environment: EnvironmentRecipe, evalFileDir: string): string {
+  return environment.recipeFilePath ? path.dirname(environment.recipeFilePath) : evalFileDir;
+}
+
+async function collectEnvironmentReferences(
+  tests: readonly EvalTest[],
+  evalFileDir: string,
+): Promise<readonly BundleSourceReference[]> {
+  const references: BundleSourceReference[] = [];
+
+  for (const test of tests) {
+    const environment = test.environment;
+    if (!environment) {
+      continue;
+    }
+
+    if (environment.type === 'host') {
+      references.push({
+        kind: 'environment_workdir',
+        displayPath: environment.workdir,
+        resolvedPath: environment.workdir,
+        location: `environment.workdir for test "${test.id}"`,
+      });
+    }
+
+    const command = environment.setup?.command;
+    if (!command) {
+      continue;
+    }
+
+    const baseDir = environmentBaseDir(environment, evalFileDir);
+    const commandArgs = Array.isArray(command) ? command : [command];
+    for (const arg of commandArgs) {
+      const reference = await maybeWorkspaceHookCommandReference({
+        arg,
+        baseDir,
+        testId: test.id,
+        hookName: 'setup',
+      });
+      if (reference) {
+        references.push({
+          ...reference,
+          kind: 'environment_setup_command',
+          location: `environment.setup.command for test "${test.id}"`,
+        });
+      }
+    }
+  }
+
+  return references;
 }
 
 async function collectWorkspaceReferences(
@@ -1104,9 +1176,11 @@ export async function materializeEvalBundle(
 
   const evalFileDir = path.dirname(path.resolve(options.evalFilePath));
   const workspaceReferences = await collectWorkspaceReferences(options.tests, evalFileDir);
+  const environmentReferences = await collectEnvironmentReferences(options.tests, evalFileDir);
   const references: BundleSourceReference[] = [
     ...options.tests.flatMap((test) => test.source?.references ?? []),
     ...collectExpectedOutputReferences(options.tests),
+    ...environmentReferences,
     ...workspaceReferences.references,
   ];
 

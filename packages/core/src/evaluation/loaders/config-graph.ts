@@ -32,6 +32,9 @@ const REMOVED_TARGET_FIELDS = new Map([
   ['binary', "put process argv under 'config.command'."],
   ['args', "put process argv under 'config.command'."],
   ['arguments', "put process argv under 'config.command'."],
+  ['environment', 'environment recipes belong at suite/test/case scope, not under targets.'],
+  ['container', 'container/testbed setup belongs in an environment recipe, not under targets.'],
+  ['install', 'install/setup steps belong in environment.setup, not under targets.'],
   ['grader_target', "grader selection belongs in 'defaults.grader' or evaluator config."],
   ['workers', "target-level 'workers' is not general run policy; use 'execution.max_concurrency'."],
   [

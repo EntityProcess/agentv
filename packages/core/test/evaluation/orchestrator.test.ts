@@ -2949,7 +2949,7 @@ describe('required gates', () => {
   });
 });
 
-describe('workspace.template .code-workspace resolution', () => {
+describe('internal workspace.template .code-workspace resolution', () => {
   let testDir: string;
 
   afterEach(async () => {
@@ -2959,7 +2959,7 @@ describe('workspace.template .code-workspace resolution', () => {
     }
   });
 
-  it('threads workspaceFile to provider when workspace.template is a .code-workspace file', async () => {
+  it('threads workspaceFile to provider when internal workspace.template is a .code-workspace file', async () => {
     const { mkdtemp, writeFile, mkdir, rm } = await import('node:fs/promises');
     testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-resolve-'));
 
@@ -2974,7 +2974,7 @@ describe('workspace.template .code-workspace resolution', () => {
       output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
     });
 
-    // Point workspace.template at the .code-workspace FILE (not directory)
+    // Point internal workspace.template at the .code-workspace FILE (not directory)
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
@@ -3030,7 +3030,7 @@ describe('workspace.template .code-workspace resolution', () => {
       output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
     });
 
-    // Point workspace.template at the DIRECTORY (should auto-detect the single .code-workspace)
+    // Point internal workspace.template at the DIRECTORY (should auto-detect the single .code-workspace)
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
@@ -3794,7 +3794,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     const missingRepoBSource = path.join(testDir, 'missing-repo-b-source');
 
     // Runtime workspacePath points at an existing machine-local workspace. It is used
-    // as-is and does not materialize workspace.repos from the portable eval contract.
+    // as-is and does not materialize internal workspace.repos.
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {

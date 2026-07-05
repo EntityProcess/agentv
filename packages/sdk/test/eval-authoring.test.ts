@@ -47,18 +47,12 @@ describe('YAML-aligned eval authoring helpers', () => {
           vars: { input: 'Say hello.' },
           inputFiles: ['fixtures/prompt.md'],
           expectedOutput: 'Hello there',
-          workspace: {
-            hooks: {
-              beforeEach: {
-                command: 'git reset --hard',
-                timeoutMs: 5_000,
-              },
-              afterEach: {
-                command: ['git', 'status'],
-              },
-              afterAll: {
-                command: ['echo', 'done'],
-              },
+          environment: {
+            type: 'host',
+            workdir: 'fixtures/workspace',
+            setup: {
+              command: ['bun', 'scripts/setup.ts'],
+              timeoutSeconds: 5,
             },
           },
           mode: 'conversation',
@@ -139,18 +133,12 @@ describe('YAML-aligned eval authoring helpers', () => {
           vars: { input: 'Say hello.' },
           input_files: ['fixtures/prompt.md'],
           expected_output: 'Hello there',
-          workspace: {
-            hooks: {
-              before_each: {
-                command: 'git reset --hard',
-                timeout_ms: 5_000,
-              },
-              after_each: {
-                command: ['git', 'status'],
-              },
-              after_all: {
-                command: ['echo', 'done'],
-              },
+          environment: {
+            type: 'host',
+            workdir: 'fixtures/workspace',
+            setup: {
+              command: ['bun', 'scripts/setup.ts'],
+              timeout_seconds: 5,
             },
           },
           mode: 'conversation',

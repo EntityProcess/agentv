@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../../../..');
 const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 
-describe('workspace deps', () => {
+describe('workspace deps legacy compatibility command', () => {
   it('exits non-zero when an eval uses removed repo schema fields', async () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'agentv-workspace-deps-test-'));
     try {

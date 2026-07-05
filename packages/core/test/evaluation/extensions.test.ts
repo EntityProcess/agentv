@@ -123,7 +123,7 @@ tests:
     ]);
   });
 
-  it('runs lifecycle file hooks and exposes staged agent-rules paths to providers and results', async () => {
+  it('runs lifecycle file hooks with an internal runtime workspace and exposes staged agent-rules paths', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-extensions-run-'));
     tempDirs.push(dir);
     await mkdir(path.join(dir, 'template'), { recursive: true });
@@ -172,8 +172,6 @@ export function afterAll(context) {
     hook: beforeAll
     skills: rules/skills
     rules: rules/AGENTS.md
-workspace:
-  template: template
 prompts:
   - "{{ input }}"
 tests:
@@ -185,6 +183,10 @@ tests:
       'utf8',
     );
     const suite = await loadTestSuite(path.join(dir, 'suite.eval.yaml'), dir);
+    const evalCases = suite.tests.map((test) => ({
+      ...test,
+      workspace: { template: path.join(dir, 'template') },
+    }));
     const provider = new CapturingProvider();
 
     const results = await runEvaluation({
@@ -193,7 +195,7 @@ tests:
       target,
       providerFactory: () => provider,
       evaluators: passEvaluators,
-      evalCases: suite.tests,
+      evalCases,
       maxConcurrency: 1,
     });
 
@@ -221,7 +223,7 @@ tests:
     expect(results[0].afterAllOutput).toContain('afterAll output');
   });
 
-  it('runs afterEach extensions and preserves extension metadata for conversation cases', async () => {
+  it('runs afterEach extensions with an internal runtime workspace for conversation cases', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-extensions-conversation-'));
     tempDirs.push(dir);
     await mkdir(path.join(dir, 'template'), { recursive: true });
@@ -246,8 +248,6 @@ export function afterEach(context) {
     hook: beforeAll
     skills: rules/skills
   - file://hooks.mjs:afterEach
-workspace:
-  template: template
 prompts:
   - "{{ input }}"
 tests:
@@ -261,6 +261,10 @@ tests:
       'utf8',
     );
     const suite = await loadTestSuite(path.join(dir, 'suite.eval.yaml'), dir);
+    const evalCases = suite.tests.map((test) => ({
+      ...test,
+      workspace: { template: path.join(dir, 'template') },
+    }));
     const provider = new CapturingProvider();
 
     const results = await runEvaluation({
@@ -269,7 +273,7 @@ tests:
       target,
       providerFactory: () => provider,
       evaluators: passEvaluators,
-      evalCases: suite.tests,
+      evalCases,
       maxConcurrency: 1,
     });
 
@@ -282,7 +286,7 @@ tests:
     expect(results[0].afterEachOutput).toContain('conversation afterEach output');
   });
 
-  it('scopes beforeAll extension state to the suite workspace', async () => {
+  it('scopes beforeAll extension state to the internal suite workspace', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-extensions-suite-'));
     tempDirs.push(dir);
     const previousDataDir = process.env.AGENTV_DATA_DIR;
@@ -298,11 +302,6 @@ tests:
   - id: agentv:agent-rules
     hook: beforeAll
     skills: rules/skills
-workspace:
-  repos:
-    - path: ./repo-a
-      repo: file://${sourceRepo}
-      commit: ${commit}
 prompts:
   - "{{ input }}"
 tests:
@@ -318,6 +317,12 @@ tests:
         'utf8',
       );
       const suite = await loadTestSuite(path.join(dir, 'suite.eval.yaml'), dir);
+      const evalCases = suite.tests.map((test) => ({
+        ...test,
+        workspace: {
+          repos: [{ path: './repo-a', repo: `file://${sourceRepo}`, commit }],
+        },
+      }));
       const requests: ProviderRequest[] = [];
       const provider = new CapturingProvider((request) => {
         requests.push(request);
@@ -329,7 +334,7 @@ tests:
         target,
         providerFactory: () => provider,
         evaluators: passEvaluators,
-        evalCases: suite.tests,
+        evalCases,
         maxConcurrency: 2,
       });
 
@@ -353,7 +358,7 @@ tests:
     }
   }, 30_000);
 
-  it('refreshes the baseline after beforeEach extensions mutate files without state', async () => {
+  it('refreshes the internal workspace baseline after beforeEach extensions mutate files without state', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-extensions-baseline-'));
     tempDirs.push(dir);
     await mkdir(path.join(dir, 'template'), { recursive: true });
@@ -372,8 +377,6 @@ export function beforeEach(context) {
       path.join(dir, 'suite.eval.yaml'),
       `extensions:
   - file://hooks.mjs:beforeEach
-workspace:
-  template: template
 prompts:
   - "{{ input }}"
 tests:
@@ -385,6 +388,10 @@ tests:
       'utf8',
     );
     const suite = await loadTestSuite(path.join(dir, 'suite.eval.yaml'), dir);
+    const evalCases = suite.tests.map((test) => ({
+      ...test,
+      workspace: { template: path.join(dir, 'template') },
+    }));
     const provider = new CapturingProvider((request) => {
       if (!request.cwd) {
         throw new Error('cwd was not provided');
@@ -398,7 +405,7 @@ tests:
       target,
       providerFactory: () => provider,
       evaluators: passEvaluators,
-      evalCases: suite.tests,
+      evalCases,
       maxConcurrency: 1,
     });
 

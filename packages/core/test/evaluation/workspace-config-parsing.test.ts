@@ -234,7 +234,7 @@ tests:
     expect(cases[0].workspace?.hooks?.before_all?.cwd).toBe(path.join(testDir, 'scripts'));
   });
 
-  it('should parse workspace template path', async () => {
+  it('rejects public workspace template authoring', async () => {
     const evalFile = path.join(testDir, 'workspace-template.yaml');
     await writeFile(
       evalFile,
@@ -250,13 +250,13 @@ tests:
 `,
     );
 
-    const cases = await loadTests(evalFile, testDir);
-    expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.template).toBe(path.join(testDir, 'workspace-template'));
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      /workspace\.template has been removed from public eval YAML/,
+    );
   });
 
-  it('should parse Docker repos without source (prebuilt image)', async () => {
-    const evalFile = path.join(testDir, 'workspace-docker-no-source.yaml');
+  it('parses Docker environment recipes without repo identity', async () => {
+    const evalFile = path.join(testDir, 'environment-docker-no-source.yaml');
     await writeFile(
       evalFile,
       `prompts:
@@ -264,11 +264,13 @@ tests:
 tests:
   - id: docker-no-source
     criteria: Should work
-    workspace:
-      docker:
-        image: swebench/sweb.eval.django__django:latest
-      repos:
-        - path: /testbed
+    environment:
+      type: docker
+      image: swebench/sweb.eval.django__django:latest
+      workdir: /testbed
+      setup:
+        command: ./setup.sh
+        args:
           commit: abc123def
     vars:
       input: Do something
@@ -277,17 +279,19 @@ tests:
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.docker).toEqual({
+    expect(cases[0].environment).toMatchObject({
+      type: 'docker',
       image: 'swebench/sweb.eval.django__django:latest',
+      workdir: '/testbed',
+      setup: {
+        command: './setup.sh',
+        args: { commit: 'abc123def' },
+      },
     });
-    expect(cases[0].workspace?.repos).toHaveLength(1);
-    expect(cases[0].workspace?.repos?.[0].path).toBe('/testbed');
-    expect(cases[0].workspace?.repos?.[0].repo).toBeUndefined();
-    expect(cases[0].workspace?.repos?.[0].commit).toBe('abc123def');
   });
 
-  it('should parse Docker repos with path + commit but no repo', async () => {
-    const evalFile = path.join(testDir, 'workspace-repo-path-checkout-only.yaml');
+  it('parses Docker environment setup args with path + commit metadata', async () => {
+    const evalFile = path.join(testDir, 'environment-path-checkout-only.yaml');
     await writeFile(
       evalFile,
       `prompts:
@@ -295,11 +299,13 @@ tests:
 tests:
   - id: path-checkout-only
     criteria: Should work
-    workspace:
-      docker:
-        image: myimage:latest
-      repos:
-        - path: /workspace/project
+    environment:
+      type: docker
+      image: myimage:latest
+      workdir: /workspace/project
+      setup:
+        command: ./setup.sh
+        args:
           commit: v2.0.0
     vars:
       input: Do something
@@ -308,12 +314,15 @@ tests:
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.repos?.[0].path).toBe('/workspace/project');
-    expect(cases[0].workspace?.repos?.[0].repo).toBeUndefined();
-    expect(cases[0].workspace?.repos?.[0].commit).toBe('v2.0.0');
+    expect(cases[0].environment).toMatchObject({
+      type: 'docker',
+      image: 'myimage:latest',
+      workdir: '/workspace/project',
+      setup: { args: { commit: 'v2.0.0' } },
+    });
   });
 
-  it('parses workspace repos from YAML', async () => {
+  it('rejects public workspace repos authoring', async () => {
     const evalFile = path.join(testDir, 'workspace-repos.yaml');
     await writeFile(
       evalFile,
@@ -336,14 +345,9 @@ tests:
 `,
     );
 
-    const cases = await loadTests(evalFile, testDir);
-    const workspace = cases[0].workspace;
-    expect(workspace?.repos).toHaveLength(1);
-    expect(workspace?.repos?.[0].path).toBe('./repo-a');
-    expect(workspace?.repos?.[0].repo).toBe('https://github.com/org/repo.git');
-    expect(workspace?.repos?.[0].commit).toBe('main');
-    expect(workspace?.repos?.[0].ancestor).toBe(1);
-    expect(workspace?.repos?.[0].sparse).toEqual(['src/**']);
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      /workspace\.repos has been removed from public eval YAML/,
+    );
   });
 
   it('rejects removed workspace repo resolver field', async () => {
@@ -367,11 +371,11 @@ tests:
     );
 
     await expect(loadTests(evalFile, testDir)).rejects.toThrow(
-      'workspace.repos[].resolver has been removed',
+      /workspace\.repos has been removed from public eval YAML/,
     );
   });
 
-  it('parses workspace hooks after_each reset config', async () => {
+  it('parses legacy internal workspace hooks after_each reset config', async () => {
     const evalFile = path.join(testDir, 'workspace-reset.yaml');
     await writeFile(
       evalFile,
@@ -394,16 +398,13 @@ tests:
     expect(cases[0].workspace?.hooks?.after_each?.reset).toBe('fast');
   });
 
-  it('parses workspace scope field', async () => {
+  it('rejects public workspace scope authoring', async () => {
     const evalFile = path.join(testDir, 'workspace-scope.yaml');
     await writeFile(
       evalFile,
       `description: test
 workspace:
   scope: attempt
-  repos:
-    - path: ./repo-a
-      repo: https://github.com/org/repo.git
 prompts:
   - "{{ input }}"
 tests:
@@ -414,8 +415,9 @@ tests:
 `,
     );
 
-    const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.scope).toBe('attempt');
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      /workspace\.scope has been removed from public eval YAML/,
+    );
   });
 
   it('rejects removed workspace isolation field', async () => {
@@ -574,11 +576,6 @@ tests:
       await writeFile(
         workspaceFile,
         `
-template: ./workspace-template
-repos:
-  - path: ./my-repo
-    repo: https://github.com/org/repo.git
-    commit: main
 hooks:
   after_each:
     reset: fast
@@ -609,11 +606,6 @@ tests:
       // Both cases inherit the external workspace config
       for (const c of cases) {
         expect(c.workspace).toBeDefined();
-        // template resolved relative to workspace file's directory
-        expect(c.workspace?.template).toBe(path.join(wsDir, 'workspace-template'));
-        expect(c.workspace?.repos).toHaveLength(1);
-        expect(c.workspace?.repos?.[0].repo).toBe('https://github.com/org/repo.git');
-        expect(c.workspace?.repos?.[0].commit).toBe('main');
         expect(c.workspace?.hooks?.after_each?.reset).toBe('fast');
       }
     });
@@ -626,7 +618,6 @@ tests:
       await writeFile(
         workspaceFile,
         `
-template: ./my-template
 hooks:
   before_all:
     command: ["node", "setup.mjs"]
@@ -650,8 +641,6 @@ tests:
 
       const cases = await loadTests(evalFile, testDir);
       expect(cases).toHaveLength(1);
-      // template resolved relative to workspace file dir (nested/config/)
-      expect(cases[0].workspace?.template).toBe(path.join(wsDir, 'my-template'));
       // cwd resolved relative to workspace file dir
       expect(cases[0].workspace?.hooks?.before_all?.cwd).toBe(path.join(wsDir, 'scripts'));
       // workspaceFileDir is set to the workspace file's directory
@@ -736,7 +725,7 @@ tests:
       );
     });
 
-    it('should throw a clear error when external workspace file wraps config under workspace', async () => {
+    it('should throw a clear error when legacy external workspace file wraps config under workspace', async () => {
       const wsDir = path.join(testDir, 'wrapped-workspace');
       await mkdir(wsDir, { recursive: true });
 
@@ -778,7 +767,6 @@ tests:
       await writeFile(
         workspaceFile,
         `
-template: ./base-template
 hooks:
   before_all:
     command: ["node", "base-setup.mjs"]
@@ -820,16 +808,14 @@ tests:
         'node',
         'base-setup.mjs',
       ]);
-      expect(defaultCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
       expect(defaultCase?.workspace?.hooks?.after_each?.reset).toBe('fast');
 
-      // override-case: before_all replaced, template and after_each inherited
+      // override-case: before_all replaced, after_each inherited
       const overrideCase = cases.find((c) => c.id === 'override-case');
       expect(overrideCase?.workspace?.hooks?.before_all?.command).toEqual([
         'node',
         'custom-setup.mjs',
       ]);
-      expect(overrideCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
       expect(overrideCase?.workspace?.hooks?.after_each?.reset).toBe('fast');
     });
   });

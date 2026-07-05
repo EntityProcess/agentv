@@ -1,8 +1,8 @@
 name: workspace-artifact
 description: Verify file_changes captures generated artifacts (CSV) under workspace_path
-workspace:
-  scope: suite
-  template: ../workspace-template
+environment:
+  type: host
+  workdir: ../workspace-template
 target: mock_csv_agent
 prompts:
   - "{{ input }}"

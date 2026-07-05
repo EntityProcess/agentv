@@ -2,9 +2,9 @@ name: tool-calls-template
 description: Rubric assertions with {{ tool_calls }} for skill verification
 extensions:
   - agentv:agent-rules
-workspace:
-  scope: suite
-  template: ../workspace/
+environment:
+  type: host
+  workdir: ../workspace/
 prompts:
   - "{{ input }}"
 tests:

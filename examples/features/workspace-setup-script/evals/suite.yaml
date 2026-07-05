@@ -2,11 +2,13 @@ description: Demonstrates using a beforeAll lifecycle extension to clean and re-
   allagents workspace before evaluation runs.
 extensions:
   - file://../scripts/workspace-setup.mjs:beforeAll
-workspace:
-  scope: suite
-  template: ../workspace-template
-  repos:
-    - path: ./my-repo
+environment:
+  type: host
+  workdir: ../workspace-template
+  setup:
+    command: ../scripts/materialize-repo.sh
+    args:
+      path: ./my-repo
       repo: https://github.com/EntityProcess/agentv.git
       commit: main
 tags:
