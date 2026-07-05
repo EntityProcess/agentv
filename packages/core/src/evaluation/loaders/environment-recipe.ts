@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -16,7 +17,10 @@ export type EnvironmentSetupConfig = {
 };
 
 type EnvironmentRecipeSource = {
+  readonly authoredReference?: string;
   readonly recipeFilePath?: string;
+  readonly recipeFileSha256?: string;
+  readonly recipeSha256?: string;
   readonly sourceDir: string;
 };
 
@@ -73,8 +77,10 @@ export async function resolveEnvironmentRecipe(
     }
     const recipePath = resolveReferencePath(raw, evalFileDir);
     let parsed: unknown;
+    let recipeText: string;
     try {
-      parsed = interpolateEnv(parseYamlValue(await readFile(recipePath, 'utf8')), process.env);
+      recipeText = await readFile(recipePath, 'utf8');
+      parsed = interpolateEnv(parseYamlValue(recipeText), process.env);
     } catch (error) {
       throw new Error(
         `${location} recipe file not found or unreadable: ${raw} (${(error as Error).message})`,
@@ -85,10 +91,17 @@ export async function resolveEnvironmentRecipe(
         `${location} recipe file ${recipePath} must contain the environment recipe directly, not an object wrapped in 'environment'.`,
       );
     }
-    return parseEnvironmentRecipe(parsed, path.dirname(recipePath), location, recipePath);
+    return parseEnvironmentRecipe(parsed, path.dirname(recipePath), location, {
+      authoredReference: raw,
+      recipeFilePath: recipePath,
+      recipeFileSha256: sha256(recipeText),
+      recipeSha256: sha256(stableJson(parsed)),
+    });
   }
 
-  return parseEnvironmentRecipe(raw, evalFileDir, location);
+  return parseEnvironmentRecipe(raw, evalFileDir, location, {
+    recipeSha256: sha256(stableJson(raw)),
+  });
 }
 
 function resolveReferencePath(reference: string, evalFileDir: string): string {
@@ -100,7 +113,12 @@ function parseEnvironmentRecipe(
   raw: unknown,
   baseDir: string,
   location: string,
-  recipeFilePath?: string,
+  source: {
+    readonly authoredReference?: string;
+    readonly recipeFilePath?: string;
+    readonly recipeFileSha256?: string;
+    readonly recipeSha256: string;
+  },
 ): EnvironmentRecipe {
   if (!isJsonObject(raw)) {
     throw new Error(`${location} must be an object with type: host|docker and workdir.`);
@@ -120,9 +138,14 @@ function parseEnvironmentRecipe(
       type,
       workdir: resolveHostPath(workdir, baseDir),
       sourceDir: baseDir,
+      recipeSha256: source.recipeSha256,
       ...(setup !== undefined && { setup }),
       ...(env !== undefined && { env }),
-      ...(recipeFilePath !== undefined && { recipeFilePath }),
+      ...(source.authoredReference !== undefined && {
+        authoredReference: source.authoredReference,
+      }),
+      ...(source.recipeFilePath !== undefined && { recipeFilePath: source.recipeFilePath }),
+      ...(source.recipeFileSha256 !== undefined && { recipeFileSha256: source.recipeFileSha256 }),
     };
   }
 
@@ -149,6 +172,7 @@ function parseEnvironmentRecipe(
     type,
     workdir,
     sourceDir: baseDir,
+    recipeSha256: source.recipeSha256,
     ...(context !== undefined && { context: resolveHostPath(context, baseDir) }),
     ...(dockerfile !== undefined && { dockerfile: resolveHostPath(dockerfile, baseDir) }),
     ...(image !== undefined && { image }),
@@ -157,8 +181,30 @@ function parseEnvironmentRecipe(
     ...(parseMounts(raw.mounts, `${location}.mounts`, baseDir) ?? {}),
     ...(secrets !== undefined && { secrets }),
     ...(setup !== undefined && { setup }),
-    ...(recipeFilePath !== undefined && { recipeFilePath }),
+    ...(source.authoredReference !== undefined && { authoredReference: source.authoredReference }),
+    ...(source.recipeFilePath !== undefined && { recipeFilePath: source.recipeFilePath }),
+    ...(source.recipeFileSha256 !== undefined && { recipeFileSha256: source.recipeFileSha256 }),
   };
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
+    return `{${entries
+      .filter(([, entry]) => entry !== undefined)
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function resolveHostPath(value: string, baseDir: string): string {

@@ -45,6 +45,7 @@ The default local layout is:
         graders/
       sample-1/
         result.json
+        environment.json           # optional environment recipe provenance
         grading.json
         metrics.json
         target-execution.json     # optional target runtime envelope
@@ -97,6 +98,7 @@ reserved for rebuildable local state and are skipped by run discovery.
 | `summary.json` | Aggregate run metadata and rollups: run id, experiment label, tags, runtime source, counts, pass rate, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
 | `.internal/index.jsonl` | Canonical per-run row index: one row per case/result aggregate, with identity fields, filter metadata, scores, status, and explicit run-relative paths to sidecars. | Filtering, compare/trend inputs, Dashboard detail routing, rerun/resume lookup, export adapters, and artifact discovery. |
 | `result.json` | Compact per-attempt manifest for one attempt directory, including AgentV `execution_status` and `verdict`. | Loading one attempt without scanning the whole run index. |
+| `environment.json` / `environment_path` | Redacted environment recipe provenance: authored inline/file reference, resolved recipe hash, host or Docker type, resolved workdir, setup command and typed args, setup log output/error, Docker context/image/digest fields when available, and repo provenance only when authored or emitted by setup. Index rows carry `environment_path` plus a compact `environment` summary; large setup logs stay in the sidecar. | Reproducing and reviewing the testbed without treating setup side effects as row metadata. Repository identity is opaque unless the environment recipe or setup output states it explicitly. |
 | `grading.json` | Grader outputs, `assertion_results`, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
 | `metrics.json` | Duration, token usage, cost, execution status, trajectory, and derived executor behavior such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, cost/latency reporting, metric-style graders, adapter projections, and lightweight analysis. |
 | `target-execution.json` | Provider-neutral target runtime envelope, including command, cwd, timeout, exit code or signal, error kind, timestamps, log truncation metadata, and artifact paths. | Distinguishing target task failures, target crashes, timeouts, cancellation, malformed provider output, and sandbox/runner failures from AgentV orchestrator failures. |

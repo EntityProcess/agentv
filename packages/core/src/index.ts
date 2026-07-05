@@ -87,6 +87,7 @@ export {
   type AggregateGradingArtifact,
   type GradingArtifact,
   type IndexArtifactEntry,
+  type EnvironmentSummaryWire,
   type ResultIndexArtifact,
   type RunRuntimeConfigSource,
   type RunRuntimeSourceMetadata,

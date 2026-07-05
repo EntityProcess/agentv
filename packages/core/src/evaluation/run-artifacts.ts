@@ -60,6 +60,7 @@ import {
 import { type TokenUsage, type TraceSummary, buildTraceFromMessages } from './trace.js';
 import { type TranscriptSummaryWire, buildTranscriptSummary } from './transcript-summary.js';
 import type {
+  EnvironmentRecipeProvenance,
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
@@ -79,6 +80,7 @@ export const CROSS_RUN_CASES_INDEX_FILENAME = 'cases.jsonl';
 const TARGET_EXECUTION_ARTIFACT_PATH = 'target-execution.json';
 const TARGET_STDOUT_ARTIFACT_PATH = 'stdout.txt';
 const TARGET_STDERR_ARTIFACT_PATH = 'stderr.txt';
+const ENVIRONMENT_ARTIFACT_PATH = 'environment.json';
 
 type TargetExecutionWire = Record<string, unknown>;
 
@@ -119,6 +121,26 @@ export interface RunRuntimeSourceMetadata {
   readonly config_source: RunRuntimeConfigSource;
   readonly eval_files: readonly string[];
   readonly wrapper_eval_file?: string;
+}
+
+export interface EnvironmentSummaryWire {
+  readonly schema_version: 'agentv.environment_summary.v1';
+  readonly type: EnvironmentRecipeProvenance['type'];
+  readonly workdir: string;
+  readonly recipe_sha256: string;
+  readonly authored_kind: EnvironmentRecipeProvenance['authoredKind'];
+  readonly authored_reference?: string;
+  readonly recipe_file_path?: string;
+  readonly recipe_file_sha256?: string;
+  readonly setup_status?: string;
+  readonly environment_path?: string;
+  readonly docker?: {
+    readonly context?: string;
+    readonly dockerfile?: string;
+    readonly image?: string;
+    readonly image_digest?: string;
+    readonly build_id?: string;
+  };
 }
 
 export function buildTestTargetKey(testId?: string, target?: string, variant?: string): string {
@@ -219,8 +241,15 @@ export async function aggregateRunDir(
     runtimeSource,
     tags,
   );
+  const summaryToWrite =
+    previousMetadata.environments && !summary.metadata.environments
+      ? {
+          ...summary,
+          metadata: { ...summary.metadata, environments: previousMetadata.environments },
+        }
+      : summary;
   const summaryPath = path.join(runDir, RUN_SUMMARY_FILENAME);
-  await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  await writeFile(summaryPath, `${JSON.stringify(summaryToWrite, null, 2)}\n`, 'utf8');
 
   const targetSet = new Set(results.map((r) => r.target ?? 'unknown'));
   return { summaryPath, testCount: results.length, targetCount: targetSet.size };
@@ -280,6 +309,7 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
   plannedTestCount?: number;
   runtimeSource?: RunRuntimeSourceMetadata;
   tags?: Record<string, string>;
+  environments?: readonly EnvironmentSummaryWire[];
 }> {
   try {
     const raw = await readFile(summaryPath, 'utf8');
@@ -288,6 +318,7 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
         planned_test_count?: number;
         runtime_source?: RunRuntimeSourceMetadata;
         tags?: unknown;
+        environments?: unknown;
       };
     };
     const value = parsed.metadata?.planned_test_count;
@@ -297,14 +328,37 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
       ? parsed.metadata.runtime_source
       : undefined;
     const tags = normalizeStringRecord(parsed.metadata?.tags);
+    const environments = normalizeEnvironmentSummaries(parsed.metadata?.environments);
     return {
       ...(plannedTestCount !== undefined && { plannedTestCount }),
       ...(runtimeSource !== undefined && { runtimeSource }),
       ...(tags !== undefined && { tags }),
+      ...(environments !== undefined && { environments }),
     };
   } catch {
     return {};
   }
+}
+
+function normalizeEnvironmentSummaries(
+  value: unknown,
+): readonly EnvironmentSummaryWire[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const summaries = value.filter((entry): entry is EnvironmentSummaryWire => {
+    if (!isRecord(entry)) {
+      return false;
+    }
+    return (
+      entry.schema_version === 'agentv.environment_summary.v1' &&
+      (entry.type === 'host' || entry.type === 'docker') &&
+      typeof entry.workdir === 'string' &&
+      typeof entry.recipe_sha256 === 'string' &&
+      (entry.authored_kind === 'inline' || entry.authored_kind === 'file')
+    );
+  });
+  return summaries.length > 0 ? summaries : undefined;
 }
 
 /**
@@ -494,6 +548,7 @@ export interface RunSummaryArtifact {
      * experiment namespace. Absent when no map-form tags were resolved.
      */
     readonly tags?: Record<string, string>;
+    readonly environments?: readonly EnvironmentSummaryWire[];
   };
   readonly run_summary: Record<
     string,
@@ -566,6 +621,8 @@ export interface IndexArtifactEntry {
   readonly transcript_summary?: TranscriptSummaryWire;
   readonly metrics_path?: string;
   readonly file_changes_path?: string;
+  readonly environment_path?: string;
+  readonly environment?: EnvironmentSummaryWire;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly sample_index?: number;
   readonly retry_index?: number;
@@ -624,6 +681,8 @@ export interface AgentVRunResultArtifact {
   readonly model: string;
   readonly grading_path: string;
   readonly metrics_path: string;
+  readonly environment_path?: string;
+  readonly environment?: EnvironmentSummaryWire;
   readonly file_changes_path?: string;
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
@@ -1187,6 +1246,80 @@ function buildResultTranscriptSummary(result: EvaluationResult): TranscriptSumma
   });
 }
 
+function environmentSummary(
+  provenance: EnvironmentRecipeProvenance | undefined,
+  environmentPath?: string,
+): EnvironmentSummaryWire | undefined {
+  if (!provenance) {
+    return undefined;
+  }
+  const lastSetup = provenance.setupExecutions?.at(-1);
+  return dropUndefined({
+    schema_version: 'agentv.environment_summary.v1',
+    type: provenance.type,
+    workdir: provenance.workdir,
+    recipe_sha256: provenance.recipeSha256,
+    authored_kind: provenance.authoredKind,
+    authored_reference: provenance.authoredReference,
+    recipe_file_path: provenance.recipeFilePath,
+    recipe_file_sha256: provenance.recipeFileSha256,
+    setup_status: lastSetup?.status,
+    environment_path: environmentPath,
+    docker: provenance.docker
+      ? dropUndefined({
+          context: provenance.docker.context,
+          dockerfile: provenance.docker.dockerfile,
+          image: provenance.docker.image,
+          image_digest: provenance.docker.imageDigest,
+          build_id: provenance.docker.buildId,
+        })
+      : undefined,
+  }) as unknown as EnvironmentSummaryWire;
+}
+
+function runEnvironmentSummaries(
+  results: readonly EvaluationResult[],
+): readonly EnvironmentSummaryWire[] | undefined {
+  const summaries = new Map<string, EnvironmentSummaryWire>();
+  for (const result of results) {
+    for (const trial of materializedRunTrials(result)) {
+      const summary = environmentSummary(trial.result?.environmentProvenance);
+      if (summary) {
+        summaries.set(
+          JSON.stringify({
+            type: summary.type,
+            workdir: summary.workdir,
+            recipe_sha256: summary.recipe_sha256,
+            authored_reference: summary.authored_reference,
+          }),
+          summary,
+        );
+      }
+    }
+  }
+  return summaries.size > 0 ? [...summaries.values()] : undefined;
+}
+
+async function writeEnvironmentArtifact(params: {
+  readonly result: EvaluationResult;
+  readonly sampleDir: string;
+}): Promise<{ environmentPath?: string; environment?: EnvironmentSummaryWire }> {
+  const provenance = params.result.environmentProvenance;
+  if (!provenance) {
+    return {};
+  }
+  const environmentPath = path.join(params.sampleDir, ENVIRONMENT_ARTIFACT_PATH);
+  await writeFile(
+    environmentPath,
+    `${JSON.stringify(toSnakeCaseDeep(provenance), null, 2)}\n`,
+    'utf8',
+  );
+  return {
+    environmentPath,
+    environment: environmentSummary(provenance, `./${ENVIRONMENT_ARTIFACT_PATH}`),
+  };
+}
+
 function buildAgentVRunResultArtifact(params: {
   readonly trial: TrialResult;
   readonly result: EvaluationResult;
@@ -1202,6 +1335,8 @@ function buildAgentVRunResultArtifact(params: {
   readonly targetExecutionPath?: string;
   readonly stdoutPath?: string;
   readonly stderrPath?: string;
+  readonly environmentPath?: string;
+  readonly environment?: EnvironmentSummaryWire;
 }): AgentVRunResultArtifact {
   const metrics = params.metricsArtifact.metrics;
   const fileChangesPath = params.hasFileChanges
@@ -1223,6 +1358,8 @@ function buildAgentVRunResultArtifact(params: {
     model: params.result.target ?? 'unknown',
     grading_path: './grading.json',
     metrics_path: `./${CANONICAL_METRICS_ARTIFACT_PATH}`,
+    environment_path: params.environmentPath ? `./${params.environmentPath}` : undefined,
+    environment: params.environment,
     file_changes_path: fileChangesPath,
     transcript_path: params.hasTranscript ? `./${CANONICAL_TRANSCRIPT_ARTIFACT_PATH}` : undefined,
     transcript_raw_path: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
@@ -1414,6 +1551,10 @@ async function writeTrialRunArtifacts(params: {
     fileChangesArtifactPath: fileChangesPath ? CANONICAL_FILE_CHANGES_ARTIFACT_PATH : undefined,
     timing,
   });
+  const environmentArtifact = await writeEnvironmentArtifact({
+    result,
+    sampleDir: runDir,
+  });
 
   await writeFile(
     path.join(runDir, 'result.json'),
@@ -1431,6 +1572,10 @@ async function writeTrialRunArtifacts(params: {
           : undefined,
         stdoutPath: targetExecutionArtifacts.stdoutPath ? TARGET_STDOUT_ARTIFACT_PATH : undefined,
         stderrPath: targetExecutionArtifacts.stderrPath ? TARGET_STDERR_ARTIFACT_PATH : undefined,
+        environmentPath: environmentArtifact.environmentPath
+          ? ENVIRONMENT_ARTIFACT_PATH
+          : undefined,
+        environment: environmentArtifact.environment,
       }),
       null,
       2,
@@ -1943,6 +2088,7 @@ export function buildRunSummaryArtifact(
       runtime_source: runtimeSource,
       planned_test_count: plannedTestCount,
       tags: tags && Object.keys(tags).length > 0 ? tags : undefined,
+      environments: runEnvironmentSummaries(results),
     },
     run_summary: runSummary,
     per_grader_summary: perEvaluatorSummary,
@@ -2252,6 +2398,7 @@ export function buildIndexArtifactEntry(
     targetExecutionPath?: string;
     stdoutPath?: string;
     stderrPath?: string;
+    environmentPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
@@ -2356,6 +2503,15 @@ export function buildIndexArtifactEntry(
     file_changes_path: options.fileChangesPath
       ? toRelativeArtifactPath(options.outputDir, options.fileChangesPath)
       : undefined,
+    environment_path: options.environmentPath
+      ? toRelativeArtifactPath(options.outputDir, options.environmentPath)
+      : undefined,
+    environment: environmentSummary(
+      result.environmentProvenance,
+      options.environmentPath
+        ? toRelativeArtifactPath(options.outputDir, options.environmentPath)
+        : undefined,
+    ),
     raw_provider_log_path: options.rawProviderLogPath
       ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
       : undefined,
@@ -3180,6 +3336,10 @@ export async function writePerTestArtifacts(
       isSingleRun && result.targetExecution
         ? path.join(singleRunDir, TARGET_STDERR_ARTIFACT_PATH)
         : undefined;
+    const singleEnvironmentPath =
+      isSingleRun && result.environmentProvenance
+        ? path.join(singleRunDir, ENVIRONMENT_ARTIFACT_PATH)
+        : undefined;
 
     const extraIndexFields = await collectAdditionalIndexFields(
       result,
@@ -3204,6 +3364,7 @@ export async function writePerTestArtifacts(
         targetExecutionPath: singleTargetExecutionPath,
         stdoutPath: singleStdoutPath,
         stderrPath: singleStderrPath,
+        environmentPath: singleEnvironmentPath,
         extraIndexFields,
         runtimeSource: options?.runtimeSource,
         projectionIdentity,
@@ -3309,6 +3470,10 @@ export async function writeArtifactsFromResults(
       isSingleRun && result.targetExecution
         ? path.join(singleRunDir, TARGET_STDERR_ARTIFACT_PATH)
         : undefined;
+    const singleEnvironmentPath =
+      isSingleRun && result.environmentProvenance
+        ? path.join(singleRunDir, ENVIRONMENT_ARTIFACT_PATH)
+        : undefined;
     return {
       result,
       testDir,
@@ -3324,6 +3489,7 @@ export async function writeArtifactsFromResults(
       singleTargetExecutionPath,
       singleStdoutPath,
       singleStderrPath,
+      singleEnvironmentPath,
       identityId,
     };
   });
@@ -3401,6 +3567,7 @@ export async function writeArtifactsFromResults(
         targetExecutionPath: plan.singleTargetExecutionPath,
         stdoutPath: plan.singleStdoutPath,
         stderrPath: plan.singleStderrPath,
+        environmentPath: plan.singleEnvironmentPath,
         extraIndexFields,
         runtimeSource: options?.runtimeSource,
         projectionIdentity: plan.projectionIdentity,

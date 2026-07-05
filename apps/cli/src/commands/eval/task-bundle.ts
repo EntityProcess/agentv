@@ -812,7 +812,10 @@ function serializeEnvironment(
   rewrites: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
   const {
+    authoredReference: _authoredReference,
     recipeFilePath: _recipeFilePath,
+    recipeFileSha256: _recipeFileSha256,
+    recipeSha256: _recipeSha256,
     sourceDir: _sourceDir,
     ...portableEnvironment
   } = environment;

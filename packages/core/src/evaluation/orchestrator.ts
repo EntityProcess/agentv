@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
+import { buildEnvironmentRecipeProvenance } from './environment/provenance.js';
 import { runExtensionsForHook } from './extensions/runner.js';
 import { readJsonFile } from './file-utils.js';
 import {
@@ -92,6 +93,7 @@ import {
   executeWorkspaceScript,
 } from './workspace/script-executor.js';
 import {
+  type EnvironmentSetupExecution,
   type EvalCaseWorkspaceSetup,
   WorkspaceSetupError,
   captureWorkspaceFileChanges,
@@ -449,6 +451,8 @@ export interface RunEvalCaseOptions {
   readonly sharedBaselineCommit?: string;
   /** Provider/runtime context produced by shared beforeAll extensions. */
   readonly sharedExtensionState?: import('./extensions/runner.js').ExtensionRuntimeState;
+  /** Environment setup executions inherited from shared suite setup. */
+  readonly sharedEnvironmentSetupExecutions?: readonly EnvironmentSetupExecution[];
   /** Suite-level .code-workspace file (resolved from workspace.template) */
   readonly suiteWorkspaceFile?: string;
   /** Real-time observability callbacks passed to the provider */
@@ -774,7 +778,7 @@ export async function gradePreparedEvalCase(
     };
   } catch (error) {
     const evalRun = { durationMs: Date.now() - caseStartMs };
-    const errorResult = buildErrorResult(
+    const errorResultBase = buildErrorResult(
       evalCase,
       target.name,
       nowFn(),
@@ -786,7 +790,7 @@ export async function gradePreparedEvalCase(
       verbose,
     );
     return {
-      ...errorResult,
+      ...errorResultBase,
       evalRun,
       fileChanges,
       workspacePath,
@@ -998,6 +1002,7 @@ export async function runEvaluation(
     beforeAllOutput,
     repoManager,
     useStaticWorkspace,
+    environmentSetupExecutions: sharedEnvironmentSetupExecutions,
     extensionState: sharedExtensionState,
   } = sharedSetup;
   const targetHooks = options.targetHooks;
@@ -1252,6 +1257,9 @@ export async function runEvaluation(
       const testWorkspacePath = usesSharedWorkspace ? sharedWorkspacePath : undefined;
       const testBaselineCommit = usesSharedWorkspace ? sharedBaselineCommit : undefined;
       const testExtensionState = usesSharedWorkspace ? sharedExtensionState : undefined;
+      const testEnvironmentSetupExecutions = usesSharedWorkspace
+        ? sharedEnvironmentSetupExecutions
+        : undefined;
 
       try {
         const graderProvider = await resolveGraderProvider(target);
@@ -1285,6 +1293,7 @@ export async function runEvaluation(
           threshold: scoreThreshold,
           targetHooks: options.targetHooks,
           sharedExtensionState: testExtensionState,
+          sharedEnvironmentSetupExecutions: testEnvironmentSetupExecutions,
           replayRecording,
           evalFilePath,
           repoRoot: repoRootPath,
@@ -1898,7 +1907,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     });
   } catch (error) {
     const setupError = error instanceof WorkspaceSetupError ? error : undefined;
-    return buildErrorResult(
+    const errorResultBase = buildErrorResult(
       evalCase,
       target.name,
       nowFn(),
@@ -1910,6 +1919,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       verbose,
       { sampleIndex },
     );
+    const environmentProvenance = buildEnvironmentRecipeProvenance({
+      environment: evalCase.environment,
+      setupExecutions: setupError?.environmentSetupExecutions,
+    });
+    return environmentProvenance ? { ...errorResultBase, environmentProvenance } : errorResultBase;
   }
 
   const {
@@ -1922,6 +1936,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     isSharedWorkspace,
     caseWorkspaceFile,
     extensionState,
+    environmentSetupExecutions,
   } = workspaceSetup;
   const effectiveTarget = targetRuntime ? { ...target, runtime: targetRuntime } : target;
   const effectiveProvider =
@@ -1935,6 +1950,13 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (cacheKey && cache) {
     cachedResponse = await cache.get(cacheKey);
   }
+  const environmentProvenance = buildEnvironmentRecipeProvenance({
+    environment: evalCase.environment,
+    setupExecutions: [
+      ...(options.sharedEnvironmentSetupExecutions ?? []),
+      ...environmentSetupExecutions,
+    ],
+  });
   const extensionMetadata = extensionState?.metadata;
   const providerMetadata = mergeMetadata(evalCase.metadata, extensionState?.providerContext);
   const resultMetadata = mergeMetadata(evalCase.metadata, extensionMetadata);
@@ -2066,6 +2088,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     conversationResult = {
       ...conversationResult,
       ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
+      ...(environmentProvenance !== undefined ? { environmentProvenance } : {}),
       beforeAllOutput,
       beforeEachOutput,
       afterEachOutput,
@@ -2153,7 +2176,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   if (!providerResponse) {
-    const errorResult = buildErrorResult(
+    const errorResultBase = buildErrorResult(
       evalCase,
       effectiveTarget.name,
       nowFn(),
@@ -2165,6 +2188,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       verbose,
       { sampleIndex, retryIndex: attempt },
     );
+    const errorResult = environmentProvenance
+      ? { ...errorResultBase, environmentProvenance }
+      : errorResultBase;
     // On error, keep workspace for debugging (unless forceCleanup is set)
     if (workspacePath) {
       if (forceCleanup) {
@@ -2342,6 +2368,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           failureReasonCode: providerFailureReasonCode,
           executionError: { message: providerError, stage: 'agent' as const },
           ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
+          ...(environmentProvenance !== undefined ? { environmentProvenance } : {}),
           beforeAllOutput,
           beforeEachOutput,
           afterEachOutput,
@@ -2363,6 +2390,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
             failureReasonCode: 'evaluator_error',
             executionError: { message: skippedEvaluatorError, stage: 'evaluator' as const },
             ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
+            ...(environmentProvenance !== undefined ? { environmentProvenance } : {}),
             beforeAllOutput,
             beforeEachOutput,
             afterEachOutput,
@@ -2374,6 +2402,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
             evalRun,
             executionStatus,
             ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
+            ...(environmentProvenance !== undefined ? { environmentProvenance } : {}),
             beforeAllOutput,
             beforeEachOutput,
             afterEachOutput,
@@ -2403,7 +2432,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   } catch (error) {
     await runAfterEachHooks().catch(() => {});
     const evalRun = { durationMs: Date.now() - caseStartMs };
-    const errorResult = buildErrorResult(
+    const errorResultBase = buildErrorResult(
       evalCase,
       target.name,
       nowFn(),
@@ -2415,6 +2444,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       verbose,
       { sampleIndex, retryIndex: attempt },
     );
+    const errorResult = environmentProvenance
+      ? { ...errorResultBase, environmentProvenance }
+      : errorResultBase;
     // On error, keep workspace for debugging (only for per-attempt workspaces)
     if (workspacePath && !isSharedWorkspace) {
       if (forceCleanup || (retainOnFailure ?? 'keep') === 'cleanup') {

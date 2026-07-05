@@ -1316,6 +1316,125 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.runtime_source).toBeUndefined();
   });
 
+  it('writes host environment provenance as a sidecar with redacted setup inputs and logs', async () => {
+    const result = makeResult({
+      testId: 'host-env',
+      environmentProvenance: {
+        schemaVersion: 'agentv.environment_provenance.v1',
+        authoredKind: 'file',
+        authoredReference: 'file://.agentv/environments/host.yaml',
+        recipeFilePath: '/repo/.agentv/environments/host.yaml',
+        recipeFileSha256: 'f'.repeat(64),
+        recipeSha256: 'a'.repeat(64),
+        type: 'host',
+        sourceDir: '/repo/.agentv/environments',
+        workdir: '/repo/workspaces/app',
+        setup: {
+          command: ['node', 'setup.mjs', '--api-key', '<redacted>'],
+          args: {
+            repo: 'example/app',
+            commit: 'abc123',
+            api_key: '<redacted>',
+          },
+        },
+        setupExecutions: [
+          {
+            scope: 'environment',
+            name: 'setup',
+            status: 'success',
+            testId: '__environment_setup__',
+            workdir: '/repo/workspaces/app',
+            command: ['node', 'setup.mjs', '--api-key', '<redacted>'],
+            cwd: '/repo/.agentv/environments',
+            output:
+              '{"repo_provenance":{"repo":"example/app","commit":"abc123"}}\\nused <redacted>',
+            exitCode: 0,
+          },
+        ],
+        repoProvenance: { repo: 'example/app', commit: 'abc123' },
+      },
+    });
+
+    const paths = await writeArtifactsFromResults([result], testDir, {
+      evalFile: 'evals/host.eval.yaml',
+    });
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const rowDir = expectRowDir(indexLine, 'host-env');
+    const environmentPath = path.join(testDir, indexLine.environment_path ?? '');
+    const environment = JSON.parse(await readFile(environmentPath, 'utf8'));
+    const resultJson = JSON.parse(
+      await readFile(path.join(testDir, rowDir, 'sample-1', 'result.json'), 'utf8'),
+    );
+    const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+
+    expect(indexLine.environment).toMatchObject({
+      schema_version: 'agentv.environment_summary.v1',
+      type: 'host',
+      workdir: '/repo/workspaces/app',
+      recipe_sha256: 'a'.repeat(64),
+      authored_reference: 'file://.agentv/environments/host.yaml',
+      setup_status: 'success',
+    });
+    expect(indexLine.environment_path).toBe(`${rowDir}/sample-1/environment.json`);
+    expect(indexLine.environment).not.toHaveProperty('setup_executions');
+    expect(JSON.stringify(indexLine)).not.toContain('used <redacted>');
+    expect(environment.setup.command).toEqual(['node', 'setup.mjs', '--api-key', '<redacted>']);
+    expect(environment.setup.args.api_key).toBe('<redacted>');
+    expect(environment.setup_executions[0].output).toContain('used <redacted>');
+    expect(environment.repo_provenance).toEqual({ repo: 'example/app', commit: 'abc123' });
+    expect(resultJson.environment_path).toBe('./environment.json');
+    expect(summary.metadata.environments?.[0]).toMatchObject({
+      type: 'host',
+      recipe_sha256: 'a'.repeat(64),
+    });
+  });
+
+  it('writes Docker environment provenance without setup logs in index rows', async () => {
+    const result = makeResult({
+      testId: 'docker-env',
+      environmentProvenance: {
+        schemaVersion: 'agentv.environment_provenance.v1',
+        authoredKind: 'inline',
+        recipeSha256: 'b'.repeat(64),
+        type: 'docker',
+        sourceDir: '/repo/evals',
+        workdir: '/app',
+        docker: {
+          context: '/repo/environment',
+          dockerfile: '/repo/environment/Dockerfile',
+          image: 'ghcr.io/example/app@sha256:1234567890abcdef',
+          imageDigest: 'sha256:1234567890abcdef',
+        },
+      },
+    });
+
+    const paths = await writeArtifactsFromResults([result], testDir, {
+      evalFile: 'evals/docker.eval.yaml',
+    });
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const environment = JSON.parse(
+      await readFile(path.join(testDir, indexLine.environment_path ?? ''), 'utf8'),
+    );
+
+    expect(indexLine.environment).toMatchObject({
+      type: 'docker',
+      workdir: '/app',
+      docker: {
+        context: '/repo/environment',
+        dockerfile: '/repo/environment/Dockerfile',
+        image: 'ghcr.io/example/app@sha256:1234567890abcdef',
+        image_digest: 'sha256:1234567890abcdef',
+      },
+    });
+    expect(indexLine.environment).not.toHaveProperty('setup_executions');
+    expect(environment).toMatchObject({
+      type: 'docker',
+      docker: {
+        image_digest: 'sha256:1234567890abcdef',
+      },
+    });
+  });
+
   it('does not write experiment config metadata into public run artifacts', async () => {
     const experimentMetadata = {
       name: 'native-exp',

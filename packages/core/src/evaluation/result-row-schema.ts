@@ -25,6 +25,7 @@ const RESULT_ROW_ALIASES = {
   costUsd: 'cost_usd',
   durationMs: 'duration_ms',
   endTime: 'end_time',
+  environmentPath: 'environment_path',
   evalPath: 'eval_path',
   metricsPath: 'metrics_path',
   executionStatus: 'execution_status',

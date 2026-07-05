@@ -60,6 +60,7 @@ describe('environment recipe loading', () => {
         type: 'host',
         workdir: path.join(dir, 'workspaces/app'),
         sourceDir: dir,
+        recipeSha256: expect.any(String),
         setup: {
           command: './scripts/setup.sh',
           args: {
@@ -92,6 +93,8 @@ describe('environment recipe loading', () => {
         type: 'host',
         workdir: path.join(recipeDir, 'checkout'),
         recipeFilePath: path.join(recipeDir, 'host.yaml'),
+        recipeFileSha256: expect.any(String),
+        recipeSha256: expect.any(String),
       });
     });
   });
@@ -129,6 +132,7 @@ describe('environment recipe loading', () => {
         dockerfile: path.join(dir, 'Dockerfile'),
         workdir: '/app',
         sourceDir: dir,
+        recipeSha256: expect.any(String),
         env: { NODE_ENV: 'test' },
         resources: { cpus: 2, memory: '4g' },
         mounts: [{ source: path.join(dir, 'fixtures'), target: '/fixtures', access: 'ro' }],
