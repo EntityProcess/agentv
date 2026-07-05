@@ -502,15 +502,29 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       expect(grading).not.toHaveProperty('assertions');
       expect(grading.score).toBe(1);
-      expect(grading.verdict).toBe('pass');
-      expect(grading.assertion_results).toHaveLength(2);
-      expect(grading.assertion_results[0].text).toBe('Correct answer');
-      expect(grading.assertion_results[0].evidence).toBe('Matched expected output');
-      expect(grading.assertion_results[0].score).toBe(1);
-      expect(grading.assertion_results[0].verdict).toBe('pass');
-      expect(grading.summary.passed).toBe(2);
-      expect(grading.summary.failed).toBe(0);
-      expect(grading.summary.pass_rate).toBe(1.0);
+      expect(grading.pass).toBe(true);
+      expect(grading.component_results).toHaveLength(1);
+      expect(grading.component_results?.[0]).toMatchObject({
+        pass: true,
+        score: 1,
+        reason: 'Grader passed.',
+        assertion: {
+          name: 'accuracy',
+          type: 'contains',
+        },
+        component_results: [
+          {
+            pass: true,
+            score: 1,
+            reason: 'Contains 42',
+            assertion: {
+              name: 'accuracy',
+              type: 'contains',
+              value: 'Contains 42',
+            },
+          },
+        ],
+      });
 
       const metrics = JSON.parse(
         readFileSync(
@@ -522,9 +536,9 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(metrics.metrics.tool_call_counts.Read).toBe(2);
       expect(metrics.metrics.tool_call_counts.Write).toBe(1);
 
-      // Graders
-      expect(grading.graders).toHaveLength(1);
-      expect(grading.graders?.[0].name).toBe('accuracy');
+      expect(grading.component_results?.[0].component_results?.[0].assertion?.value).toBe(
+        'Contains 42',
+      );
     });
 
     it('should produce correct grading for Copilot CLI result with mixed assertions', async () => {
@@ -537,9 +551,10 @@ describe('export e2e — multi-provider metrics verification', () => {
         readFileSync(path.join(runArtifactDir(outputDir, COPILOT_RESULT), 'grading.json'), 'utf8'),
       );
 
-      expect(grading.summary.passed).toBe(1);
-      expect(grading.summary.failed).toBe(1);
-      expect(grading.summary.pass_rate).toBe(0.5);
+      expect(grading.component_results?.[0].component_results).toHaveLength(2);
+      expect(
+        grading.component_results?.[0].component_results?.filter((component) => component.pass),
+      ).toHaveLength(1);
 
       const metrics = JSON.parse(
         readFileSync(path.join(runArtifactDir(outputDir, COPILOT_RESULT), 'metrics.json'), 'utf8'),
@@ -557,9 +572,8 @@ describe('export e2e — multi-provider metrics verification', () => {
         readFileSync(path.join(runArtifactDir(outputDir, ERROR_RESULT), 'grading.json'), 'utf8'),
       );
 
-      // Error result has empty assertions
-      expect(grading.summary.total).toBe(0);
-      expect(grading.summary.pass_rate).toBe(0);
+      expect(grading.component_results).toBeUndefined();
+      expect(grading.pass).toBe(false);
       const metrics = JSON.parse(
         readFileSync(path.join(runArtifactDir(outputDir, ERROR_RESULT), 'metrics.json'), 'utf8'),
       );

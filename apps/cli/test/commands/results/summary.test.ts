@@ -76,21 +76,10 @@ describe('formatSummary', () => {
 describe('formatSummary with grading artifact', () => {
   it('uses assertion counts from grading artifact when provided', () => {
     const grading: AggregateGradingArtifact = {
+      pass: false,
       score: 0.75,
-      verdict: 'fail',
-      assertion_results: [
-        { test_id: 'test-1', text: 'a', passed: true, evidence: '', score: 1, verdict: 'pass' },
-        {
-          test_id: 'test-1',
-          text: 'b',
-          passed: false,
-          evidence: 'missing',
-          score: 0,
-          verdict: 'fail',
-        },
-        { test_id: 'test-2', text: 'c', passed: true, evidence: '', score: 1, verdict: 'pass' },
-      ],
-      summary: { passed: 2, failed: 1, total: 3, pass_rate: 0.667 },
+      reason: 'One or more quality results failed.',
+      metadata: { pass_count: 2, sample_count: 3, pass_rate: 0.667 },
     };
 
     const results = [

@@ -152,6 +152,9 @@ function readGradingAssertionResults(
 }
 
 function readNestedGradingScores(record: Record<string, unknown>): unknown {
+  if (Array.isArray(record.component_results)) {
+    return record.component_results;
+  }
   if (Array.isArray(record.scores)) {
     return record.scores;
   }
@@ -164,21 +167,74 @@ function readNestedGradingScores(record: Record<string, unknown>): unknown {
   return undefined;
 }
 
+function componentLabel(component: Record<string, unknown>): string {
+  const assertion = component.assertion;
+  if (assertion && typeof assertion === 'object' && !Array.isArray(assertion)) {
+    const record = assertion as Record<string, unknown>;
+    for (const key of ['value', 'name', 'id', 'type']) {
+      const value = record[key];
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value;
+      }
+    }
+  }
+  return typeof component.reason === 'string' ? component.reason : 'grading component';
+}
+
+function mapComponentAssertion(
+  component: Record<string, unknown>,
+): EvaluationResult['assertions'][number] {
+  return {
+    text: componentLabel(component),
+    passed: component.pass === true,
+    evidence: typeof component.reason === 'string' ? component.reason : undefined,
+  };
+}
+
+function collectComponentAssertions(value: unknown): NonNullable<EvaluationResult['assertions']> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((component) => {
+    if (!component || typeof component !== 'object' || Array.isArray(component)) {
+      return [];
+    }
+    const record = component as Record<string, unknown>;
+    const nested = collectComponentAssertions(record.component_results);
+    return nested.length > 0 ? nested : [mapComponentAssertion(record)];
+  });
+}
+
 function mapGradingEvaluator(evaluator: Record<string, unknown>): HydratedScore {
-  const verdict =
-    evaluator.verdict === 'pass' || evaluator.verdict === 'fail' || evaluator.verdict === 'skip'
-      ? evaluator.verdict
-      : undefined;
+  const pass =
+    typeof evaluator.pass === 'boolean'
+      ? evaluator.pass
+      : evaluator.verdict === 'pass' ||
+        (typeof evaluator.score === 'number' && evaluator.score >= 0.8);
+  const verdict = pass ? ('pass' as const) : ('fail' as const);
   const details =
     evaluator.details && typeof evaluator.details === 'object' && !Array.isArray(evaluator.details)
       ? (evaluator.details as HydratedScore['details'])
       : undefined;
+  const assertion =
+    evaluator.assertion &&
+    typeof evaluator.assertion === 'object' &&
+    !Array.isArray(evaluator.assertion)
+      ? (evaluator.assertion as Record<string, unknown>)
+      : undefined;
 
   return {
-    name: String(evaluator.name ?? ''),
-    type: String(evaluator.type ?? '') as HydratedScore['type'],
+    name: String(assertion?.name ?? assertion?.id ?? evaluator.name ?? componentLabel(evaluator)),
+    type: String(assertion?.type ?? evaluator.type ?? 'llm-grader') as HydratedScore['type'],
     score: typeof evaluator.score === 'number' ? evaluator.score : 0,
-    assertions: readGradingAssertionResults(evaluator) ?? [],
+    reason: typeof evaluator.reason === 'string' ? evaluator.reason : undefined,
+    assertions: (() => {
+      const nestedAssertions = collectComponentAssertions(evaluator.component_results);
+      if (nestedAssertions.length > 0) {
+        return nestedAssertions;
+      }
+      return readGradingAssertionResults(evaluator) ?? [mapComponentAssertion(evaluator)];
+    })(),
     scores: mapGradingEvaluators(readNestedGradingScores(evaluator)),
     weight: typeof evaluator.weight === 'number' ? evaluator.weight : undefined,
     verdict,
@@ -338,12 +394,16 @@ function hydrateManifestRecord(
   const timing = metrics ?? readOptionalJson<LegacyTimingArtifact>(baseDir, record.timing_path);
   const testId = record.test_id ?? 'unknown';
   const gradingAssertions = grading
-    ? readGradingAssertionResults(grading as unknown as Record<string, unknown>)
+    ? collectComponentAssertions((grading as unknown as Record<string, unknown>).component_results)
     : undefined;
+  const gradingRecord = grading as
+    | (GradingArtifact & {
+        graders?: readonly Record<string, unknown>[];
+        evaluators?: readonly Record<string, unknown>[];
+      })
+    | undefined;
   const gradingScores = mapGradingEvaluators(
-    grading?.graders ??
-      (grading as (GradingArtifact & { evaluators?: GradingArtifact['graders'] }) | undefined)
-        ?.evaluators,
+    gradingRecord?.component_results ?? gradingRecord?.graders ?? gradingRecord?.evaluators,
   );
 
   return {

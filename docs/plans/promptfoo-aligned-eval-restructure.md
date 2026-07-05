@@ -7,14 +7,16 @@ workspaces and `workspace_mode` are removed from the user-facing contract, and
 `--workspace-path` / `execution.workspace_path` are the only static local
 workspace override.
 
-Supersession note (2026-07-04): this plan predates the `av-kfik.28.1` grading
-artifact decision. The current public `grading.json` contract is ADR-0017 plus
-the active Beads: aggregate `pass`/`score`/`reason`, optional
-`threshold`/`details`, always-present `graders[]`, nested `checks[]`, and no
-public `assertion_results`, `assertions`, `passed`-only aliases, top-level
-`checks`, or dynamic one-grader shortcut. Its broad pass@k language is also
-stale unless it refers to an explicit sampling metric with a real `k`; use
-`pass_rate`, `pass_count`, `sample_count`, and `passed`/`pass_any` otherwise.
+Supersession note (2026-07-05): this plan predates the `av-kfik.28.6` grading
+artifact contract. The current public `grading.json` contract is ADR-0017 as
+amended by `av-kfik.28.6` plus the active Beads: a recursive Promptfoo-style
+grading result in AgentV `snake_case` with `pass`, `score`, `reason`, optional
+`component_results`, `assertion`, `named_scores`, and `metadata`. Public native
+artifacts must not emit the earlier `assertion_results`/`summary`/`verdict`
+shape or the intermediate `graders[]`/`checks[]` shape. This plan's broad pass@k
+language is also stale unless it refers to an explicit sampling metric with a
+real `k`; use `pass_rate`, `pass_count`, `sample_count`, and `passed`/`pass_any`
+otherwise.
 
 Sources analyzed (all cloned locally, read-only):
 - promptfoo v0.121.17 — `/home/christso/projects/promptfoo-clone` (authoring format — the thing we clone)
@@ -188,7 +190,11 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
   value: string | rubric_item[]               # promptfoo-compatible field; AgentV structured extension when array items have outcome/score_ranges
   ```
   `llm-rubric` remains the promptfoo-compatible free-form rubric-text judge. AgentV's agentic/evidence-gathering judge behavior (judge target, workspace/transcript evidence, max steps, preprocessors) remains an AgentV extension instead of being forced into promptfoo's non-agentic `llm-rubric` shape.
-  Artifact rows are generic AgentV grader output, not a `llm-rubric`-only feature: every grader returns `EvaluationScore.assertions[]`, the orchestrator flattens those rows into the result and `grading.json.assertions[]`, and nested `graders[].assertions[]` preserves the per-grader breakdown. Deterministic graders usually emit one row; multi-aspect graders emit one row per authored check or result unit. `llm-rubric`'s structured criteria should use one row per criterion because those criteria are distinct scoring aspects, the same pattern used by field-accuracy fields, execution metrics, and tool-trajectory requirements.
+  Historical grading-artifact note: this plan's old `EvaluationScore.assertions[]`
+  flattening, `grading.json.assertions[]`, and nested `graders[].assertions[]`
+  guidance is superseded by ADR-0017 as amended by `av-kfik.28.6`. Public native
+  `grading.json` now uses recursive `component_results` entries with `pass`,
+  `score`, `reason`, and optional `assertion`, `named_scores`, and `metadata`.
   - **Name — RESOLVED (owner Q): short-form criteria and structured rubrics use `llm-rubric`; `g-eval` is deferred until AgentV implements promptfoo's two-call semantics.** Promptfoo's `llm-rubric` accepts arbitrary object/array values, so AgentV can preserve structured `score_ranges` and per-criterion fields inside `value` without inventing another assertion type.
   - **Default grading behavior change — approved by owner; here's what changes** when the default judge adopts vercel's judge (§5.2): (1) **skeptical stance by default** ("strict judge; when in doubt, fail") → borderline outputs fail more often, so existing suites may show *lower* pass rates; (2) **evidence-by-path** → for agent/workspace tasks the judge reads the transcript/environment from files instead of a stuffed prompt, enabling tool-using investigation and better judgments on large outputs; (3) fixed `{pass, score, reason}` verdict contract. **Opt-out:** authoring an explicit `prompt` overrides the default skeptical prompt, preserving prior behavior. Implementation must diff the exact current `llm-grader-prompt.ts` wording to quantify the shift before flipping the default.
 
@@ -333,9 +339,11 @@ Borrow vercel's judge model, which is stronger than a prompt-stuffed rubric:
 
 ### 5.3 `grading.json` contract — stale historical design
 
-Stale after `av-kfik.28.1` and ADR-0017's 2026-07-04 update. Keep this section
-as historical context only; implementation workers must use the current
-`graders[]`/`checks[]` contract documented in ADR-0017 and in the Bead notes.
+Stale after `av-kfik.28.6` and ADR-0017's 2026-07-05 grading amendment. Keep
+this section as historical context only; implementation workers must use the
+current recursive `component_results` contract documented in ADR-0017 and in the
+Bead notes. The `assertion_results`/`summary`/`verdict` and `graders[]`/`checks[]`
+contracts below are superseded.
 
 The output contract originates from agentskills' [evaluating-skills](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/evaluating-skills.mdx). Its `grading.json` is:
 ```json
@@ -379,7 +387,10 @@ The subagents reviewed every reference's output format. Verdict: **split artifac
 
 - **Aggregate + queryability ← margin-lab (owner's pick).** The top-level **`summary.json` is a rich, self-contained, `jq`-queryable `Summary`** in margin-lab's shape — `run_id`, `status` breakdown, per-case **pass@k** (`pass_count`/`pass_rate`), per-instance summaries, `usage`, infra-failure taxonomy. You can query the whole run from one file with no database (margin-lab's key strength). Plus **`index.jsonl`** (one row per case) for streaming/line-wise queries (`jq`/`grep` per line) that scale better than a single fat file. AgentV's current top-level `summary.json` must be *widened* to margin's `Summary` richness so it's genuinely queryable, not just a manifest.
 - **Transcript + tool calls + metrics ← vercel (owner's pick).** Two-layer transcript (raw + normalized), canonical **`tool_name` enum**, and a precomputed **`transcript_summary`** (tool_calls, files_read/modified, shell_commands, web_fetches, thinking) — **inlined into each result row** so `tool-trajectory`/`execution-metrics`/pass@k read metrics cheaply without parsing the transcript. Transcript itself referenced **by path** (§5.1). This is where AgentV's trajectory/metrics graders get their signal.
-- **Per-assertion grading ← agentskills.** `grading.json` = `assertion_results[{text, passed, evidence}]` + `summary` counts, plus AgentV's `verdict`/`score` superset (§5.3).
+- **Historical only, superseded grading note.** This plan originally proposed
+  agentskills-style `assertion_results[{text, passed, evidence}]` + `summary`
+  counts, plus AgentV's `verdict`/`score` superset (§5.3). ADR-0017 as amended
+  by `av-kfik.28.6` supersedes that with recursive `component_results`.
 - **No maintained consolidated single-file export (owner: YAGNI).** Since the split bundle is the source of truth, we do **not** ship or maintain a promptfoo `EvaluateSummaryV3` file. If some external tool ever needs it, it can be **generated on demand** from the bundle — but it's not a first-class artifact. (We still adopt promptfoo-shaped `named_scores`/`derived_metrics` *inside* the split rows, because those feed the Dashboard — that's not a consolidated file.)
 
 So: **split detail** (per-case/per-attempt dirs, transcript by path) + a **margin-style queryable aggregate** (`summary.json`) + **row-per-case `index.jsonl`** + **vercel transcript/metrics** + **agentskills grading**. No DB, no maintained consolidated file; the filesystem is the query surface.

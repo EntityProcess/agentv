@@ -54,6 +54,66 @@ interface IndexEntry {
   readonly [key: string]: unknown;
 }
 
+const LEGACY_GRADING_FIELDS = [
+  'assertion_results',
+  'assertions',
+  'passed',
+  'evidence',
+  'verdict',
+  'graders',
+  'checks',
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validateGradingNode(value: unknown, pathLabel: string): string[] {
+  if (!isRecord(value)) {
+    return [`${pathLabel} must be an object`];
+  }
+
+  const errors: string[] = [];
+  if (
+    typeof value.pass !== 'boolean' ||
+    typeof value.score !== 'number' ||
+    typeof value.reason !== 'string'
+  ) {
+    errors.push(`${pathLabel} must include pass, score, and reason`);
+  }
+  if (value.component_results !== undefined) {
+    if (!Array.isArray(value.component_results)) {
+      errors.push(`${pathLabel}.component_results must be an array when present`);
+    } else {
+      value.component_results.forEach((component, index) => {
+        errors.push(...validateGradingNode(component, `${pathLabel}.component_results[${index}]`));
+      });
+    }
+  }
+  return errors;
+}
+
+function validateNoLegacyGradingFields(value: unknown, pathLabel: string): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) =>
+      validateNoLegacyGradingFields(entry, `${pathLabel}[${index}]`),
+    );
+  }
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  const errors: string[] = [];
+  const legacyFields = LEGACY_GRADING_FIELDS.filter((field) => Object.hasOwn(value, field));
+  if (legacyFields.length > 0) {
+    errors.push(`${pathLabel} uses legacy field(s): ${legacyFields.join(', ')}`);
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    errors.push(...validateNoLegacyGradingFields(entry, `${pathLabel}.${key}`));
+  }
+  return errors;
+}
+
 // ── Checks ───────────────────────────────────────────────────────────────
 
 function checkDirectoryNaming(runDir: string): Diagnostic[] {
@@ -204,7 +264,8 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
           if (typeof s.name !== 'string') missing.push('name');
           if (typeof s.type !== 'string') missing.push('type');
           if (typeof s.score !== 'number') missing.push('score');
-          if (typeof s.verdict !== 'string') missing.push('verdict');
+          if (typeof s.pass !== 'boolean') missing.push('pass');
+          if (typeof s.reason !== 'string') missing.push('reason');
           if (missing.length > 0) {
             diagnostics.push({
               severity: 'warning',
@@ -285,23 +346,13 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       } else {
         try {
           const grading = JSON.parse(readFileSync(gradingPath, 'utf8'));
-          if (Array.isArray(grading.assertion_results)) {
-            // Current grading sidecar contract.
-          } else if (Array.isArray(grading.assertions)) {
-            diagnostics.push({
-              severity: 'warning',
-              message: `${testId}: grading.json uses legacy 'assertions' array; rewrite the run to emit 'assertion_results'`,
-            });
-          } else {
+          for (const error of [
+            ...validateGradingNode(grading, 'grading.json'),
+            ...validateNoLegacyGradingFields(grading, 'grading.json'),
+          ]) {
             diagnostics.push({
               severity: 'error',
-              message: `${testId}: grading.json missing 'assertion_results' array`,
-            });
-          }
-          if (!grading.summary) {
-            diagnostics.push({
-              severity: 'warning',
-              message: `${testId}: grading.json missing 'summary' object`,
+              message: `${testId}: ${error}`,
             });
           }
         } catch {

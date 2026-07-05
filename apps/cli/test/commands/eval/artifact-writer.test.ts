@@ -109,12 +109,42 @@ function runArtifactPath(
   return path.join(rootDir, entry?.result_dir ?? '', ...segments);
 }
 
+const legacyPublicGradingFields = [
+  'assertion_results',
+  'assertions',
+  'passed',
+  'evidence',
+  'verdict',
+  'graders',
+  'checks',
+];
+
+function expectNoLegacyFields(value: unknown) {
+  expect(value).toBeDefined();
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      expectNoLegacyFields(entry);
+    }
+    return;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  for (const field of legacyPublicGradingFields) {
+    expect(record).not.toHaveProperty(field);
+  }
+  for (const entry of Object.values(record)) {
+    expectNoLegacyFields(entry);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Grading artifact
 // ---------------------------------------------------------------------------
 
 describe('buildGradingArtifact', () => {
-  it('maps evaluator assertions to grading assertion_results', () => {
+  it('maps top-level assertions to recursive component_results', () => {
     const result = makeResult({
       assertions: [
         { text: 'correct format', passed: true },
@@ -125,34 +155,33 @@ describe('buildGradingArtifact', () => {
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading).not.toHaveProperty('assertions');
-    expect(grading.assertion_results).toHaveLength(3);
-    expect(grading.assertion_results[0]).toEqual({
-      text: 'correct format',
-      passed: true,
-      evidence: '',
-      score: 1,
-      verdict: 'pass',
-    });
-    expect(grading.assertion_results[1]).toEqual({
-      text: 'has code',
-      passed: true,
-      evidence: '',
-      score: 1,
-      verdict: 'pass',
-    });
-    expect(grading.assertion_results[2]).toEqual({
-      text: 'missing tests',
-      passed: false,
-      evidence: '',
-      score: 0,
-      verdict: 'fail',
-    });
+    expectNoLegacyFields(grading);
+    expect(grading.pass).toBe(true);
     expect(grading.score).toBe(0.9);
-    expect(grading.verdict).toBe('pass');
+    expect(grading.reason).toBe('All grading components passed.');
+    expect(grading.component_results).toEqual([
+      {
+        pass: true,
+        score: 1,
+        reason: 'correct format',
+        assertion: { value: 'correct format' },
+      },
+      {
+        pass: true,
+        score: 1,
+        reason: 'has code',
+        assertion: { value: 'has code' },
+      },
+      {
+        pass: false,
+        score: 0,
+        reason: 'missing tests',
+        assertion: { value: 'missing tests' },
+      },
+    ]);
   });
 
-  it('uses execution status for threshold-sensitive top-level verdicts', () => {
+  it('uses execution status for threshold-sensitive top-level pass', () => {
     const passedBelowDefault = buildGradingArtifact(
       makeResult({
         score: 0.7,
@@ -167,31 +196,67 @@ describe('buildGradingArtifact', () => {
     );
 
     expect(passedBelowDefault.score).toBe(0.7);
-    expect(passedBelowDefault.verdict).toBe('pass');
+    expect(passedBelowDefault.pass).toBe(true);
     expect(failedAboveDefault.score).toBe(0.85);
-    expect(failedAboveDefault.verdict).toBe('fail');
+    expect(failedAboveDefault.pass).toBe(false);
+    expect(failedAboveDefault.reason).toBe('One or more grading components failed.');
   });
 
-  it('computes correct summary', () => {
+  it('normalizes script/SDK checks into component_results', () => {
     const result = makeResult({
-      assertions: [
-        { text: 'a', passed: true },
-        { text: 'b', passed: true },
-        { text: 'c', passed: false },
+      assertions: [],
+      scores: [
+        makeEvaluatorResult({
+          name: 'attachment-check',
+          type: 'script',
+          score: 0.5,
+          reason: 'One attachment check failed.',
+          checks: [
+            { text: 'Answer matches', pass: true, reason: 'Exact text matched.' },
+            {
+              id: 'mentions-file',
+              text: 'Mentions attachment',
+              pass: false,
+              score: 0,
+              reason: 'The answer omitted example.txt.',
+            },
+          ],
+          assertions: [],
+        }),
       ],
     });
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading.summary).toEqual({
-      passed: 2,
-      failed: 1,
-      total: 3,
-      pass_rate: 0.667,
+    expectNoLegacyFields(grading);
+    expect(grading.component_results?.[0]).toMatchObject({
+      pass: false,
+      score: 0.5,
+      reason: 'One attachment check failed.',
+      assertion: { name: 'attachment-check', type: 'script' },
+      component_results: [
+        {
+          pass: true,
+          score: 1,
+          reason: 'Exact text matched.',
+          assertion: { name: 'attachment-check', type: 'script', value: 'Answer matches' },
+        },
+        {
+          pass: false,
+          score: 0,
+          reason: 'The answer omitted example.txt.',
+          assertion: {
+            id: 'mentions-file',
+            name: 'attachment-check',
+            type: 'script',
+            value: 'Mentions attachment',
+          },
+        },
+      ],
     });
   });
 
-  it('preserves repeat trial metadata', () => {
+  it('preserves repeat trial metadata inside metadata only', () => {
     const result = makeResult({
       trials: [
         {
@@ -215,14 +280,18 @@ describe('buildGradingArtifact', () => {
         totalAttempts: 2,
       },
     });
-
     const grading = buildGradingArtifact(result);
 
-    expect(grading.attempts).toEqual([
+    expectNoLegacyFields(grading);
+    expect(grading.metadata?.attempts).toBeUndefined();
+    expect(grading.metadata?.aggregation).toBeUndefined();
+
+    const gradingWithTrials = buildGradingArtifact(result, { includeTrials: true });
+    expectNoLegacyFields(gradingWithTrials);
+    expect(gradingWithTrials.metadata?.attempts).toEqual([
       {
         attempt: 0,
         score: 0.4,
-        verdict: 'fail',
         execution_status: 'quality_failure',
         failure_stage: 'evaluator',
         failure_reason_code: 'threshold_not_met',
@@ -230,11 +299,10 @@ describe('buildGradingArtifact', () => {
       {
         attempt: 1,
         score: 1,
-        verdict: 'pass',
         cost_usd: 0.03,
       },
     ]);
-    expect(grading.aggregation).toEqual({
+    expect(gradingWithTrials.metadata?.aggregation).toEqual({
       strategy: 'pass_any',
       passed_attempts: 1,
       total_attempts: 2,
@@ -249,8 +317,9 @@ describe('buildGradingArtifact', () => {
           min: 0.4,
         },
       }),
+      { includeTrials: true },
     );
-    expect(passAll.aggregation).toEqual({
+    expect(passAll.metadata?.aggregation).toEqual({
       strategy: 'pass_all',
       passed_attempts: 1,
       total_attempts: 2,
@@ -258,25 +327,7 @@ describe('buildGradingArtifact', () => {
     });
   });
 
-  it('uses top-level assertions when no grader scores', () => {
-    const result = makeResult({
-      assertions: [
-        { text: 'ok-1', passed: true },
-        { text: 'ok-2', passed: true },
-        { text: 'miss-1', passed: false },
-      ],
-    });
-
-    const grading = buildGradingArtifact(result);
-
-    expect(grading.assertion_results).toHaveLength(3);
-    expect(grading.assertion_results[0].text).toBe('ok-1');
-    expect(grading.assertion_results[0].passed).toBe(true);
-    expect(grading.assertion_results[2].text).toBe('miss-1');
-    expect(grading.assertion_results[2].passed).toBe(false);
-  });
-
-  it('includes evaluators list with AgentV extensions', () => {
+  it('includes multiple graders as top-level component results with named_scores', () => {
     const result = makeResult({
       scores: [
         makeEvaluatorResult({ name: 'format-check', type: 'script', score: 1.0 }),
@@ -286,13 +337,21 @@ describe('buildGradingArtifact', () => {
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading.graders).toHaveLength(2);
-    expect(grading.graders?.[0].name).toBe('format-check');
-    expect(grading.graders?.[0].type).toBe('script');
-    expect(grading.graders?.[1].score).toBe(0.7);
+    expectNoLegacyFields(grading);
+    expect(grading.component_results).toHaveLength(2);
+    expect(grading.component_results?.[0].assertion).toMatchObject({
+      name: 'format-check',
+      type: 'script',
+    });
+    expect(grading.component_results?.[1]).toMatchObject({
+      pass: false,
+      score: 0.7,
+      assertion: { name: 'quality', type: 'llm-grader' },
+    });
+    expect(grading.named_scores).toEqual({ 'format-check': 1, quality: 0.7 });
   });
 
-  it('preserves multi-aspect grader assertions at top level and under the grader', () => {
+  it('preserves llm-rubric sub-results as nested component_results', () => {
     const rubricAssertions = [
       {
         text: '[accuracy] Answer matches the reference - Score: 8/10 (strong)',
@@ -310,8 +369,9 @@ describe('buildGradingArtifact', () => {
       scores: [
         makeEvaluatorResult({
           name: 'rubric-review',
-          type: 'llm-grader',
+          type: 'llm-rubric',
           score: 0.6,
+          reason: 'The answer is partially correct.',
           assertions: rubricAssertions,
         }),
       ],
@@ -319,23 +379,114 @@ describe('buildGradingArtifact', () => {
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading.assertion_results).toEqual([
-      { ...rubricAssertions[0], score: 1, verdict: 'pass' },
-      { ...rubricAssertions[1], score: 0, verdict: 'fail' },
-    ]);
-    expect(grading.summary).toEqual({
-      passed: 1,
-      failed: 1,
-      total: 2,
-      pass_rate: 0.5,
-    });
-    expect(grading.graders?.[0]).toMatchObject({
-      name: 'rubric-review',
-      type: 'llm-grader',
+    expectNoLegacyFields(grading);
+    expect(grading.component_results?.[0]).toMatchObject({
+      pass: false,
       score: 0.6,
-      assertion_results: [
-        { ...rubricAssertions[0], score: 1, verdict: 'pass' },
-        { ...rubricAssertions[1], score: 0, verdict: 'fail' },
+      reason: 'The answer is partially correct.',
+      assertion: { name: 'rubric-review', type: 'llm-rubric' },
+      component_results: [
+        {
+          pass: true,
+          score: 1,
+          reason: 'The answer includes the expected facts.',
+          assertion: {
+            name: 'rubric-review',
+            type: 'llm-rubric',
+            value: rubricAssertions[0].text,
+          },
+        },
+        {
+          pass: false,
+          score: 0,
+          reason: 'The answer does not cite a source.',
+          assertion: {
+            name: 'rubric-review',
+            type: 'llm-rubric',
+            value: rubricAssertions[1].text,
+          },
+        },
+      ],
+    });
+  });
+
+  it('sanitizes legacy check and evidence keys from public grading metadata', () => {
+    const result = makeResult({
+      scores: [
+        makeEvaluatorResult({
+          name: 'answer_quality',
+          type: 'llm-rubric',
+          score: 1,
+          details: {
+            pass: true,
+            score: 1,
+            reason: 'The answer passed.',
+            checks: [
+              {
+                text: 'States the answer',
+                pass: true,
+                score: 1,
+                evidence: 'The output says 4.',
+              },
+            ],
+          },
+        }),
+      ],
+    });
+
+    const grading = buildGradingArtifact(result);
+
+    expectNoLegacyFields(grading);
+    expect(grading.component_results?.[0].metadata).toEqual({
+      details: {
+        pass: true,
+        score: 1,
+        reason: 'The answer passed.',
+      },
+    });
+  });
+
+  it('preserves nested child grader scores recursively', () => {
+    const result = makeResult({
+      scores: [
+        makeEvaluatorResult({
+          name: 'assert-set',
+          type: 'assert-set',
+          score: 0.75,
+          assertions: [],
+          scores: [
+            makeEvaluatorResult({
+              name: 'json',
+              type: 'is-json',
+              score: 1,
+              assertions: [{ text: 'Valid JSON', passed: true }],
+            }),
+            makeEvaluatorResult({
+              name: 'meaning',
+              type: 'llm-rubric',
+              score: 0.5,
+              assertions: [{ text: 'Semantically correct', passed: false, evidence: 'Too vague.' }],
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const grading = buildGradingArtifact(result);
+
+    expectNoLegacyFields(grading);
+    expect(grading.component_results?.[0].component_results).toHaveLength(2);
+    expect(grading.component_results?.[0].component_results?.[1]).toMatchObject({
+      pass: false,
+      score: 0.5,
+      assertion: { name: 'meaning', type: 'llm-rubric' },
+      component_results: [
+        {
+          pass: false,
+          score: 0,
+          reason: 'Too vague.',
+          assertion: { name: 'meaning', type: 'llm-rubric', value: 'Semantically correct' },
+        },
       ],
     });
   });
@@ -344,23 +495,19 @@ describe('buildGradingArtifact', () => {
     const result = makeResult({ error: 'Timeout exceeded' });
     const grading = buildGradingArtifact(result);
     expect(grading).not.toHaveProperty('execution_metrics');
+    expect(grading.reason).toBe('Timeout exceeded');
   });
 
   it('handles result with no assertions or scores', () => {
     const result = makeResult({ assertions: [], scores: undefined });
     const grading = buildGradingArtifact(result);
 
-    expect(grading.assertion_results).toHaveLength(0);
-    expect(grading.summary).toEqual({
-      passed: 0,
-      failed: 0,
-      total: 0,
-      pass_rate: 0,
-    });
-    expect(grading.graders).toBeUndefined();
+    expectNoLegacyFields(grading);
+    expect(grading.component_results).toBeUndefined();
+    expect(grading.pass).toBe(true);
   });
 
-  it('includes workspace_changes when fileChanges present', () => {
+  it('includes workspace_changes in metadata when fileChanges present', () => {
     const diff = [
       '--- /dev/null',
       '+++ b/new-file.ts',
@@ -380,20 +527,20 @@ describe('buildGradingArtifact', () => {
     const result = makeResult({ fileChanges: diff });
     const grading = buildGradingArtifact(result);
 
-    expect(grading.workspace_changes).toBeDefined();
-    expect(grading.workspace_changes?.files_created).toBe(1);
-    expect(grading.workspace_changes?.files_modified).toBe(1);
-    expect(grading.workspace_changes?.files_deleted).toBe(1);
-    expect(grading.workspace_changes?.deleted_file_paths).toEqual(['deleted.ts']);
-    expect(grading.workspace_changes).not.toHaveProperty('diff_summary');
+    const workspaceChanges = grading.metadata?.workspace_changes as Record<string, unknown>;
+    expect(workspaceChanges).toBeDefined();
+    expect(workspaceChanges.files_created).toBe(1);
+    expect(workspaceChanges.files_modified).toBe(1);
+    expect(workspaceChanges.files_deleted).toBe(1);
+    expect(workspaceChanges.deleted_file_paths).toEqual(['deleted.ts']);
+    expect(workspaceChanges).not.toHaveProperty('diff_summary');
   });
 
-  it('includes conversation when conversationId present', () => {
+  it('includes conversation in metadata when conversationId present', () => {
     const result = makeResult({ conversationId: 'conv-abc-123' });
     const grading = buildGradingArtifact(result);
 
-    expect(grading.conversation).toBeDefined();
-    expect(grading.conversation?.conversation_id).toBe('conv-abc-123');
+    expect(grading.metadata?.conversation).toMatchObject({ conversation_id: 'conv-abc-123' });
   });
 });
 
@@ -579,7 +726,7 @@ describe('buildRunSummaryArtifact', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildAggregateGradingArtifact', () => {
-  it('combines assertion_results from multiple results with test_id', () => {
+  it('combines multiple results as recursive components with test metadata', () => {
     const results = [
       makeResult({
         testId: 'test-alpha',
@@ -597,35 +744,28 @@ describe('buildAggregateGradingArtifact', () => {
     const aggregate = buildAggregateGradingArtifact(results);
 
     expect(aggregate.score).toBe(0.9);
-    expect(aggregate.verdict).toBe('pass');
-    expect(aggregate.assertion_results).toHaveLength(3);
-    expect(aggregate.assertion_results[0]).toEqual({
-      test_id: 'test-alpha',
-      text: 'criterion-1',
-      passed: true,
-      evidence: 'looks good',
-      score: 1,
-      verdict: 'pass',
-    });
-    expect(aggregate.assertion_results[1]).toEqual({
-      test_id: 'test-alpha',
-      text: 'criterion-2',
-      passed: false,
-      evidence: '',
-      score: 0,
-      verdict: 'fail',
-    });
-    expect(aggregate.assertion_results[2]).toEqual({
-      test_id: 'test-beta',
-      text: 'criterion-3',
-      passed: true,
-      evidence: '',
-      score: 1,
-      verdict: 'pass',
+    expect(aggregate.pass).toBe(true);
+    expect(aggregate.component_results).toHaveLength(2);
+    expect(aggregate.component_results?.[0]).toMatchObject({
+      assertion: { id: 'test-alpha', name: 'test-alpha', type: 'eval-case' },
+      component_results: [
+        {
+          pass: true,
+          score: 1,
+          reason: 'looks good',
+          assertion: { value: 'criterion-1' },
+        },
+        {
+          pass: false,
+          score: 0,
+          reason: 'criterion-2',
+          assertion: { value: 'criterion-2' },
+        },
+      ],
     });
   });
 
-  it('computes correct summary counts', () => {
+  it('computes metadata counts', () => {
     const results = [
       makeResult({
         testId: 'test-1',
@@ -645,15 +785,14 @@ describe('buildAggregateGradingArtifact', () => {
 
     const aggregate = buildAggregateGradingArtifact(results);
 
-    expect(aggregate.summary).toEqual({
-      passed: 3,
-      failed: 1,
-      total: 4,
-      pass_rate: 0.75,
+    expect(aggregate.metadata).toEqual({
+      pass_count: 2,
+      sample_count: 2,
+      pass_rate: 1,
     });
   });
 
-  it('computes top-level score and verdict from quality result status', () => {
+  it('computes top-level score and pass from quality result status', () => {
     const aggregate = buildAggregateGradingArtifact([
       makeResult({
         testId: 'low-threshold-pass',
@@ -676,11 +815,10 @@ describe('buildAggregateGradingArtifact', () => {
     ]);
 
     expect(aggregate.score).toBe(0.775);
-    expect(aggregate.verdict).toBe('fail');
-    expect(aggregate.summary).toEqual({
-      passed: 1,
-      failed: 1,
-      total: 2,
+    expect(aggregate.pass).toBe(false);
+    expect(aggregate.metadata).toEqual({
+      pass_count: 1,
+      sample_count: 2,
       pass_rate: 0.5,
     });
   });
@@ -696,13 +834,11 @@ describe('buildAggregateGradingArtifact', () => {
 
     const aggregate = buildAggregateGradingArtifact(results);
 
-    expect(aggregate.assertion_results).toHaveLength(1);
-    expect(aggregate.assertion_results[0].test_id).toBe('test-1');
+    expect(aggregate.component_results).toHaveLength(2);
+    expect(aggregate.component_results?.[0].assertion?.id).toBe('test-1');
     expect(aggregate.score).toBe(0.9);
-    expect(aggregate.verdict).toBe('pass');
-    expect(aggregate.summary.total).toBe(1);
-    expect(aggregate.summary.passed).toBe(1);
-    expect(aggregate.summary.failed).toBe(0);
+    expect(aggregate.pass).toBe(true);
+    expect(aggregate.metadata?.sample_count).toBe(2);
   });
 
   it('excludes execution-error assertions from aggregate quality summary', () => {
@@ -720,22 +856,13 @@ describe('buildAggregateGradingArtifact', () => {
 
     const aggregate = buildAggregateGradingArtifact(results);
 
-    expect(aggregate.assertion_results).toEqual([
-      {
-        test_id: 'quality-pass',
-        text: 'quality criterion',
-        passed: true,
-        evidence: '',
-        score: 1,
-        verdict: 'pass',
-      },
-    ]);
+    expect(aggregate.component_results).toHaveLength(1);
+    expect(aggregate.component_results?.[0].assertion?.id).toBe('quality-pass');
     expect(aggregate.score).toBe(0.9);
-    expect(aggregate.verdict).toBe('pass');
-    expect(aggregate.summary).toEqual({
-      passed: 1,
-      failed: 0,
-      total: 1,
+    expect(aggregate.pass).toBe(true);
+    expect(aggregate.metadata).toEqual({
+      pass_count: 1,
+      sample_count: 1,
       pass_rate: 1,
     });
   });
@@ -744,12 +871,11 @@ describe('buildAggregateGradingArtifact', () => {
     const aggregate = buildAggregateGradingArtifact([]);
 
     expect(aggregate.score).toBe(0);
-    expect(aggregate.verdict).toBe('skip');
-    expect(aggregate.assertion_results).toHaveLength(0);
-    expect(aggregate.summary).toEqual({
-      passed: 0,
-      failed: 0,
-      total: 0,
+    expect(aggregate.pass).toBe(false);
+    expect(aggregate.component_results).toBeUndefined();
+    expect(aggregate.metadata).toEqual({
+      pass_count: 0,
+      sample_count: 0,
       pass_rate: 0,
     });
   });
@@ -795,11 +921,9 @@ describe('buildIndexArtifactEntry', () => {
         {
           name: 'quality',
           type: 'llm-grader',
+          pass: false,
           score: 0.7,
-          assertions: [
-            { text: 'criterion-a', passed: true },
-            { text: 'criterion-b', passed: false },
-          ],
+          reason: 'criterion-b',
         },
       ],
       named_scores: { quality: 0.7 },
@@ -820,11 +944,9 @@ describe('buildIndexArtifactEntry', () => {
             {
               name: 'quality',
               type: 'llm-grader',
+              pass: false,
               score: 0.7,
-              assertions: [
-                { text: 'criterion-a', passed: true },
-                { text: 'criterion-b', passed: false },
-              ],
+              reason: 'criterion-b',
             },
           ],
           error: 'model drift',
@@ -1023,7 +1145,7 @@ describe('parseJsonlResults', () => {
 // ---------------------------------------------------------------------------
 
 describe('schema compatibility', () => {
-  it('grading assertions have text/passed/evidence fields', () => {
+  it('grading artifacts use recursive pass/score/reason component_results fields', () => {
     const result = makeResult({
       assertions: [
         { text: 'x', passed: true },
@@ -1032,32 +1154,30 @@ describe('schema compatibility', () => {
     });
     const grading = buildGradingArtifact(result);
 
-    expect(grading).not.toHaveProperty('assertions');
-    for (const exp of grading.assertion_results) {
-      expect(exp).toHaveProperty('text');
-      expect(exp).toHaveProperty('passed');
-      expect(exp).toHaveProperty('evidence');
-      expect(exp).toHaveProperty('score');
-      expect(exp).toHaveProperty('verdict');
-      expect(typeof exp.text).toBe('string');
-      expect(typeof exp.passed).toBe('boolean');
-      expect(typeof exp.evidence).toBe('string');
-      expect(typeof exp.score).toBe('number');
-      expect(['pass', 'fail']).toContain(exp.verdict);
+    expectNoLegacyFields(grading);
+    expect(typeof grading.pass).toBe('boolean');
+    expect(typeof grading.score).toBe('number');
+    expect(typeof grading.reason).toBe('string');
+    for (const component of grading.component_results ?? []) {
+      expect(component).toHaveProperty('pass');
+      expect(component).toHaveProperty('score');
+      expect(component).toHaveProperty('reason');
+      expect(component).toHaveProperty('assertion');
+      expect(typeof component.pass).toBe('boolean');
+      expect(typeof component.score).toBe('number');
+      expect(typeof component.reason).toBe('string');
     }
   });
 
-  it('grading summary has passed/failed/total/pass_rate', () => {
+  it('grading named_scores and metadata are optional objects', () => {
     const result = makeResult({
-      assertions: [{ text: 'a', passed: true }],
+      metadata: { safe_note: 'kept' },
+      scores: [makeEvaluatorResult({ name: 'quality', score: 0.9 })],
     });
     const grading = buildGradingArtifact(result);
 
-    expect(grading.summary).toHaveProperty('passed');
-    expect(grading.summary).toHaveProperty('failed');
-    expect(grading.summary).toHaveProperty('total');
-    expect(grading.summary).toHaveProperty('pass_rate');
-    expect(typeof grading.summary.pass_rate).toBe('number');
+    expect(grading.named_scores).toEqual({ quality: 0.9 });
+    expect(grading.metadata).toMatchObject({ safe_note: 'kept' });
   });
 
   it('metrics usage has duration, tokens, cost, execution, and trajectory sections', () => {
@@ -1151,7 +1271,8 @@ describe('writeArtifactsFromResults', () => {
         'utf8',
       ),
     );
-    expect(alphaGrading.summary).toBeDefined();
+    expect(alphaGrading.pass).toBe(true);
+    expect(alphaGrading.reason).toBe('All grading components passed.');
     expect(alphaGrading).not.toHaveProperty('execution_metrics');
 
     const alphaMetrics: TimingArtifact = JSON.parse(
@@ -1492,10 +1613,10 @@ describe('writeArtifactsFromResults', () => {
       await readFile(runArtifactPath(testDir, testOne, 'sample-1', 'metrics.json'), 'utf8'),
     );
 
-    expect(gradingOne.summary.total).toBe(1);
-    expect(gradingOne.summary.passed).toBe(1);
-    expect(gradingTwo.summary.total).toBe(2);
-    expect(gradingTwo.summary.failed).toBe(1);
+    expect(gradingOne.component_results).toHaveLength(1);
+    expect(gradingOne.component_results?.[0].pass).toBe(true);
+    expect(gradingTwo.component_results).toHaveLength(2);
+    expect(gradingTwo.component_results?.filter((component) => !component.pass)).toHaveLength(1);
     expect(metricsOne.duration.total_ms).toBe(0);
   });
 
@@ -2124,7 +2245,7 @@ describe('writeArtifactsFromResults', () => {
       await readFile(runArtifactPath(testDir, indexLine, 'sample-1', 'grading.json'), 'utf8'),
     );
 
-    expect(grading.assertion_results[0].text).toBe('baseline-check');
+    expect(grading.component_results?.[0].assertion?.value).toBe('baseline-check');
   });
 
   it('uses distinct row ids for the same test id across targets', async () => {

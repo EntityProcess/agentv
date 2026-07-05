@@ -723,33 +723,28 @@ describe('results export', () => {
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
 
-    // Uses artifact-writer's assertion_results field
     expect(grading).not.toHaveProperty('assertions');
     expect(grading.score).toBe(1);
-    expect(grading.verdict).toBe('pass');
-    expect(grading.assertion_results).toBeDefined();
-    expect(grading.assertion_results.length).toBeGreaterThan(0);
-    expect(grading.assertion_results[0]).toHaveProperty('text');
-    expect(grading.assertion_results[0]).toHaveProperty('passed');
-    expect(grading.assertion_results[0]).toHaveProperty('evidence');
-    expect(grading.assertion_results[0]).toHaveProperty('score');
-    expect(grading.assertion_results[0]).toHaveProperty('verdict');
+    expect(grading.pass).toBe(true);
+    expect(grading.component_results).toBeDefined();
+    expect(grading.component_results?.length).toBeGreaterThan(0);
+    expect(grading.component_results?.[0]).toHaveProperty('pass');
+    expect(grading.component_results?.[0]).toHaveProperty('score');
+    expect(grading.component_results?.[0]).toHaveProperty('reason');
 
-    // Has summary
-    expect(grading.summary).toBeDefined();
-    expect(grading.summary).toHaveProperty('passed');
-    expect(grading.summary).toHaveProperty('failed');
-    expect(grading.summary).toHaveProperty('total');
-    expect(grading.summary).toHaveProperty('pass_rate');
+    expect(grading.metadata).toMatchObject({
+      execution_status: 'ok',
+    });
 
     // Grading artifacts stay focused on assertion evidence; execution data lives in metrics.json.
     expect(grading).not.toHaveProperty('execution_metrics');
 
-    // Has evaluators
-    expect(grading.graders).toBeDefined();
-    expect(grading.graders).toHaveLength(1);
-    expect(grading.graders?.[0].name).toBe('greeting_quality');
-    expect(grading.graders?.[0].type).toBe('llm-grader');
+    expect(grading).not.toHaveProperty('summary');
+    expect(grading).not.toHaveProperty('graders');
+    expect(grading.component_results?.[0].assertion).toMatchObject({
+      name: 'greeting_quality',
+      type: 'llm-grader',
+    });
 
     const perTestTimingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'metrics.json');
     expect(existsSync(perTestTimingPath)).toBe(true);
@@ -871,8 +866,8 @@ describe('results export', () => {
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
     expect(grading).not.toHaveProperty('assertions');
-    expect(grading.assertion_results).toEqual([]);
-    expect(grading.summary.total).toBe(0);
+    expect(grading.component_results).toBeUndefined();
+    expect(grading.pass).toBe(true);
   });
 
   it('should not write string input to a generated prompt sidecar', async () => {
