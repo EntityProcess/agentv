@@ -34,6 +34,7 @@ interface CodexRunOptions {
   readonly args: readonly string[];
   readonly cwd: string;
   readonly prompt: string;
+  readonly appServerRequest?: CodexAppServerRunRequest;
   readonly timeoutMs?: number;
   readonly env: NodeJS.ProcessEnv;
   readonly signal?: AbortSignal;
@@ -51,6 +52,16 @@ interface CodexRunResult {
 }
 
 type CodexRunner = (options: CodexRunOptions) => Promise<CodexRunResult>;
+
+interface CodexAppServerRunRequest {
+  readonly prompt: string;
+  readonly model?: string;
+  readonly modelProvider?: string;
+  readonly modelReasoningEffort?: string;
+  readonly sandboxMode?: string;
+  readonly approvalPolicy?: string;
+  readonly systemPrompt?: string;
+}
 
 export class CodexCliProvider implements Provider {
   readonly id: string;
@@ -114,6 +125,7 @@ export class CodexCliProvider implements Provider {
           env,
           request.signal,
           logger,
+          this.buildAppServerRequest(promptContent),
         );
       } catch (error) {
         const message = formatError(error);
@@ -169,7 +181,7 @@ export class CodexCliProvider implements Provider {
         const detail = pickDetail(result.stderr, result.stdout);
         const prefix = `Codex ${this.providerLabel()} exited with code ${result.exitCode}`;
         return this.buildErrorResponse({
-          errorKind: result.signal ? 'signal_crash' : 'nonzero_exit',
+          errorKind: this.classifyNonzeroExit(result),
           message: detail ? `${prefix}: ${detail}` : prefix,
           args,
           cwd,
@@ -305,12 +317,14 @@ export class CodexCliProvider implements Provider {
     env: NodeJS.ProcessEnv,
     signal: AbortSignal | undefined,
     logger: CodexStreamLogger | undefined,
+    appServerRequest?: CodexAppServerRunRequest,
   ): Promise<CodexRunResult> {
     return await this.runCodex({
       executable: this.resolvedExecutable ?? this.commandExecutable(),
       args,
       cwd,
       prompt: stdinPayload,
+      appServerRequest,
       timeoutMs: this.config.timeoutMs,
       env,
       signal,
@@ -332,6 +346,21 @@ export class CodexCliProvider implements Provider {
     })}\n`;
   }
 
+  private buildAppServerRequest(promptContent: string): CodexAppServerRunRequest | undefined {
+    if (this.kind !== 'codex-app-server') {
+      return undefined;
+    }
+    return {
+      prompt: promptContent,
+      model: this.config.model,
+      modelProvider: inferCodexModelProvider(this.config.command ?? []),
+      modelReasoningEffort: this.config.modelReasoningEffort,
+      sandboxMode: this.config.sandboxMode,
+      approvalPolicy: this.config.approvalPolicy,
+      systemPrompt: this.config.systemPrompt,
+    };
+  }
+
   private async createWorkspace(): Promise<string> {
     return await mkdtemp(path.join(tmpdir(), WORKSPACE_PREFIX));
   }
@@ -346,6 +375,13 @@ export class CodexCliProvider implements Provider {
 
   private providerLabel(): string {
     return this.kind === 'codex-app-server' ? 'app-server' : 'CLI';
+  }
+
+  private classifyNonzeroExit(result: CodexRunResult): TargetExecutionErrorKind {
+    if (this.kind === 'codex-app-server' && isCodexAppServerProtocolFailure(result.stderr)) {
+      return 'malformed_output';
+    }
+    return result.signal ? 'signal_crash' : 'nonzero_exit';
   }
 
   private async buildProcessEnv(workspaceRoot: string): Promise<NodeJS.ProcessEnv> {
@@ -979,6 +1015,13 @@ function extractFromEvent(event: unknown): string | undefined {
     return undefined;
   }
   const record = event as Record<string, unknown>;
+  const method = typeof record.method === 'string' ? record.method : undefined;
+  if (method === 'item/completed') {
+    return extractFromAppServerItem((record.params as Record<string, unknown> | undefined)?.item);
+  }
+  if (method === 'turn/completed') {
+    return extractFromAppServerTurn(record.params);
+  }
   const type = typeof record.type === 'string' ? record.type : undefined;
   if (type === JSONL_TYPE_ITEM_COMPLETED) {
     const item = record.item;
@@ -993,6 +1036,39 @@ function extractFromEvent(event: unknown): string | undefined {
     return flattened;
   }
   return undefined;
+}
+
+function extractFromAppServerTurn(params: unknown): string | undefined {
+  if (!params || typeof params !== 'object') {
+    return undefined;
+  }
+  const turn = (params as Record<string, unknown>).turn;
+  if (!turn || typeof turn !== 'object') {
+    return undefined;
+  }
+  const items = (turn as Record<string, unknown>).items;
+  if (!Array.isArray(items)) {
+    return undefined;
+  }
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const text = extractFromAppServerItem(items[index]);
+    if (text) {
+      return text;
+    }
+  }
+  return undefined;
+}
+
+function extractFromAppServerItem(item: unknown): string | undefined {
+  if (!item || typeof item !== 'object') {
+    return undefined;
+  }
+  const record = item as Record<string, unknown>;
+  if (record.type !== 'agentMessage') {
+    return undefined;
+  }
+  const text = record.text;
+  return typeof text === 'string' && text.length > 0 ? text : undefined;
 }
 
 function extractFromItem(item: unknown): string | undefined {
@@ -1113,7 +1189,20 @@ function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function isCodexAppServerProtocolFailure(stderr: string): boolean {
+  return (
+    stderr.includes('Codex app-server JSON-RPC error') ||
+    stderr.includes('Codex app-server emitted invalid JSON-RPC line') ||
+    stderr.includes('Codex app-server thread/start response did not include a thread id') ||
+    stderr.includes('Codex app-server exited before turn/completed')
+  );
+}
+
 async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunResult> {
+  if (options.appServerRequest) {
+    return await defaultCodexAppServerRunner(options);
+  }
+
   return await new Promise<CodexRunResult>((resolve, reject) => {
     const child = spawn(options.executable, options.args, {
       cwd: options.cwd,
@@ -1193,6 +1282,289 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
       });
     });
   });
+}
+
+async function defaultCodexAppServerRunner(options: CodexRunOptions): Promise<CodexRunResult> {
+  return await new Promise<CodexRunResult>((resolve, reject) => {
+    const child = spawn(options.executable, options.args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
+      shell: shouldShellExecute(options.executable),
+    });
+    trackChild(child);
+
+    let stdout = '';
+    let stderr = '';
+    let stdoutBuffer = '';
+    let timedOut = false;
+    let cancelled = false;
+    let protocolError: string | undefined;
+    let turnCompleted = false;
+    let requestId = 1;
+    const initializeId = requestId;
+    let threadStartId: number | undefined;
+    let turnStartId: number | undefined;
+
+    const appServerRequest = options.appServerRequest;
+    if (!appServerRequest) {
+      reject(new Error('Codex app-server request metadata was not provided'));
+      return;
+    }
+
+    const send = (method: string, params: Record<string, unknown>): number => {
+      const id = requestId;
+      requestId += 1;
+      child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
+      return id;
+    };
+
+    const failProtocol = (message: string): void => {
+      if (!protocolError) {
+        protocolError = message;
+      }
+      child.stdin.end();
+      terminateChild(child, 'SIGTERM');
+    };
+
+    const handleMessage = (message: unknown): void => {
+      if (!message || typeof message !== 'object') {
+        return;
+      }
+      const record = message as Record<string, unknown>;
+      if ('error' in record) {
+        failProtocol(`Codex app-server JSON-RPC error: ${formatJsonRpcError(record.error)}`);
+        return;
+      }
+
+      if (record.id === initializeId && record.result) {
+        threadStartId = send(
+          'thread/start',
+          buildAppServerThreadStartParams(options, appServerRequest),
+        );
+        return;
+      }
+
+      if (record.id === threadStartId && record.result && typeof record.result === 'object') {
+        const threadId = extractAppServerThreadId(record.result);
+        if (!threadId) {
+          failProtocol('Codex app-server thread/start response did not include a thread id');
+          return;
+        }
+        turnStartId = send(
+          'turn/start',
+          buildAppServerTurnStartParams(options, appServerRequest, threadId),
+        );
+        return;
+      }
+
+      if (record.id === turnStartId && record.result) {
+        return;
+      }
+
+      if (record.method === 'turn/completed') {
+        turnCompleted = true;
+        const turn = (record.params as Record<string, unknown> | undefined)?.turn;
+        const status = (turn as Record<string, unknown> | undefined)?.status;
+        if (status === 'failed') {
+          const error = (turn as Record<string, unknown>).error;
+          protocolError = `Codex app-server turn failed: ${formatTurnError(error)}`;
+        }
+        child.stdin.end();
+      }
+    };
+
+    const onAbort = (): void => {
+      cancelled = true;
+      terminateChild(child, 'SIGTERM');
+      setTimeout(() => terminateChild(child, 'SIGKILL'), 2_000).unref?.();
+    };
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        onAbort();
+      } else {
+        options.signal.addEventListener('abort', onAbort, { once: true });
+      }
+    }
+
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    if (options.timeoutMs && options.timeoutMs > 0) {
+      timeoutHandle = setTimeout(() => {
+        timedOut = true;
+        terminateChild(child, 'SIGTERM');
+        setTimeout(() => terminateChild(child, 'SIGKILL'), 2_000).unref?.();
+      }, options.timeoutMs);
+      timeoutHandle.unref?.();
+    }
+
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+      options.onStdoutChunk?.(chunk);
+      stdoutBuffer += chunk;
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() ?? '';
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (line.length === 0) {
+          continue;
+        }
+        try {
+          handleMessage(JSON.parse(line));
+        } catch (error) {
+          failProtocol(`Codex app-server emitted invalid JSON-RPC line: ${formatError(error)}`);
+        }
+      }
+    });
+
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+      options.onStderrChunk?.(chunk);
+    });
+
+    const cleanup = (): void => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      if (options.signal) {
+        options.signal.removeEventListener('abort', onAbort);
+      }
+    };
+
+    child.on('error', (error) => {
+      cleanup();
+      reject(error);
+    });
+
+    child.on('close', (code, signal) => {
+      cleanup();
+      const resultExitCode =
+        protocolError && typeof code === 'number' && code === 0
+          ? 1
+          : typeof code === 'number'
+            ? code
+            : null;
+      const appServerStderr =
+        protocolError && stderr.trim().length > 0
+          ? `${stderr}\n${protocolError}`
+          : (protocolError ?? stderr);
+      resolve({
+        stdout,
+        stderr:
+          !protocolError && !turnCompleted && !timedOut && !cancelled
+            ? appendLine(appServerStderr, 'Codex app-server exited before turn/completed')
+            : appServerStderr,
+        exitCode:
+          !protocolError && !turnCompleted && !timedOut && !cancelled && resultExitCode === 0
+            ? 1
+            : resultExitCode,
+        signal,
+        timedOut,
+        cancelled,
+      });
+    });
+
+    send('initialize', {
+      clientInfo: { name: 'agentv', version: '0.0.0' },
+      capabilities: null,
+    });
+  });
+}
+
+function buildAppServerThreadStartParams(
+  options: CodexRunOptions,
+  request: CodexAppServerRunRequest,
+): Record<string, unknown> {
+  return removeUndefined({
+    model: request.model,
+    modelProvider: request.modelProvider,
+    cwd: options.cwd,
+    approvalPolicy: request.approvalPolicy,
+    sandbox: request.sandboxMode,
+    baseInstructions: request.systemPrompt,
+    ephemeral: true,
+  });
+}
+
+function buildAppServerTurnStartParams(
+  options: CodexRunOptions,
+  request: CodexAppServerRunRequest,
+  threadId: string,
+): Record<string, unknown> {
+  return removeUndefined({
+    threadId,
+    input: [{ type: 'text', text: request.prompt, text_elements: [] }],
+    cwd: options.cwd,
+    approvalPolicy: request.approvalPolicy,
+    model: request.model,
+    effort: request.modelReasoningEffort,
+  });
+}
+
+function extractAppServerThreadId(result: unknown): string | undefined {
+  if (!result || typeof result !== 'object') {
+    return undefined;
+  }
+  const thread = (result as Record<string, unknown>).thread;
+  if (!thread || typeof thread !== 'object') {
+    return undefined;
+  }
+  const id = (thread as Record<string, unknown>).id;
+  return typeof id === 'string' ? id : undefined;
+}
+
+function inferCodexModelProvider(command: readonly string[]): string | undefined {
+  for (let index = 0; index < command.length - 1; index += 1) {
+    const flag = command[index];
+    if (flag !== '-c' && flag !== '--config') {
+      continue;
+    }
+    const value = command[index + 1];
+    const match = /^model_provider=(?:"([^"]+)"|'([^']+)'|(.+))$/.exec(value);
+    const provider = match?.[1] ?? match?.[2] ?? match?.[3];
+    if (provider && provider.trim().length > 0) {
+      return provider.trim();
+    }
+  }
+  return undefined;
+}
+
+function removeUndefined(record: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+function formatJsonRpcError(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return String(error);
+  }
+  const record = error as Record<string, unknown>;
+  const code = typeof record.code === 'number' ? `${record.code}: ` : '';
+  const message = typeof record.message === 'string' ? record.message : JSON.stringify(error);
+  return `${code}${message}`;
+}
+
+function formatTurnError(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return String(error);
+  }
+  const record = error as Record<string, unknown>;
+  const message = typeof record.message === 'string' ? record.message : JSON.stringify(error);
+  const details =
+    typeof record.additionalDetails === 'string' ? ` (${record.additionalDetails})` : '';
+  return `${message}${details}`;
+}
+
+function appendLine(base: string, line: string): string {
+  return base.trim().length > 0 ? `${base}\n${line}` : line;
 }
 
 function terminateChild(child: ChildProcessWithoutNullStreams, signal: NodeJS.Signals): void {
