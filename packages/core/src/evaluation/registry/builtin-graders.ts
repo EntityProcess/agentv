@@ -159,7 +159,7 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
 
       let graderTemplateOverride: string | undefined;
       let evalCase = evalContext.evalCase;
-      if (c.type === 'llm-rubric' && c.value !== undefined && !customPrompt) {
+      if (c.type === 'llm-rubric' && c.value !== undefined) {
         evalCase = { ...evalCase, criteria: formatRubricValue(c.value) };
       }
       if (customPrompt) {
