@@ -488,7 +488,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts flatter imports with optional inline tests', () => {
+  it('rejects top-level imports', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       imports: {
@@ -512,10 +512,19 @@ describe('EvalFileSchema input shorthand', () => {
       tests: [baseTest],
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['imports']);
+    expect(result.error?.issues[0]?.message).toContain("Top-level 'imports' is not supported");
+    expect(result.error?.issues[0]?.message).toContain('Run eval files directly');
+    expect(result.error?.issues[0]?.message).toContain('tests: file://...');
+    expect(result.error?.issues[0]?.message).toContain('prompts: file://...');
+    expect(result.error?.issues[0]?.message).toContain('default_test: file://...');
+    expect(result.error?.issues[0]?.message).toContain('environment: file://...');
+    expect(result.error?.issues[0]?.message).toContain('tags');
+    expect(result.error?.issues[0]?.message).toContain('CLI multi-file selection');
   });
 
-  it('accepts import-only wrapper evals', () => {
+  it('rejects import-only wrapper evals', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       target: 'codex',
@@ -525,7 +534,8 @@ describe('EvalFileSchema input shorthand', () => {
       },
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.path.join('.') === 'imports')).toBe(true);
   });
 
   it('rejects removed experiment authoring blocks', () => {

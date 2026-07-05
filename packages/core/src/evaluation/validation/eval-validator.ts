@@ -19,10 +19,9 @@ type SuiteImportStackEntry = {
   readonly displayPath: string;
   readonly filePath: string;
 };
-type ImportEntryType = 'suite' | 'tests';
 type NormalizedImportEntry = {
   readonly path: string;
-  readonly type: ImportEntryType;
+  readonly type: 'suite' | 'tests';
   readonly location: string;
   readonly select?: JsonValue;
   readonly run?: JsonValue;
@@ -147,7 +146,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'input',
   'input_files',
   'prompts',
-  'imports',
   'tests',
   'graders',
   'defaults',
@@ -180,7 +178,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
 
 /** Known fields on legacy tests[] include entries. */
 const KNOWN_INCLUDE_FIELDS = new Set(['include', 'type', 'select', 'run']);
-const KNOWN_IMPORT_FIELDS = new Set(['path', 'select', 'run']);
 const KNOWN_RUN_OVERRIDE_FIELDS = new Set(['threshold', 'repeat', 'timeout_seconds', 'budget_usd']);
 const KNOWN_DEFAULT_TEST_FIELDS = new Set([
   'vars',
@@ -222,6 +219,10 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 
 /** Removed top-level fields with migration hints. */
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
+  [
+    'imports',
+    "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
+  ],
   [
     'expected_output',
     "Top-level 'expected_output' has been removed from authored eval YAML. Put reference answers in default_test.vars.expected_output or tests[].vars.expected_output and consume them with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.",
@@ -484,8 +485,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
-  await validateImportsField(parsed.imports, absolutePath, errors);
-
   const cases: JsonValue | undefined = parsed.tests;
   const hasImports = collectImportEntries(parsed).length > 0;
   const hasScenarios = Array.isArray(parsed.scenarios);
@@ -521,7 +520,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       filePath: absolutePath,
       location: 'tests',
       message:
-        "Missing or invalid 'tests' field (must be an array or a file path string, unless imports are provided)",
+        "Missing or invalid 'tests' field (must be an array or a file path string, unless scenarios are provided)",
     });
     return {
       valid: errors.length === 0,
@@ -936,101 +935,8 @@ function rejectRuntimeWorkspaceConfig(
   });
 }
 
-function importEntryPath(value: JsonValue): string | undefined {
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value.trim();
-  }
-  if (!isObject(value)) {
-    return undefined;
-  }
-  return typeof value.path === 'string' && value.path.trim().length > 0
-    ? value.path.trim()
-    : undefined;
-}
-
-async function validateImportsField(
-  imports: JsonValue | undefined,
-  filePath: string,
-  errors: ValidationError[],
-): Promise<void> {
-  if (imports === undefined) {
-    return;
-  }
-  if (!isObject(imports)) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: 'imports',
-      message: "Invalid 'imports' field. Use imports.suites and/or imports.tests.",
-    });
-    return;
-  }
-
-  for (const key of Object.keys(imports)) {
-    if (key !== 'suites' && key !== 'tests') {
-      errors.push({
-        severity: 'warning',
-        filePath,
-        location: `imports.${key}`,
-        message: `Unknown imports field '${key}'. Use imports.suites or imports.tests.`,
-      });
-    }
-  }
-
-  await validateImportGroup(imports.suites, 'suite', 'imports.suites', filePath, errors);
-  await validateImportGroup(imports.tests, 'tests', 'imports.tests', filePath, errors);
-}
-
-async function validateImportGroup(
-  group: JsonValue | undefined,
-  type: ImportEntryType,
-  location: string,
-  filePath: string,
-  errors: ValidationError[],
-): Promise<void> {
-  if (group === undefined) {
-    return;
-  }
-  const entries = Array.isArray(group) ? group : [group];
-  for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i];
-    const entryLocation = `${location}[${i}]`;
-    const entryPath = importEntryPath(entry);
-    if (!entryPath) {
-      errors.push({
-        severity: 'error',
-        filePath,
-        location: entryLocation,
-        message: "Invalid import entry. Use a path string or an object with a non-empty 'path'.",
-      });
-      continue;
-    }
-    if (type === 'tests' && !/\.eval\.ya?ml$/i.test(entryPath)) {
-      await validateRawCaseImportPath(entryPath, filePath, `${entryLocation}.path`, errors);
-    }
-    if (isObject(entry)) {
-      for (const key of Object.keys(entry)) {
-        if (!KNOWN_IMPORT_FIELDS.has(key)) {
-          errors.push({
-            severity: 'warning',
-            filePath,
-            location: `${entryLocation}.${key}`,
-            message: `Unknown field '${key}'. This field will be ignored.`,
-          });
-        }
-      }
-      validateIncludeSelect(entry.select, `${entryLocation}.select`, filePath, errors);
-      validateRunOverride(entry.run, `${entryLocation}.run`, filePath, errors);
-    }
-  }
-}
-
 function collectImportEntries(parsed: JsonObject): readonly NormalizedImportEntry[] {
   const entries: NormalizedImportEntry[] = [];
-  if (isObject(parsed.imports)) {
-    entries.push(...collectImportGroup(parsed.imports.suites, 'suite', 'imports.suites'));
-    entries.push(...collectImportGroup(parsed.imports.tests, 'tests', 'imports.tests'));
-  }
   const tests = parsed.tests;
   if (Array.isArray(tests)) {
     for (let i = 0; i < tests.length; i++) {
@@ -1054,43 +960,18 @@ function collectImportEntries(parsed: JsonObject): readonly NormalizedImportEntr
   return entries;
 }
 
-function collectImportGroup(
-  group: JsonValue | undefined,
-  type: ImportEntryType,
-  location: string,
-): readonly NormalizedImportEntry[] {
-  if (group === undefined) {
-    return [];
-  }
-  const entries = Array.isArray(group) ? group : [group];
-  return entries.flatMap((entry, index) => {
-    const pathValue = importEntryPath(entry);
-    return pathValue
-      ? [
-          {
-            path: pathValue,
-            type,
-            location: `${location}[${index}].path`,
-            ...(isObject(entry) && entry.select !== undefined ? { select: entry.select } : {}),
-            ...(isObject(entry) && entry.run !== undefined ? { run: entry.run } : {}),
-          },
-        ]
-      : [];
-  });
-}
-
 async function validateCompositionDiagnostics(
   filePath: string,
   parsed: JsonObject,
   errors: ValidationError[],
 ): Promise<void> {
-  const imports = collectImportEntries(parsed);
-  if (imports.length === 0) {
+  const includeEntries = collectImportEntries(parsed);
+  if (includeEntries.length === 0) {
     return;
   }
 
   const parentHasRuntime = hasWrapperRuntimeControls(parsed);
-  const hasSuiteImport = imports.some((entry) => entry.type === 'suite');
+  const hasSuiteImport = includeEntries.some((entry) => entry.type === 'suite');
 
   if (hasSuiteImport) {
     for (const location of parentWorkspaceLocations(parsed)) {
@@ -1100,13 +981,13 @@ async function validateCompositionDiagnostics(
         location,
         message:
           location === 'environment'
-            ? 'Parent environment is not allowed when an eval imports suites with type: suite. Imported suites own task environment. Move environment into the child suite, or import raw cases with type: tests when you intentionally want parent environment context.'
-            : 'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns target and run controls, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
+            ? 'Parent environment is not allowed with legacy tests[].include suite entries. Run eval files directly, or use tests: file://... for raw cases that should use the parent environment.'
+            : 'Parent workspace is not allowed with legacy tests[].include suite entries. Run eval files directly, or use tests: file://... for raw cases that should use the parent workspace.',
       });
     }
   }
 
-  for (const entry of imports) {
+  for (const entry of includeEntries) {
     const resolvedSuites = await resolveSuiteIncludePaths(entry.path, path.dirname(filePath));
 
     if (entry.type === 'suite') {
@@ -1125,8 +1006,8 @@ async function validateCompositionDiagnostics(
           filePath,
           location: entry.location,
           message: parentHasRuntime
-            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored for imports.suites. The parent eval owns wrapper target and run controls; move them to the parent eval or use import run overrides for per-case thresholds, timeouts, and budgets.`
-            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored for imports.suites. The parent eval owns wrapper target and run controls, and this parent has none, so no child target or run controls are applied. Add parent target/run controls or use import run overrides for per-case thresholds, timeouts, and budgets.`,
+            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored by legacy tests[].include suite imports. Prefer running eval files directly with CLI multi-file selection and tags.`
+            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored by legacy tests[].include suite imports. Prefer running eval files directly with CLI multi-file selection and tags.`,
         });
       }
       continue;
@@ -1141,7 +1022,7 @@ async function validateCompositionDiagnostics(
           severity: 'warning',
           filePath,
           location: entry.location,
-          message: `imports.tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child environment, workspace, input, assertions, metadata, target, and run controls. Parent suite context applies. Use imports.suites to preserve child test and environment semantics.`,
+          message: `Legacy tests[].include with type: tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child environment, workspace, input, assertions, metadata, target, and run controls. Prefer tests: file://... for raw case files.`,
         });
       }
     }
@@ -1208,14 +1089,14 @@ function validateIncludeEntry(
   filePath: string,
   errors: ValidationError[],
 ): void {
-  const mode = entry.type === 'suite' ? 'suites' : entry.type === 'tests' ? 'tests' : undefined;
   errors.push({
     severity: 'warning',
     filePath,
     location,
-    message: mode
-      ? `tests[].include is deprecated. Use imports.${mode} entries with path instead.`
-      : 'tests[].include is deprecated. Use imports.suites or imports.tests entries with path instead.',
+    message:
+      entry.type === 'suite'
+        ? 'tests[].include with type: suite is deprecated. Run eval files directly with CLI multi-file selection and tags instead.'
+        : 'tests[].include is deprecated. Use tests: file://... or string entries inside tests: for raw case files.',
   });
 
   for (const key of Object.keys(entry)) {
@@ -2267,12 +2148,12 @@ async function validateSuiteImportCyclesFromParsed(
   stack: readonly SuiteImportStackEntry[],
   errors: ValidationError[],
 ): Promise<void> {
-  const imports = collectImportEntries(parsed);
-  if (imports.length === 0) {
+  const includeEntries = collectImportEntries(parsed);
+  if (includeEntries.length === 0) {
     return;
   }
 
-  for (const entry of imports) {
+  for (const entry of includeEntries) {
     if (entry.type !== 'suite') {
       continue;
     }

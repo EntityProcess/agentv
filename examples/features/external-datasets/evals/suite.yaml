@@ -3,12 +3,10 @@ version: "1.0"
 target: llm
 prompts:
   - "{{ input }}"
-imports:
-  tests:
-    - path: cases/accuracy.yaml
-    - path: cases/regression.jsonl
-    - path: cases/magic.csv
 tests:
+  - file://cases/accuracy.yaml
+  - file://cases/regression.jsonl
+  - file://cases/magic.csv
   - id: inline-test
     assert:
       - The agent should greet the user politely

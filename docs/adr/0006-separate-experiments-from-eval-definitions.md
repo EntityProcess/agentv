@@ -22,6 +22,14 @@ Superseded for the current eval authoring contract by
 `prompts`/`vars`, `assert`, direct `input`, `target`/`targets`, and
 `evaluate_options` are the current promptfoo-aligned authoring surface.
 
+The "Suite And Test Import Surface" section below is historical. Its
+`imports.suites` / `imports.tests` design is superseded by av-kfik.43 and the
+current Promptfoo-aligned field-local ref contract: raw case files use
+`tests: file://...` or string entries under `tests`, reusable prompt/default
+config uses `prompts: file://...` and `default_test: file://...`, coding-agent
+testbeds use `environment: file://...`, and grouping/running multiple evals uses
+tags plus CLI multi-file selection. Top-level `imports` is rejected.
+
 ## Context
 
 AgentV needs a stable authoring contract for repo-native evals, run-time knobs,

@@ -670,27 +670,6 @@ const TestIncludeSchema = z
   })
   .strict();
 
-const ImportEntrySchema = z
-  .object({
-    path: z.string().min(1),
-    select: z.union([SelectPatternSchema, TestIncludeSelectSchema]).optional(),
-    run: RunOverrideSchema.optional(),
-  })
-  .strict();
-
-const ImportGroupSchema = z.union([
-  z.array(z.union([ImportEntrySchema, z.string().min(1)])),
-  z.string().min(1),
-  ImportEntrySchema,
-]);
-
-const ImportsSchema = z
-  .object({
-    suites: ImportGroupSchema.optional(),
-    tests: ImportGroupSchema.optional(),
-  })
-  .strict();
-
 const TestsSchema = z.union([
   z.array(z.union([EvalTestSchema, TestIncludeSchema, z.string().min(1)])),
   z.string().min(1),
@@ -766,6 +745,9 @@ const TagsSchema = z.union([
   z.record(z.union([z.string(), z.number(), z.boolean()])),
 ]);
 
+const TOP_LEVEL_IMPORTS_MESSAGE =
+  "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.";
+
 // ---------------------------------------------------------------------------
 // Top-level eval file
 // ---------------------------------------------------------------------------
@@ -791,8 +773,7 @@ export const EvalFileSchema: z.ZodType = z
     prompts: PromptsSchema.optional(),
     // Suite-level input_files shorthand
     input_files: z.array(z.string()).optional(),
-    // Imports: suites preserve child context; tests import raw rows into parent context
-    imports: ImportsSchema.optional(),
+    imports: z.never({ invalid_type_error: TOP_LEVEL_IMPORTS_MESSAGE }).optional(),
     // Tests (inline raw cases, legacy include entries, or external raw-case path)
     tests: TestsSchema.optional(),
     // Shared composable config graph fields
@@ -833,9 +814,6 @@ export const EvalFileSchema: z.ZodType = z
   })
   .refine(
     (value) =>
-      value.tests !== undefined ||
-      value.eval_cases !== undefined ||
-      value.imports !== undefined ||
-      value.scenarios !== undefined,
-    { message: "Eval files must define 'tests', 'imports', or 'scenarios'." },
+      value.tests !== undefined || value.eval_cases !== undefined || value.scenarios !== undefined,
+    { message: "Eval files must define 'tests' or 'scenarios'." },
   );

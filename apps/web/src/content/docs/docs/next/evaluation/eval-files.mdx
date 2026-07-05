@@ -6,18 +6,17 @@ sidebar:
 slug: docs/evaluation/eval-files
 ---
 
-Evaluation files define the test cases, graders, workspace lifecycle, and run
+Evaluation files define the test cases, graders, environment, lifecycle hooks, and run
 controls for an evaluation run. The reserved `tags.experiment` key is the
 run/result grouping label, top-level `target` identifies the system under test,
 and fields such as `evaluate_options.repeat`, `threshold`, `timeout_seconds`,
 `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency` control repeated
-attempts and gates. Workspace lifetime belongs under `workspace.scope`;
-repository provenance belongs under `workspace.repos`; Docker/container binding
-belongs under `workspace.docker`. Non-provisioning setup commands belong in
-top-level `extensions`; reset policy stays under
-`workspace.hooks.after_each.reset`; runner-specific setup belongs in the
-`target` object, in `targets`, or in project config. AgentV supports two eval
-data formats: YAML and JSONL.
+attempts and gates. Coding-agent testbeds, workdirs, Docker config, repository
+materialization, setup, and reset policy belong in `environment`. Provider
+environment-variable overrides belong in top-level `env`. Lifecycle hooks belong
+in `extensions`; runner-specific setup belongs in the `target` object, in
+`targets`, or in project config. AgentV supports two eval data formats: YAML and
+JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 Eval files describe the task, target binding, and run controls. Use
@@ -35,41 +34,43 @@ surfaces.
 
 Eval YAML is AgentV's composable and runnable authoring primitive. It is a
 focused, shareable slice of the same config graph as `.agentv/config.yaml`.
-Use ordinary `*.eval.yaml` files for direct task suites and for wrapper evals
-that compose other suites. Raw case files are reusable data inputs, not a
-second runnable experiment format.
+Use ordinary `*.eval.yaml` files for direct task suites. Raw case files are
+reusable data inputs, not a second runnable experiment format.
 
-- A **task suite** is eval YAML that owns task context: `workspace`, shared
-  `input`, shared `assert`, fixtures, graders, and test cases. It can run
-  directly or be imported through `imports.suites`.
+- A **task suite** is eval YAML that owns task context: `environment`, shared
+  `prompts`, shared `assert`, fixtures, graders, and test cases. It can run
+  directly.
 - A **raw case file** is a YAML, JSON, JSONL, CSV, script-backed dataset,
-  directory, or glob of cases. Import it with `imports.tests`,
-  `tests: ./cases.yaml`, `tests: file://cases.csv`, or string shorthand; parent
-  suite context applies because raw cases do not carry their own suite context.
-- A **wrapper eval** is eval YAML that imports one or more suites with
-  `imports.suites` and binds run controls with top-level `target`, `threshold`,
-  `timeout_seconds`, and `evaluate_options`.
-  Wrapper evals can live anywhere in the repo. A wrapper that imports suites
-  with `imports.suites` must not define parent `workspace`; imported suites own
-  task environment. Machine-local existing workspace paths belong in CLI flags
-  or `config.local.yaml`, not eval YAML.
+  directory, or glob of cases. Reference it with `tests: ./cases.yaml`,
+  `tests: file://cases.csv`, or string entries inside `tests`; parent suite
+  context applies because raw cases do not carry their own suite context.
+- Use multiple eval files, tags, and CLI selection when you want to run several
+  suites together. Each eval file owns its own task environment and run policy.
 
 For example, a reusable task suite can keep the task contract in one file:
 
 ```yaml
 # evals/suites/refunds.eval.yaml
 suite: refunds
-workspace:
-  repos:
-    - path: ./support-app
+environment:
+  type: host
+  workdir: ./support-app
+  setup:
+    command: ./scripts/materialize-repo.sh
+    args:
       repo: acme/support-app
       commit: main
-input: Answer using the refund policy in the workspace.
+prompts:
+  - Answer using the refund policy in {{ repo_path }}.
+default_test:
+  vars:
+    repo_path: ./support-app
 assert:
   - Applies the refund policy correctly
 tests:
   - id: missing-receipt
-    input: Can this customer get a refund without a receipt?
+    vars:
+      question: Can this customer get a refund without a receipt?
 ```
 
 Raw cases are just case data:
@@ -81,10 +82,10 @@ Raw cases are just case data:
   expected_output: Offer a replacement or refund path.
 ```
 
-A wrapper eval stays ordinary eval YAML while choosing a target and run controls:
+A run-focused eval stays ordinary eval YAML while choosing a target and run controls:
 
 ```yaml
-# experiments/refunds-codex.eval.yaml
+# evals/refunds-codex.eval.yaml
 name: refunds-codex
 target: codex-gpt5
 evaluate_options:
@@ -93,28 +94,21 @@ evaluate_options:
     count: 2
     strategy: pass_any
 
-imports:
-  suites:
-    - path: ../evals/suites/refunds.eval.yaml
-  tests:
-    - path: ../evals/cases/refund-smoke.cases.yaml
-
 tests:
+  - file://../evals/cases/refund-smoke.cases.yaml
   - id: local-edge-case
     vars:
       question: Can a final-sale item be refunded after damage in transit?
     expected_output: Explain the final-sale exception for damaged transit.
 ```
 
-The `experiments/` directory in that example is optional and user-owned. AgentV
-does not infer behavior from the path; the wrapper runs because it is eval YAML
-with tests or imports. The wrapper owns target selection and run controls. Put
-workspace setup in imported child suites. Parent workspace-affecting fields,
-including top-level `workspace`, are for parent-owned raw cases, including
-cases imported with `imports.tests`. Runtime workspace path overrides belong in
-CLI flags or `.agentv/config.local.yaml`; repos, hooks, templates, Docker
-config, env checks, and workspace scope belong in top-level or case-level
-`workspace`.
+The `experiments/` directory is optional and user-owned. AgentV does not infer
+behavior from the path; files run because they are eval YAML with tests or
+scenarios. Runtime workspace path overrides belong in CLI flags or
+`.agentv/config.local.yaml`; coding-agent testbeds, workdirs, Docker config,
+repository setup, and reset policy belong in top-level or case-level
+`environment`. Provider environment overrides belong in `env`; lifecycle hooks
+belong in `extensions`.
 
 ## YAML Format
 
@@ -153,20 +147,20 @@ tests:
 | `evaluate_options` | Optional evaluation runtime options such as `budget_usd`, `repeat`, and `max_concurrency` |
 | `timeout_seconds` | Optional per-case timeout |
 | `threshold` | Optional suite quality threshold |
-| `workspace` | Suite-level task environment — inline object or string path to an external workspace file. Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
-| `extensions` | Lifecycle hooks: `file://path/to/hooks.mjs:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, plus the built-in `agentv:agent-rules`. Hooks run after `workspace.repos` materializes. |
-| `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
-| `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
+| `environment` | Suite-level coding-agent testbed — inline object or `file://` reference for host/Docker setup, workdir, repositories, fixtures, services, and reset policy. |
+| `env` | Promptfoo-compatible provider/eval environment-variable overrides and load-time template inputs. |
+| `extensions` | Lifecycle hooks: `file://path/to/hooks.mjs:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, plus the built-in `agentv:agent-rules`. |
+| `tests` | Inline raw tests, a string path to an external raw-case file or directory, or a list mixing inline tests with raw-case file refs. |
 | `assert` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 
-`workspace` is what the agent can inspect or modify through tools, not prompt
+`environment` is what the agent can inspect or modify through tools, not prompt
 input. Put task instructions and chat/system/user messages in `prompts`; put
-repos, templates, Docker config, env checks, scope, and repo provenance in
-`workspace`. Put lifecycle setup that does not acquire repos in `extensions`.
+coding-agent testbed setup, workdir, Docker config, services, and repo
+provenance in `environment`. Put lifecycle hooks in `extensions`.
 
 For historical or repo-state evals, put the checkout under
-`workspace.repos[].commit`. A commit SHA in the prompt or metadata is useful
-context, but it does not materialize a repo for the agent to inspect.
+`environment` with a pinned setup recipe. A commit SHA in the prompt or metadata
+is useful context, but it does not materialize a repo for the agent to inspect.
 
 ### Prompts, Vars, and Target Expansion
 
@@ -247,9 +241,9 @@ tests:
       input: Summarize the July release notes.
 ```
 
-External raw-case files imported through `tests: file://...` or
-`imports.tests` may still contain raw internal `input` rows for compatibility.
-Keep that compatibility out of normal eval YAML authoring.
+External raw-case files referenced through `tests: file://...` may still contain
+raw internal `input` rows for compatibility. Keep that compatibility out of
+normal eval YAML authoring.
 
 ### Lifecycle Extensions
 
@@ -270,7 +264,7 @@ Setup hook failures (`beforeAll`, `beforeEach`) fail the affected run; teardown
 hook failures (`afterEach`, `afterAll`) are non-fatal.
 
 `agentv:agent-rules` is the only built-in extension in this slice. It runs after
-workspace materialization and exposes staged rule paths to providers and result
+environment materialization and exposes staged rule paths to providers and result
 metadata as `agent_rules_paths`:
 
 ```yaml
@@ -285,7 +279,7 @@ extensions:
 
 If `agentv:agent-rules` is authored as a string, it defaults to `beforeAll` and
 discovers conventional rule locations already present in the materialized
-workspace. It does not clone repositories or replace `workspace.repos`.
+environment. It does not clone repositories or replace `environment`.
 
 ### Metadata Fields
 
@@ -506,24 +500,18 @@ validation instead of being skipped at runtime.
 assertion `min_score`. Ordinary columns become `vars`, so CSV rows can rely on
 suite-level `input` that interpolates those variables.
 
-String shorthand is raw-case-only. Import reusable task suites through
-`imports.suites`; use `imports.tests` when you want to drop suite context and
-import only raw cases into the parent context:
+String shorthand is raw-case-only. Use a direct raw-case path or file ref when
+you want case data to run in the parent suite context:
 
 ```yaml
-imports:
-  suites:
-    - path: ./suites/*.eval.yaml
-  tests:
-    - path: ./cases/regression.jsonl
-
 tests:
+  - file://./cases/regression.jsonl
   - id: local-edge-case
     input: ...
 ```
 
-Legacy `tests[].include` entries still load with a migration warning for older
-eval files, but new evals should use `imports.suites` or `imports.tests`.
+Run multiple eval files directly from the CLI, and use tags to group suites that
+should be selected together.
 
 ### Raw Cases as Directory Paths
 

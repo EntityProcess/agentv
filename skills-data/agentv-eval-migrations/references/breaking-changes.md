@@ -40,19 +40,19 @@ For a v4.42.4-era eval:
    `execution.max_concurrency` to `evaluate_options.max_concurrency`, or leave
    it to `--workers` / project config if it is operator policy.
 10. Remove top-level `execution`; current eval YAML rejects it.
-11. Replace `workspace.isolation: shared|per_test` with
-    `workspace.scope: suite|attempt`.
+11. Move authored coding-agent testbed setup from public `workspace` fields to
+    `environment`.
 12. Remove `workspace.mode` and `workspace.path` from committed eval YAML.
     Use `--workspace-path` or `.agentv/config.local.yaml` for local static
     directories.
-13. Replace workspace hook `script:` with `command:`.
-14. For executable setup, prefer top-level `extensions`; keep
-    `workspace.hooks.after_each.reset` for reset policy.
+13. Move lifecycle hooks to top-level `extensions`.
+14. Put reset policy and portable testbed setup under `environment`; keep
+    provider environment overrides under top-level `env`.
 15. Replace authored `preprocessors` and deprecated Promptfoo `postprocess`
     with `transform` at `default_test.options`, `tests[].options`, or the
     assertion that needs the shaped output.
-16. Keep raw cases under `tests` or `imports.tests`; import full eval suites
-    with `imports.suites`.
+16. Keep raw cases under `tests` / `tests: file://...`; run full eval suites
+    directly with CLI multi-file selection and tags.
 17. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
 
 ## Assertions Renamed To `assert`
@@ -266,7 +266,7 @@ tests:
   contains `{type: file, value: "{{ file_path }}"}` and a text block. Store file
   paths in `default_test.vars` or `tests[].vars`.
 - Keep `input` only in external raw-case files imported through
-  `tests: file://...` or `imports.tests` when preserving existing raw datasets.
+  `tests: file://...` when preserving existing raw datasets.
   Do not copy that compatibility shape back into normal eval YAML.
 
 ### Verification
@@ -945,19 +945,18 @@ The external file contained raw case rows.
 
 ### Current Shape
 
-Current eval YAML still accepts inline `tests` and `tests: ./cases.yaml`, but
-adds explicit imports for composition:
+Current eval YAML accepts inline `tests`, `tests: ./cases.yaml`, and field-local
+file refs for raw case data. Run multiple full eval suites directly with CLI
+selection and tags:
 
 ```yaml
-imports:
-  suites:
-    - path: ../suites/refunds.eval.yaml
-  tests:
-    - path: ../cases/refund-smoke.cases.yaml
-
+prompts: file://../prompts/refund.yaml
+default_test: file://../defaults/refund.yaml
 tests:
+  - file://../cases/refund-smoke.cases.yaml
   - id: local-edge-case
-    input: Can a final-sale item be refunded after damage in transit?
+    vars:
+      question: Can a final-sale item be refunded after damage in transit?
     assert:
       - Explains the final-sale exception
 ```
@@ -966,21 +965,21 @@ tests:
 
 - Keep `tests: ./cases.yaml` when the file is a raw case array, JSONL, CSV,
   directory, glob, or script-backed dataset.
-- Use `imports.tests` when importing raw rows into the parent suite context.
-- Use `imports.suites` when importing full child eval suites that own their
-  own `workspace`, input, assertions, and task environment.
-- Do not define a parent `workspace` in a wrapper eval that imports child
-  suites through `imports.suites`; child suites own their environments.
-- Replace legacy `tests[].include` entries with `imports.suites` or
-  `imports.tests` where possible.
-- Use `run:` on import entries only for scoped overrides:
-  `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`.
+- Use `tests: file://...` or string entries inside `tests` for raw rows that run
+  in the parent suite context.
+- Run full eval suites directly with CLI multi-file selection and tags. Do not
+  add wrapper-suite import semantics.
+- Use `prompts: file://...`, `default_test: file://...`, and
+  `environment: file://...` to share reusable config locally at the field that
+  consumes it.
+- Use `run:` on individual tests only for scoped overrides: `threshold`,
+  `repeat`, `timeout_seconds`, and `budget_usd`.
 
 ### Verification
 
 ```bash
 bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
-rg -n "include:|imports:|tests:" path/to/evals
+rg -n "include:|tests:" path/to/evals
 ```
 
 ### Compatibility Notes

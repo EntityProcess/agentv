@@ -1430,75 +1430,21 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.tests.every((test) => test.run === undefined)).toBe(true);
   });
 
-  it('imports suites through imports.suites while preserving child task context', async () => {
-    await writeFile(
-      path.join(tempDir, 'child.eval.yaml'),
-      [
-        'name: child-suite',
-        'environment:',
-        '  type: host',
-        '  workdir: ./child-workspace',
-        'assert:',
-        '  - type: contains',
-        '    value: child',
-        'threshold: 0.2',
-        'prompts:',
-        '  - "{{ input }}"',
-        'tests:',
-        '  - id: child-case',
-        '    criteria: ok',
-        '    vars:',
-        '      input:',
-        '        - role: user',
-        '          content: child shared input',
-        '        - role: user',
-        '          content: child case input',
-      ].join('\n'),
-    );
+  it('rejects top-level imports during suite loading', async () => {
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
     await writeFile(
       parentPath,
-      [
-        'name: parent-suite',
-        'target: codex-gpt5',
-        'threshold: 0.8',
-        'prompts:',
-        '  - "{{ input }}"',
-        'imports:',
-        '  suites:',
-        '    - path: child.eval.yaml',
-        '      run:',
-        '        timeout_seconds: 60',
-        'tests:',
-        '  - id: local-edge',
-        '    criteria: local ok',
-        '    vars:',
-        '      input: local input',
-      ].join('\n'),
+      ['name: parent-suite', 'imports:', '  tests:', '    - path: cases.yaml', 'tests: []'].join(
+        '\n',
+      ),
     );
 
-    const suite = await loadTestSuite(parentPath, tempDir);
-    const byId = new Map(suite.tests.map((test) => [test.id, test]));
-
-    expect(suite.experimentConfig).toMatchObject({ target: 'codex-gpt5', threshold: 0.8 });
-    expect(byId.get('child-case')?.suite).toBe('child-suite');
-    expect(byId.get('child-case')?.source?.importedSuiteName).toBe('child-suite');
-    expect(byId.get('child-case')?.environment?.workdir).toBe(
-      path.join(tempDir, 'child-workspace'),
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Top-level 'imports' is not supported.*Run eval files directly.*tests: file:\/\/\.\.\..*prompts: file:\/\/\.\.\..*default_test: file:\/\/\.\.\..*environment: file:\/\/\.\.\./,
     );
-    expect(byId.get('child-case')?.input.map((message) => message.content)).toEqual([
-      'child shared input',
-      'child case input',
-    ]);
-    expect(byId.get('child-case')?.assertions?.[0]).toMatchObject({
-      type: 'contains',
-      value: 'child',
-    });
-    expect(byId.get('child-case')?.run).toEqual({ timeoutSeconds: 60 });
-    expect(byId.get('local-edge')?.suite).toBe('parent-suite');
   });
 
-  it('imports raw rows through imports.tests and evaluates them in parent context', async () => {
+  it('loads raw rows through tests file refs in parent context', async () => {
     await writeFile(
       path.join(tempDir, 'smoke.jsonl'),
       '{"id":"jsonl-case","input":"jsonl input","criteria":"ok"}\n',
@@ -1523,15 +1469,14 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '      content: parent shared input',
         '    - role: user',
         '      content: "{{ input }}"',
-        'imports:',
-        '  tests:',
-        '    - path: smoke.jsonl',
-        '    - path: regressions.yaml',
         'tests:',
+        '  - file://smoke.jsonl',
+        '  - file://regressions.yaml',
         '  - id: inline-case',
         '    criteria: ok',
         '    vars:',
         '      input: inline input',
+        '',
       ].join('\n'),
     );
 
@@ -1548,76 +1493,6 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       'parent shared input',
       'jsonl input',
     ]);
-  });
-
-  it('combines imports.tests with tests path shorthand in parent context', async () => {
-    await writeFile(
-      path.join(tempDir, 'imported.jsonl'),
-      '{"id":"imported-case","input":"imported input","criteria":"ok"}\n',
-    );
-    await writeFile(
-      path.join(tempDir, 'local.yaml'),
-      '- id: local-case\n  input: local input\n  criteria: ok\n',
-    );
-    const parentPath = path.join(tempDir, 'parent.eval.yaml');
-    await writeFile(
-      parentPath,
-      [
-        'name: parent-suite',
-        'environment:',
-        '  type: host',
-        '  workdir: ./parent-workspace',
-        'imports:',
-        '  tests:',
-        '    - path: imported.jsonl',
-        'tests: local.yaml',
-        '',
-      ].join('\n'),
-    );
-
-    const suite = await loadTestSuite(parentPath, tempDir);
-    const byId = new Map(suite.tests.map((test) => [test.id, test]));
-
-    expect(suite.tests.map((test) => test.id)).toEqual(['imported-case', 'local-case']);
-    expect(byId.get('imported-case')?.suite).toBe('parent-suite');
-    expect(byId.get('local-case')?.suite).toBe('parent-suite');
-    expect(byId.get('imported-case')?.environment?.workdir).toBe(
-      path.join(tempDir, 'parent-workspace'),
-    );
-  });
-
-  it('rejects parent environment when imports.suites preserves child environments', async () => {
-    await writeFile(
-      path.join(tempDir, 'child.eval.yaml'),
-      [
-        'name: child-suite',
-        'prompts:',
-        '  - "{{ input }}"',
-        'tests:',
-        '  - id: child-case',
-        '    criteria: ok',
-        '    vars:',
-        '      input: child',
-      ].join('\n'),
-    );
-    const parentPath = path.join(tempDir, 'parent.eval.yaml');
-    await writeFile(
-      parentPath,
-      [
-        'name: parent-suite',
-        'environment:',
-        '  type: host',
-        '  workdir: ./parent-workspace',
-        'imports:',
-        '  suites:',
-        '    - path: child.eval.yaml',
-        '',
-      ].join('\n'),
-    );
-
-    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /Parent environment is not allowed/,
-    );
   });
 
   it('warns but supports legacy tests include entries during migration', async () => {
@@ -1654,12 +1529,16 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       console.warn = warn;
     }
 
-    expect(warnings.some((message) => message.includes('tests[].include is deprecated'))).toBe(
-      true,
-    );
+    expect(
+      warnings.some(
+        (message) =>
+          message.includes('tests[].include with type: suite is deprecated') &&
+          message.includes('Run eval files directly'),
+      ),
+    ).toBe(true);
   });
 
-  it('validates imports.suites and warns for legacy/confusing imports', async () => {
+  it('warns for legacy/confusing tests include entries', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -1679,11 +1558,6 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       [
         'name: parent-suite',
         'target: parent-target',
-        'imports:',
-        '  suites:',
-        '    - path: child.eval.yaml',
-        '  tests:',
-        '    - path: child.eval.yaml',
         'tests:',
         '  - include: child.eval.yaml',
         '    type: suite',
@@ -1695,14 +1569,16 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
 
     expect(result.valid).toBe(true);
     const warnings = result.errors.filter((error) => error.severity === 'warning');
-    expect(warnings.some((error) => error.message.includes('tests[].include is deprecated'))).toBe(
-      true,
-    );
     expect(
-      warnings.some((error) => error.message.includes('child target and run controls are ignored')),
+      warnings.some(
+        (error) =>
+          error.message.includes('tests[].include with type: suite is deprecated') &&
+          error.message.includes('CLI multi-file selection') &&
+          error.message.includes('tags'),
+      ),
     ).toBe(true);
     expect(
-      warnings.some((error) => error.message.includes('imports.tests imports raw cases')),
+      warnings.some((error) => error.message.includes('child target and run controls are ignored')),
     ).toBe(true);
   });
 

@@ -250,10 +250,10 @@ workspace:
 ```
 
 Notes:
-- Temp workspace materialization is the default for harness-managed workspaces with repos.
+- Temp environment materialization is the default for harness-managed testbeds.
 - `--workspace-path` uses an existing machine-local directory as-is.
-- Runtime workspace paths are incompatible with `workspace.scope: attempt`.
-- `workspace.hooks.after_each.reset` resets file state after each case.
+- Runtime workspace paths are incompatible with per-attempt environment isolation.
+- Environment reset policy resets file state after each case.
 
 ### Resume an Interrupted Run
 

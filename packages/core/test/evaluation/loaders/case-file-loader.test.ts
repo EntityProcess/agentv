@@ -493,21 +493,13 @@ tests: file://file-url-cases.json
     expect(tests[0].id).toBe('file-url-json');
   });
 
-  it('keeps imports.tests select working beside file-backed tests', async () => {
+  it('loads multiple external case files from field-local tests list refs', async () => {
     await writeFile(
-      path.join(tempDir, 'import-cases.yaml'),
-      `- id: imported-keep
-  criteria: Imported keep
-  metadata:
-    group: keep
+      path.join(tempDir, 'yaml-cases.yaml'),
+      `- id: yaml-case
+  criteria: YAML goal
   vars:
-    input: Imported keep input
-- id: imported-drop
-  criteria: Imported drop
-  metadata:
-    group: drop
-  vars:
-    input: Imported drop input
+    input: YAML input
 `,
     );
     await writeFile(
@@ -515,22 +507,19 @@ tests: file://file-url-cases.json
       '{"id": "direct-case", "criteria": "Direct goal", "input": "Direct input"}\n',
     );
     await writeFile(
-      path.join(tempDir, 'imports-and-file-tests.yaml'),
-      `imports:
-  tests:
-    - path: import-cases.yaml
-      select:
-        metadata:
-          group: keep
+      path.join(tempDir, 'field-local-file-tests.yaml'),
+      `name: field-local-file-tests
 prompts:
   - "{{ input }}"
-tests: file://direct-cases.jsonl
+tests:
+  - file://yaml-cases.yaml
+  - file://direct-cases.jsonl
 `,
     );
 
-    const tests = await loadTests(path.join(tempDir, 'imports-and-file-tests.yaml'), tempDir);
+    const tests = await loadTests(path.join(tempDir, 'field-local-file-tests.yaml'), tempDir);
 
-    expect(tests.map((test) => test.id)).toEqual(['imported-keep', 'direct-case']);
+    expect(tests.map((test) => test.id)).toEqual(['yaml-case', 'direct-case']);
   });
 
   it('loads promptfoo CSV magic columns through the full suite parser', async () => {

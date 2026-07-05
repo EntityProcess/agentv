@@ -197,14 +197,18 @@ tests:
 ```
 
 The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
-Operational checkout state belongs under `workspace.repos[].commit`; matching metadata fields such as `source_commit` are informational only.
-For historical repo-state evals, pin the checkout under `workspace.repos[]`
-instead of only mentioning the SHA in prompt prose:
+Operational checkout state belongs in `environment`; matching metadata fields
+such as `source_commit` are informational only. For historical repo-state evals,
+pin the checkout in an environment setup recipe instead of only mentioning the
+SHA in prompt prose:
 
 ```yaml
-workspace:
-  repos:
-    - path: ./agentv
+environment:
+  type: host
+  workdir: ./agentv
+  setup:
+    command: ./scripts/materialize-repo.sh
+    args:
       repo: https://github.com/EntityProcess/agentv.git
       commit: 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
 ```
@@ -503,7 +507,7 @@ tests:
       - Generates valid Python
 ```
 
-`metadata` is passed to workspace lifecycle hooks as `case_metadata`, preserved
+`metadata` is passed to lifecycle hooks as `case_metadata`, preserved
 in result records, and available to in-process custom assertions. AgentV does
-not interpret arbitrary metadata keys itself; use `workspace`, `execution`,
-`input`, `expected_output`, and `assert` for operational behavior.
+not interpret arbitrary metadata keys itself; use `environment`, `extensions`,
+`prompts`, `expected_output`, and `assert` for operational behavior.
