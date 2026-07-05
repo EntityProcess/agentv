@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.target_execution.v1",
+  "target_id": "codex-app-server-local",
+  "provider_id": "codex-app-server:codex-app-server-local",
+  "provider_kind": "codex-app-server",
+  "runtime_mode": "host",
+  "command": {
+    "argv": [
+      "/home/entity/.local/bin/codex",
+      "-c",
+      "model_provider=\"agentv-openai\"",
+      "-c",
+      "model_providers.agentv-openai.name=\"OpenAI-compatible endpoint\"",
+      "-c",
+      "model_providers.agentv-openai.base_url=\"http://127.0.0.1:10531/v1\"",
+      "-c",
+      "model_providers.agentv-openai.env_key=\"CODEX_API_KEY\"",
+      "-c",
+      "model_providers.agentv-openai.wire_api=\"responses\"",
+      "app-server",
+      "--stdio"
+    ],
+    "command_line": "/home/entity/.local/bin/codex -c 'model_provider=\"agentv-openai\"' -c 'model_providers.agentv-openai.name=\"OpenAI-compatible endpoint\"' -c 'model_providers.agentv-openai.base_url=\"http://127.0.0.1:10531/v1\"' -c 'model_providers.agentv-openai.env_key=\"CODEX_API_KEY\"' -c 'model_providers.agentv-openai.wire_api=\"responses\"' app-server --stdio",
+    "cwd": "/home/entity/projects/EntityProcess/agentv__worktrees/coding-runtime-live-matrix/.agentv/results/av-y7eq-9-workspace"
+  },
+  "timeout_ms": 90000,
+  "started_at": "2026-07-05T03:22:37.454Z",
+  "ended_at": "2026-07-05T03:22:38.246Z",
+  "duration_ms": 792,
+  "exit_code": 0,
+  "signal": null,
+  "logs": {
+    "stdout": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    },
+    "stderr": {
+      "text": "2026-07-05T03:22:37.914208Z ERROR codex_app_server_transport::transport: Failed to deserialize JSONRPCMessage: data did not match any variant of untagged enum JSONRPCMessage\n",
+      "truncated": false,
+      "bytes": 174,
+      "stored_bytes": 174
+    }
+  },
+  "status": "error",
+  "error_kind": "malformed_output",
+  "message": "Codex CLI produced no output in --json mode",
+  "transcript": {
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Error: Codex CLI produced no output in --json mode"
+      }
+    ],
+    "final_output": "Error: Codex CLI produced no output in --json mode"
+  },
+  "details": {
+    "prompt_file": "/tmp/agentv-codex-AKg1S9/prompt.md",
+    "workspace": "/tmp/agentv-codex-AKg1S9",
+    "input_files": [],
+    "log_file": "/tmp/agentv-provider-streams/2026-07-05T03-22-35-048Z-e7128cbdb9fe/av-y7eq-9-host-runtime-live-marker/live-marker/logs/codex/2026-07-05T03-22-37-440Z_codex-app-server-local_live-marker_attempt-1_55d85051.log"
+  },
+  "artifacts": {
+    "target_execution_path": "target-execution.json",
+    "stdout_path": "stdout.txt",
+    "stderr_path": "stderr.txt",
+    "transcript_path": "transcript.json",
+    "transcript_raw_path": "transcript-raw.jsonl",
+    "summary_path": "summary.json",
+    "metrics_path": "metrics.json",
+    "output_path": "outputs/answer.md",
+    "answer_path": "outputs/answer.md"
+  }
+}
