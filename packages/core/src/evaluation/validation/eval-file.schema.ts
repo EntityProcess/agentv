@@ -387,16 +387,6 @@ const ExtensionSchema = z.union([
 // Repo lifecycle
 // ---------------------------------------------------------------------------
 
-const RepoSchema = z
-  .object({
-    path: z.string().optional(),
-    repo: z.string().min(1).optional(),
-    commit: z.string().min(1).optional(),
-    ancestor: z.number().int().min(0).optional(),
-    sparse: z.array(z.string()).optional(),
-  })
-  .strict();
-
 const WorkspaceHookSchema = z
   .object({
     command: z.union([z.string(), z.array(z.string())]).optional(),
@@ -417,13 +407,6 @@ const WorkspaceHooksSchema = z
   })
   .strict();
 
-const DockerWorkspaceSchema = z.object({
-  image: z.string(),
-  timeout: z.number().int().min(1).optional(),
-  memory: z.string().optional(),
-  cpus: z.number().min(0.1).optional(),
-});
-
 const WorkspaceEnvSchema = z
   .object({
     required_commands: z.array(z.string().min(1)).optional(),
@@ -433,14 +416,71 @@ const WorkspaceEnvSchema = z
 
 const WorkspaceSchema = z
   .object({
-    template: z.string().optional(),
-    scope: z.enum(['suite', 'attempt']).optional(),
-    repos: z.array(RepoSchema).optional(),
+    template: z.never().optional(),
+    scope: z.never().optional(),
+    repos: z.never().optional(),
     hooks: WorkspaceHooksSchema.optional(),
-    docker: DockerWorkspaceSchema.optional(),
+    docker: z.never().optional(),
     env: WorkspaceEnvSchema.optional(),
   })
   .strict();
+
+const EnvironmentSetupSchema = z
+  .object({
+    command: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]),
+    args: JsonObjectSchema.optional(),
+    env: z.record(z.string()).optional(),
+    timeout_seconds: z.number().gt(0).optional(),
+  })
+  .strict();
+
+const EnvironmentBaseSchema = z.object({
+  workdir: z.string().min(1),
+  setup: EnvironmentSetupSchema.optional(),
+  env: z.record(z.string()).optional(),
+});
+
+const HostEnvironmentSchema = EnvironmentBaseSchema.extend({
+  type: z.literal('host'),
+}).strict();
+
+const DockerEnvironmentMountSchema = z
+  .object({
+    source: z.string().min(1),
+    target: z.string().min(1),
+    access: z.enum(['ro', 'rw']).optional(),
+    read_only: z.boolean().optional(),
+  })
+  .strict();
+
+const DockerEnvironmentResourcesSchema = z
+  .object({
+    cpus: z.number().gt(0).optional(),
+    memory: z.string().min(1).optional(),
+    disk: z.string().min(1).optional(),
+    gpu: z.union([z.boolean(), z.string().min(1)]).optional(),
+  })
+  .strict();
+
+const DockerEnvironmentSchema = EnvironmentBaseSchema.extend({
+  type: z.literal('docker'),
+  context: z.string().min(1).optional(),
+  dockerfile: z.string().min(1).optional(),
+  image: z.string().min(1).optional(),
+  resources: DockerEnvironmentResourcesSchema.optional(),
+  mounts: z.array(DockerEnvironmentMountSchema).optional(),
+  secrets: z.record(z.string()).optional(),
+})
+  .strict()
+  .refine((value) => value.context !== undefined || value.image !== undefined, {
+    message: "Docker environment recipes must define either 'image' or 'context'.",
+  });
+
+const EnvironmentSchema = z.union([
+  z.string().regex(/^\s*file:\/\//, 'environment string must start with file://'),
+  HostEnvironmentSchema,
+  DockerEnvironmentSchema,
+]);
 
 // ---------------------------------------------------------------------------
 // Target hooks (eval-level per-target customization)
@@ -475,6 +515,9 @@ const EvalLocalTargetSchema = z
     transform: z.union([z.string(), JsonObjectSchema]).optional(),
     delay: z.number().min(0).optional(),
     env: z.record(z.string()).optional(),
+    environment: z.never().optional(),
+    container: z.never().optional(),
+    install: z.never().optional(),
     reasoning_effort: z.string().min(1).optional(),
     hooks: TargetHooksSchema.optional(),
   })
@@ -589,6 +632,7 @@ const EvalTestSchema = z.object({
   threshold: z.number().min(0).max(1).optional(),
   execution: TestExecutionSchema.optional(),
   run: RunOverrideSchema.optional(),
+  environment: EnvironmentSchema.optional(),
   workspace: WorkspaceSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
   conversation_id: z.string().optional(),
@@ -667,6 +711,9 @@ const ConfigTargetSchema = z
     provider: z.string().min(1),
     runtime: ConfigRuntimeSchema,
     config: JsonRecordSchema.optional(),
+    environment: z.never().optional(),
+    container: z.never().optional(),
+    install: z.never().optional(),
   })
   .strict();
 
@@ -768,6 +815,7 @@ export const EvalFileSchema: z.ZodType = z
     budget_usd: z.never().optional(),
     threshold: z.number().min(0).max(1).optional(),
     default_test: z.union([DefaultTestReferenceSchema, DefaultTestSchema]).optional(),
+    environment: EnvironmentSchema.optional(),
     scenarios: z.array(ScenarioSchema).optional(),
     derived_metrics: z.array(DerivedMetricSchema).optional(),
     output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),

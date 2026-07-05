@@ -4,6 +4,7 @@ import fg from 'fast-glob';
 
 import { interpolateEnv } from '../interpolation.js';
 import { loadCasesFromDirectory, loadCasesFromFile } from '../loaders/case-file-loader.js';
+import { resolveEnvironmentRecipe } from '../loaders/environment-recipe.js';
 import { buildSearchRoots } from '../loaders/file-resolver.js';
 import { loadPromptMdFallback } from '../loaders/prompt-md-fallback.js';
 import { isGraderKind } from '../types.js';
@@ -150,6 +151,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'tests',
   'graders',
   'defaults',
+  'environment',
   'target',
   'targets',
   'model',
@@ -283,6 +285,7 @@ const KNOWN_TEST_FIELDS = new Set([
   'threshold',
   'execution',
   'run',
+  'environment',
   'workspace',
   'metadata',
   'conversation_id',
@@ -472,7 +475,10 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     }
   }
 
+  await validateEnvironmentConfig(parsed.environment, absolutePath, errors, 'environment');
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
+  validateTargetTestbedFields(parsed.target, 'target', absolutePath, errors);
+  validateTargetsTestbedFields(parsed.targets, 'targets', absolutePath, errors);
   validateAuthoredWorkers(parsed, absolutePath, errors);
   validateExecutionPolicy(parsed.execution, 'execution', absolutePath, errors);
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
@@ -663,6 +669,12 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
     validateRunOverride(evalCase.run, `${location}.run`, absolutePath, errors);
     validateTestOptions(evalCase.options, `${location}.options`, absolutePath, errors);
+    await validateEnvironmentConfig(
+      evalCase.environment,
+      absolutePath,
+      errors,
+      `${location}.environment`,
+    );
 
     // Cross-field validation for conversation mode
     validateConversationMode(evalCase, location, absolutePath, errors);
@@ -700,6 +712,64 @@ async function validateSuiteWorkspaceConfigs(
       'execution.workspace',
     );
   }
+}
+
+async function validateEnvironmentConfig(
+  environment: JsonValue | undefined,
+  evalFilePath: string,
+  errors: ValidationError[],
+  location: string,
+): Promise<void> {
+  if (environment === undefined) {
+    return;
+  }
+  try {
+    await resolveEnvironmentRecipe(environment, path.dirname(evalFilePath), location);
+  } catch (error) {
+    errors.push({
+      severity: 'error',
+      filePath: evalFilePath,
+      location,
+      message: (error as Error).message,
+    });
+  }
+}
+
+function validateTargetTestbedFields(
+  target: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (!isObject(target)) {
+    return;
+  }
+  for (const field of ['environment', 'container', 'install'] as const) {
+    if (target[field] === undefined) {
+      continue;
+    }
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.${field}`,
+      message:
+        field === 'environment'
+          ? 'Target definitions cannot include environment; author environment at suite/test/case scope.'
+          : `Target definitions cannot include ${field}; use an environment recipe for testbed setup.`,
+    });
+  }
+}
+
+function validateTargetsTestbedFields(
+  targets: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  const entries = Array.isArray(targets) ? targets : targets === undefined ? [] : [targets];
+  entries.forEach((entry, index) => {
+    validateTargetTestbedFields(entry, `${location}[${index}]`, filePath, errors);
+  });
 }
 
 function validateTestExecutionFields(
@@ -1029,7 +1099,9 @@ async function validateCompositionDiagnostics(
         filePath,
         location,
         message:
-          'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns target and run controls, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
+          location === 'environment'
+            ? 'Parent environment is not allowed when an eval imports suites with type: suite. Imported suites own task environment. Move environment into the child suite, or import raw cases with type: tests when you intentionally want parent environment context.'
+            : 'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns target and run controls, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
       });
     }
   }
@@ -1069,7 +1141,7 @@ async function validateCompositionDiagnostics(
           severity: 'warning',
           filePath,
           location: entry.location,
-          message: `imports.tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child workspace, input, assertions, metadata, target, and run controls. Parent suite context applies. Use imports.suites to preserve child test and workspace semantics.`,
+          message: `imports.tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child environment, workspace, input, assertions, metadata, target, and run controls. Parent suite context applies. Use imports.suites to preserve child test and environment semantics.`,
         });
       }
     }
@@ -1111,6 +1183,9 @@ function parentWorkspaceLocations(parsed: JsonObject): readonly string[] {
   const locations: string[] = [];
   if (parsed.workspace !== undefined) {
     locations.push('workspace');
+  }
+  if (parsed.environment !== undefined) {
+    locations.push('environment');
   }
   if (isObject(parsed.execution) && parsed.execution.workspace !== undefined) {
     locations.push('execution.workspace');
@@ -1711,6 +1786,51 @@ function validateWorkspaceRepoConfig(
   const scope = workspace.scope;
 
   const docker = workspace.docker;
+  let hasRemovedTestbedField = false;
+
+  if ('template' in workspace) {
+    hasRemovedTestbedField = true;
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.template`,
+      message:
+        'workspace.template has been removed from public eval YAML. Use environment.workdir and environment.setup for authored testbed setup.',
+    });
+  }
+  if ('repos' in workspace) {
+    hasRemovedTestbedField = true;
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.repos`,
+      message:
+        'workspace.repos has been removed from public eval YAML. Use an environment recipe with setup args to materialize repositories.',
+    });
+  }
+  if ('scope' in workspace) {
+    hasRemovedTestbedField = true;
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.scope`,
+      message:
+        'workspace.scope has been removed from public eval YAML. Use environment at suite/test scope and let runtime manage workspace lifetime.',
+    });
+  }
+  if ('docker' in workspace) {
+    hasRemovedTestbedField = true;
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.docker`,
+      message:
+        'workspace.docker has been removed from public eval YAML. Use environment.type: docker with image or context.',
+    });
+  }
+  if (hasRemovedTestbedField) {
+    return;
+  }
 
   if ('mode' in workspace) {
     errors.push({

@@ -702,6 +702,7 @@ export function normalizeTargetDefinition(
   if (!isRecord(definition)) {
     throw new Error('Target definition must be an object');
   }
+  assertNoTargetTestbedFields(definition);
 
   const rawId = definition.id;
   const rawLabel = definition.label;
@@ -724,6 +725,22 @@ export function normalizeTargetDefinition(
     label: label ?? name,
     name,
   } as unknown as TargetDefinition;
+}
+
+function assertNoTargetTestbedFields(definition: Record<string, unknown>): void {
+  if (definition.environment !== undefined) {
+    throw new Error(
+      'Target definitions cannot include environment; author environment at suite/test/case scope.',
+    );
+  }
+  if (definition.container !== undefined) {
+    throw new Error(
+      'Target definitions cannot include container setup; use an environment recipe.',
+    );
+  }
+  if (definition.install !== undefined) {
+    throw new Error('Target definitions cannot include install steps; use environment.setup.');
+  }
 }
 
 function collectDeprecatedCamelCaseWarnings(

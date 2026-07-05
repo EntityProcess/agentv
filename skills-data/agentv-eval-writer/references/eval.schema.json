@@ -998,6 +998,15 @@
                                   "type": "string"
                                 }
                               },
+                              "environment": {
+                                "not": {}
+                              },
+                              "container": {
+                                "not": {}
+                              },
+                              "install": {
+                                "not": {}
+                              },
                               "reasoning_effort": {
                                 "type": "string",
                                 "minLength": 1
@@ -1332,6 +1341,15 @@
                                       "type": "string"
                                     }
                                   },
+                                  "environment": {
+                                    "not": {}
+                                  },
+                                  "container": {
+                                    "not": {}
+                                  },
+                                  "install": {
+                                    "not": {}
+                                  },
                                   "reasoning_effort": {
                                     "type": "string",
                                     "minLength": 1
@@ -1665,6 +1683,15 @@
                                       "additionalProperties": {
                                         "type": "string"
                                       }
+                                    },
+                                    "environment": {
+                                      "not": {}
+                                    },
+                                    "container": {
+                                      "not": {}
+                                    },
+                                    "install": {
+                                      "not": {}
                                     },
                                     "reasoning_effort": {
                                       "type": "string",
@@ -2154,45 +2181,218 @@
                         },
                         "additionalProperties": false
                       },
+                      "environment": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\s*file:\\/\\/"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "workdir": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "setup": {
+                                "type": "object",
+                                "properties": {
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "minItems": 1
+                                      }
+                                    ]
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {}
+                                  },
+                                  "env": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "timeout_seconds": {
+                                    "type": "number",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": ["command"],
+                                "additionalProperties": false
+                              },
+                              "env": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "host"
+                              }
+                            },
+                            "required": ["workdir", "type"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "workdir": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "setup": {
+                                "type": "object",
+                                "properties": {
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "minItems": 1
+                                      }
+                                    ]
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {}
+                                  },
+                                  "env": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "timeout_seconds": {
+                                    "type": "number",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": ["command"],
+                                "additionalProperties": false
+                              },
+                              "env": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "docker"
+                              },
+                              "context": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "dockerfile": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "image": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "resources": {
+                                "type": "object",
+                                "properties": {
+                                  "cpus": {
+                                    "type": "number",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0
+                                  },
+                                  "memory": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "disk": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "gpu": {
+                                    "anyOf": [
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "mounts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "target": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "access": {
+                                      "type": "string",
+                                      "enum": ["ro", "rw"]
+                                    },
+                                    "read_only": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["source", "target"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "secrets": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": ["workdir", "type"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
                       "workspace": {
                         "type": "object",
                         "properties": {
                           "template": {
-                            "type": "string"
+                            "not": {}
                           },
                           "scope": {
-                            "type": "string",
-                            "enum": ["suite", "attempt"]
+                            "not": {}
                           },
                           "repos": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "path": {
-                                  "type": "string"
-                                },
-                                "repo": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "commit": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "ancestor": {
-                                  "type": "integer",
-                                  "minimum": 0
-                                },
-                                "sparse": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "additionalProperties": false
-                            }
+                            "not": {}
                           },
                           "hooks": {
                             "type": "object",
@@ -2332,25 +2532,7 @@
                             "additionalProperties": false
                           },
                           "docker": {
-                            "type": "object",
-                            "properties": {
-                              "image": {
-                                "type": "string"
-                              },
-                              "timeout": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "memory": {
-                                "type": "string"
-                              },
-                              "cpus": {
-                                "type": "number",
-                                "minimum": 0.1
-                              }
-                            },
-                            "required": ["image"],
-                            "additionalProperties": false
+                            "not": {}
                           },
                           "env": {
                             "type": "object",
@@ -2926,6 +3108,15 @@
                                   "type": "string"
                                 }
                               },
+                              "environment": {
+                                "not": {}
+                              },
+                              "container": {
+                                "not": {}
+                              },
+                              "install": {
+                                "not": {}
+                              },
                               "reasoning_effort": {
                                 "type": "string",
                                 "minLength": 1
@@ -3260,6 +3451,15 @@
                                       "type": "string"
                                     }
                                   },
+                                  "environment": {
+                                    "not": {}
+                                  },
+                                  "container": {
+                                    "not": {}
+                                  },
+                                  "install": {
+                                    "not": {}
+                                  },
                                   "reasoning_effort": {
                                     "type": "string",
                                     "minLength": 1
@@ -3593,6 +3793,15 @@
                                       "additionalProperties": {
                                         "type": "string"
                                       }
+                                    },
+                                    "environment": {
+                                      "not": {}
+                                    },
+                                    "container": {
+                                      "not": {}
+                                    },
+                                    "install": {
+                                      "not": {}
                                     },
                                     "reasoning_effort": {
                                       "type": "string",
@@ -4082,45 +4291,218 @@
                         },
                         "additionalProperties": false
                       },
+                      "environment": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\s*file:\\/\\/"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "workdir": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "setup": {
+                                "type": "object",
+                                "properties": {
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "minItems": 1
+                                      }
+                                    ]
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {}
+                                  },
+                                  "env": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "timeout_seconds": {
+                                    "type": "number",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": ["command"],
+                                "additionalProperties": false
+                              },
+                              "env": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "host"
+                              }
+                            },
+                            "required": ["workdir", "type"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "workdir": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "setup": {
+                                "type": "object",
+                                "properties": {
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "minItems": 1
+                                      }
+                                    ]
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {}
+                                  },
+                                  "env": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "timeout_seconds": {
+                                    "type": "number",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": ["command"],
+                                "additionalProperties": false
+                              },
+                              "env": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": {
+                                "type": "string",
+                                "const": "docker"
+                              },
+                              "context": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "dockerfile": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "image": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "resources": {
+                                "type": "object",
+                                "properties": {
+                                  "cpus": {
+                                    "type": "number",
+                                    "exclusiveMinimum": true,
+                                    "minimum": 0
+                                  },
+                                  "memory": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "disk": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "gpu": {
+                                    "anyOf": [
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "mounts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "target": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "access": {
+                                      "type": "string",
+                                      "enum": ["ro", "rw"]
+                                    },
+                                    "read_only": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["source", "target"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "secrets": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": ["workdir", "type"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
                       "workspace": {
                         "type": "object",
                         "properties": {
                           "template": {
-                            "type": "string"
+                            "not": {}
                           },
                           "scope": {
-                            "type": "string",
-                            "enum": ["suite", "attempt"]
+                            "not": {}
                           },
                           "repos": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "path": {
-                                  "type": "string"
-                                },
-                                "repo": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "commit": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "ancestor": {
-                                  "type": "integer",
-                                  "minimum": 0
-                                },
-                                "sparse": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "additionalProperties": false
-                            }
+                            "not": {}
                           },
                           "hooks": {
                             "type": "object",
@@ -4260,25 +4642,7 @@
                             "additionalProperties": false
                           },
                           "docker": {
-                            "type": "object",
-                            "properties": {
-                              "image": {
-                                "type": "string"
-                              },
-                              "timeout": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "memory": {
-                                "type": "string"
-                              },
-                              "cpus": {
-                                "type": "number",
-                                "minimum": 0.1
-                              }
-                            },
-                            "required": ["image"],
-                            "additionalProperties": false
+                            "not": {}
                           },
                           "env": {
                             "type": "object",
@@ -4781,6 +5145,15 @@
                     "type": "string"
                   }
                 },
+                "environment": {
+                  "not": {}
+                },
+                "container": {
+                  "not": {}
+                },
+                "install": {
+                  "not": {}
+                },
                 "reasoning_effort": {
                   "type": "string",
                   "minLength": 1
@@ -5115,6 +5488,15 @@
                         "type": "string"
                       }
                     },
+                    "environment": {
+                      "not": {}
+                    },
+                    "container": {
+                      "not": {}
+                    },
+                    "install": {
+                      "not": {}
+                    },
                     "reasoning_effort": {
                       "type": "string",
                       "minLength": 1
@@ -5448,6 +5830,15 @@
                         "additionalProperties": {
                           "type": "string"
                         }
+                      },
+                      "environment": {
+                        "not": {}
+                      },
+                      "container": {
+                        "not": {}
+                      },
+                      "install": {
+                        "not": {}
                       },
                       "reasoning_effort": {
                         "type": "string",
@@ -5926,6 +6317,15 @@
                             "type": "string"
                           }
                         },
+                        "environment": {
+                          "not": {}
+                        },
+                        "container": {
+                          "not": {}
+                        },
+                        "install": {
+                          "not": {}
+                        },
                         "reasoning_effort": {
                           "type": "string",
                           "minLength": 1
@@ -6260,6 +6660,15 @@
                                 "type": "string"
                               }
                             },
+                            "environment": {
+                              "not": {}
+                            },
+                            "container": {
+                              "not": {}
+                            },
+                            "install": {
+                              "not": {}
+                            },
                             "reasoning_effort": {
                               "type": "string",
                               "minLength": 1
@@ -6593,6 +7002,15 @@
                                 "additionalProperties": {
                                   "type": "string"
                                 }
+                              },
+                              "environment": {
+                                "not": {}
+                              },
+                              "container": {
+                                "not": {}
+                              },
+                              "install": {
+                                "not": {}
                               },
                               "reasoning_effort": {
                                 "type": "string",
@@ -6984,6 +7402,207 @@
             }
           ]
         },
+        "environment": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\s*file:\\/\\/"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "workdir": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "setup": {
+                  "type": "object",
+                  "properties": {
+                    "command": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "minItems": 1
+                        }
+                      ]
+                    },
+                    "args": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": {}
+                    },
+                    "env": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "timeout_seconds": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "minimum": 0
+                    }
+                  },
+                  "required": ["command"],
+                  "additionalProperties": false
+                },
+                "env": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "type": {
+                  "type": "string",
+                  "const": "host"
+                }
+              },
+              "required": ["workdir", "type"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "workdir": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "setup": {
+                  "type": "object",
+                  "properties": {
+                    "command": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "minItems": 1
+                        }
+                      ]
+                    },
+                    "args": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": {}
+                    },
+                    "env": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "timeout_seconds": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "minimum": 0
+                    }
+                  },
+                  "required": ["command"],
+                  "additionalProperties": false
+                },
+                "env": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "type": {
+                  "type": "string",
+                  "const": "docker"
+                },
+                "context": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "dockerfile": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "image": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "resources": {
+                  "type": "object",
+                  "properties": {
+                    "cpus": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "minimum": 0
+                    },
+                    "memory": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "disk": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "gpu": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "mounts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "target": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "access": {
+                        "type": "string",
+                        "enum": ["ro", "rw"]
+                      },
+                      "read_only": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["source", "target"],
+                    "additionalProperties": false
+                  }
+                },
+                "secrets": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["workdir", "type"],
+              "additionalProperties": false
+            }
+          ]
+        },
         "scenarios": {
           "type": "array",
           "items": {
@@ -7190,6 +7809,15 @@
                               "additionalProperties": {
                                 "type": "string"
                               }
+                            },
+                            "environment": {
+                              "not": {}
+                            },
+                            "container": {
+                              "not": {}
+                            },
+                            "install": {
+                              "not": {}
                             },
                             "reasoning_effort": {
                               "type": "string",
@@ -7525,6 +8153,15 @@
                                     "type": "string"
                                   }
                                 },
+                                "environment": {
+                                  "not": {}
+                                },
+                                "container": {
+                                  "not": {}
+                                },
+                                "install": {
+                                  "not": {}
+                                },
                                 "reasoning_effort": {
                                   "type": "string",
                                   "minLength": 1
@@ -7858,6 +8495,15 @@
                                     "additionalProperties": {
                                       "type": "string"
                                     }
+                                  },
+                                  "environment": {
+                                    "not": {}
+                                  },
+                                  "container": {
+                                    "not": {}
+                                  },
+                                  "install": {
+                                    "not": {}
                                   },
                                   "reasoning_effort": {
                                     "type": "string",
@@ -8438,6 +9084,15 @@
                                 "type": "string"
                               }
                             },
+                            "environment": {
+                              "not": {}
+                            },
+                            "container": {
+                              "not": {}
+                            },
+                            "install": {
+                              "not": {}
+                            },
                             "reasoning_effort": {
                               "type": "string",
                               "minLength": 1
@@ -8772,6 +9427,15 @@
                                     "type": "string"
                                   }
                                 },
+                                "environment": {
+                                  "not": {}
+                                },
+                                "container": {
+                                  "not": {}
+                                },
+                                "install": {
+                                  "not": {}
+                                },
                                 "reasoning_effort": {
                                   "type": "string",
                                   "minLength": 1
@@ -9105,6 +9769,15 @@
                                     "additionalProperties": {
                                       "type": "string"
                                     }
+                                  },
+                                  "environment": {
+                                    "not": {}
+                                  },
+                                  "container": {
+                                    "not": {}
+                                  },
+                                  "install": {
+                                    "not": {}
                                   },
                                   "reasoning_effort": {
                                     "type": "string",
@@ -9594,45 +10267,218 @@
                       },
                       "additionalProperties": false
                     },
+                    "environment": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\s*file:\\/\\/"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "workdir": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "setup": {
+                              "type": "object",
+                              "properties": {
+                                "command": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1
+                                    }
+                                  ]
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "properties": {},
+                                  "additionalProperties": {}
+                                },
+                                "env": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "timeout_seconds": {
+                                  "type": "number",
+                                  "exclusiveMinimum": true,
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["command"],
+                              "additionalProperties": false
+                            },
+                            "env": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            },
+                            "type": {
+                              "type": "string",
+                              "const": "host"
+                            }
+                          },
+                          "required": ["workdir", "type"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "workdir": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "setup": {
+                              "type": "object",
+                              "properties": {
+                                "command": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1
+                                    }
+                                  ]
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "properties": {},
+                                  "additionalProperties": {}
+                                },
+                                "env": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "timeout_seconds": {
+                                  "type": "number",
+                                  "exclusiveMinimum": true,
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["command"],
+                              "additionalProperties": false
+                            },
+                            "env": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            },
+                            "type": {
+                              "type": "string",
+                              "const": "docker"
+                            },
+                            "context": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "dockerfile": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "image": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "resources": {
+                              "type": "object",
+                              "properties": {
+                                "cpus": {
+                                  "type": "number",
+                                  "exclusiveMinimum": true,
+                                  "minimum": 0
+                                },
+                                "memory": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "disk": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "gpu": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  ]
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "mounts": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "target": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "access": {
+                                    "type": "string",
+                                    "enum": ["ro", "rw"]
+                                  },
+                                  "read_only": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["source", "target"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "secrets": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": ["workdir", "type"],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
                     "workspace": {
                       "type": "object",
                       "properties": {
                         "template": {
-                          "type": "string"
+                          "not": {}
                         },
                         "scope": {
-                          "type": "string",
-                          "enum": ["suite", "attempt"]
+                          "not": {}
                         },
                         "repos": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "path": {
-                                "type": "string"
-                              },
-                              "repo": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "commit": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "ancestor": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "sparse": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "additionalProperties": false
-                          }
+                          "not": {}
                         },
                         "hooks": {
                           "type": "object",
@@ -9772,25 +10618,7 @@
                           "additionalProperties": false
                         },
                         "docker": {
-                          "type": "object",
-                          "properties": {
-                            "image": {
-                              "type": "string"
-                            },
-                            "timeout": {
-                              "type": "integer",
-                              "minimum": 1
-                            },
-                            "memory": {
-                              "type": "string"
-                            },
-                            "cpus": {
-                              "type": "number",
-                              "minimum": 0.1
-                            }
-                          },
-                          "required": ["image"],
-                          "additionalProperties": false
+                          "not": {}
                         },
                         "env": {
                           "type": "object",
@@ -10218,41 +11046,13 @@
               "type": "object",
               "properties": {
                 "template": {
-                  "type": "string"
+                  "not": {}
                 },
                 "scope": {
-                  "type": "string",
-                  "enum": ["suite", "attempt"]
+                  "not": {}
                 },
                 "repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "path": {
-                        "type": "string"
-                      },
-                      "repo": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "commit": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "ancestor": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "sparse": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "additionalProperties": false
-                  }
+                  "not": {}
                 },
                 "hooks": {
                   "type": "object",
@@ -10392,25 +11192,7 @@
                   "additionalProperties": false
                 },
                 "docker": {
-                  "type": "object",
-                  "properties": {
-                    "image": {
-                      "type": "string"
-                    },
-                    "timeout": {
-                      "type": "integer",
-                      "minimum": 1
-                    },
-                    "memory": {
-                      "type": "string"
-                    },
-                    "cpus": {
-                      "type": "number",
-                      "minimum": 0.1
-                    }
-                  },
-                  "required": ["image"],
-                  "additionalProperties": false
+                  "not": {}
                 },
                 "env": {
                   "type": "object",

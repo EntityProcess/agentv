@@ -328,6 +328,20 @@ describe('loadConfig', () => {
           ].join('\n'),
           message: /workers/,
         },
+        {
+          name: 'target-environment',
+          yaml: [
+            'targets:',
+            '  - id: codex-local',
+            '    provider: codex-cli',
+            '    runtime: host',
+            '    environment:',
+            '      type: host',
+            '      workdir: ./workspace',
+            '',
+          ].join('\n'),
+          message: /environment recipes belong at suite\/test\/case scope/,
+        },
       ];
 
       for (const testCase of invalidCases) {
