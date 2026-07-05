@@ -89,10 +89,10 @@ The fields mean:
 Do not add competing top-level fields such as `isolation`, `sandbox`,
 `profile`, `install`, `container`, `environment`, `executable`, `binary`,
 `args`, or `arguments` for this contract. Process/protocol providers use
-`config.command` as a non-empty argv array. General eval policy such as
-concurrency belongs under `execution`, not inside a target definition. Grader
-selection belongs to `defaults.grader`, CLI overrides, or evaluator-level target
-selection, not to the system-under-test target.
+`config.command` as a non-empty argv array. Authored eval concurrency belongs
+under `evaluate_options.max_concurrency`, not inside a target definition.
+Grader selection belongs to `defaults.grader`, CLI overrides, or
+evaluator-level target selection, not to the system-under-test target.
 
 ### Provider Boundaries
 
