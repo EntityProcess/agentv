@@ -1,0 +1,26 @@
+target: codex-sdk-local
+prompts:
+  - "{{ input }}"
+tests:
+  - id: live-marker
+    expected_output: AGENTV-LIVE-MATRIX-OK
+    vars:
+      input: |-
+        Return exactly this marker and nothing else:
+        AGENTV-LIVE-MATRIX-OK
+    assert:
+      - metric: contains-AGENTV-LIVE-MATRIX-OK
+        type: contains
+        value: AGENTV-LIVE-MATRIX-OK
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        rubrics:
+          - id: rubric-1
+            outcome: The response contains the exact marker AGENTV-LIVE-MATRIX-OK.
+            weight: 1
+            required: true
+          - id: rubric-2
+            outcome: The response is concise and does not claim the task could not be performed.
+            weight: 1
+            required: true
