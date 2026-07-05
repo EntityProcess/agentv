@@ -1,0 +1,43 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Response exactly matches the required phrase",
+      "passed": true,
+      "evidence": "The answer is exactly: \"AgentV rubric parser live dogfood.\"",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0,
+    "total": 1,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Response exactly matches the required phrase",
+          "passed": true,
+          "evidence": "The answer is exactly: \"AgentV rubric parser live dogfood.\"",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ],
+      "details": {
+        "match_type": "exact",
+        "expected": "AgentV rubric parser live dogfood.",
+        "observed": "AgentV rubric parser live dogfood."
+      }
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "av-kfik-28-3-dogfood-run",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "promptfoo-llm-rubric-parser-live",
+      "suite": "eval",
+      "eval_path": ".agentv/results/av-kfik-28-3-dogfood/eval.yaml",
+      "target": "local-openai",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "promptfoo-llm-rubric-parser-live",
+          "suite": "eval",
+          "eval_path": ".agentv/results/av-kfik-28-3-dogfood/eval.yaml",
+          "target": "local-openai",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 850
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "av-kfik-28-3-dogfood-run",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/grading-llm-rubric-parsing/.agentv/results/av-kfik-28-3-dogfood/eval.yaml",
+    "timestamp": "2026-07-05T03:42:43.359Z",
+    "targets": [
+      "local-openai"
+    ],
+    "tests_run": [
+      "promptfoo-llm-rubric-parser-live"
+    ],
+    "experiment": "eval",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        ".agentv/results/av-kfik-28-3-dogfood/eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "local-openai": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 0.85,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 850,
+      "total_seconds": 0.85,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 0,
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}

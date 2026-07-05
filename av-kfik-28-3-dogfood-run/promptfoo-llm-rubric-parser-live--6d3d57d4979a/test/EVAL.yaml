@@ -1,0 +1,20 @@
+target: local-openai
+prompts:
+  - "{{ input }}"
+tests:
+  - id: promptfoo-llm-rubric-parser-live
+    vars:
+      input: "Reply exactly: AgentV rubric parser live dogfood."
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: |+
+          You are a strict grader. Return only JSON matching:
+          {"reason":"...", "pass": true|false, "score": 0.0-1.0}
+
+          Output:
+
+
+          Rubric:
+
+        value: The output includes the phrase AgentV rubric parser live dogfood.
