@@ -1,0 +1,79 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T03-57-35-332Z",
+  "status": {
+    "passed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 0,
+    "total_instances": 0,
+    "passed_cases": 0,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [],
+  "metadata": {
+    "run_id": "2026-07-05T03-57-35-332Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/runtime-sdk-child-runner-deps/.agentv/results/av-t2o5-3-inputs/live-marker.eval.yaml",
+    "timestamp": "2026-07-05T03:57:35.450Z",
+    "targets": [],
+    "tests_run": [],
+    "experiment": "av-t2o5-3-sdk-child-runner-live",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "cli_flags",
+      "eval_files": [
+        ".agentv/results/av-t2o5-3-inputs/live-marker.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {},
+  "metrics": {
+    "duration": {
+      "total_ms": 0,
+      "total_seconds": 0,
+      "source": "unavailable"
+    },
+    "tokens": {
+      "total": 0,
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "source": "unavailable"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    }
+  },
+  "notes": [
+    "No results to summarize"
+  ]
+}

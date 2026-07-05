@@ -1,0 +1,64 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-c9ceab8b82084701eace",
+  "generated_at": "2026-07-05T03:57:17.066Z",
+  "test_id": "sdk-live-marker",
+  "target": "claude-sdk-host",
+  "suite": "av-t2o5-3-sdk-child-runner-live",
+  "category": ".agentv/results/av-t2o5-3-inputs/live-marker",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-c9ceab8b82084701eace",
+    "trace_id": "eb55a0f7432cea0315c57ff8a3237342",
+    "root_span_id": "aa28eaa93efe8e0c"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 3,
+    "total_turns": 3,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 29,
+    "transcript_chars": 1070,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 1812,
+    "total_seconds": 1.812,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 21914,
+    "input": 21879,
+    "output": 35,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": 0.11026999999999999,
+    "source": "provider_reported"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 3,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
