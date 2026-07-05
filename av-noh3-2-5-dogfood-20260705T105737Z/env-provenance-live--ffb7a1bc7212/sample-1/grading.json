@@ -1,0 +1,52 @@
+{
+  "pass": true,
+  "score": 1,
+  "reason": "All grading components passed.",
+  "component_results": [
+    {
+      "pass": true,
+      "score": 1,
+      "reason": "Grader passed.",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The answer is exactly 'PASS environment provenance dogfood' as requested.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "azure-live",
+            "value": "Exact phrase match"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "azure-live"
+      },
+      "metadata": {
+        "details": {
+          "pass": true,
+          "score": 1,
+          "reason": "The response exactly matches the required phrase and format."
+        },
+        "token_usage": {
+          "input": 391,
+          "output": 72
+        },
+        "duration_ms": 1837,
+        "started_at": "2026-07-05T10:57:59.064Z",
+        "ended_at": "2026-07-05T10:58:00.901Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "llm-rubric": 1
+  },
+  "metadata": {
+    "execution_status": "ok"
+  }
+}

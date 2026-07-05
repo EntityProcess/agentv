@@ -1,0 +1,155 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "av-noh3-2-5-dogfood-20260705T105737Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 44,
+    "input_tokens": 35,
+    "output_tokens": 9,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.00006675
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "env-provenance-live",
+      "suite": "environment-provenance-dogfood",
+      "eval_path": "/tmp/agentv-env-provenance-dogfood/provenance.eval.yaml",
+      "target": "azure-live",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "env-provenance-live",
+          "suite": "environment-provenance-dogfood",
+          "eval_path": "/tmp/agentv-env-provenance-dogfood/provenance.eval.yaml",
+          "target": "azure-live",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 1181,
+          "cost_usd": 0.00006675
+        }
+      ],
+      "pass_rate": 1,
+      "pass_any": true
+    }
+  ],
+  "metadata": {
+    "run_id": "av-noh3-2-5-dogfood-20260705T105737Z",
+    "eval_file": "/tmp/agentv-env-provenance-dogfood/provenance.eval.yaml",
+    "timestamp": "2026-07-05T10:58:00.902Z",
+    "targets": [
+      "azure-live"
+    ],
+    "tests_run": [
+      "env-provenance-live"
+    ],
+    "experiment": "environment-provenance-dogfood",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "cli_flags",
+      "eval_files": [
+        "/tmp/agentv-env-provenance-dogfood/provenance.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1,
+    "environments": [
+      {
+        "schema_version": "agentv.environment_summary.v1",
+        "type": "host",
+        "workdir": "/tmp/agentv-env-provenance-dogfood/workspaces/host-env",
+        "recipe_sha256": "3ffb48bf7013c7791be57591a5f06a51d64efcc7625c26faa20d7dff78773d03",
+        "authored_kind": "file",
+        "authored_reference": "file://.agentv/environments/host.yaml",
+        "recipe_file_path": "/tmp/agentv-env-provenance-dogfood/.agentv/environments/host.yaml",
+        "recipe_file_sha256": "2b2e2d30ef9add1659518b2415902b746b0ff059cfc9537df7fe642de77f50da",
+        "setup_status": "success"
+      }
+    ]
+  },
+  "run_summary": {
+    "azure-live": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 1.181,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 44,
+        "stddev": 0
+      },
+      "cost_usd": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 1181,
+      "total_seconds": 1.181,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 44,
+      "input": 35,
+      "output": 9,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": 0.00006675,
+      "source": "provider_reported"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}

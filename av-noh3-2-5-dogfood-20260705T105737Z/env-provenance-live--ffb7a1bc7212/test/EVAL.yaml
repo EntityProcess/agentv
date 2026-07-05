@@ -1,0 +1,11 @@
+target: azure-live
+prompts:
+  - "{{ input }}"
+tests:
+  - id: env-provenance-live
+    criteria: The response includes the exact phrase PASS environment provenance dogfood.
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: The answer contains the exact phrase PASS environment provenance dogfood.

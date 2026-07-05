@@ -1,0 +1,50 @@
+{
+  "schema_version": "agentv.environment_provenance.v1",
+  "authored_kind": "file",
+  "authored_reference": "file://.agentv/environments/host.yaml",
+  "recipe_file_path": "/tmp/agentv-env-provenance-dogfood/.agentv/environments/host.yaml",
+  "recipe_file_sha256": "2b2e2d30ef9add1659518b2415902b746b0ff059cfc9537df7fe642de77f50da",
+  "recipe_sha256": "3ffb48bf7013c7791be57591a5f06a51d64efcc7625c26faa20d7dff78773d03",
+  "type": "host",
+  "source_dir": "/tmp/agentv-env-provenance-dogfood/.agentv/environments",
+  "workdir": "/tmp/agentv-env-provenance-dogfood/workspaces/host-env",
+  "setup": {
+    "command": [
+      "node",
+      "setup.mjs",
+      "--api-key",
+      "<redacted>"
+    ],
+    "args": {
+      "repo": "example/provenance-fixture",
+      "commit": "abc123dogfood",
+      "api_key": "<redacted>"
+    },
+    "env": {
+      "SETUP_MODE": "dogfood",
+      "SECRET_TOKEN": "<redacted>"
+    }
+  },
+  "setup_executions": [
+    {
+      "scope": "environment",
+      "name": "setup",
+      "status": "success",
+      "test_id": "__environment_setup__",
+      "workdir": "/tmp/agentv-env-provenance-dogfood/workspaces/host-env",
+      "command": [
+        "node",
+        "setup.mjs",
+        "--api-key",
+        "<redacted>"
+      ],
+      "cwd": "/tmp/agentv-env-provenance-dogfood/.agentv/environments",
+      "output": "{\"repo_provenance\":{\"repo\":\"example/provenance-fixture\",\"commit\":\"abc123dogfood\"}}\nsecret=<redacted>\n",
+      "exit_code": 0
+    }
+  ],
+  "repo_provenance": {
+    "repo": "example/provenance-fixture",
+    "commit": "abc123dogfood"
+  }
+}
