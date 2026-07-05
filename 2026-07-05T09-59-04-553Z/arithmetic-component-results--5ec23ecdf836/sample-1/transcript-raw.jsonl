@@ -1,0 +1,14 @@
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":0},"content":"# Pi CLI stream log"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":1},"content":"# target: pi-cli-proxy"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":2},"content":"# eval: arithmetic-component-results"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":3},"content":"# attempt: 1"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":4},"content":"# started: 2026-07-05T09:59:06.139Z"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":5},"content":"[+00:02] [stdout] session"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":6},"content":"[+00:02] [stdout] agent_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":7},"content":"[+00:02] [stdout] turn_start"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":8},"content":"[+00:02] [stdout] message_start: user"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":9},"content":"[+00:02] [stdout] message_end: user"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":10},"content":"[+00:03] [stdout] message_start: assistant"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":11},"content":"[+00:03] [stdout] message_end: assistant"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":12},"content":"[+00:03] [stdout] turn_end"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":13},"content":"[+00:03] [stdout] agent_end"}

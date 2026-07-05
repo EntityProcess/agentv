@@ -1,0 +1,64 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-5508170b16a16b87a469",
+  "generated_at": "2026-07-05T09:59:12.534Z",
+  "test_id": "arithmetic-component-results",
+  "target": "pi-cli-proxy",
+  "suite": "contract-dogfood",
+  "category": "../../../../../../tmp/agentv-dogfood-av-kfik-28-6/contract-dogfood",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-5508170b16a16b87a469",
+    "trace_id": "ff06f9fe50a26bcea8a83e9c97a99aa4",
+    "root_span_id": "9c0221c9e5490a89"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 0,
+    "transcript_chars": 1742,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 3578,
+    "total_seconds": 3.578,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "quality_failure"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

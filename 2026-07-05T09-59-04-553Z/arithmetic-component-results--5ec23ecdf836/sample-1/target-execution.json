@@ -1,0 +1,90 @@
+{
+  "schema_version": "agentv.target_execution.v1",
+  "status": "success",
+  "target_id": "pi-cli-proxy",
+  "provider_id": "pi-cli:pi-cli-proxy",
+  "provider_kind": "pi-cli",
+  "runtime_mode": "host",
+  "command": {
+    "argv": [
+      "pi",
+      "--provider",
+      "azure-openai-responses",
+      "--model",
+      "gpt-5.4-mini",
+      "--mode",
+      "json",
+      "--print",
+      "--no-session",
+      "Answer the user's task directly and concisely.\n\nIn one short sentence, answer this: what is 2 + 2? Include the exact word component-results."
+    ],
+    "cwd": "/tmp/agentv-pi-Aat6Gr"
+  },
+  "timeout_ms": 120000,
+  "started_at": "2026-07-05T09:59:06.124Z",
+  "ended_at": "2026-07-05T09:59:09.702Z",
+  "duration_ms": 3578,
+  "exit_code": 0,
+  "signal": null,
+  "logs": {
+    "stdout": {
+      "text": "{\"type\":\"session\",\"version\":3,\"id\":\"019f31b7-a9be-74f0-a342-48d0be41b0d3\",\"timestamp\":\"2026-07-05T09:59:07.966Z\",\"cwd\":\"/tmp/agentv-pi-Aat6Gr\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Answer the user's task directly and concisely.\\n\\nIn one short sentence, answer this: what is 2 + 2? Include the exact word component-results.\"}],\"timestamp\":1783245548876}}\n{\"type\":\"message_end\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Answer the user's task directly and concisely.\\n\\nIn one short sentence, answer this: what is 2 + 2? Include the exact word component-results.\"}],\"timestamp\":1783245548876}}\n{\"type\":\"message_start\",\"message\":{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783245548966,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"}}\n{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783245548966,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"}}\n{\"type\":\"turn_end\",\"message\":{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783245548966,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"},\"toolResults\":[]}\n{\"type\":\"agent_end\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Answer the user's task directly and concisely.\\n\\nIn one short sentence, answer this: what is 2 + 2? Include the exact word component-results.\"}],\"timestamp\":1783245548876},{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783245548966,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"}],\"willRetry\":false}\n",
+      "truncated": false,
+      "bytes": 3138,
+      "stored_bytes": 3138
+    },
+    "stderr": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    }
+  },
+  "transcript": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer the user's task directly and concisely.\n\nIn one short sentence, answer this: what is 2 + 2? Include the exact word component-results.",
+        "start_time": "2026-07-05T09:59:08.876Z"
+      },
+      {
+        "role": "assistant",
+        "start_time": "2026-07-05T09:59:08.966Z",
+        "metadata": {
+          "api": "azure-openai-responses",
+          "provider": "azure-openai-responses",
+          "model": "gpt-5.4-mini",
+          "usage": {
+            "input": 0,
+            "output": 0,
+            "cache_read": 0,
+            "cache_write": 0,
+            "total_tokens": 0,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cache_read": 0,
+              "cache_write": 0,
+              "total": 0
+            }
+          },
+          "stop_reason": "error"
+        }
+      }
+    ],
+    "final_output": ""
+  },
+  "details": {
+    "prompt_file": "/tmp/agentv-pi-Aat6Gr/prompt.md",
+    "log_file": "/tmp/agentv-provider-streams/2026-07-05T09-59-04-553Z-9616e031683c/contract-dogfood/arithmetic-component-results/logs/pi-cli/2026-07-05T09-59-06-138Z_pi-cli-proxy_arithmetic-component-results_attempt-1_0ca0983d.log"
+  },
+  "artifacts": {
+    "target_execution_path": "target-execution.json",
+    "stdout_path": "stdout.txt",
+    "stderr_path": "stderr.txt",
+    "transcript_path": "transcript.json",
+    "transcript_raw_path": "transcript-raw.jsonl",
+    "summary_path": "summary.json",
+    "metrics_path": "metrics.json"
+  }
+}
