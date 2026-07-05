@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { execSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -1028,6 +1029,170 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       expect(provider.invokeRequests[0]?.cwd).toBe(workdir);
       expect(existsSync(path.join(workdir, 'ready.txt'))).toBe(true);
     } finally {
+      const { rm } = await import('node:fs/promises');
+      await rm(sourceDir, { recursive: true, force: true });
+    }
+  });
+
+  it('dispatches docker environment recipes as sandbox runtime for CLI targets', async () => {
+    const sourceDir = mkdtempSync(path.join(tmpdir(), 'agentv-docker-environment-source-'));
+    const binDir = path.join(sourceDir, 'bin');
+    const dockerLog = path.join(sourceDir, 'docker.log');
+    mkdirSync(binDir, { recursive: true });
+    const dockerShim = path.join(binDir, 'docker');
+    writeFileSync(
+      dockerShim,
+      [
+        '#!/usr/bin/env sh',
+        `printf '%s\\n' "$*" >> ${JSON.stringify(dockerLog)}`,
+        'case "$1 $2" in',
+        '  "version --format") echo "24.0.0"; exit 0 ;;',
+        '  "image inspect") exit 0 ;;',
+        '  *) exit 0 ;;',
+        'esac',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    chmodSync(dockerShim, 0o755);
+    const previousPath = process.env.PATH;
+    process.env.PATH = `${binDir}${path.delimiter}${previousPath ?? ''}`;
+
+    const resolvedTargets: ResolvedTarget[] = [];
+    const provider = new CapturingCliProvider('docker-cli', {
+      output: [{ role: 'assistant', content: 'OK' }],
+    });
+
+    try {
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: {
+          kind: 'cli',
+          name: 'docker-cli',
+          config: { command: 'agent --out {OUTPUT_FILE}' },
+        },
+        providerFactory: (resolved) => {
+          resolvedTargets.push(resolved);
+          return provider;
+        },
+        evaluators: evaluatorRegistry,
+        evalCases: [
+          {
+            ...baseTestCase,
+            environment: {
+              type: 'docker',
+              image: 'alpine:3.20',
+              workdir: '/app',
+              sourceDir,
+              env: { CASE_ENV: '1' },
+              mounts: [{ source: sourceDir, target: '/mnt/source', access: 'ro' }],
+              resources: { cpus: 2, memory: '512m' },
+              setup: {
+                command: ['sh', '-c', 'test "$AGENTV_ENVIRONMENT_WORKDIR" = /app'],
+                args: { fixture: 'ready' },
+              },
+            },
+          },
+        ],
+      });
+
+      expect(results).toHaveLength(1);
+      expect(provider.lastRequest?.cwd).toBe('/app');
+      const sandboxTarget = resolvedTargets.find(
+        (resolved) => resolved.runtime?.mode === 'sandbox',
+      );
+      expect(sandboxTarget?.runtime).toMatchObject({
+        mode: 'sandbox',
+        engine: 'docker',
+        image: 'alpine:3.20',
+        workdir: '/app',
+        host_cwd: sourceDir,
+        env: { CASE_ENV: '1', AGENTV_ENVIRONMENT_WORKDIR: '/app' },
+        memory: '512m',
+        cpus: 2,
+      });
+      expect(sandboxTarget?.runtime?.mounts).toContainEqual({
+        source: sourceDir,
+        target: '/mnt/source',
+        access: 'ro',
+      });
+      expect(sandboxTarget?.runtime?.mounts).toContainEqual({
+        source: path.resolve(tmpdir()),
+        target: path.resolve(tmpdir()),
+        access: 'rw',
+      });
+      expect(sandboxTarget?.runtime?.setup).toHaveLength(1);
+      expect(readFileSync(dockerLog, 'utf8')).toContain('image inspect alpine:3.20');
+    } finally {
+      process.env.PATH = previousPath;
+      const { rm } = await import('node:fs/promises');
+      await rm(sourceDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns structured unsupported results for docker environments with unsupported providers', async () => {
+    const sourceDir = mkdtempSync(path.join(tmpdir(), 'agentv-docker-unsupported-source-'));
+    const binDir = path.join(sourceDir, 'bin');
+    mkdirSync(binDir, { recursive: true });
+    const dockerShim = path.join(binDir, 'docker');
+    writeFileSync(
+      dockerShim,
+      [
+        '#!/usr/bin/env sh',
+        'case "$1 $2" in',
+        '  "version --format") echo "24.0.0"; exit 0 ;;',
+        '  "image inspect") exit 0 ;;',
+        '  *) exit 0 ;;',
+        'esac',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    chmodSync(dockerShim, 0o755);
+    const previousPath = process.env.PATH;
+    process.env.PATH = `${binDir}${path.delimiter}${previousPath ?? ''}`;
+
+    try {
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: {
+          kind: 'codex-cli',
+          name: 'codex-docker',
+          graderTarget: 'grader',
+          config: { executable: 'codex' },
+        },
+        targets: [{ name: 'grader', provider: 'mock', response: '{}' }],
+        evaluators: evaluatorRegistry,
+        evalCases: [
+          {
+            ...baseTestCase,
+            environment: {
+              type: 'docker',
+              image: 'alpine:3.20',
+              workdir: '/app',
+              sourceDir,
+            },
+          },
+        ],
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0]?.executionStatus).toBe('execution_error');
+      expect(results[0]?.failureStage).toBe('agent');
+      expect(results[0]?.failureReasonCode).toBe('target_sandbox_infra_failure');
+      expect(results[0]?.targetExecution).toMatchObject({
+        status: 'error',
+        runtimeMode: 'sandbox',
+        providerKind: 'codex-cli',
+        details: {
+          unsupported_provider: 'codex-cli',
+          supported_sandbox_provider: 'cli',
+        },
+      });
+    } finally {
+      process.env.PATH = previousPath;
       const { rm } = await import('node:fs/promises');
       await rm(sourceDir, { recursive: true, force: true });
     }

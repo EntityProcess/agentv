@@ -419,6 +419,7 @@ export interface EvaluationCache {
 export interface RunEvalCaseOptions {
   readonly evalCase: EvalTest;
   readonly provider: Provider;
+  readonly providerFactory?: (target: ResolvedTarget) => Provider;
   readonly target: ResolvedTarget;
   readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
   readonly now?: () => Date;
@@ -1257,6 +1258,7 @@ export async function runEvaluation(
         const runCaseOptions: RunEvalCaseOptions = {
           evalCase: evalCase,
           provider: primaryProvider,
+          providerFactory,
           target,
           evaluators: evaluatorRegistry,
           maxRetries,
@@ -1874,12 +1876,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
   const typeRegistry = providedTypeRegistry ?? createBuiltinRegistry();
 
-  const cacheKey = useCache ? createCacheKey(provider, target, evalCase, promptInputs) : undefined;
-  let cachedResponse: ProviderResponse | undefined;
-  if (cacheKey && cache) {
-    cachedResponse = await cache.get(cacheKey);
-  }
-
   const nowFn = now ?? (() => new Date());
 
   let afterEachOutput: string | undefined;
@@ -1921,10 +1917,24 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     beforeAllOutput,
     beforeEachOutput,
     baselineCommit,
+    targetCwd,
+    targetRuntime,
     isSharedWorkspace,
     caseWorkspaceFile,
     extensionState,
   } = workspaceSetup;
+  const effectiveTarget = targetRuntime ? { ...target, runtime: targetRuntime } : target;
+  const effectiveProvider =
+    targetRuntime !== undefined
+      ? (options.providerFactory ?? createProvider)(effectiveTarget)
+      : provider;
+  const cacheKey = useCache
+    ? createCacheKey(effectiveProvider, effectiveTarget, evalCase, promptInputs)
+    : undefined;
+  let cachedResponse: ProviderResponse | undefined;
+  if (cacheKey && cache) {
+    cachedResponse = await cache.get(cacheKey);
+  }
   const extensionMetadata = extensionState?.metadata;
   const providerMetadata = mergeMetadata(evalCase.metadata, extensionState?.providerContext);
   const resultMetadata = mergeMetadata(evalCase.metadata, extensionMetadata);
@@ -2032,15 +2042,15 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (evalCase.mode === 'conversation' && evalCase.turns?.length) {
     let conversationResult = await runConversationMode({
       evalCase,
-      provider,
-      target,
+      provider: effectiveProvider,
+      target: effectiveTarget,
       evaluators,
       typeRegistry,
       graderProvider,
       promptInputs,
       nowFn,
       signal,
-      workspacePath,
+      workspacePath: targetCwd ?? workspacePath,
       caseWorkspaceFile,
       agentTimeoutMs,
       streamCallbacks: options.streamCallbacks,
@@ -2085,15 +2095,15 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   while (!providerResponse && attempt < attemptBudget) {
     try {
-      providerResponse = await invokeProvider(provider, {
+      providerResponse = await invokeProvider(effectiveProvider, {
         evalCase: evalCase,
-        target,
+        target: effectiveTarget,
         promptInputs,
         attempt,
         evalFilePath,
         agentTimeoutMs,
         signal,
-        cwd: workspacePath,
+        cwd: targetCwd ?? workspacePath,
         workspaceFile: caseWorkspaceFile,
         captureFileChanges: !!baselineCommit,
         streamCallbacks: options.streamCallbacks,
@@ -2112,8 +2122,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Try fallback targets in order after exhausting retries on the primary
-  if (!providerResponse && target.fallbackTargets?.length && targetResolver) {
-    for (const fallbackName of target.fallbackTargets) {
+  if (!providerResponse && effectiveTarget.fallbackTargets?.length && targetResolver) {
+    for (const fallbackName of effectiveTarget.fallbackTargets) {
       const fallbackProvider = targetResolver(fallbackName);
       if (!fallbackProvider) {
         continue;
@@ -2121,13 +2131,13 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       try {
         providerResponse = await invokeProvider(fallbackProvider, {
           evalCase: evalCase,
-          target,
+          target: effectiveTarget,
           promptInputs,
           attempt: 0,
           evalFilePath,
           agentTimeoutMs,
           signal,
-          cwd: workspacePath,
+          cwd: targetCwd ?? workspacePath,
           workspaceFile: caseWorkspaceFile,
           captureFileChanges: !!baselineCommit,
           streamCallbacks: options.streamCallbacks,
@@ -2145,11 +2155,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (!providerResponse) {
     const errorResult = buildErrorResult(
       evalCase,
-      target.name,
+      effectiveTarget.name,
       nowFn(),
       lastError ?? new Error('Provider did not return a response'),
       promptInputs,
-      provider,
+      effectiveProvider,
       'agent',
       'provider_error',
       verbose,
@@ -2172,7 +2182,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       evalCase,
       evalFilePath,
       repoRoot,
-      target: targetUsed ? { ...target, name: targetUsed } : target,
+      target: targetUsed ? { ...effectiveTarget, name: targetUsed } : effectiveTarget,
       attempt,
       response: providerResponse,
       nowFn,
@@ -2247,8 +2257,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     const result = await evaluateCandidate({
       evalCase,
       candidate,
-      target,
-      provider,
+      target: effectiveTarget,
+      provider: effectiveProvider,
       evaluators,
       typeRegistry,
       promptInputs,

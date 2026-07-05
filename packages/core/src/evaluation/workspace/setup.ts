@@ -18,12 +18,21 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import {
+  DockerEnvironmentSetupError,
+  type DockerEnvironmentSetupResult,
+  prepareDockerEnvironment,
+} from '../environment/docker.js';
+import {
   HostEnvironmentSetupError,
   type HostEnvironmentSetupResult,
   prepareHostEnvironment,
 } from '../environment/host.js';
 import { type ExtensionRuntimeState, runExtensionsForHook } from '../extensions/runner.js';
-import type { HostEnvironmentRecipe } from '../loaders/environment-recipe.js';
+import type {
+  DockerEnvironmentRecipe,
+  HostEnvironmentRecipe,
+} from '../loaders/environment-recipe.js';
+import type { TargetRuntimeConfig } from '../providers/sandbox-runner.js';
 import type {
   AgentVExtensionConfig,
   EvalTest,
@@ -73,9 +82,11 @@ export interface WorkspaceSetupHookExecution {
 export interface EnvironmentSetupExecution {
   readonly scope: 'environment';
   readonly name: 'setup';
-  readonly status: HostEnvironmentSetupResult['status'];
+  readonly status: HostEnvironmentSetupResult['status'] | DockerEnvironmentSetupResult['status'];
   readonly testId: string;
   readonly workdir: string;
+  readonly type?: 'host' | 'docker';
+  readonly image?: string;
   readonly command?: readonly string[] | string;
   readonly cwd?: string;
   readonly output?: string;
@@ -160,6 +171,8 @@ export interface EvalCaseWorkspaceSetup {
   readonly beforeAllOutput?: string;
   readonly beforeEachOutput?: string;
   readonly baselineCommit?: string;
+  readonly targetCwd?: string;
+  readonly targetRuntime?: TargetRuntimeConfig;
   readonly isSharedWorkspace: boolean;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
   readonly environmentSetupExecutions: readonly EnvironmentSetupExecution[];
@@ -255,8 +268,9 @@ function hostEnvironment(evalCase: EvalTest): HostEnvironmentRecipe | undefined 
   return environment?.type === 'host' ? environment : undefined;
 }
 
-function unsupportedDockerEnvironment(evalCase: EvalTest): boolean {
-  return evalCase.environment?.type === 'docker';
+function dockerEnvironment(evalCase: EvalTest): DockerEnvironmentRecipe | undefined {
+  const environment = evalCase.environment;
+  return environment?.type === 'docker' ? environment : undefined;
 }
 
 function stableWorkspaceValue(value: unknown): string {
@@ -372,15 +386,6 @@ function selectSuiteHostEnvironment(
   >();
 
   for (const evalCase of evalCases) {
-    if (unsupportedDockerEnvironment(evalCase)) {
-      throw new WorkspaceSetupError(
-        `Docker environment recipes are not implemented for runtime execution yet: test '${evalCase.id}'.`,
-        {
-          failureStage: 'setup',
-          failureReasonCode: 'unsupported_environment',
-        },
-      );
-    }
     const environment = hostEnvironment(evalCase);
     if (!environment || isAttemptScopedWorkspace(effectiveRuntimeWorkspace(evalCase))) {
       continue;
@@ -528,6 +533,30 @@ function environmentSetupExecution(options: {
     status: options.error ? 'failed' : options.result.status,
     testId: options.testId,
     workdir: options.result.workdir,
+    type: options.result.type,
+    ...(options.result.command !== undefined && { command: options.result.command }),
+    ...(options.result.cwd !== undefined && { cwd: options.result.cwd }),
+    ...(options.result.stdout !== undefined && { output: options.result.stdout }),
+    ...((options.error ?? options.result.stderr)
+      ? { error: options.error ?? options.result.stderr }
+      : {}),
+    ...(options.result.exitCode !== undefined && { exitCode: options.result.exitCode }),
+  };
+}
+
+function dockerEnvironmentSetupExecution(options: {
+  readonly result: DockerEnvironmentSetupResult;
+  readonly testId: string;
+  readonly error?: string;
+}): EnvironmentSetupExecution {
+  return {
+    scope: 'environment',
+    name: 'setup',
+    status: options.error ? 'failed' : options.result.status,
+    testId: options.testId,
+    workdir: options.result.workdir,
+    type: options.result.type,
+    image: options.result.image,
     ...(options.result.command !== undefined && { command: options.result.command }),
     ...(options.result.cwd !== undefined && { cwd: options.result.cwd }),
     ...(options.result.stdout !== undefined && { output: options.result.stdout }),
@@ -554,6 +583,39 @@ async function prepareHostEnvironmentForSetup(
   } catch (error) {
     if (error instanceof HostEnvironmentSetupError) {
       const execution = environmentSetupExecution({
+        result: error.result,
+        testId,
+        error: error.message,
+      });
+      throw new WorkspaceSetupError(error.message, {
+        failureStage: 'setup',
+        failureReasonCode: 'environment_setup_error',
+        environmentSetupExecutions: [execution],
+        cause: error,
+      });
+    }
+    throw error;
+  }
+}
+
+async function prepareDockerEnvironmentForSetup(
+  environment: DockerEnvironmentRecipe,
+  testId: string,
+): Promise<{
+  readonly targetCwd: string;
+  readonly targetRuntime: TargetRuntimeConfig;
+  readonly execution: EnvironmentSetupExecution;
+}> {
+  try {
+    const result = await prepareDockerEnvironment(environment);
+    return {
+      targetCwd: result.workdir,
+      targetRuntime: result.targetRuntime,
+      execution: dockerEnvironmentSetupExecution({ result, testId }),
+    };
+  } catch (error) {
+    if (error instanceof DockerEnvironmentSetupError) {
+      const execution = dockerEnvironmentSetupExecution({
         result: error.result,
         testId,
         error: error.message,
@@ -941,19 +1003,13 @@ export async function prepareEvalCaseWorkspace(
   } = options;
 
   const runtimeWorkspace = effectiveRuntimeWorkspace(evalCase);
-  if (unsupportedDockerEnvironment(evalCase)) {
-    throw new WorkspaceSetupError(
-      `Docker environment recipes are not implemented for runtime execution yet: test '${evalCase.id}'.`,
-      {
-        failureStage: 'setup',
-        failureReasonCode: 'unsupported_environment',
-      },
-    );
-  }
   const runtimeEnvironment = hostEnvironment(evalCase);
+  const runtimeDockerEnvironment = dockerEnvironment(evalCase);
   let workspacePath: string | undefined = isAttemptScopedWorkspace(runtimeWorkspace)
     ? undefined
     : sharedWorkspacePath;
+  let targetCwd: string | undefined;
+  let targetRuntime: TargetRuntimeConfig | undefined;
   const inheritedSuiteWorkspaceFile = workspacePath ? suiteWorkspaceFile : undefined;
   let beforeAllOutput: string | undefined;
   let beforeEachOutput: string | undefined;
@@ -977,6 +1033,29 @@ export async function prepareEvalCaseWorkspace(
         }
         const message = error instanceof Error ? error.message : String(error);
         throw new WorkspaceSetupError(`Failed to prepare host environment: ${message}`, {
+          failureStage: 'setup',
+          failureReasonCode: 'environment_setup_error',
+          hookExecutions,
+          cause: error,
+        });
+      }
+    }
+
+    if (runtimeDockerEnvironment) {
+      try {
+        const prepared = await prepareDockerEnvironmentForSetup(
+          runtimeDockerEnvironment,
+          evalCase.id,
+        );
+        targetCwd = prepared.targetCwd;
+        targetRuntime = prepared.targetRuntime;
+        environmentSetupExecutions.push(prepared.execution);
+      } catch (error) {
+        if (error instanceof WorkspaceSetupError) {
+          throw error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        throw new WorkspaceSetupError(`Failed to prepare Docker environment: ${message}`, {
           failureStage: 'setup',
           failureReasonCode: 'environment_setup_error',
           hookExecutions,
@@ -1397,6 +1476,8 @@ export async function prepareEvalCaseWorkspace(
     ...(beforeAllOutput !== undefined && { beforeAllOutput }),
     ...(beforeEachOutput !== undefined && { beforeEachOutput }),
     ...(baselineCommit !== undefined && { baselineCommit }),
+    ...(targetCwd !== undefined && { targetCwd }),
+    ...(targetRuntime !== undefined && { targetRuntime }),
     isSharedWorkspace,
     hookExecutions,
     environmentSetupExecutions,

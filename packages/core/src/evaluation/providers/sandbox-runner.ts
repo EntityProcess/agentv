@@ -107,6 +107,10 @@ function dockerWorkdir(runtime: TargetRuntimeConfig): string | undefined {
   return asString(runtime.workdir) ?? asString(runtime.workspace);
 }
 
+function dockerHostCwd(runtime: TargetRuntimeConfig): string | undefined {
+  return asString(runtime.host_cwd);
+}
+
 function dockerNetwork(runtime: TargetRuntimeConfig): string {
   const network = asString(runtime.network);
   return network ?? 'none';
@@ -114,6 +118,14 @@ function dockerNetwork(runtime: TargetRuntimeConfig): string {
 
 function dockerSetupCommands(runtime: TargetRuntimeConfig): readonly string[] {
   return asStringArray(runtime.setup);
+}
+
+function dockerMemory(runtime: TargetRuntimeConfig): string | undefined {
+  return asString(runtime.memory);
+}
+
+function dockerCpus(runtime: TargetRuntimeConfig): number | undefined {
+  return typeof runtime.cpus === 'number' && runtime.cpus > 0 ? runtime.cpus : undefined;
 }
 
 export async function runDockerSandboxCommand(
@@ -159,6 +171,16 @@ export async function runDockerSandboxCommand(
     argv.push('--workdir', workdir);
   }
 
+  const memory = dockerMemory(options.runtime);
+  if (memory) {
+    argv.push('--memory', memory);
+  }
+
+  const cpus = dockerCpus(options.runtime);
+  if (cpus !== undefined) {
+    argv.push('--cpus', String(cpus));
+  }
+
   for (const [key, value] of Object.entries(dockerEnv(options.runtime))) {
     argv.push('--env', `${key}=${value}`);
   }
@@ -172,7 +194,7 @@ export async function runDockerSandboxCommand(
 
   return new Promise((resolve) => {
     const child = spawn('docker', argv, {
-      cwd: options.cwd,
+      cwd: dockerHostCwd(options.runtime) ?? options.cwd,
       env: process.env,
       windowsHide: true,
     });
