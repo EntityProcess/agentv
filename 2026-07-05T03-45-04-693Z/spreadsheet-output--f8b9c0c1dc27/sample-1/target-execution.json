@@ -1,0 +1,65 @@
+{
+  "schema_version": "agentv.target_execution.v1",
+  "status": "success",
+  "target_id": "file_output_live",
+  "provider_id": "cli:file_output_live",
+  "provider_kind": "cli",
+  "runtime_mode": "host",
+  "command": {
+    "argv": [
+      "/bin/sh",
+      "-lc",
+      "bun run .agentv/providers/file-output.ts '/tmp/agentv-spreadsheet-output-1783223106421-2do6l6b.json'"
+    ],
+    "command_line": "bun run .agentv/providers/file-output.ts '/tmp/agentv-spreadsheet-output-1783223106421-2do6l6b.json'",
+    "cwd": "/home/entity/projects/EntityProcess/agentv__worktrees/promptfoo-transform-docs-xlsx/examples/features/file-transforms"
+  },
+  "started_at": "2026-07-05T03:45:06.424Z",
+  "ended_at": "2026-07-05T03:45:06.533Z",
+  "duration_ms": 109,
+  "exit_code": 0,
+  "signal": null,
+  "logs": {
+    "stdout": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    },
+    "stderr": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    }
+  },
+  "transcript": {
+    "messages": [
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "file",
+            "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "path": "generated/report.xlsx"
+          }
+        ]
+      }
+    ],
+    "final_output": ""
+  },
+  "details": {
+    "output_file": "/tmp/agentv-spreadsheet-output-1783223106421-2do6l6b.json"
+  },
+  "artifacts": {
+    "target_execution_path": "target-execution.json",
+    "stdout_path": "stdout.txt",
+    "stderr_path": "stderr.txt",
+    "transcript_path": "transcript.json",
+    "transcript_raw_path": "transcript-raw.jsonl",
+    "summary_path": "summary.json",
+    "metrics_path": "metrics.json",
+    "output_path": "outputs/answer.md",
+    "answer_path": "outputs/answer.md"
+  }
+}

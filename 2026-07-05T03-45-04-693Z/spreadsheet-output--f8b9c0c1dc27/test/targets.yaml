@@ -1,0 +1,14 @@
+targets:
+  - id: file_output_live
+    provider: cli
+    grader_target: local-openai-grader
+    config:
+      command: bun run .agentv/providers/file-output.ts {OUTPUT_FILE}
+      cwd: ..
+      runtime: host
+  - id: local-openai-grader
+    provider: openai
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    config:
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
