@@ -1,0 +1,17 @@
+targets:
+  - id: copilot-cli-local
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: copilot-cli
+    config:
+      command:
+        - copilot
+      subprovider: openai
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      api_format: responses
+      model_id: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+      cwd: .agentv/results/av-y7eq-9-workspace
+      timeout_seconds: 90
+      stream_log: raw
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"

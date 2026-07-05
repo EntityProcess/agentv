@@ -1,0 +1,64 @@
+{
+  "schema_version": "agentv.target_execution.v1",
+  "status": "success",
+  "target_id": "copilot-cli-local",
+  "provider_id": "copilot-cli:copilot-cli-local",
+  "provider_kind": "copilot-cli",
+  "runtime_mode": "host",
+  "command": {
+    "argv": [
+      "/usr/local/lib/node_modules/@github/copilot/node_modules/@github/copilot-linux-x64/copilot",
+      "--acp",
+      "--stdio",
+      "--allow-all-tools",
+      "--yolo",
+      "--model",
+      "gpt-5.4-mini"
+    ],
+    "cwd": "/home/entity/projects/EntityProcess/agentv__worktrees/coding-runtime-live-matrix/.agentv/results/av-y7eq-9-workspace"
+  },
+  "timeout_ms": 90000,
+  "started_at": "2026-07-05T03:23:39.907Z",
+  "ended_at": "2026-07-05T03:23:48.985Z",
+  "duration_ms": 9078,
+  "exit_code": 0,
+  "signal": null,
+  "logs": {
+    "stdout": {
+      "text": "AGENTV-LIVE-MATRIX-OK",
+      "truncated": false,
+      "bytes": 21,
+      "stored_bytes": 21
+    },
+    "stderr": {
+      "text": "",
+      "truncated": false,
+      "bytes": 0,
+      "stored_bytes": 0
+    }
+  },
+  "transcript": {
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "AGENTV-LIVE-MATRIX-OK"
+      }
+    ],
+    "final_output": "AGENTV-LIVE-MATRIX-OK"
+  },
+  "details": {
+    "log_file": "/tmp/agentv-provider-streams/2026-07-05T03-23-38-444Z-b9c0e96e0e77/av-y7eq-9-host-runtime-live-marker/live-marker/logs/copilot-cli/2026-07-05T03-23-39-909Z_copilot-cli-local_live-marker_attempt-1_8302cee7.log",
+    "mode": "acp"
+  },
+  "artifacts": {
+    "target_execution_path": "target-execution.json",
+    "stdout_path": "stdout.txt",
+    "stderr_path": "stderr.txt",
+    "transcript_path": "transcript.json",
+    "transcript_raw_path": "transcript-raw.jsonl",
+    "summary_path": "summary.json",
+    "metrics_path": "metrics.json",
+    "output_path": "outputs/answer.md",
+    "answer_path": "outputs/answer.md"
+  }
+}
