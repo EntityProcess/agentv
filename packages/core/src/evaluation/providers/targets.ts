@@ -2246,6 +2246,7 @@ function resolvePiRpcConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
+  const piRpcSubprovider = normalizePiCliSubprovider(subprovider, baseUrl);
   const tools = resolveOptionalString(toolsSource, env, `${target.name} pi-rpc tools`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -2270,7 +2271,7 @@ function resolvePiRpcConfig(
 
   return {
     command,
-    subprovider,
+    subprovider: piRpcSubprovider,
     model,
     apiKey,
     baseUrl,

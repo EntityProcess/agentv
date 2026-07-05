@@ -79,23 +79,58 @@ describe('Pi coding-agent runtime providers', () => {
       captured = options;
       const request = JSON.parse(options.stdin?.trim() ?? '{}') as { id: string };
       return {
-        stdout: `${JSON.stringify({ type: 'event', event: { kind: 'start' } })}\n${JSON.stringify({
-          jsonrpc: '2.0',
-          id: request.id,
-          result: {
-            output: [{ role: 'assistant', content: 'rpc ok' }],
-            token_usage: { input: 2, output: 3 },
+        stdout: `${JSON.stringify({ type: 'extension_ui_request', id: 'widget-1' })}\n${JSON.stringify(
+          {
+            type: 'response',
+            id: request.id,
+            command: 'prompt',
+            success: true,
           },
+        )}\n${JSON.stringify({
+          type: 'agent_end',
+          messages: [
+            { role: 'user', content: [{ type: 'text', text: 'hello rpc' }] },
+            {
+              role: 'assistant',
+              content: [{ type: 'text', text: 'rpc ok' }],
+              usage: { input: 2, output: 3 },
+            },
+          ],
         })}\n`,
         stderr: '',
         exitCode: 0,
       };
     });
 
-    const response = await provider.invoke({ question: 'hello rpc', cwd: '/tmp/workspace' });
+    const response = await provider.invoke({
+      question: 'hello rpc',
+      systemPrompt: 'case system',
+      cwd: '/tmp/workspace',
+    });
 
-    expect(captured?.command).toEqual(['pi', '--mode', 'rpc']);
-    expect(captured?.stdin).toContain('"method":"run"');
+    expect(captured?.command).toEqual([
+      'pi',
+      '--provider',
+      'azure-openai-responses',
+      '--model',
+      'gpt-5-codex',
+      '--system-prompt',
+      'target system',
+      '--mode',
+      'rpc',
+      '--no-session',
+      '--tools',
+      'read',
+      '--thinking',
+      'low',
+    ]);
+    expect(captured?.env.AZURE_OPENAI_API_KEY).toBe('agentv-local');
+    expect(captured?.env.AZURE_OPENAI_BASE_URL).toBe('http://127.0.0.1:10531/v1');
+    expect(captured?.stdin).toContain('"type":"prompt"');
+    expect(captured?.stdin).toContain('case system\\n\\nhello rpc');
+    expect(captured?.stdin).not.toContain('"method":"run"');
+    expect(captured?.stdinEnd).toBe('manual');
+    expect(captured?.completeOnStdout?.('{"type":"agent_end"}\n')).toBe(true);
     expect(extractLastAssistantContent(response.output)).toBe('rpc ok');
     expect(response.tokenUsage).toEqual({ input: 2, output: 3 });
     expect(response.targetExecution?.status).toBe('success');
@@ -116,14 +151,16 @@ describe('Pi coding-agent runtime providers', () => {
     expect(response.targetExecution?.message).toMatch(/malformed protocol/i);
   });
 
-  it('maps pi-rpc result errors to target task failures', async () => {
+  it('maps pi-rpc command response errors to target task failures', async () => {
     const provider = new PiRpcProvider('pi-rpc-target', baseRpcConfig(), async (options) => {
       const request = JSON.parse(options.stdin?.trim() ?? '{}') as { id: string };
       return {
         stdout: `${JSON.stringify({
-          jsonrpc: '2.0',
+          type: 'response',
           id: request.id,
-          error: { message: 'task failed' },
+          command: 'prompt',
+          success: false,
+          error: 'task failed',
         })}\n`,
         stderr: '',
         exitCode: 0,
@@ -135,6 +172,38 @@ describe('Pi coding-agent runtime providers', () => {
     expect(response.targetExecution?.status).toBe('error');
     expect(response.targetExecution?.errorKind).toBe('target_task_failure');
     expect(response.targetExecution?.message).toBe('task failed');
+  });
+
+  it('maps pi-rpc assistant stopReason errors to target task failures', async () => {
+    const provider = new PiRpcProvider('pi-rpc-target', baseRpcConfig(), async (options) => {
+      const request = JSON.parse(options.stdin?.trim() ?? '{}') as { id: string };
+      return {
+        stdout: `${JSON.stringify({
+          type: 'response',
+          id: request.id,
+          command: 'prompt',
+          success: true,
+        })}\n${JSON.stringify({
+          type: 'agent_end',
+          messages: [
+            {
+              role: 'assistant',
+              content: [],
+              stopReason: 'error',
+              errorMessage: 'No API key for provider: openai-codex',
+            },
+          ],
+        })}\n`,
+        stderr: '',
+        exitCode: 0,
+      };
+    });
+
+    const response = await provider.invoke({ question: 'hello rpc', cwd: '/tmp/workspace' });
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('target_task_failure');
+    expect(response.targetExecution?.message).toBe('No API key for provider: openai-codex');
   });
 
   it('maps pi-rpc timeout and crash failures to target envelopes', async () => {
@@ -180,9 +249,14 @@ describe('Pi coding-agent runtime providers', () => {
         name: 'pi-rpc-id',
         provider: 'pi-rpc',
         runtime: 'host',
-        config: { command: ['pi'] },
+        config: {
+          command: ['pi'],
+          subprovider: 'openai',
+          base_url: '{{ env.OPENAI_BASE_URL }}',
+          api_key: '{{ env.OPENAI_API_KEY }}',
+        },
       } as never,
-      {},
+      { OPENAI_BASE_URL: 'http://127.0.0.1:10531/v1', OPENAI_API_KEY: 'local-key' },
     );
     const llm = resolveTargetDefinition(
       { name: 'mock-llm', provider: 'mock', response: 'still works' },
@@ -197,15 +271,30 @@ describe('Pi coding-agent runtime providers', () => {
     expect(piRpc.kind).toBe('pi-rpc');
     if (piRpc.kind !== 'pi-rpc') throw new Error('expected pi-rpc');
     expect(piRpc.config.command).toEqual(['pi']);
+    expect(piRpc.config.subprovider).toBe('azure');
+    expect(piRpc.config.baseUrl).toBe('http://127.0.0.1:10531/v1');
+    expect(piRpc.config.apiKey).toBe('local-key');
 
     const provider = createProvider(llm);
     const response = await provider.invoke({ question: 'hello' });
     expect(extractLastAssistantContent(response.output)).toBe('still works');
   });
 
-  it('does not append duplicate RPC mode flags', () => {
-    expect(_internal.ensureRpcMode(['pi', '--mode', 'rpc'])).toEqual(['pi', '--mode', 'rpc']);
-    expect(_internal.ensureRpcMode(['pi', '--mode=rpc'])).toEqual(['pi', '--mode=rpc']);
+  it('detects pi-rpc completion from current protocol output', () => {
+    expect(_internal.hasRpcAgentEnd('{"type":"agent_end"}\n', 'req-1')).toBe(true);
+    expect(
+      _internal.hasRpcAgentEnd(
+        '{"id":"req-1","type":"response","command":"prompt","success":false}\n',
+        'req-1',
+      ),
+    ).toBe(true);
+    expect(_internal.hasRpcAgentEnd('{"type":"response","success":true}\n', 'req-1')).toBe(false);
+  });
+
+  it('detects existing RPC mode flags in custom pi-rpc commands', () => {
+    expect(_internal.hasModeFlag(['pi', '--mode', 'rpc'])).toBe(true);
+    expect(_internal.hasModeFlag(['pi', '--mode=rpc'])).toBe(true);
+    expect(_internal.hasModeFlag(['pi'])).toBe(false);
   });
 });
 
@@ -226,7 +315,13 @@ function baseCliConfig(): PiCliResolvedConfig {
 function baseRpcConfig(): PiRpcResolvedConfig {
   return {
     command: ['pi'],
+    subprovider: 'azure',
     model: 'gpt-5-codex',
+    apiKey: 'agentv-local',
+    baseUrl: 'http://127.0.0.1:10531/v1',
+    tools: 'read',
+    thinking: 'low',
+    systemPrompt: 'target system',
     runtime: { mode: 'host' },
     timeoutMs: 1_000,
   };

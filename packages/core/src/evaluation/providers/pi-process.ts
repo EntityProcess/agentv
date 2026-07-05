@@ -15,6 +15,8 @@ export interface PiProcessRunOptions {
   readonly env: NodeJS.ProcessEnv;
   readonly signal?: AbortSignal;
   readonly stdin?: string;
+  readonly stdinEnd?: 'after_write' | 'manual';
+  readonly completeOnStdout?: (stdout: string) => boolean;
   readonly onStdoutChunk?: (chunk: string) => void;
   readonly onStderrChunk?: (chunk: string) => void;
 }
@@ -211,9 +213,21 @@ export async function defaultPiProcessRunner(
     }
 
     child.stdout.setEncoding('utf8');
+    let stdinEnded = false;
+    const endStdin = (): void => {
+      if (stdinEnded || child.stdin.destroyed) {
+        return;
+      }
+      stdinEnded = true;
+      child.stdin.end();
+    };
+
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
       options.onStdoutChunk?.(chunk);
+      if (options.completeOnStdout?.(stdout)) {
+        endStdin();
+      }
     });
 
     child.stderr.setEncoding('utf8');
@@ -261,7 +275,12 @@ export async function defaultPiProcessRunner(
       });
     });
 
-    child.stdin.end(options.stdin ?? '');
+    if (options.stdin !== undefined) {
+      child.stdin.write(options.stdin);
+    }
+    if (options.stdinEnd !== 'manual') {
+      endStdin();
+    }
   });
 }
 

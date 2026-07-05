@@ -9,7 +9,13 @@ import {
   classifyPiProcessFailure,
   defaultPiProcessRunner,
   piProcessFailureMessage,
+  splitPiCommand,
 } from './pi-process.js';
+import {
+  extractAzureResourceName,
+  resolveCliProvider,
+  resolveEnvKeyName,
+} from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiRpcResolvedConfig } from './targets.js';
@@ -49,7 +55,7 @@ export class PiRpcProvider implements Provider {
 
     const startedAt = Date.now();
     const cwd = this.resolveCwd(request.cwd);
-    const command = ensureRpcMode(this.config.command);
+    const command = this.buildCommand();
     const inputFiles = normalizeInputFiles(request.inputFiles);
     const rpcRequest = buildRpcRequest({
       request,
@@ -61,9 +67,11 @@ export class PiRpcProvider implements Provider {
       command,
       cwd,
       timeoutMs: this.config.timeoutMs,
-      env: buildPiRuntimeEnv({ runtime: this.config.runtime, targetName: this.targetName }),
+      env: this.buildEnv(),
       signal: request.signal,
       stdin: `${JSON.stringify(rpcRequest)}\n`,
+      stdinEnd: 'manual',
+      completeOnStdout: (stdout) => hasRpcAgentEnd(stdout, rpcRequest.id),
     });
 
     if (result.timedOut || result.exitCode !== 0 || result.signal || result.spawnErrorCode) {
@@ -96,6 +104,18 @@ export class PiRpcProvider implements Provider {
         cwd,
         startedAt,
         message: parsed.error,
+        events: parsed.events,
+      });
+    }
+
+    const resultError = rpcResultError(parsed.result);
+    if (resultError) {
+      return this.buildRpcTaskFailureResponse({
+        result,
+        command,
+        cwd,
+        startedAt,
+        message: resultError,
         events: parsed.events,
       });
     }
@@ -148,6 +168,90 @@ export class PiRpcProvider implements Provider {
       return path.resolve(this.config.cwd);
     }
     return process.cwd();
+  }
+
+  private buildCommand(): readonly string[] {
+    const args: string[] = [];
+    if (this.config.subprovider) {
+      args.push('--provider', resolveCliProvider(this.config.subprovider));
+    }
+    if (this.config.model) {
+      args.push('--model', this.config.model);
+    }
+    if (this.config.apiKey && this.config.subprovider?.toLowerCase() !== 'azure') {
+      args.push('--api-key', this.config.apiKey);
+    }
+    if (this.config.systemPrompt) {
+      args.push('--system-prompt', this.config.systemPrompt);
+    }
+
+    if (!hasModeFlag(this.config.command)) {
+      args.push('--mode', 'rpc');
+    }
+    args.push('--no-session');
+
+    if (this.config.tools) {
+      args.push('--tools', this.config.tools);
+    }
+    if (this.config.thinking) {
+      args.push('--thinking', this.config.thinking);
+    }
+
+    return splitPiCommand(this.config.command, args);
+  }
+
+  private buildEnv(): NodeJS.ProcessEnv {
+    const env = buildPiRuntimeEnv({
+      runtime: this.config.runtime,
+      targetName: this.targetName,
+    });
+
+    const provider = this.config.subprovider?.toLowerCase() ?? 'google';
+    if (provider === 'azure') {
+      if (this.config.apiKey) {
+        env.AZURE_OPENAI_API_KEY = this.config.apiKey;
+      }
+      if (this.config.baseUrl) {
+        if (/^https?:\/\//.test(this.config.baseUrl)) {
+          env.AZURE_OPENAI_BASE_URL = this.config.baseUrl;
+        } else {
+          env.AZURE_OPENAI_RESOURCE_NAME = extractAzureResourceName(this.config.baseUrl);
+        }
+      }
+    } else if (this.config.apiKey) {
+      const envKey = resolveEnvKeyName(provider);
+      if (envKey) {
+        env[envKey] = this.config.apiKey;
+      }
+    }
+
+    if (this.config.subprovider) {
+      const resolvedProvider = resolveCliProvider(this.config.subprovider);
+      const providerOwnPrefixes: Record<string, readonly string[]> = {
+        openrouter: ['OPENROUTER_'],
+        anthropic: ['ANTHROPIC_'],
+        openai: ['OPENAI_'],
+        'azure-openai-responses': ['AZURE_OPENAI_'],
+        google: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
+        gemini: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
+        groq: ['GROQ_'],
+        xai: ['XAI_'],
+      };
+      const ownPrefixes = providerOwnPrefixes[resolvedProvider] ?? [];
+      const allOtherPrefixes = Object.entries(providerOwnPrefixes)
+        .filter(([key]) => key !== resolvedProvider)
+        .flatMap(([, prefixes]) => prefixes);
+      for (const key of Object.keys(env)) {
+        if (
+          allOtherPrefixes.some((prefix) => key.startsWith(prefix)) &&
+          !ownPrefixes.some((prefix) => key.startsWith(prefix))
+        ) {
+          delete env[key];
+        }
+      }
+    }
+
+    return env;
   }
 
   private buildProcessErrorResponse(params: {
@@ -253,10 +357,10 @@ export class PiRpcProvider implements Provider {
 }
 
 type RpcRequest = {
-  readonly jsonrpc: '2.0';
   readonly id: string;
-  readonly method: 'run';
-  readonly params: Record<string, unknown>;
+  readonly type: 'prompt';
+  readonly message: string;
+  readonly streamingBehavior?: 'followUp';
 };
 
 type ParsedRpcOutput = {
@@ -270,35 +374,16 @@ function buildRpcRequest(params: {
   readonly config: PiRpcResolvedConfig;
   readonly inputFiles?: readonly string[];
 }): RpcRequest {
-  const rpcParams: Record<string, unknown> = {
-    prompt: params.request.question,
-    system_prompt: params.config.systemPrompt ?? params.request.systemPrompt,
-    model: params.config.model,
-    subprovider: params.config.subprovider,
-    tools: params.config.tools,
-    thinking: params.config.thinking,
-    input_files: params.inputFiles,
-    metadata: params.request.metadata,
-  };
-  for (const key of Object.keys(rpcParams)) {
-    if (rpcParams[key] === undefined) {
-      delete rpcParams[key];
-    }
-  }
+  const prefix = params.request.systemPrompt ? `${params.request.systemPrompt}\n\n` : '';
+  const suffix =
+    params.inputFiles && params.inputFiles.length > 0
+      ? `\n\nInput files:\n${params.inputFiles.map((file) => `@${file}`).join('\n')}`
+      : '';
   return {
-    jsonrpc: '2.0',
     id: randomUUID(),
-    method: 'run',
-    params: rpcParams,
+    type: 'prompt',
+    message: `${prefix}${params.request.question}${suffix}`,
   };
-}
-
-function ensureRpcMode(command: readonly string[]): readonly string[] {
-  const hasMode = command.some(
-    (arg, index) =>
-      arg === '--mode' || arg.startsWith('--mode=') || command[index - 1] === '--mode',
-  );
-  return hasMode ? command : [...command, '--mode', 'rpc'];
 }
 
 function parseRpcOutput(stdout: string, requestId: string): ParsedRpcOutput {
@@ -326,6 +411,17 @@ function parseRpcOutput(stdout: string, requestId: string): ParsedRpcOutput {
       throw new Error(`invalid JSON protocol message: ${formatError(parseError)}`);
     }
 
+    if (message.id === requestId && message.type === 'response') {
+      if (message.success === false) {
+        error = rpcErrorMessage(message.error ?? message.message);
+      }
+      continue;
+    }
+    if (message.type === 'agent_end') {
+      result = message;
+      events.push(message);
+      continue;
+    }
     if (message.id === requestId && Object.prototype.hasOwnProperty.call(message, 'result')) {
       result = message.result;
       continue;
@@ -354,6 +450,32 @@ function parseRpcOutput(stdout: string, requestId: string): ParsedRpcOutput {
   return { result, events };
 }
 
+function hasRpcAgentEnd(stdout: string, requestId: string): boolean {
+  for (const line of stdout.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+      if (parsed.type === 'agent_end') {
+        return true;
+      }
+      if (parsed.id === requestId && parsed.type === 'response' && parsed.success === false) {
+        return true;
+      }
+    } catch {
+      // Keep waiting; parseRpcOutput will report malformed lines after exit.
+    }
+  }
+  return false;
+}
+
+function hasModeFlag(command: readonly string[]): boolean {
+  return command.some(
+    (arg, index) =>
+      arg === '--mode' || arg.startsWith('--mode=') || command[index - 1] === '--mode',
+  );
+}
+
 function messagesFromRpcResult(result: unknown): readonly Message[] {
   if (result && typeof result === 'object') {
     const record = result as Record<string, unknown>;
@@ -372,6 +494,30 @@ function messagesFromRpcResult(result: unknown): readonly Message[] {
     return [{ role: 'assistant', content: result }];
   }
   return [{ role: 'assistant', content: JSON.stringify(result) }];
+}
+
+function rpcResultError(result: unknown): string | undefined {
+  if (!result || typeof result !== 'object') {
+    return undefined;
+  }
+  const record = result as Record<string, unknown>;
+  if (!Array.isArray(record.messages)) {
+    return undefined;
+  }
+  const errored = [...record.messages].reverse().find((message) => {
+    if (!message || typeof message !== 'object') return false;
+    const msg = message as Record<string, unknown>;
+    return msg.role === 'assistant' && (msg.stopReason === 'error' || msg.stop_reason === 'error');
+  });
+  if (!errored || typeof errored !== 'object') {
+    return undefined;
+  }
+  const msg = errored as Record<string, unknown>;
+  return (
+    stringField(msg, 'errorMessage') ??
+    stringField(msg, 'error_message') ??
+    'Pi RPC assistant message ended with stopReason=error'
+  );
 }
 
 function convertRpcMessage(value: unknown): Message | undefined {
@@ -403,7 +549,7 @@ function tokenUsageFromRpcResult(result: unknown): ProviderTokenUsage | undefine
     | Record<string, unknown>
     | undefined;
   if (!usage || typeof usage !== 'object') {
-    return undefined;
+    return tokenUsageFromMessages(record.messages);
   }
   const input = toFiniteNumber(usage.input ?? usage.input_tokens ?? usage.inputTokens);
   const output = toFiniteNumber(usage.output ?? usage.output_tokens ?? usage.outputTokens);
@@ -417,6 +563,49 @@ function tokenUsageFromRpcResult(result: unknown): ProviderTokenUsage | undefine
     output: output ?? 0,
     ...(cached !== undefined ? { cached } : {}),
     ...(reasoning !== undefined ? { reasoning } : {}),
+  };
+}
+
+function tokenUsageFromMessages(messages: unknown): ProviderTokenUsage | undefined {
+  if (!Array.isArray(messages)) {
+    return undefined;
+  }
+
+  let totalInput = 0;
+  let totalOutput = 0;
+  let totalCached = 0;
+  let totalReasoning = 0;
+  let found = false;
+
+  for (const message of messages) {
+    if (!message || typeof message !== 'object') {
+      continue;
+    }
+    const usage = (message as Record<string, unknown>).usage;
+    if (!usage || typeof usage !== 'object') {
+      continue;
+    }
+    found = true;
+    const record = usage as Record<string, unknown>;
+    totalInput += toFiniteNumber(record.input) ?? 0;
+    totalOutput += toFiniteNumber(record.output) ?? 0;
+    totalCached +=
+      toFiniteNumber(record.cacheRead) ??
+      toFiniteNumber(record.cache_read) ??
+      toFiniteNumber(record.cached) ??
+      0;
+    totalReasoning +=
+      toFiniteNumber(record.reasoning) ?? toFiniteNumber(record.reasoning_tokens) ?? 0;
+  }
+
+  if (!found) {
+    return undefined;
+  }
+  return {
+    input: totalInput,
+    output: totalOutput,
+    ...(totalCached > 0 ? { cached: totalCached } : {}),
+    ...(totalReasoning > 0 ? { reasoning: totalReasoning } : {}),
   };
 }
 
@@ -443,6 +632,7 @@ function formatError(error: unknown): string {
 }
 
 export const _internal = {
-  ensureRpcMode,
+  hasModeFlag,
+  hasRpcAgentEnd,
   parseRpcOutput,
 };
