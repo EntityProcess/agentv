@@ -301,6 +301,17 @@ const KNOWN_TEST_FIELDS = new Set([
 ]);
 
 const SUPPORTED_WORKSPACE_REPO_FIELDS = new Set(['path', 'repo', 'commit', 'ancestor', 'sparse']);
+const KNOWN_REMOVED_WORKSPACE_FIELDS = new Set([
+  'template',
+  'repos',
+  'scope',
+  'docker',
+  'hooks',
+  'env',
+  'mode',
+  'isolation',
+  'path',
+]);
 
 /** Removed test-level fields with migration hints. */
 const REMOVED_TEST_FIELDS = new Map<string, string>([]);
@@ -1750,7 +1761,19 @@ function validateWorkspaceRepoConfig(
       filePath,
       location: `${location}.path`,
       message:
-        'workspace.path has been removed from eval YAML. Put existing workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
+        'workspace.path has been removed from eval YAML. Use environment.workdir for portable testbed cwd; put existing machine-local workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
+    });
+  }
+
+  for (const key of Object.keys(workspace)) {
+    if (KNOWN_REMOVED_WORKSPACE_FIELDS.has(key)) {
+      continue;
+    }
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.${key}`,
+      message: `${location}.${key} has been removed from public eval YAML. Use environment for portable coding-agent testbed setup.`,
     });
   }
 
