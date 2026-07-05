@@ -1,0 +1,55 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "pi-sdk",
+  "target": "pi-sdk-local",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "pi-sdk",
+      "type": "user",
+      "ts": "2026-07-05T07:45:50.519Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "Reply with exactly this marker and no extra prose: agentv-sdk-provider-live-ok"
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "pi-sdk",
+      "type": "assistant",
+      "ts": "2026-07-05T07:45:50.696Z",
+      "input_tokens": 9738,
+      "output_tokens": 22,
+      "content": [
+        {
+          "type": "text",
+          "text": "agentv-sdk-provider-live-ok"
+        }
+      ]
+    }
+  ]
+}

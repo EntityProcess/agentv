@@ -1,0 +1,13 @@
+targets:
+  - id: pi-sdk-local
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: pi-sdk
+    config:
+      subprovider: openai
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      thinking: low
+      timeout_seconds: 120
+      stream_log: raw
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
