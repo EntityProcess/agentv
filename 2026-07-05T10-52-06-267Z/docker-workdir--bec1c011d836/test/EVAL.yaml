@@ -1,0 +1,11 @@
+target: docker-cli
+prompts:
+  - "{{ input }}"
+tests:
+  - id: docker-workdir
+    vars:
+      input: Confirm the Docker environment workdir.
+    assert:
+      - metric: contains-docker-workdir-ok
+        type: contains
+        value: docker-workdir-ok
