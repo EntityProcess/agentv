@@ -1,0 +1,6 @@
+assert:
+  - type: llm-rubric
+    value: >-
+      The answer explicitly says AgentV composes evals with field-local
+      prompts: file://..., default_test: file://..., and tests: file://...
+      references, and does not use top-level imports.

@@ -1,0 +1,145 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T12-12-08-238Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 374,
+    "input_tokens": 73,
+    "output_tokens": 301,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.00062025
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "field-local-file-refs",
+      "suite": "field-local-refs-dogfood",
+      "eval_path": ".agentv/cache/av-kfik-43-dogfood/field-local-refs.eval.yaml",
+      "target": "gh-live",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "field-local-file-refs",
+          "suite": "field-local-refs-dogfood",
+          "eval_path": ".agentv/cache/av-kfik-43-dogfood/field-local-refs.eval.yaml",
+          "target": "gh-live",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 4229,
+          "cost_usd": 0.00062025
+        }
+      ],
+      "pass_rate": 1,
+      "pass_any": true
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-05T12-12-08-238Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/promptfoo-imports-hard-deprecation/.agentv/cache/av-kfik-43-dogfood/field-local-refs.eval.yaml",
+    "timestamp": "2026-07-05T12:12:18.681Z",
+    "targets": [
+      "gh-live"
+    ],
+    "tests_run": [
+      "field-local-file-refs"
+    ],
+    "experiment": "av-kfik-43-dogfood",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        ".agentv/cache/av-kfik-43-dogfood/field-local-refs.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1,
+    "tags": {
+      "experiment": "av-kfik-43-dogfood"
+    }
+  },
+  "run_summary": {
+    "gh-live": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 4.229,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 374,
+        "stddev": 0
+      },
+      "cost_usd": {
+        "mean": 0.001,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 4229,
+      "total_seconds": 4.229,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 374,
+      "input": 73,
+      "output": 301,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": 0.00062025,
+      "source": "provider_reported"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}

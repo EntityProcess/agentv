@@ -1,0 +1,1 @@
+Field-local refs prompts: file://..., default_test: file://..., tests: file://..., and no top-level imports replace public imports for reusable AgentV eval authoring.

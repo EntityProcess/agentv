@@ -1,0 +1,17 @@
+target: gh-live
+prompts:
+  - "{{ input }}"
+tests:
+  - id: field-local-file-refs
+    vars:
+      question: Which field-local refs replace public imports for reusable AgentV eval authoring?
+      input: |
+        Answer exactly one sentence using these terms: prompts: file://..., default_test: file://..., tests: file://..., and no top-level imports.
+
+        Question: Which field-local refs replace public imports for reusable AgentV eval authoring?
+    expected_output: AgentV uses prompts, default_test, and tests file refs instead of top-level imports.
+    assert:
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: "The answer explicitly says AgentV composes evals with field-local prompts: file://..., default_test: file://..., and tests: file://... references, and does not use top-level imports."
