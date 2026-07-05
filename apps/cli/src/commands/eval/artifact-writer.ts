@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   type AdditionalResultArtifactsWriter,
   type AggregateGradingArtifact,
+  type EnvironmentSummaryWire,
   type EvalTest,
   type EvaluationResult,
   type ExperimentArtifactMetadata,
@@ -64,6 +65,7 @@ export {
 export type {
   AggregateGradingArtifact,
   GradingArtifact,
+  EnvironmentSummaryWire,
   IndexArtifactEntry,
   ResultIndexArtifact,
   RunConfigArtifact,

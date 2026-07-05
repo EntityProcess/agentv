@@ -1224,6 +1224,46 @@ export interface EvalRunOverride {
   readonly budgetUsd?: number;
 }
 
+export interface EnvironmentSetupProvenance {
+  readonly scope: 'environment';
+  readonly name: 'setup';
+  readonly status: 'skipped' | 'success' | 'failed';
+  readonly testId: string;
+  readonly workdir: string;
+  readonly command?: string | readonly string[];
+  readonly cwd?: string;
+  readonly output?: string;
+  readonly error?: string;
+  readonly exitCode?: number;
+}
+
+export interface EnvironmentRecipeProvenance {
+  readonly schemaVersion: 'agentv.environment_provenance.v1';
+  readonly authoredKind: 'inline' | 'file';
+  readonly authoredReference?: string;
+  readonly recipeFilePath?: string;
+  readonly recipeFileSha256?: string;
+  readonly recipeSha256: string;
+  readonly type: EnvironmentRecipe['type'];
+  readonly sourceDir: string;
+  readonly workdir: string;
+  readonly setup?: {
+    readonly command: string | readonly string[];
+    readonly args?: JsonObject;
+    readonly env?: Readonly<Record<string, string>>;
+    readonly timeoutSeconds?: number;
+  };
+  readonly setupExecutions?: readonly EnvironmentSetupProvenance[];
+  readonly docker?: {
+    readonly context?: string;
+    readonly dockerfile?: string;
+    readonly image?: string;
+    readonly imageDigest?: string;
+    readonly buildId?: string;
+  };
+  readonly repoProvenance?: JsonValue;
+}
+
 /**
  * Primary classification of evaluation outcome.
  * - 'ok': evaluation completed, score reflects model quality (score >= 0.8)
@@ -1322,6 +1362,8 @@ export interface EvaluationResult {
   readonly afterEachOutput?: string;
   /** Unified diff of workspace file changes */
   readonly fileChanges?: string;
+  /** Redacted environment recipe and setup provenance for run-bundle artifacts. */
+  readonly environmentProvenance?: EnvironmentRecipeProvenance;
   /** Individual attempt results (only present when evaluate_options.repeat.count > 1) */
   readonly trials?: readonly TrialResult[];
   /** Aggregation metadata describing how the final score was computed from attempts */
