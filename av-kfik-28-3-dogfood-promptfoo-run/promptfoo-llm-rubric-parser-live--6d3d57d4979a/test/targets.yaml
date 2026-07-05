@@ -1,0 +1,10 @@
+targets:
+  - id: local-openai
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: openai
+    config:
+      api_format: chat
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"

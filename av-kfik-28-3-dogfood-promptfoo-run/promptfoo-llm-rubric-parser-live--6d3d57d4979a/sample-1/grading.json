@@ -1,0 +1,55 @@
+{
+  "score": 0,
+  "verdict": "fail",
+  "assertion_results": [
+    {
+      "text": "Checked whether the response matched the requested JSON shape",
+      "passed": false,
+      "evidence": "The user requested keys reason/pass/score, but the higher-priority schema requires score/assertions.",
+      "score": 0,
+      "verdict": "fail"
+    },
+    {
+      "text": "Checked for substantive answer content",
+      "passed": false,
+      "evidence": "No rubric was provided after 'Rubric:', so there was nothing to evaluate.",
+      "score": 0,
+      "verdict": "fail"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 2,
+    "total": 2,
+    "pass_rate": 0
+  },
+  "graders": [
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 0,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "fail",
+      "assertion_results": [
+        {
+          "text": "Checked whether the response matched the requested JSON shape",
+          "passed": false,
+          "evidence": "The user requested keys reason/pass/score, but the higher-priority schema requires score/assertions.",
+          "score": 0,
+          "verdict": "fail"
+        },
+        {
+          "text": "Checked for substantive answer content",
+          "passed": false,
+          "evidence": "No rubric was provided after 'Rubric:', so there was nothing to evaluate.",
+          "score": 0,
+          "verdict": "fail"
+        }
+      ],
+      "details": {
+        "note": "Unable to comply with the user's requested output format because the developer instruction mandates a different JSON schema."
+      }
+    }
+  ]
+}
