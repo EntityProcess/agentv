@@ -1,0 +1,38 @@
+{
+  "score": 0,
+  "verdict": "skip",
+  "assertion_results": [
+    {
+      "text": "Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"array\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"checks\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"overall_reasoning\"\n    ],\n    \"message\": \"Required\"\n  }\n]",
+      "passed": false,
+      "evidence": "",
+      "score": 0,
+      "verdict": "fail"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1,
+    "pass_rate": 0
+  },
+  "graders": [
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 0,
+      "reasoning": "",
+      "weight": 2,
+      "verdict": "skip",
+      "assertion_results": [
+        {
+          "text": "Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"array\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"checks\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"overall_reasoning\"\n    ],\n    \"message\": \"Required\"\n  }\n]",
+          "passed": false,
+          "evidence": "",
+          "score": 0,
+          "verdict": "fail"
+        }
+      ]
+    }
+  ]
+}

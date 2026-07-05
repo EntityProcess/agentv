@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-f2568d74f94d1c5f8a0e",
+  "generated_at": "2026-07-05T03:43:20.655Z",
+  "test_id": "spreadsheet-output",
+  "target": "file_output",
+  "suite": "suite",
+  "category": "examples/features/file-transforms",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-f2568d74f94d1c5f8a0e",
+    "trace_id": "5b03099d1511971c030dedc2e5fb8b47",
+    "root_span_id": "bc06951aba8e8eb0"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "llm-rubric: Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"array\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"checks\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"overall_reasoning\"\n    ],\n    \"message\": \"Required\"\n  }\n]",
+        "stage": "evaluator"
+      },
+      {
+        "message": "llm-rubric: Grader parse failure after 3 attempts: Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"array\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"checks\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"overall_reasoning\"\n    ],\n    \"message\": \"Required\"\n  }\n]",
+        "event_id": "error-3"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 32,
+    "transcript_chars": 1495,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 71,
+    "total_seconds": 0.071,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "evaluator",
+    "failure_reason_code": "evaluator_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
