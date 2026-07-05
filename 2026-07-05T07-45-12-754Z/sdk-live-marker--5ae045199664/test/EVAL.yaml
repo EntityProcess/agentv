@@ -1,0 +1,16 @@
+target: codex-sdk-local
+prompts:
+  - "{{ input }}"
+tests:
+  - id: sdk-live-marker
+    vars:
+      input: |
+        Reply with exactly this marker and no extra prose: agentv-sdk-provider-live-ok
+    assert:
+      - metric: contains-agentv-sdk-provider-live-ok
+        type: contains
+        value: agentv-sdk-provider-live-ok
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: The response includes the exact marker agentv-sdk-provider-live-ok and does not describe an inability to answer.

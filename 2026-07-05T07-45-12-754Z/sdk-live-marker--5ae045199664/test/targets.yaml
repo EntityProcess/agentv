@@ -1,0 +1,15 @@
+targets:
+  - id: codex-sdk-local
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: codex-sdk
+    config:
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      api_format: responses
+      model_reasoning_effort: low
+      sandbox_mode: workspace-write
+      approval_policy: never
+      timeout_seconds: 120
+      stream_log: raw
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"

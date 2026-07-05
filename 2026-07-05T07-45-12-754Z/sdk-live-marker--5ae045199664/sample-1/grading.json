@@ -1,0 +1,97 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Output contains \"agentv-sdk-provider-live-ok\"",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Contains exact required marker",
+      "passed": true,
+      "evidence": "The answer is exactly 'agentv-sdk-provider-live-ok'.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "No extra prose or refusal",
+      "passed": true,
+      "evidence": "The answer provides only the marker and does not describe inability to answer.",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "contains-agentv-sdk-provider-live-ok",
+      "type": "contains",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Output contains \"agentv-sdk-provider-live-ok\"",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Contains exact required marker",
+          "passed": true,
+          "evidence": "The answer is exactly 'agentv-sdk-provider-live-ok'.",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "No extra prose or refusal",
+          "passed": true,
+          "evidence": "The answer provides only the marker and does not describe inability to answer.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ],
+      "details": {
+        "pass": true,
+        "score": 1,
+        "reason": "The response exactly matches the required marker and includes no extra prose or inability statement.",
+        "checks": [
+          {
+            "text": "Contains exact required marker",
+            "pass": true,
+            "score": 1,
+            "reason": "The answer is exactly 'agentv-sdk-provider-live-ok'.",
+            "evidence": "agentv-sdk-provider-live-ok"
+          },
+          {
+            "text": "No extra prose or refusal",
+            "pass": true,
+            "score": 1,
+            "reason": "The answer provides only the marker and does not describe inability to answer.",
+            "evidence": "Single-line response with only the required text"
+          }
+        ]
+      }
+    }
+  ]
+}
