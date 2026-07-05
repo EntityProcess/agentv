@@ -5,7 +5,7 @@
  * Events are consumed via `session.subscribe()` to extract messages, tool calls, and token usage.
  *
  * Dependencies are lazy-loaded on first use to avoid bundling issues.
- * The package `@earendil-works/pi-coding-agent` must be installed.
+ * If optional dependencies were omitted, install @earendil-works/pi-coding-agent explicitly.
  */
 
 import { execSync } from 'node:child_process';
@@ -225,7 +225,7 @@ async function doLoadSdkModules(): Promise<void> {
   }
 
   throw new Error(
-    'pi-coding-agent SDK is not installed. Install it with:\n  npm install @earendil-works/pi-coding-agent',
+    'pi-coding-agent SDK is not installed. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @earendil-works/pi-coding-agent\n  npm install @earendil-works/pi-coding-agent',
   );
 }
 

@@ -29,7 +29,7 @@ async function loadCodexSdk(): Promise<any> {
       codexSdkModule = await import('@openai/codex-sdk');
     } catch (error) {
       throw new Error(
-        `Failed to load @openai/codex-sdk. Please install it:\n  npm install @openai/codex-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to load @openai/codex-sdk. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @openai/codex-sdk\n  npm install @openai/codex-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -41,7 +41,7 @@ async function loadCodexSdk(): Promise<any> {
  * This provides typed event access for structured tool calls, token usage, and clean thread lifecycle.
  *
  * Note: The SDK is loaded lazily on first use to avoid bundling issues.
- * Users must install @openai/codex-sdk separately.
+ * If optional dependencies were omitted, install @openai/codex-sdk explicitly.
  */
 export class CodexProvider implements Provider {
   readonly id: string;

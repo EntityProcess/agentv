@@ -29,7 +29,7 @@ async function loadClaudeSdk(): Promise<typeof import('@anthropic-ai/claude-agen
       claudeSdkModule = await import('@anthropic-ai/claude-agent-sdk');
     } catch (error) {
       throw new Error(
-        `Failed to load @anthropic-ai/claude-agent-sdk. Please install it:\n  npm install @anthropic-ai/claude-agent-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to load @anthropic-ai/claude-agent-sdk. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @anthropic-ai/claude-agent-sdk\n  npm install @anthropic-ai/claude-agent-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -42,7 +42,7 @@ async function loadClaudeSdk(): Promise<typeof import('@anthropic-ai/claude-agen
  * session lifecycle. Use `claude-cli` for subprocess-based invocation.
  *
  * Note: The SDK is loaded lazily on first use to avoid bundling issues.
- * Users must install @anthropic-ai/claude-agent-sdk separately.
+ * If optional dependencies were omitted, install @anthropic-ai/claude-agent-sdk explicitly.
  */
 export class ClaudeSdkProvider implements Provider {
   readonly id: string;

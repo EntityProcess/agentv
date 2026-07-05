@@ -47,7 +47,7 @@ async function loadCopilotSdk(): Promise<any> {
         );
       }
       throw new Error(
-        `Failed to load @github/copilot-sdk. Please install it:\n  npm install @github/copilot-sdk\n\nOriginal error: ${message}`,
+        `Failed to load @github/copilot-sdk. AgentV declares SDK beta packages as optional dependencies; run bun install to hydrate optional dependencies, or install this SDK explicitly:\n  bun add --optional @github/copilot-sdk\n  npm install @github/copilot-sdk\n\nOriginal error: ${message}`,
       );
     }
   }
@@ -99,7 +99,7 @@ interface ToolCallInProgress {
  * This provides typed event access for structured tool calls, token usage, and clean session lifecycle.
  *
  * Note: The SDK is loaded lazily on first use to avoid bundling issues.
- * Users must install @github/copilot-sdk separately.
+ * If optional dependencies were omitted, install @github/copilot-sdk explicitly.
  */
 export class CopilotSdkProvider implements Provider {
   readonly id: string;

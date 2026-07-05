@@ -308,10 +308,17 @@ export class SdkChildProvider implements Provider {
 }
 
 function resolveDefaultRunnerArgv(): readonly string[] {
-  const jsRunnerPath = fileURLToPath(new URL('./sdk-child-runner.js', import.meta.url));
-  if (existsSync(jsRunnerPath)) {
-    return [process.execPath, jsRunnerPath];
+  for (const relativePath of [
+    './sdk-child-runner.js',
+    './evaluation/providers/sdk-child-runner.js',
+    './sdk-child-runner.ts',
+  ]) {
+    const runnerPath = fileURLToPath(new URL(relativePath, import.meta.url));
+    if (existsSync(runnerPath)) {
+      return [process.execPath, runnerPath];
+    }
   }
+
   const tsRunnerPath = fileURLToPath(new URL('./sdk-child-runner.ts', import.meta.url));
   return [process.execPath, tsRunnerPath];
 }
