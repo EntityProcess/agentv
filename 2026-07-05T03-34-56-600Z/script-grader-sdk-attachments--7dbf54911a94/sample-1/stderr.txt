@@ -1,0 +1,11 @@
+[mock_cli] running from: /home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/local-cli/mock_cli.py
+[mock_cli] argv: ['../local-cli/mock_cli.py', '--prompt', '@[System]:\n<file: path="/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md">\n\n@[User]:\nPlease echo this request in one short sentence and mention all attached files by name.\n<file: path="/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt">', '--file', '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md', '--file', '/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt', '--output', '/tmp/agentv-script-grader-sdk-attachments-1783222498783-vchnj6x.json']
+[mock_cli] CLI_EVALS_DIR: ./docs/examples/simple/evals/local-cli
+Prompt: @[System]:
+<file: path="/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/python.instructions.md">
+
+@[User]:
+Please echo this request in one short sentence and mention all attached files by name.
+<file: path="/home/entity/projects/EntityProcess/agentv__worktrees/grading-sdk-script-api/examples/features/script-grader-sdk/evals/example.txt">
+Attachments: example.txt, python.instructions.md
+[mock_cli] writing output to: /tmp/agentv-script-grader-sdk-attachments-1783222498783-vchnj6x.json
