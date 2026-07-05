@@ -1,0 +1,22 @@
+targets:
+  - id: pi-host-env
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: pi-cli
+    grader_target: live-grader
+    config:
+      command:
+        - pi
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      tools: read,bash
+      timeout_seconds: 120
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+  - id: live-grader
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: openai
+    config:
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      api_format: chat
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"

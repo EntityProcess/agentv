@@ -1,0 +1,142 @@
+{
+  "execution_status": "quality_failure",
+  "verdict": "fail",
+  "sample_index": 0,
+  "retry_index": 0,
+  "target_execution": {
+    "schema_version": "agentv.target_execution.v1",
+    "status": "success",
+    "target_id": "pi-host-env",
+    "provider_id": "pi-cli:pi-host-env",
+    "provider_kind": "pi-cli",
+    "runtime_mode": "host",
+    "command": {
+      "argv": [
+        "pi",
+        "--provider",
+        "azure-openai-responses",
+        "--model",
+        "gpt-5.4-mini",
+        "--mode",
+        "json",
+        "--print",
+        "--no-session",
+        "--tools",
+        "read,bash",
+        "Inspect the current working directory. If ready.txt exists and contains the word ready, answer exactly HOST_ENV_READY and nothing else."
+      ],
+      "cwd": "/home/entity/projects/EntityProcess/agentv__worktrees/environment-host-runtime/.agentv/results/av-noh3-2-3-dogfood/.agentv/environments/workdir"
+    },
+    "timeout_ms": 120000,
+    "started_at": "2026-07-05T09:40:44.482Z",
+    "ended_at": "2026-07-05T09:40:50.986Z",
+    "duration_ms": 6504,
+    "exit_code": 0,
+    "signal": null,
+    "logs": {
+      "stdout": {
+        "text": "{\"type\":\"session\",\"version\":3,\"id\":\"019f31a6-e374-761e-9f4d-f36b4b360f55\",\"timestamp\":\"2026-07-05T09:40:48.628Z\",\"cwd\":\"/home/entity/projects/EntityProcess/agentv__worktrees/environment-host-runtime/.agentv/results/av-noh3-2-3-dogfood/.agentv/environments/workdir\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Inspect the current working directory. If ready.txt exists and contains the word ready, answer exactly HOST_ENV_READY and nothing else.\"}],\"timestamp\":1783244449827}}\n{\"type\":\"message_end\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Inspect the current working directory. If ready.txt exists and contains the word ready, answer exactly HOST_ENV_READY and nothing else.\"}],\"timestamp\":1783244449827}}\n{\"type\":\"message_start\",\"message\":{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783244450098,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"}}\n{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783244450098,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"}}\n{\"type\":\"turn_end\",\"message\":{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783244450098,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"},\"toolResults\":[]}\n{\"type\":\"agent_end\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Inspect the current working directory. If ready.txt exists and contains the word ready, answer exactly HOST_ENV_READY and nothing else.\"}],\"timestamp\":1783244449827},{\"role\":\"assistant\",\"content\":[],\"api\":\"azure-openai-responses\",\"provider\":\"azure-openai-responses\",\"model\":\"gpt-5.4-mini\",\"usage\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"totalTokens\":0,\"cost\":{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"total\":0}},\"stopReason\":\"error\",\"timestamp\":1783244450098,\"errorMessage\":\"Azure OpenAI API error (400): 400 Unsupported value: 'minimal' is not supported with the 'gpt-5.4-mini' model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'.\"}],\"willRetry\":false}\n",
+        "truncated": false,
+        "bytes": 3239,
+        "stored_bytes": 3239
+      },
+      "stderr": {
+        "text": "",
+        "truncated": false,
+        "bytes": 0,
+        "stored_bytes": 0
+      }
+    },
+    "transcript": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the current working directory. If ready.txt exists and contains the word ready, answer exactly HOST_ENV_READY and nothing else.",
+          "start_time": "2026-07-05T09:40:49.827Z"
+        },
+        {
+          "role": "assistant",
+          "start_time": "2026-07-05T09:40:50.098Z",
+          "metadata": {
+            "api": "azure-openai-responses",
+            "provider": "azure-openai-responses",
+            "model": "gpt-5.4-mini",
+            "usage": {
+              "input": 0,
+              "output": 0,
+              "cache_read": 0,
+              "cache_write": 0,
+              "total_tokens": 0,
+              "cost": {
+                "input": 0,
+                "output": 0,
+                "cache_read": 0,
+                "cache_write": 0,
+                "total": 0
+              }
+            },
+            "stop_reason": "error"
+          }
+        }
+      ],
+      "final_output": ""
+    },
+    "details": {
+      "prompt_file": "/home/entity/projects/EntityProcess/agentv__worktrees/environment-host-runtime/.agentv/results/av-noh3-2-3-dogfood/.agentv/environments/workdir/prompt.md",
+      "log_file": "/tmp/agentv-provider-streams/2026-07-05T09-40-41-330Z-a1e29356557d/host-environment-live-dogfood/host-env-ready/logs/pi-cli/2026-07-05T09-40-44-492Z_pi-host-env_host-env-ready_attempt-1_2dc33ecf.log"
+    },
+    "artifacts": {
+      "target_execution_path": "target-execution.json",
+      "stdout_path": "stdout.txt",
+      "stderr_path": "stderr.txt",
+      "transcript_path": "transcript.json",
+      "transcript_raw_path": "transcript-raw.jsonl",
+      "summary_path": "summary.json",
+      "metrics_path": "metrics.json"
+    }
+  },
+  "target_execution_path": "./target-execution.json",
+  "stdout_path": "./stdout.txt",
+  "stderr_path": "./stderr.txt",
+  "duration_ms": 6504,
+  "duration_seconds": 6.504,
+  "model": "pi-host-env",
+  "grading_path": "./grading.json",
+  "metrics_path": "./metrics.json",
+  "transcript_path": "./transcript.json",
+  "transcript_raw_path": "./transcript-raw.jsonl",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "o11y": {
+    "total_turns": 1,
+    "tool_calls": {},
+    "total_tool_calls": 0,
+    "web_fetches": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_deleted": [],
+    "shell_commands": [],
+    "errors": [],
+    "thinking_blocks": 0
+  }
+}
