@@ -975,6 +975,16 @@ async function readArtifactCatalogEntryText(
   return { content };
 }
 
+function readableLocalCatalogEntry(
+  meta: SourcedResultFileMeta,
+  entry: ArtifactCatalogEntry | undefined,
+): ArtifactCatalogEntry | undefined {
+  if (!entry || entry.storage !== 'local') return entry;
+  const baseDir = runWorkspaceDirFromManifestPath(meta.path);
+  const resolved = resolveReadableRunArtifactFile(baseDir, entry.displayPath);
+  return resolved.absolutePath ? entry : undefined;
+}
+
 function artifactFileContentResponse(c: C, filePath: string, fileContent: string) {
   if (c.req.query('raw') === '1' || c.req.query('download') === '1') {
     c.header('Content-Type', inferRawContentType(filePath));
@@ -2143,6 +2153,12 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
       runPath,
     );
     const answerEntry = findPointerArtifactCatalogEntry(catalog, answer, 'answer', runPath);
+    const transcriptRawEntry = readableLocalCatalogEntry(
+      meta,
+      record.transcript_raw_path
+        ? findArtifactCatalogEntry(catalog, record.transcript_raw_path)
+        : undefined,
+    );
 
     if (!transcriptEntry && !transcript.path) {
       return c.json({
@@ -2194,6 +2210,7 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
     return c.json({
       status: 'ok',
       transcript_path: transcriptEntry.displayPath,
+      ...(transcriptRawEntry && { transcript_raw_path: transcriptRawEntry.displayPath }),
       content,
       language: inferLanguage(transcriptEntry.displayPath),
       ...(answerEntry && { answer_path: answerEntry.displayPath }),

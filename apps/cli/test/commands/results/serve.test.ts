@@ -3115,8 +3115,10 @@ describe('serve app', () => {
       const timestampDir = path.join(runsDir, runId);
       const resultDir = 'demo-test-greeting--111111111111';
       const transcriptArtifactPath = `${resultDir}/sample-1/transcript.json`;
+      const transcriptRawArtifactPath = `${resultDir}/sample-1/transcript-raw.jsonl`;
       const answerArtifactPath = `${resultDir}/sample-1/outputs/answer.md`;
       const transcriptPath = path.join(timestampDir, transcriptArtifactPath);
+      const transcriptRawPath = path.join(timestampDir, transcriptRawArtifactPath);
       const answerPath = path.join(timestampDir, answerArtifactPath);
       const transcriptJson = `${JSON.stringify(
         {
@@ -3142,9 +3144,14 @@ describe('serve app', () => {
         null,
         2,
       )}\n`;
+      const transcriptRawJsonl = `${JSON.stringify({
+        type: 'raw_event',
+        message: 'provider event',
+      })}\n`;
 
       mkdirSync(path.dirname(transcriptPath), { recursive: true });
       writeFileSync(transcriptPath, transcriptJson);
+      writeFileSync(transcriptRawPath, transcriptRawJsonl);
       mkdirSync(path.dirname(answerPath), { recursive: true });
       writeFileSync(answerPath, 'done');
       mkdirSync(path.join(timestampDir, '.internal'), { recursive: true });
@@ -3155,6 +3162,7 @@ describe('serve app', () => {
           experiment: 'canonical-transcript',
           result_dir: resultDir,
           transcript_path: transcriptArtifactPath,
+          transcript_raw_path: transcriptRawArtifactPath,
           answer_path: answerArtifactPath,
         }),
       );
@@ -3168,6 +3176,7 @@ describe('serve app', () => {
       const transcriptData = (await transcriptRes.json()) as {
         status: string;
         transcript_path: string;
+        transcript_raw_path: string;
         content: string;
         answer_path: string;
         answer_content: string;
@@ -3175,6 +3184,7 @@ describe('serve app', () => {
       expect(transcriptData).toMatchObject({
         status: 'ok',
         transcript_path: transcriptArtifactPath,
+        transcript_raw_path: transcriptRawArtifactPath,
         content: transcriptJson,
         answer_path: answerArtifactPath,
         answer_content: 'done',
@@ -3186,6 +3196,68 @@ describe('serve app', () => {
 
       expect(rawRes.status).toBe(200);
       expect(await rawRes.text()).toBe(transcriptJson);
+
+      const rawSidecarRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${transcriptRawArtifactPath}?result_dir=${encodeURIComponent(resultDir)}&raw=1`,
+      );
+
+      expect(rawSidecarRes.status).toBe(200);
+      expect(await rawSidecarRes.text()).toBe(transcriptRawJsonl);
+    });
+
+    it('omits missing raw transcript sidecars from the transcript response', async () => {
+      const runsDir = localResultsExperimentDir(tempDir, 'canonical-transcript-normalized-only');
+      const runId = '2026-03-25T10-45-00-000Z';
+      const timestampDir = path.join(runsDir, runId);
+      const resultDir = 'demo-test-greeting--222222222222';
+      const transcriptArtifactPath = `${resultDir}/sample-1/transcript.json`;
+      const transcriptRawArtifactPath = `${resultDir}/sample-1/transcript-raw.jsonl`;
+      const transcriptPath = path.join(timestampDir, transcriptArtifactPath);
+      const transcriptJson = `${JSON.stringify({
+        schema_version: 'agentv.normalized_transcript.v1',
+        target: 'codex',
+        turns: [
+          {
+            v: 1,
+            agent: 'codex',
+            type: 'assistant',
+            content: [{ type: 'text', text: 'done' }],
+          },
+        ],
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJson);
+      mkdirSync(path.join(timestampDir, '.internal'), { recursive: true });
+      writeFileSync(
+        path.join(timestampDir, '.internal', 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'canonical-transcript-normalized-only',
+          result_dir: resultDir,
+          transcript_path: transcriptArtifactPath,
+          transcript_raw_path: transcriptRawArtifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const transcriptRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript?result_dir=${encodeURIComponent(resultDir)}`,
+      );
+
+      expect(transcriptRes.status).toBe(200);
+      const transcriptData = (await transcriptRes.json()) as {
+        status: string;
+        transcript_path: string;
+        transcript_raw_path?: string;
+        content: string;
+      };
+      expect(transcriptData).toMatchObject({
+        status: 'ok',
+        transcript_path: transcriptArtifactPath,
+        content: transcriptJson,
+      });
+      expect(transcriptData.transcript_raw_path).toBeUndefined();
     });
 
     it('loads pointer-shaped transcript metadata when it resolves to a local artifact path', async () => {

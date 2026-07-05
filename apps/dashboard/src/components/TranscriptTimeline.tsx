@@ -59,9 +59,11 @@ interface TranscriptTimelineProps {
   finalAnswer?: string;
   answerPath?: string;
   transcriptPath?: string;
+  transcriptRawPath?: string;
   answerHref?: string;
   transcriptHref?: string;
   transcriptDownloadHref?: string;
+  transcriptRawHref?: string;
   onOpenFile?: (path: string) => void;
 }
 
@@ -833,9 +835,11 @@ export function TranscriptTimeline({
   finalAnswer,
   answerPath,
   transcriptPath,
+  transcriptRawPath,
   answerHref,
   transcriptHref,
   transcriptDownloadHref,
+  transcriptRawHref,
   onOpenFile,
 }: TranscriptTimelineProps) {
   const messages = useMemo(() => buildTranscriptViewModel(entries), [entries]);
@@ -943,6 +947,15 @@ export function TranscriptTimeline({
             <ActionLink href={transcriptDownloadHref} download>
               Download normalized JSON
             </ActionLink>
+            <OpenFileButton path={transcriptRawPath} onOpenFile={onOpenFile}>
+              Open transcript-raw.jsonl in Files
+            </OpenFileButton>
+            <ActionLink href={transcriptRawHref}>Open raw JSONL</ActionLink>
+            {!transcriptRawPath && (
+              <span className="rounded-md border border-gray-800 bg-gray-950 px-3 py-1.5 text-sm text-gray-500">
+                Raw JSONL unavailable
+              </span>
+            )}
           </div>
         </div>
       </section>
