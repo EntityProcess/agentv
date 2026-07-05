@@ -1,4 +1,4 @@
-# 17. Output/artifact contract + workspace resolver (provenance vs acquisition)
+# 17. Output/artifact contract + environment recipe contract
 
 Date: 2026-07-02
 
@@ -11,11 +11,17 @@ and [ADR 0012 (finalize run artifact layout)](0012-finalize-run-artifact-layout.
 extends [ADR 0008 (normalized transcript)](0008-normalized-transcript-artifact-contract.md).
 Companion to [ADR 0016](0016-promptfoo-superset-eval-authoring-contract.md).
 
+Amended (2026-07-05) by Bead `av-noh3.2.1`: the output/artifact contract remains
+accepted, but the earlier workspace resolver naming and `workspace.repos`
+authoring shape are superseded for coding-agent testbeds. AgentV now uses
+`environment` as the public suite/test/case testbed recipe. `workspace` is no
+longer a locked canonical public testbed term.
+
 ## Context
 
 We reviewed the output formats of promptfoo, margin-lab, vercel-agent-eval, and
-agentskills, and the workspace-acquisition models of SWE-bench, margin, Harbor, and
-Inspect AI (`docs/plans/…` §6, §11.1). The active implementation scope is tracked in
+agentskills, and the testbed/acquisition models of SWE-bench, margin, Harbor,
+and Inspect AI (`docs/plans/…` §6, §11.1). The active implementation scope is tracked in
 Beads; PRs, ADRs, and plans summarize those Beads for review, but the Bead descriptions,
 acceptance criteria, and notes remain the implementation source of truth.
 
@@ -29,7 +35,8 @@ full `gradingResult`; `GradingResult` carries `pass`, `score`, `reason`, optiona
 results, prompts, stats, config, author, and variables. AgentV borrows the clean
 aggregate grading vocabulary and component-breakdown idea, then writes them into a
 filesystem/Git-native split run bundle instead of one consolidated DB/export file.
-Two decisions follow: the canonical result bundle, and how a workspace is acquired.
+Two decisions follow: the canonical result bundle, and how a coding-agent
+environment recipe is authored and materialized.
 
 ## Decision — output/artifact contract (best-of-each, split, no DB)
 
@@ -173,77 +180,102 @@ and `outputs_path`, not a full embedded grading tree.
 - **Repeat folder = `sample-N`, not `run-N`.** "run" is overloaded (`run_id` = the whole invocation). Rename `run-${attempt+1}` → `sample-1`, `sample-2`, … (matches margin `samples_per_case`/`sample_index`, explicit sampling metrics, and AgentV's `repeat`; Inspect's `epoch` is the ML-jargon alt). Keep the metadata split: `sample_index` = repeats, `retry_index` = infra retries.
 - **`experiment` has no *structural* privilege, but its *value* is auto-defaulted.** No storage dir (already `<run_id>/`), no top-level field (`tags.experiment`), no special schema; tag keys sort **alphabetically**; the default grouping/compare **key** is a user preference (any tag — AgentV blesses none). `--experiment X` = sugar for `--tag experiment=X`. **The one convenience:** the harness auto-populates the `experiment` tag's **value** when unset, deriving it from the eval/suite name (ADR-0009: `--experiment` > authored `tags.experiment` > eval/suite name). So every run always has a meaningful `experiment` value and is groupable — without the author setting anything. This is a default *value*, not a privileged *key*.
 
-## Decision — workspace resolver (provenance vs acquisition)
+## Decision — environment recipe contract
 
-Cross-framework convergent rule (SWE-bench, Terminal-bench, margin, lm-eval, Inspect):
-**the case declares WHAT (identity + pin); the harness resolves WHERE-FROM via a
-selectable backend. Nobody puts acquisition in the task.**
+Cross-framework evidence from Bead `av-noh3.1` supports a different public
+contract than this ADR's original `workspace` decision:
 
-**Field (WHAT) and resolver (HOW) are orthogonal — both required, neither replaces the
-other.** Analogy: `package.json` vs the package registry. `dependencies: {lodash: ^4}` is
-the **field** (always declared); npm's registry/mirror/tarball resolution is **pluggable
-acquisition** — you can point npm at a custom registry, but you don't delete `package.json`.
-Likewise: the `workspace` field declares provenance; the resolver (built-in backends +
-custom-backend plugin + `beforeAll` escape hatch) is the pluggable *how*. A custom backend
-still reads the field to know which `repo`+`commit` to fetch. You only "don't need the
-field" if you go full escape-hatch and forgo declarative provenance (not recommended).
+- Promptfoo local clone `/home/entity/projects/promptfoo/promptfoo` at commit
+  `6bfc5a0c7f16f9c4717ac731d276b578e63d0769` has top-level `env` for
+  provider/eval env overrides and `extensions` for lifecycle hooks; it has no
+  typed testbed/environment primitive.
+- Harbor local clone `/home/entity/projects/harbor-framework/harbor` at commit
+  `a9148a9509a0bc0cbeb80375aa619bd5cdb5845c` models task environments with
+  Docker image/resources/env/workdir and keeps agent setup separate from
+  environment start.
+- Terminal-Bench 2 clone `/tmp/agentv-terminal-bench-2` at commit
+  `2fd12b88aafdd04a52c298e3940bcb189f9766d6` uses `task.toml`,
+  `environment/Dockerfile`, `tests/test.sh`, and `solution/solve.sh`; Docker
+  tasks commonly prepare `/app` by cloning/pinning repositories or copying
+  challenge files.
+- Margin clone `/home/entity/projects/Margin-Lab/evals` at commit
+  `53fb2fd080689efaf7934573d8759d14fc1043e4` keeps case image/cwd separate
+  from selected agent configuration.
 
-### Naming: `workspace` (durable, locked)
-Chosen over alternatives for longevity — it names the *what* (a working directory), not the
-*how*: CI-standard (`GITHUB_WORKSPACE`), used by margin-lab, git/Cargo/Bazel/VS Code.
-Rejected: `sandbox` (Inspect — connotes an isolation boundary, which is a *property* → the
-`isolation`/`docker` fields, not the concept); `environment` (overloaded with env vars);
-`testbed` (SWE-bench jargon).
+AgentV combines promptfoo-compatible eval authoring with
+Harbor/Terminal-Bench/Margin-style coding-agent environments:
 
-### Final locked schema
 ```yaml
-workspace:                    # suite-level default; tests[].workspace overrides per case
-  repos:                      # PROVENANCE only (what to materialize)
-    - path: ./CargoWise       # where it lands in the workspace
-      repo: https://github.com/WiseTechGlobal/CargoWise.git   # canonical identity (join key)
-      commit: 953adb9         # immutable SHA pin (base_commit accepted as input alias)
-      sparse: [src/X]         # optional content selection
-      ancestor: 1             # optional (nth-ancestor pin)
-  scope: attempt              # suite (default) | attempt
-  template: ./tmpl            # optional local scaffold
-  docker: { image: ... }      # optional container env
+environment: file://.agentv/environments/local-python.yaml
+
+targets:
+  - id: codex
+    provider: codex-cli
 ```
-**Never in this schema:** acquisition (resolver + backends → harness/machine config, keyed
-on `repo`) and hooks (→ `extensions`). Keeping those out is what makes the schema durable —
-new acquisition technology plugs in without touching it. `commit` is an immutable SHA
-(reproducible); mutable refs are excluded.
 
-1. **Eval declares provenance ONLY, in a declarative `workspace.repos` field** (per-test
-   overridable / suite-level; NOT a `vars` blob and NOT an extension): `workspace.repos:
-   [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]`, plus `workspace.scope`
-   (`suite` or `attempt`). Remove the tangled acquisition fields (`type`/`local`, `resolve`,
-   `clone.depth`, `clone.filter`, per-repo `resolver`). The harness materializes this
-   **before hooks** (ADR 0016 pt10).
-2. **Acquisition = harness resolver in machine config (`$AGENTV_HOME/config.yaml`),
-   keyed on `repo`**, ordered backends: (1) local checkout auto-adopt via origin-match
-   → mirror cache; (2) configured local mirror; (3) custom command resolver returning
-   a flat `{status,path}` acquisition source, including Git sources or static directory
-   snapshots; (4) AgentV mirror cache and remote clone;
-   (5) *future* Docker image (SWE-bench/margin/Inspect — same identity key, new backend;
-   adopt Inspect's `image`/`build`/`x-local` distinction + per-config init caching).
-3. **`--reference` (mirror cache) is the workhorse**: shallow-speed WITH full history, so
-   deep `base_commit` pins never break — retires the `--depth`/`--filter` debate. Keep
-   `sparse` for content selection.
-4. **Materialization runs before hooks and reads the declared provenance**; ordinary user
-   `beforeAll`/`beforeEach` hooks run *after* it. Resolver config is machine-local,
-   orthogonal to eval and target YAML. Targets carry no repos.
-5. **The resolver is PLUGGABLE — custom acquisition is first-class** (per the "plugins over
-   built-ins" product guardrail). Two extension points beyond the built-in backends:
-   (a) **register a custom acquisition backend** (a resolver plugin, config-level, keyed on
-   `repo`) for a bespoke store/format — the recommended path; (b) a **`beforeAll` extension
-   escape hatch** that materializes a fully author-owned workspace and reports its path
-   (what the promptfoo parity example did). The built-in acquisition itself may be
-   implemented as an auto-registered, ordered-first, **swappable** plugin over the same
-   public interface — so the default is zero-config yet replaceable.
+```yaml
+# .agentv/environments/local-python.yaml
+type: host
+workdir: ./workspaces/bottle
+setup:
+  command: ./scripts/setup-workspace.sh
+  args:
+    repo: https://github.com/bottlepy/bottle.git
+    commit: 0207a34f0c5716cd292dd4480253ad35d3da49f3
+    path: ./workspaces/bottle
+```
 
-The invariants (not the mechanism) are what matter: provenance is declared as data;
-acquisition runs before hooks and is keyed on the pin; built-ins ship. New backends —
-built-in or user — plug in without touching the eval schema because all resolve the same pin.
+```yaml
+environment:
+  type: docker
+  context: ./environment
+  workdir: /app
+  env:
+    NODE_ENV: test
+
+env:
+  OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"
+```
+
+1. **`environment` is the authored testbed recipe** at suite/test/case scope.
+   It may be inline or loaded through a field-level `file://` reference. Shared
+   `file://` recipes are the canonical reusable form.
+2. **Initial recipe types are `host` and `docker`.** `host` prepares a local
+   trusted-machine workdir. `docker` prepares a container-backed testbed using
+   fields such as `context`, `dockerfile`, `image`, `workdir`, and future scoped
+   resource/mount/secrets fields.
+3. **`environment.workdir` defines cwd.** AgentV passes the resolved workdir to
+   target providers and graders/test scripts unless a later scoped feature
+   explicitly overrides it. Target configs may still expose provider-specific
+   knobs, but the canonical testbed cwd comes from the environment recipe.
+4. **`environment.setup` materializes testbed state.** Setup is declarative data
+   plus a command and typed `args`: repos, archives, patches, generated
+   fixtures, installed dependencies, services, and other case state. Setup runs
+   before target execution and before ordinary promptfoo lifecycle hooks.
+5. **Top-level `env` remains promptfoo-compatible.** It is for provider/eval env
+   overrides and load-time `{{ env.VAR }}` rendering. Do not move it under
+   `environment`. If `environment.env` is implemented, it means variables scoped
+   to the host/docker testbed, not promptfoo env templating.
+6. **Promptfoo `extensions` remain lifecycle hooks.** They can customize eval
+   flow, but they are not the canonical testbed setup contract because hidden
+   hook code is weaker for review, validation, sharing, and cwd semantics.
+7. **Targets select agents/providers.** `targets[].id` is stable AgentV target
+   identity, `targets[].provider` names the adapter/control boundary, and
+   `targets[].runtime` remains placement/transport. Targets do not own
+   Docker/testbed setup by default.
+8. **`workspace` is not the public coding-agent benchmark contract.** The
+   original `workspace.repos`, `workspace.scope`, `workspace.docker`, and
+   `workspace.template` names are superseded where they meant authored testbed
+   setup. Existing workspace-named code is migration debt when it models this
+   same concept. The word may still appear for unrelated internal mutable
+   directories, caches, or result/artifact paths, but not as a competing
+   authored testbed primitive.
+
+The invariants matter more than the mechanism: testbed setup is declared as
+data; materialization precedes target execution and normal lifecycle hooks; cwd
+is explicit; provider/target identity remains separate from testbed setup; and
+run bundles can snapshot the resolved recipe, setup inputs, and resolved
+workdir as provenance.
 
 ### Note: SWE-bench `FAIL_TO_PASS` / `PASS_TO_PASS`
 
@@ -251,15 +283,15 @@ built-in or user — plug in without touching the eval schema because all resolv
 dataset row. The distinction (fix-tests vs regression-tests) matters only at
 *dataset-construction* time; at *run* time it collapses to "**run these named tests; pass
 iff all pass**". So it is **too domain-specific for a core primitive, and needs no
-dedicated SDK recipe** -- it is plainly a workspace-`cwd` **`script`** grader: the grader runs
-the repo's tests in the workspace and its exit code is the verdict (exactly margin's
-`tests/test.sh` 0/1/2 model). The two lists are just data the grader's command consumes
-(inline, or from `vars`/`metadata`). Combined with the Docker-image acquisition backend
-(#5), this is how AgentV runs SWE-bench natively — same `repo`+`commit` provenance, no
-schema change, no new grader type.
+dedicated SDK recipe** -- it is plainly a **`script`** grader run from
+`environment.workdir`: the grader runs the repo's tests and its exit code is the
+verdict (exactly margin's `tests/test.sh` 0/1/2 model). The two lists are just
+data the grader's command consumes (inline, or from `vars`/`metadata`). Combined
+with Docker environment recipes, this is how AgentV runs SWE-bench-style tasks
+natively: explicit testbed recipe, explicit cwd, no new grader type.
 
 ### Cross-check: exploitbench (confirms + two borrowables)
-exploitbench (security-exploit benchmark; AgentV research `entities/exploitbench.md`) **confirms** this contract: split filesystem run-tree is the source of truth (`job.json`/`score.json`/`cost.json`/`transcript.jsonl`/`tool_calls.jsonl`/`config_snapshot.yaml`); its SQLite is a **derived, rebuildable view** (`import`/`export` bijection), not required — validating our no-DB core (jq + `index.jsonl` is the query surface; a SQLite view stays an optional post-run adapter, Phoenix boundary intact). Docker images are pinned by `sha256:` digest at run start (reinforces resolver backend #5); `config_snapshot` = our `bundle.json`. **Borrow:** (1) a **`provenance`** field on result rows (`native`/`mock`/`replay`/`imported_from_*`) — durable, fits AgentV's replay/transcript/mock providers; adopt now. (2) **Eval-integrity / anti-reward-hacking — future scope**: run high-stakes graders in a fresh container with the workspace mounted **read-only**; an `audit` pass that re-grades from the stored transcript, scans for reward-hacking red flags, and verifies model identity (the provider served the requested model). "Post-hoc audit as part of benchmark validity."
+exploitbench (security-exploit benchmark; AgentV research `entities/exploitbench.md`) **confirms** this contract: split filesystem run-tree is the source of truth (`job.json`/`score.json`/`cost.json`/`transcript.jsonl`/`tool_calls.jsonl`/`config_snapshot.yaml`); its SQLite is a **derived, rebuildable view** (`import`/`export` bijection), not required — validating our no-DB core (jq + `index.jsonl` is the query surface; a SQLite view stays an optional post-run adapter, Phoenix boundary intact). Docker images are pinned by `sha256:` digest at run start; `config_snapshot` = our `bundle.json`. **Borrow:** (1) a **`provenance`** field on result rows (`native`/`mock`/`replay`/`imported_from_*`) — durable, fits AgentV's replay/transcript/mock providers; adopt now. (2) **Eval-integrity / anti-reward-hacking — future scope**: run high-stakes graders in a fresh container with the prepared environment mounted **read-only**; an `audit` pass that re-grades from the stored transcript, scans for reward-hacking red flags, and verifies model identity (the provider served the requested model). "Post-hoc audit as part of benchmark validity."
 
 ## Consequences
 
@@ -267,6 +299,7 @@ exploitbench (security-exploit benchmark; AgentV research `entities/exploitbench
   0011/0012 marked accordingly.
 - Opik export (`av-bv4.6`) and the Dashboard (`av-2s7`) consume the new bundle → re-gate on
   this contract.
-- Codemod handles bundle-field renames and drops the tangled repo-acquisition fields.
+- Codemod handles bundle-field renames and drops the superseded workspace
+  repo-acquisition fields where they modeled authored testbed setup.
 - `camelCase` in an AgentV-owned artifact or response is a contract bug, not a
   stylistic alternative.
