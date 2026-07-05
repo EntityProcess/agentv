@@ -8,6 +8,7 @@ Demonstrates how `default_test.options.transform` turns `ContentFile` outputs in
 - an agent target returning a `ContentFile` block instead of plain text
 - an `llm-rubric` receiving transformed spreadsheet text
 - relative `ContentFile.path` resolution against the target workspace
+- a deterministic grader target for local validation and a live LLM grader target for dogfood
 
 ## Running
 
@@ -17,6 +18,15 @@ bun apps/cli/src/cli.ts eval examples/features/file-transforms/evals/suite.yaml 
 ```
 
 Expected result: the eval passes because the grader sees the transformed spreadsheet text from `generated/report.xlsx`.
+
+To run the same file-output path with a live OpenAI-compatible grader:
+
+```bash
+LOCAL_OPENAI_PROXY_BASE_URL=http://127.0.0.1:10531/v1 \
+LOCAL_OPENAI_PROXY_API_KEY=dummy-local-key \
+LOCAL_OPENAI_PROXY_MODEL=gpt-5.4-mini \
+bun apps/cli/src/cli.ts eval examples/features/file-transforms/evals/suite.yaml --target file_output_live
+```
 
 ## Key Files
 

@@ -217,6 +217,37 @@ then render those vars from the prompt template next to the input.
 
 **Environment variables:** Use `{{ env.VAR }}` templates in authored config. Missing vars resolve to empty string. Works in eval files, external case files, and workspace configs. `.env` files are loaded automatically.
 
+## Output Transforms
+
+Use Promptfoo-compatible `transform` when the target output needs shaping before
+grading. Common cases include converting a `ContentFile` such as an `.xlsx`
+spreadsheet into text before an `llm-rubric` grader runs.
+
+```yaml
+prompts:
+  - "{{ input }}"
+
+default_test:
+  options:
+    transform: file://scripts/transforms/xlsx-to-csv.ts
+
+tests:
+  - id: spreadsheet-output
+    vars:
+      input: Generate the spreadsheet report
+    assert:
+      - Output contains the transformed spreadsheet text including the revenue rows
+```
+
+Transform placement:
+
+- `default_test.options.transform` applies to every test unless overridden.
+- `tests[].options.transform` overrides the inherited default transform for one test.
+- Assertion-level `transform` applies only to that grader, after the test/default transform.
+
+Do not author `preprocessors` or deprecated Promptfoo `postprocess` in current
+eval YAML. Use `transform` at the point that needs the shaped output.
+
 ## Metadata
 
 When `name` is present, the suite is parsed as a metadata-bearing eval:

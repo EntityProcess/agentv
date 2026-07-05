@@ -1,12 +1,69 @@
-import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
-const payload = JSON.parse(readFileSync(0, 'utf8')) as { path?: string };
+type ContentFile = {
+  type?: string;
+  media_type?: string;
+  path?: string;
+};
 
-if (!payload.path) {
-  throw new Error('missing file path');
+const XLSX_MEDIA_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+function findSpreadsheet(output: unknown): ContentFile | undefined {
+  if (!Array.isArray(output)) {
+    return undefined;
+  }
+
+  return output.find((block): block is ContentFile => {
+    if (!block || typeof block !== 'object') {
+      return false;
+    }
+    const file = block as ContentFile;
+    return (
+      file.type === 'file' &&
+      typeof file.path === 'string' &&
+      (file.path.endsWith('.xlsx') || file.media_type === XLSX_MEDIA_TYPE)
+    );
+  });
 }
 
-// Example-only placeholder transformation. Copy this script into your project
-// and replace it with real spreadsheet extraction logic.
-console.log('spreadsheet: revenue,total');
-console.log('Q1,42');
+function spreadsheetPath(file: ContentFile): string {
+  if (!file.path) {
+    throw new Error('missing spreadsheet path');
+  }
+
+  if (path.isAbsolute(file.path)) {
+    return file.path;
+  }
+
+  return path.resolve(import.meta.dir, '..', '..', file.path);
+}
+
+export default function transform(output: unknown): string {
+  const file = findSpreadsheet(output);
+  if (!file) {
+    throw new Error('expected a .xlsx ContentFile output');
+  }
+
+  const absolutePath = spreadsheetPath(file);
+  if (!existsSync(absolutePath)) {
+    throw new Error(`spreadsheet not found: ${file.path}`);
+  }
+
+  // Example-only placeholder conversion. Replace this with a real XLSX parser
+  // such as SheetJS or your project's existing spreadsheet extractor.
+  return ['spreadsheet: revenue,total', 'Q1,42'].join('\n');
+}
+
+if (import.meta.main) {
+  const filePath = process.argv[2];
+  if (!filePath) {
+    throw new Error('missing file path');
+  }
+  const payload: ContentFile = {
+    type: 'file',
+    media_type: XLSX_MEDIA_TYPE,
+    path: filePath,
+  };
+  process.stdout.write(`${transform([payload])}\n`);
+}
