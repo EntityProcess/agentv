@@ -1,0 +1,7 @@
+targets:
+  - id: gh-live
+    provider: openai
+    model: "{{ env.GH_MODELS_MODEL }}"
+    config:
+      base_url: https://models.github.ai/inference
+      api_key: "[redacted]"

@@ -1,0 +1,64 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-2d64ccd5e2fbee79ad9d",
+  "generated_at": "2026-07-05T12:08:51.409Z",
+  "test_id": "field-local-file-refs",
+  "target": "gh-live",
+  "suite": "field-local-refs-dogfood",
+  "category": ".agentv/cache/av-kfik-43-dogfood/field-local-refs",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-2d64ccd5e2fbee79ad9d",
+    "trace_id": "4c1dfe29dbb5b157a4787e1b44754fdf",
+    "root_span_id": "cb721317e5a885d5"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 206,
+    "transcript_chars": 1355,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 3926,
+    "total_seconds": 3.926,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 353,
+    "input": 46,
+    "output": 307,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": 0.0006255,
+    "source": "provider_reported"
+  },
+  "execution": {
+    "status": "quality_failure"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "pass": false,
+  "score": 0,
+  "reason": "One or more grading components failed.",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "The answer refused to give the requested one-sentence instruction and asked for additional context instead.",
+      "component_results": [
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "The answer refused to give the requested one-sentence instruction and asked for additional context instead.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "gh-grader",
+            "value": "Provides a concise migration instruction sentence"
+          }
+        },
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "The answer did not recommend 'tests file references' or mention avoiding top-level imports as required.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "gh-grader",
+            "value": "Recommends using tests file references instead of top-level imports"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "gh-grader"
+      },
+      "metadata": {
+        "details": {
+          "pass": false,
+          "score": 0,
+          "reason": "The response did not provide the requested concise migration sentence and instead asked for more information."
+        },
+        "token_usage": {
+          "input": 456,
+          "output": 572
+        },
+        "duration_ms": 6415,
+        "started_at": "2026-07-05T12:08:44.930Z",
+        "ended_at": "2026-07-05T12:08:51.345Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "llm-rubric": 0
+  },
+  "metadata": {
+    "execution_status": "quality_failure"
+  }
+}

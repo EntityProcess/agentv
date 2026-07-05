@@ -1,0 +1,1 @@
+I don’t have the necessary AgentV migration context or code snippets to answer accurately—please provide the current raw test row usage and the new API/docs so I can give a precise one-sentence instruction.
