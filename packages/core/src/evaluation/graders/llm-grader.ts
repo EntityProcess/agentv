@@ -119,6 +119,29 @@ const freeformEvaluationSchema = z.object({
     .optional(),
 });
 
+const promptfooCheckSchema = z
+  .object({
+    id: z.string().optional(),
+    text: z.string().optional(),
+    pass: z.union([z.boolean(), z.string(), z.number()]).optional(),
+    passed: z.union([z.boolean(), z.string(), z.number()]).optional(),
+    satisfied: z.union([z.boolean(), z.string(), z.number()]).optional(),
+    score: z.union([z.number(), z.string(), z.boolean()]).optional(),
+    reason: z.string().optional(),
+    evidence: z.string().optional(),
+    reasoning: z.string().optional(),
+  })
+  .passthrough();
+
+const promptfooGradingResultSchema = z
+  .object({
+    reason: z.string().optional(),
+    pass: z.union([z.boolean(), z.string(), z.number()]).optional(),
+    score: z.union([z.number(), z.string(), z.boolean()]).optional(),
+    checks: z.array(promptfooCheckSchema).optional(),
+  })
+  .passthrough();
+
 const rubricCheckResultSchema = z.object({
   id: z.string().describe('The ID of the rubric item being checked'),
   satisfied: z.boolean().describe('Whether this rubric requirement is met'),
@@ -151,6 +174,13 @@ interface StructuredGenerationResult {
   readonly text: string;
   readonly providerResponse?: ProviderResponse;
   readonly tokenUsage?: TokenUsage;
+}
+
+interface NormalizedPromptfooGradingResult {
+  readonly score: number;
+  readonly verdict: import('../types.js').EvaluationVerdict;
+  readonly assertions: readonly AssertionEntry[];
+  readonly details: JsonObject;
 }
 
 function stringifyPretty(value: unknown): string {
@@ -213,6 +243,174 @@ function resolveContentBasePath(context: EvaluationContext): string | undefined 
   }
 
   return undefined;
+}
+
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasPromptfooAggregateFields(value: unknown): boolean {
+  if (!isJsonRecord(value)) {
+    return false;
+  }
+  return (
+    'pass' in value ||
+    'reason' in value ||
+    ('checks' in value && !('overall_reasoning' in value) && !('assertions' in value))
+  );
+}
+
+function normalizePromptfooPass(value: unknown): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value === undefined) {
+    return true;
+  }
+  return /^(true|yes|pass|y)$/i.test(String(value));
+}
+
+function normalizePromptfooScore(value: unknown, pass: boolean): number {
+  if (typeof value === 'number') {
+    return clampScore(value);
+  }
+  const numeric = Number(value);
+  return clampScore(Number.isFinite(numeric) ? numeric : Number(pass));
+}
+
+function promptfooThreshold(config: GraderConfig | undefined): number | undefined {
+  const maybeConfigThreshold =
+    config && 'config' in config && isJsonRecord(config.config)
+      ? config.config.threshold
+      : undefined;
+  if (typeof maybeConfigThreshold === 'number' && Number.isFinite(maybeConfigThreshold)) {
+    return maybeConfigThreshold;
+  }
+  return config && 'min_score' in config && typeof config.min_score === 'number'
+    ? config.min_score
+    : undefined;
+}
+
+function promptfooFallbackText(config: GraderConfig | undefined, fallbackText: string): string {
+  if (config?.type === 'llm-rubric' && typeof config.value === 'string') {
+    return config.value;
+  }
+  return fallbackText;
+}
+
+function promptfooFallbackReason(
+  pass: boolean,
+  score: number,
+  threshold: number | undefined,
+): string {
+  if (pass) {
+    return 'Grading passed';
+  }
+  if (threshold !== undefined && score < threshold) {
+    return `Score ${score} below threshold ${threshold}`;
+  }
+  return 'Grading failed';
+}
+
+function promptfooCheckPass(check: z.infer<typeof promptfooCheckSchema>): boolean {
+  const pass = check.pass ?? check.passed ?? check.satisfied;
+  if (pass !== undefined) {
+    return normalizePromptfooPass(pass);
+  }
+  if (check.score !== undefined) {
+    return normalizePromptfooScore(check.score, false) >= 0.8;
+  }
+  return false;
+}
+
+function promptfooCheckText(
+  check: z.infer<typeof promptfooCheckSchema>,
+  rubricMap: ReadonlyMap<string, RubricItem>,
+): string {
+  const rubric = check.id ? rubricMap.get(check.id) : undefined;
+  if (rubric) {
+    return `[${rubric.id}] ${rubric.outcome}`;
+  }
+  if (isNonEmptyString(check.text)) {
+    return check.text.trim();
+  }
+  if (isNonEmptyString(check.id)) {
+    return `[${check.id}]`;
+  }
+  return 'llm-rubric check';
+}
+
+function normalizePromptfooGradingResult(options: {
+  readonly raw: unknown;
+  readonly config: GraderConfig | undefined;
+  readonly fallbackText: string;
+  readonly rubrics?: readonly RubricItem[];
+}): NormalizedPromptfooGradingResult {
+  const data = promptfooGradingResultSchema.parse(options.raw);
+  const rubricMap = new Map((options.rubrics ?? []).map((rubric) => [rubric.id, rubric]));
+  const normalizedChecks = data.checks?.map((check) => {
+    const checkPass = promptfooCheckPass(check);
+    return {
+      ...(check.id ? { id: check.id } : {}),
+      text: promptfooCheckText(check, rubricMap),
+      pass: checkPass,
+      ...(check.score !== undefined
+        ? { score: normalizePromptfooScore(check.score, checkPass) }
+        : {}),
+      reason: check.reason ?? check.evidence ?? check.reasoning ?? '',
+      ...(check.evidence && check.reason && check.evidence !== check.reason
+        ? { evidence: check.evidence }
+        : {}),
+    };
+  });
+  const threshold = promptfooThreshold(options.config);
+  const rawPass =
+    data.pass !== undefined
+      ? normalizePromptfooPass(data.pass)
+      : normalizedChecks && normalizedChecks.length > 0
+        ? normalizedChecks.every((check) => check.pass)
+        : true;
+  const score =
+    data.score !== undefined
+      ? normalizePromptfooScore(data.score, rawPass)
+      : normalizedChecks && normalizedChecks.length > 0
+        ? normalizedChecks.reduce((total, check) => {
+            if (typeof check.score === 'number') {
+              return total + check.score;
+            }
+            return total + Number(check.pass);
+          }, 0) / normalizedChecks.length
+        : normalizePromptfooScore(undefined, rawPass);
+  const pass = threshold !== undefined ? rawPass && score >= threshold : rawPass;
+  const reason = data.reason?.trim() || promptfooFallbackReason(pass, score, threshold);
+
+  const assertions: AssertionEntry[] =
+    normalizedChecks && normalizedChecks.length > 0
+      ? normalizedChecks.map((check) => ({
+          text: check.text,
+          passed: check.pass,
+          evidence: check.reason || check.evidence,
+        }))
+      : [
+          {
+            text: options.fallbackText.trim() || 'llm-rubric result',
+            passed: pass,
+            evidence: reason,
+          },
+        ];
+
+  return {
+    score,
+    verdict: pass ? 'pass' : 'fail',
+    assertions,
+    details: {
+      pass,
+      score,
+      reason,
+      ...(threshold !== undefined ? { threshold } : {}),
+      ...(normalizedChecks && normalizedChecks.length > 0 ? { checks: normalizedChecks } : {}),
+    },
+  };
 }
 
 export class LlmGrader implements Grader {
@@ -307,7 +505,10 @@ export class LlmGrader implements Grader {
     const variables = buildTemplateVariables(context);
 
     // Build system prompt (only the mandatory output schema)
-    const systemPrompt = buildOutputSchema();
+    const systemPrompt =
+      context.evaluator?.type === 'llm-rubric'
+        ? buildPromptfooRubricOutputSchema()
+        : buildOutputSchema();
 
     // Build user prompt based on custom template or default template
     const graderTemplate =
@@ -338,19 +539,34 @@ export class LlmGrader implements Grader {
         systemPrompt,
         userPrompt,
         schema: freeformEvaluationSchema,
+        parseResponse: (raw) => {
+          if (hasPromptfooAggregateFields(raw)) {
+            return normalizePromptfooGradingResult({
+              raw,
+              config: context.evaluator,
+              fallbackText: promptfooFallbackText(context.evaluator, context.evalCase.criteria),
+            });
+          }
+          const data = freeformEvaluationSchema.parse(raw);
+          const score = clampScore(data.score);
+          const assertions: AssertionEntry[] = Array.isArray(data.assertions)
+            ? data.assertions.slice(0, 8)
+            : [];
+          return {
+            score,
+            verdict: scoreToVerdict(score),
+            assertions,
+            details: data.details as JsonObject | undefined,
+          };
+        },
         images,
       });
 
-      const score = clampScore(data.score);
-      const assertions: AssertionEntry[] = Array.isArray(data.assertions)
-        ? data.assertions.slice(0, 8)
-        : [];
-
       return {
-        score,
-        verdict: scoreToVerdict(score),
-        assertions,
-        expectedAspectCount: Math.max(assertions.length, 1),
+        score: data.score,
+        verdict: data.verdict,
+        assertions: data.assertions,
+        expectedAspectCount: Math.max(data.assertions.length, 1),
         graderRawRequest,
         graderTarget: graderProvider.targetName,
         details: data.details as JsonObject | undefined,
@@ -415,18 +631,29 @@ export class LlmGrader implements Grader {
         systemPrompt,
         userPrompt: prompt,
         schema: rubricEvaluationSchema,
+        parseResponse: (raw) => {
+          if (hasPromptfooAggregateFields(raw)) {
+            return normalizePromptfooGradingResult({
+              raw,
+              config: context.evaluator,
+              fallbackText: promptfooFallbackText(context.evaluator, context.evalCase.criteria),
+              rubrics,
+            });
+          }
+          const data = rubricEvaluationSchema.parse(raw);
+          return calculateRubricScore(data, rubrics);
+        },
         images,
       });
 
-      const { score, verdict, assertions } = calculateRubricScore(data, rubrics);
-
       return {
-        score,
-        verdict,
-        assertions,
+        score: data.score,
+        verdict: data.verdict,
+        assertions: data.assertions,
         expectedAspectCount: rubrics.length,
         graderRawRequest,
         graderTarget: graderProvider.targetName,
+        details: 'details' in data ? data.details : undefined,
         tokenUsage,
       };
     } catch (e: unknown) {
@@ -570,6 +797,8 @@ export class LlmGrader implements Grader {
         graderRawRequest,
         details,
         graderProvider.targetName,
+        context.evaluator,
+        promptfooFallbackText(context.evaluator, context.evalCase.criteria),
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -665,6 +894,8 @@ export class LlmGrader implements Grader {
         graderRawRequest,
         details,
         provider.targetName,
+        context.evaluator,
+        promptfooFallbackText(context.evaluator, context.evalCase.criteria),
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -868,11 +1099,31 @@ export class LlmGrader implements Grader {
     graderRawRequest: JsonObject,
     details: JsonObject,
     graderTarget?: string,
+    config?: GraderConfig,
+    fallbackText = 'llm-rubric result',
   ): EvaluationScore {
     try {
       const parsed = parseJsonFromText(text);
 
       if (rubrics && rubrics.length > 0) {
+        if (hasPromptfooAggregateFields(parsed)) {
+          const normalized = normalizePromptfooGradingResult({
+            raw: parsed,
+            config,
+            fallbackText,
+            rubrics,
+          });
+          return {
+            score: normalized.score,
+            verdict: normalized.verdict,
+            assertions: normalized.assertions,
+            expectedAspectCount: rubrics.length,
+            graderRawRequest,
+            graderTarget,
+            details: { ...details, ...normalized.details },
+          };
+        }
+
         const data = rubricEvaluationSchema.parse(parsed);
         const { score, verdict, assertions } = calculateRubricScore(data, rubrics);
         return {
@@ -883,6 +1134,23 @@ export class LlmGrader implements Grader {
           graderRawRequest,
           graderTarget,
           details,
+        };
+      }
+
+      if (hasPromptfooAggregateFields(parsed)) {
+        const normalized = normalizePromptfooGradingResult({
+          raw: parsed,
+          config,
+          fallbackText,
+        });
+        return {
+          score: normalized.score,
+          verdict: normalized.verdict,
+          assertions: normalized.assertions,
+          expectedAspectCount: Math.max(normalized.assertions.length, 1),
+          graderRawRequest,
+          graderTarget,
+          details: { ...details, ...normalized.details },
         };
       }
 
@@ -1073,15 +1341,17 @@ export class LlmGrader implements Grader {
   // LLM mode retry logic
   // ---------------------------------------------------------------------------
 
-  private async runWithRetry<T>(options: {
+  private async runWithRetry<TSchema, TData = TSchema>(options: {
     readonly context: EvaluationContext;
     readonly graderProvider: Provider;
     readonly systemPrompt: string;
     readonly userPrompt: string;
-    readonly schema: z.ZodSchema<T>;
+    readonly schema: z.ZodSchema<TSchema>;
+    readonly parseResponse?: (raw: unknown) => TData;
     readonly images?: readonly ContentImage[];
-  }): Promise<{ data: T; providerResponse?: ProviderResponse; tokenUsage?: TokenUsage }> {
-    const { context, graderProvider, systemPrompt, userPrompt, schema, images } = options;
+  }): Promise<{ data: TData; providerResponse?: ProviderResponse; tokenUsage?: TokenUsage }> {
+    const { context, graderProvider, systemPrompt, userPrompt, schema, parseResponse, images } =
+      options;
 
     let lastError: Error | undefined;
     let lastInvalidResponse: StructuredGenerationResult | undefined;
@@ -1098,9 +1368,10 @@ export class LlmGrader implements Grader {
         });
         const canRepairResponse = result.text.trim().length > 0;
         lastInvalidResponse = canRepairResponse ? result : undefined;
-        let data: T;
+        let data: TData;
         try {
-          data = schema.parse(parseJsonFromText(result.text));
+          const raw = parseJsonFromText(result.text);
+          data = parseResponse ? parseResponse(raw) : (schema.parse(raw) as unknown as TData);
         } catch (e: unknown) {
           lastError = e instanceof Error ? e : new Error(String(e));
           shouldAttemptStructureFix = canRepairResponse;
@@ -1127,7 +1398,8 @@ export class LlmGrader implements Grader {
             invalidResponse: lastInvalidResponse.text,
           }),
         });
-        const data = schema.parse(parseJsonFromText(repaired.text));
+        const raw = parseJsonFromText(repaired.text);
+        const data = parseResponse ? parseResponse(raw) : (schema.parse(raw) as unknown as TData);
         return {
           data,
           providerResponse: repaired.providerResponse,
@@ -1193,6 +1465,30 @@ export function buildOutputSchema(): string {
     '  ],',
     '  "details": {<optional object with domain-specific structured metrics>}',
     '}',
+  ].join('\n');
+}
+
+export function buildPromptfooRubricOutputSchema(): string {
+  return [
+    'You must respond with a single JSON object matching this schema:',
+    '',
+    '{',
+    '  "reason": "<brief explanation for the grading decision>",',
+    '  "pass": <boolean>,',
+    '  "score": <number between 0.0 and 1.0>,',
+    '  "checks": [',
+    '    {',
+    '      "id": "<optional rubric id>",',
+    '      "text": "<optional description of what was checked>",',
+    '      "pass": <boolean>,',
+    '      "score": <optional number between 0.0 and 1.0>,',
+    '      "reason": "<brief explanation for this check>",',
+    '      "evidence": "<optional supporting observation distinct from reason>"',
+    '    }',
+    '  ]',
+    '}',
+    '',
+    'The "checks" array is optional. Return only JSON.',
   ].join('\n');
 }
 

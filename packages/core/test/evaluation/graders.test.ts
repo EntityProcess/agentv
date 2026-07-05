@@ -175,6 +175,109 @@ describe('LlmGrader (llm-grader)', () => {
     expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
   });
 
+  it('accepts Promptfoo-style llm-rubric responses from custom prompts', async () => {
+    const graderProvider = new CapturingProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            reason: 'The answer captures the reference intent with minor omissions.',
+            pass: true,
+            score: 0.72,
+          }),
+        },
+      ],
+    });
+
+    const evaluator = llmGraderFactory(
+      {
+        name: 'reference-match',
+        type: 'llm-rubric',
+        value: 'Matches the reference answer: {{ expected_output }}',
+        prompt:
+          'Grade {{ output }} against {{ rubric }} and return { "reason": string, "pass": boolean, "score": number }',
+      },
+      {
+        graderProvider,
+        llmGrader: new LlmGrader({
+          resolveGraderProvider: async () => graderProvider,
+        }),
+        registry: {} as never,
+      },
+    );
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-rubric' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.72);
+    expect(result.verdict).toBe('pass');
+    expect(result.assertions).toEqual([
+      {
+        text: 'Matches the reference answer: {{ expected_output }}',
+        passed: true,
+        evidence: 'The answer captures the reference intent with minor omissions.',
+      },
+    ]);
+    expect(graderProvider.lastRequest?.question).toContain(
+      'Matches the reference answer: {{ expected_output }}',
+    );
+    expect(graderProvider.lastRequest?.systemPrompt).toContain('"pass"');
+    expect(graderProvider.lastRequest?.systemPrompt).not.toContain('"assertions"');
+  });
+
+  it('applies explicit Promptfoo-style threshold to llm-rubric pass results', async () => {
+    const graderProvider = new StubProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            reason: 'Partially correct but below the configured bar.',
+            pass: true,
+            score: 0.6,
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-rubric' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-rubric',
+        value: 'Answer meets the rubric',
+        config: { threshold: 0.75 },
+      },
+    });
+
+    expect(result.score).toBeCloseTo(0.6);
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions).toEqual([
+      {
+        text: 'Answer meets the rubric',
+        passed: false,
+        evidence: 'Partially correct but below the configured bar.',
+      },
+    ]);
+    expect(result.details?.threshold).toBe(0.75);
+  });
+
   it('recovers when a freeform assertion uses passed: mixed', async () => {
     const graderProvider = new StubProvider({
       output: [
@@ -606,6 +709,153 @@ describe('LlmGrader (llm-grader)', () => {
         .map((a) => a.text)
         .join('\n'),
     ).toContain('[r2]');
+  });
+
+  it('maps Promptfoo-style rubric checks into internal assertion entries', async () => {
+    const graderProvider = new StubProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            reason: 'The answer covers logging but omits tests.',
+            pass: false,
+            score: 0.45,
+            checks: [
+              {
+                id: 'r1',
+                text: 'Mentions logging',
+                pass: true,
+                score: 1,
+                reason: 'Structured logging is described.',
+              },
+              {
+                id: 'r2',
+                text: 'Mentions tests',
+                pass: false,
+                score: 0,
+                reason: 'No test strategy is mentioned.',
+              },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-rubric' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-rubric',
+        rubrics: [
+          { id: 'r1', outcome: 'Mentions logging', weight: 1.0, required: true },
+          { id: 'r2', outcome: 'Mentions tests', weight: 1.0, required: false },
+        ],
+      },
+    });
+
+    expect(result.score).toBeCloseTo(0.45);
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions).toEqual([
+      {
+        text: '[r1] Mentions logging',
+        passed: true,
+        evidence: 'Structured logging is described.',
+      },
+      {
+        text: '[r2] Mentions tests',
+        passed: false,
+        evidence: 'No test strategy is mentioned.',
+      },
+    ]);
+    expect(result.details?.reason).toBe('The answer covers logging but omits tests.');
+  });
+
+  it('derives Promptfoo-style aggregate score from checks when omitted', async () => {
+    const graderProvider = new StubProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            checks: [
+              { id: 'r1', pass: true, reason: 'Present.' },
+              { id: 'r2', pass: false, reason: 'Missing.' },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-rubric' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-rubric',
+        rubrics: [
+          { id: 'r1', outcome: 'Mentions logging', weight: 1.0, required: true },
+          { id: 'r2', outcome: 'Mentions tests', weight: 1.0, required: false },
+        ],
+      },
+    });
+
+    expect(result.score).toBeCloseTo(0.5);
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions.map((assertion) => assertion.passed)).toEqual([true, false]);
+  });
+
+  it('synthesizes a Promptfoo-style reason when the judge omits one', async () => {
+    const graderProvider = new StubProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            pass: false,
+            score: 0.2,
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-rubric' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-rubric',
+        value: 'Answer meets the rubric',
+      },
+    });
+
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions[0]?.evidence).toBe('Grading failed');
   });
 
   it('preserves correctness and contradiction operators in rubric prompts', async () => {
