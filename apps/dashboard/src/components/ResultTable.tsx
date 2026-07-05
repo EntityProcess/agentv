@@ -420,7 +420,9 @@ export function ResultTable({
 
       <div
         className={
-          selectedRow ? 'grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,42rem)]' : ''
+          selectedRow
+            ? 'grid min-w-0 max-w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,42rem)]'
+            : ''
         }
       >
         <div className="min-w-0">
@@ -1013,7 +1015,7 @@ function ResultDetailPanel({
     <aside
       key={panelScrollKey}
       ref={scrollPanelIntoView}
-      className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]"
+      className="min-w-0 max-w-full overflow-hidden rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]"
     >
       <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 px-4 py-3">
         <div className="min-w-0">
@@ -1042,7 +1044,7 @@ function ResultDetailPanel({
           </button>
         </div>
       </div>
-      <div className="h-[36rem] min-h-[28rem] overflow-hidden xl:h-[calc(100vh-9rem)]">
+      <div className="h-[36rem] min-h-[28rem] min-w-0 overflow-hidden xl:h-[calc(100vh-9rem)]">
         <EvalDetail
           key={`${row.key}:${selectedTrialPath ?? 'aggregate'}:${initialFilePath ?? ''}`}
           eval={row.result}

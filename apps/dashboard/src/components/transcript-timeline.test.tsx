@@ -189,4 +189,22 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain('Download normalized JSON');
     expect(html).toContain('{&quot;answer&quot;:42,&quot;source&quot;:&quot;src/app.ts&quot;}');
   });
+
+  it('keeps long transcript artifact labels and JSON blocks constrained for narrow panels', () => {
+    const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
+    const html = renderToStaticMarkup(
+      <TranscriptTimeline
+        entries={parsed.entries}
+        transcriptPath="very-long-project-name/very-long-test-case-name/sample-1/transcript.json"
+        transcriptHref="/api/raw-transcript"
+        transcriptDownloadHref="/api/download-transcript"
+      />,
+    );
+
+    expect(html).toContain('break-all');
+    expect(html).toContain('max-w-full overflow-auto');
+    expect(html).toContain(
+      'very-long-project-name/very-long-test-case-name/sample-1/transcript.json',
+    );
+  });
 });

@@ -510,7 +510,7 @@ function JsonBlock({
 }: { label: string; value: unknown; tone?: 'default' | 'error' }) {
   if (!hasValue(value)) return null;
   return (
-    <div className="space-y-1">
+    <div className="min-w-0 space-y-1">
       <div
         className={
           tone === 'error'
@@ -520,7 +520,7 @@ function JsonBlock({
       >
         {label}
       </div>
-      <pre className="max-h-80 overflow-auto rounded-md border border-gray-800 bg-gray-950 p-3 text-xs text-gray-200">
+      <pre className="max-h-80 max-w-full overflow-auto rounded-md border border-gray-800 bg-gray-950 p-3 text-xs text-gray-200">
         <code>{formatUnknown(value)}</code>
       </pre>
     </div>
@@ -529,7 +529,7 @@ function JsonBlock({
 
 function MetadataPill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-md border border-gray-800 bg-gray-950 px-2 py-0.5 text-xs text-gray-400">
+    <span className="inline-flex min-w-0 max-w-full break-all rounded-md border border-gray-800 bg-gray-950 px-2 py-0.5 text-xs text-gray-400">
       {children}
     </span>
   );
@@ -586,7 +586,7 @@ function ToolCallDetails({
 
   return (
     <details
-      className="rounded-md border border-gray-800 bg-gray-950/80 p-3"
+      className="min-w-0 rounded-md border border-gray-800 bg-gray-950/80 p-3"
       open={expanded}
       data-testid={`tool-call-${callId ?? index}`}
       data-expanded={expanded ? 'true' : 'false'}
@@ -594,7 +594,7 @@ function ToolCallDetails({
         onToggle(toolCall.id, event.currentTarget.open)
       }
     >
-      <summary className="cursor-pointer list-none text-sm font-medium text-gray-200">
+      <summary className="min-w-0 cursor-pointer list-none text-sm font-medium text-gray-200">
         <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
           <span className="text-xs text-gray-500">{expanded ? '-' : '+'}</span>
           <span>Tool call</span>
@@ -605,7 +605,7 @@ function ToolCallDetails({
           {duration && <span className="tabular-nums text-xs text-gray-500">{duration}</span>}
         </span>
       </summary>
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 min-w-0 space-y-3">
         <div className="flex flex-wrap gap-2">
           {callId && <MetadataPill>id: {callId}</MetadataPill>}
           {duration && <MetadataPill>duration: {duration}</MetadataPill>}
@@ -624,12 +624,12 @@ function ToolResultDetails({ line }: { line: TranscriptJsonLine }) {
   const duration = formatDurationMs(line.duration_ms);
   const tokenUsage = formatTokenUsage(line.token_usage);
   return (
-    <details className="rounded-md border border-amber-900/50 bg-gray-950/60 p-3">
+    <details className="min-w-0 rounded-md border border-amber-900/50 bg-gray-950/60 p-3">
       <summary className="cursor-pointer text-sm font-medium text-amber-300">
         {line.name ? `Tool result · ${line.name}` : 'Tool result'}
         {duration && <span className="ml-2 tabular-nums text-xs text-gray-500">{duration}</span>}
       </summary>
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 min-w-0 space-y-3">
         <div className="flex flex-wrap gap-2">
           {line.name && <MetadataPill>name: {line.name}</MetadataPill>}
           {duration && <MetadataPill>duration: {duration}</MetadataPill>}
@@ -660,7 +660,7 @@ function TranscriptMessageCard({
   return (
     <details
       id={message.anchorId}
-      className={`scroll-mt-6 rounded-lg border ${roleStyle.container}`}
+      className={`min-w-0 scroll-mt-6 rounded-lg border ${roleStyle.container}`}
       open={expanded}
       data-testid={`message-row-${ordinal + 1}`}
       data-expanded={expanded ? 'true' : 'false'}
@@ -668,7 +668,7 @@ function TranscriptMessageCard({
         onToggleMessage(message.id, event.currentTarget.open)
       }
     >
-      <summary className="cursor-pointer list-none px-4 py-3">
+      <summary className="min-w-0 cursor-pointer list-none px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="text-xs text-gray-500">{expanded ? '-' : '+'}</span>
@@ -707,7 +707,7 @@ function TranscriptMessageCard({
         {line.role === 'tool' || line.role === 'function' ? (
           <ToolResultDetails line={line} />
         ) : content.trim().length > 0 ? (
-          <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-200">
+          <pre className="max-w-full whitespace-pre-wrap break-words text-sm leading-6 text-gray-200">
             {content}
           </pre>
         ) : (
@@ -728,7 +728,7 @@ function TranscriptMessageCard({
         )}
 
         {line.metadata && line.role !== 'tool' && line.role !== 'function' && (
-          <details className="rounded-md border border-gray-800 bg-gray-950/60 p-3">
+          <details className="min-w-0 rounded-md border border-gray-800 bg-gray-950/60 p-3">
             <summary className="cursor-pointer text-xs font-medium text-gray-400">
               Message metadata
             </summary>
@@ -757,7 +757,7 @@ function TranscriptSummary({
   const toolCounts = summarizeToolCounts(messages);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex min-w-0 flex-wrap gap-2">
       <MetadataPill>{messages.length} messages</MetadataPill>
       {Array.from(roleCounts.entries()).map(([role, count]) => (
         <MetadataPill key={role}>
@@ -905,37 +905,37 @@ export function TranscriptTimeline({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {hasCanonicalAnswer && (
-        <section className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+        <section className="min-w-0 rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-4">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
               <h3 className="text-sm font-medium text-emerald-300">Final answer</h3>
               <p className="mt-1 text-xs text-gray-500">
                 Highlighted from canonical <code>outputs/answer.md</code>; transcript context stays
                 below.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <OpenFileButton path={answerPath} onOpenFile={onOpenFile}>
                 Open answer.md in Files
               </OpenFileButton>
               <ActionLink href={answerHref}>Open answer.md</ActionLink>
             </div>
           </div>
-          <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md border border-emerald-900/40 bg-gray-950/80 p-3 text-sm leading-6 text-gray-100">
+          <pre className="mt-3 max-h-64 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-md border border-emerald-900/40 bg-gray-950/80 p-3 text-sm leading-6 text-gray-100">
             {finalAnswer && finalAnswer.trim().length > 0 ? finalAnswer : 'answer.md is empty.'}
           </pre>
         </section>
       )}
 
-      <section className="rounded-lg border border-gray-800 bg-gray-900 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-2">
+      <section className="min-w-0 rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
             <h3 className="text-sm font-medium text-gray-300">Transcript timeline</h3>
             <TranscriptSummary messages={messages} transcriptPath={transcriptPath} />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <OpenFileButton path={transcriptPath} onOpenFile={onOpenFile}>
               Open transcript.json in Files
             </OpenFileButton>
@@ -947,9 +947,9 @@ export function TranscriptTimeline({
         </div>
       </section>
 
-      <section className="rounded-lg border border-gray-800 bg-gray-900 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
+      <section className="min-w-0 rounded-lg border border-gray-800 bg-gray-900 p-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap gap-2">
             <FilterButton
               active={filter === 'all'}
               count={messages.length}
@@ -980,7 +980,7 @@ export function TranscriptTimeline({
             </FilterButton>
           </div>
           {allToolIds.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               <button
                 type="button"
                 onClick={expandAllToolCalls}

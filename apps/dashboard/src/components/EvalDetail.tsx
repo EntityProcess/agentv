@@ -171,10 +171,10 @@ export function EvalDetail({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* Tab navigation — at the top so Files tab editor fills maximum height */}
-      <div className="border-b border-gray-800">
-        <div className="flex gap-1 px-4">
+      <div className="min-w-0 border-b border-gray-800">
+        <div className="flex min-w-0 gap-1 overflow-x-auto px-4">
           {tabs.map((tab) => (
             <button
               type="button"
@@ -193,9 +193,9 @@ export function EvalDetail({
       </div>
 
       {/* Tab content */}
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         {activeTab === 'checks' && (
-          <div className="overflow-auto p-4">
+          <div className="min-w-0 overflow-auto p-4">
             {showAggregateRepeat ? (
               <RepeatAggregateChecksTab
                 result={result}
@@ -227,7 +227,7 @@ export function EvalDetail({
           </div>
         )}
         {activeTab === 'transcript' && (
-          <div className="overflow-auto p-4">
+          <div className="min-w-0 overflow-auto p-4">
             {showAggregateRepeat ? (
               <RepeatAggregateTranscriptTab
                 result={result}
@@ -255,7 +255,7 @@ export function EvalDetail({
           </div>
         )}
         {activeTab === 'source' && (
-          <div className="overflow-auto p-4">
+          <div className="min-w-0 overflow-auto p-4">
             <SourceTab result={detailResult} />
           </div>
         )}
