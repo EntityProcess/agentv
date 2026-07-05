@@ -967,6 +967,72 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     }
   });
 
+  it('disables request batching when cases require environment setup', async () => {
+    class BatchCapableProvider implements Provider {
+      readonly id = 'batch:environment';
+      readonly kind = 'mock' as const;
+      readonly targetName = 'environment';
+      readonly supportsBatch = true;
+      batchCalls = 0;
+      invokeRequests: ProviderRequest[] = [];
+
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        this.invokeRequests.push(request);
+        return {
+          output: [{ role: 'assistant', content: 'OK' }],
+        };
+      }
+
+      async invokeBatch(): Promise<readonly ProviderResponse[]> {
+        this.batchCalls += 1;
+        throw new Error('batch should not be used for environment cases');
+      }
+    }
+
+    const sourceDir = mkdtempSync(path.join(tmpdir(), 'agentv-batch-environment-source-'));
+    const workdir = path.join(sourceDir, 'workdir');
+    writeFileSync(
+      path.join(sourceDir, 'setup.mjs'),
+      "import { writeFileSync } from 'node:fs'; writeFileSync(process.env.AGENTV_ENVIRONMENT_WORKDIR + '/ready.txt', 'ok');\n",
+      'utf8',
+    );
+    const provider = new BatchCapableProvider();
+
+    try {
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: {
+          ...baseTarget,
+          providerBatching: true,
+          workers: 1,
+        },
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [
+          {
+            ...baseTestCase,
+            environment: {
+              type: 'host',
+              workdir,
+              sourceDir,
+              setup: { command: ['node', 'setup.mjs'] },
+            },
+          },
+        ],
+      });
+
+      expect(results).toHaveLength(1);
+      expect(provider.batchCalls).toBe(0);
+      expect(provider.invokeRequests).toHaveLength(1);
+      expect(provider.invokeRequests[0]?.cwd).toBe(workdir);
+      expect(existsSync(path.join(workdir, 'ready.txt'))).toBe(true);
+    } finally {
+      const { rm } = await import('node:fs/promises');
+      await rm(sourceDir, { recursive: true, force: true });
+    }
+  });
+
   it('disables request batching when repeat attempts are configured', async () => {
     class BatchCapableProvider implements Provider {
       readonly id = 'batch:repeat';
