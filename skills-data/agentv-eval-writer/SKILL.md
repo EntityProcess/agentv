@@ -40,7 +40,7 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 ## Authoring Checklist
 
 - Put grading criteria in `assert`, not in test-level `criteria`. Plain assertion strings become an `llm-rubric` grader.
-- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or preprocessing, and `type: script` when grading must execute code.
+- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or assertion-level transforms, and `type: script` when grading must execute code.
 - Write `expected_output` as a golden/reference answer the target could have produced. Do not write criteria, scoring instructions, or "the agent should..." rubric prose there.
 - For historical or repo-state evals, materialize the repo under `workspace.repos[]` pinned to the commit under test. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
 

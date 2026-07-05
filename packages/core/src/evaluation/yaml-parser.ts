@@ -49,7 +49,6 @@ import {
   coerceEvaluator,
   collectAssertionTemplateSourceReferences,
   parseGraders,
-  parsePreprocessors,
   warnUnconsumedCriteria,
 } from './loaders/grader-parser.js';
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
@@ -1278,12 +1277,6 @@ async function loadTestsFromParsedYamlValue(
   const evalFileDir = path.dirname(absoluteTestPath);
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global');
-  const suitePreprocessors = await parsePreprocessors(
-    suite.preprocessors,
-    searchRoots,
-    '<suite>',
-    absoluteTestPath,
-  );
   const defaultTestRubricPrompt = extractDefaultTestRubricPrompt(suite);
   const suiteExtensions = parseExtensions(suite.extensions, evalFileDir);
 
@@ -1554,7 +1547,7 @@ async function loadTestsFromParsedYamlValue(
           globalExecution,
           searchRoots,
           id ?? 'unknown',
-          suitePreprocessors,
+          undefined,
           defaultTestRubricPrompt,
         );
       } catch (error) {
@@ -1650,7 +1643,6 @@ async function loadTestsFromParsedYamlValue(
         assertions: evaluators,
         ...(caseVars ? { vars: caseVars } : {}),
         ...(outputTransform ? { outputTransform } : {}),
-        ...(suitePreprocessors ? { preprocessors: suitePreprocessors } : {}),
         ...(suiteExtensions.length > 0 ? { extensions: suiteExtensions } : {}),
         workspace: mergedWorkspace,
         metadata,
@@ -2694,7 +2686,7 @@ function collectSingleGraderSourceReferences(
   for (const preprocessor of preprocessors ?? []) {
     if (preprocessor.resolvedCommand && preprocessor.resolvedCommand.length > 0) {
       references.push({
-        kind: 'preprocessor_command',
+        kind: 'content_transform_command',
         displayPath: preprocessor.resolvedCommand.at(-1) ?? preprocessor.type,
         resolvedPath: preprocessor.resolvedCommand.at(-1),
         graderName: evaluator.name,

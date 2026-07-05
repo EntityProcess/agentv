@@ -963,7 +963,7 @@ export interface EvalSourceReference {
     | 'code_grader_cwd'
     | 'assertion_template'
     | 'default_test'
-    | 'preprocessor_command';
+    | 'content_transform_command';
   readonly displayPath: string;
   readonly resolvedPath?: string;
   readonly graderName?: string;
@@ -1063,7 +1063,7 @@ export interface EvalTest {
   readonly vars?: JsonObject;
   /** Promptfoo-compatible output transform inherited from default_test.options or tests[].options. */
   readonly outputTransform?: TransformSpec;
-  /** Suite-level preprocessors used by the implicit default llm-grader. */
+  /** Internal content conversion commands for file blocks. Authored eval YAML uses transform. */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
   /** Promptfoo-style lifecycle extensions inherited from the suite. */
   readonly extensions?: readonly AgentVExtensionConfig[];

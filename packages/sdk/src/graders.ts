@@ -1,4 +1,4 @@
-import type { EvalAssertionConfig, EvalPreprocessor } from './eval.js';
+import type { EvalAssertionConfig } from './eval.js';
 
 export type GraderCommand = string | readonly string[];
 
@@ -8,6 +8,7 @@ export interface GraderHelperOptions {
   readonly required?: boolean;
   readonly minScore?: number;
   readonly negate?: boolean;
+  readonly transform?: string;
 }
 
 export interface GraderCommonConfig {
@@ -16,6 +17,7 @@ export interface GraderCommonConfig {
   readonly required?: boolean;
   readonly minScore?: number;
   readonly negate?: boolean;
+  readonly transform?: string;
 }
 
 export interface ContainsGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
@@ -70,7 +72,6 @@ export interface LlmRubricGraderConfig extends EvalAssertionConfig, GraderCommon
   readonly config?: Readonly<Record<string, unknown>>;
   readonly maxSteps?: number;
   readonly temperature?: number;
-  readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
 export interface GraderPromptScriptConfig {
@@ -85,7 +86,6 @@ export interface LlmGraderOptions extends GraderHelperOptions {
   readonly config?: Readonly<Record<string, unknown>>;
   readonly maxSteps?: number;
   readonly temperature?: number;
-  readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
 export interface LlmGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
@@ -96,7 +96,6 @@ export interface LlmGraderConfig extends EvalAssertionConfig, GraderCommonConfig
   readonly config?: Readonly<Record<string, unknown>>;
   readonly maxSteps?: number;
   readonly temperature?: number;
-  readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
 export interface ScriptGraderTargetOptions {
@@ -107,7 +106,6 @@ export interface ScriptGraderOptions extends GraderHelperOptions {
   readonly cwd?: string;
   readonly target?: true | ScriptGraderTargetOptions;
   readonly config?: Readonly<Record<string, unknown>>;
-  readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
 export interface ScriptGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
@@ -116,7 +114,6 @@ export interface ScriptGraderConfig extends EvalAssertionConfig, GraderCommonCon
   readonly cwd?: string;
   readonly target?: true | ScriptGraderTargetOptions;
   readonly config?: Readonly<Record<string, unknown>>;
-  readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
 /** @deprecated Use ScriptGraderTargetOptions. */
@@ -148,6 +145,7 @@ function withCommon<T extends { readonly type: string }>(
     ...(options.required !== undefined ? { required: options.required } : {}),
     ...(options.minScore !== undefined ? { minScore: options.minScore } : {}),
     ...(options.negate !== undefined ? { negate: options.negate } : {}),
+    ...(options.transform !== undefined ? { transform: options.transform } : {}),
   } as T & GraderCommonConfig & EvalAssertionConfig;
 }
 
@@ -196,7 +194,6 @@ export function llmRubricGrader(
     readonly config?: Readonly<Record<string, unknown>>;
     readonly maxSteps?: number;
     readonly temperature?: number;
-    readonly preprocessors?: readonly EvalPreprocessor[];
   } = {},
 ): LlmRubricGraderConfig {
   return withCommon(
@@ -208,7 +205,6 @@ export function llmRubricGrader(
       ...(options.config !== undefined ? { config: options.config } : {}),
       ...(options.maxSteps !== undefined ? { maxSteps: options.maxSteps } : {}),
       ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
-      ...(options.preprocessors !== undefined ? { preprocessors: options.preprocessors } : {}),
     },
     options,
   );
@@ -224,7 +220,6 @@ export function llmGrader(options: LlmGraderOptions = {}): LlmGraderConfig {
       ...(options.config !== undefined ? { config: options.config } : {}),
       ...(options.maxSteps !== undefined ? { maxSteps: options.maxSteps } : {}),
       ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
-      ...(options.preprocessors !== undefined ? { preprocessors: options.preprocessors } : {}),
     },
     options,
   );
@@ -249,7 +244,6 @@ export function scriptGrader(
       ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
       ...(options.target !== undefined ? { target: options.target } : {}),
       ...(options.config !== undefined ? { config: options.config } : {}),
-      ...(options.preprocessors !== undefined ? { preprocessors: options.preprocessors } : {}),
     },
     options,
   );

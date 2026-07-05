@@ -12,7 +12,7 @@ LLM graders use a language model to evaluate agent responses against custom crit
 
 Put semantic grading requirements in `assert`. Plain strings are
 handled by the built-in `llm-rubric` rubric grader. Use `type: llm-rubric` when you
-need a custom prompt, target, or grader-specific preprocessing:
+need a custom prompt, target, or grader-specific transform:
 
 ```yaml
 tests:
@@ -207,7 +207,7 @@ default_test:
           ? output.find((block) => block?.type === "file" && block.path?.endsWith(".xlsx"))
           : undefined;
         if (!file) return output;
-        const result = Bun.spawnSync(["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"], {
+        const result = Bun.spawnSync(["bun", "run", "scripts/transforms/xlsx-to-csv.ts"], {
           stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
         });
         if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr).trim());
@@ -235,7 +235,7 @@ Resolution order:
 - if no transform is configured, AgentV falls back to a UTF-8 text read
 - if the fallback read looks binary or invalid, the grader receives a warning note instead of failing the test run
 
-See [`examples/features/preprocessors/`](../../../../../examples/features/preprocessors/) for a runnable example with a file-producing target and a spreadsheet conversion script.
+See [`examples/features/file-transforms/`](../../../../../examples/features/file-transforms/) for a runnable example with a file-producing target and a spreadsheet conversion script.
 
 ## Available Context Fields
 

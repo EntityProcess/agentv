@@ -21,11 +21,11 @@ default_test:
           return matchers.some((matcher) => mediaType === matcher || filePath.endsWith(matcher));
         });
         if (!file || typeof file.path !== "string") return output;
-        const result = Bun.spawnSync(["bun","run","../scripts/preprocessors/xlsx-to-csv.ts"], {
+        const result = Bun.spawnSync(["bun","run","../scripts/transforms/xlsx-to-csv.ts"], {
           stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
         });
         if (result.exitCode !== 0) {
-          throw new Error(new TextDecoder().decode(result.stderr).trim() || "preprocessor command failed");
+          throw new Error(new TextDecoder().decode(result.stderr).trim() || "transform command failed");
         }
         return new TextDecoder().decode(result.stdout).trim();
       })()
