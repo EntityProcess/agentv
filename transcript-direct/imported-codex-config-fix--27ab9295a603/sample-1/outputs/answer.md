@@ -1,0 +1,1 @@
+Updated src/config.ts so the default request timeout is 5000ms. I inspected package.json first, found the timeout setting with Grep, and only edited the config file.

@@ -1,0 +1,62 @@
+{
+  "execution_status": "ok",
+  "verdict": "pass",
+  "sample_index": 0,
+  "retry_index": 0,
+  "duration_ms": 1200,
+  "duration_seconds": 1.2,
+  "model": "transcript",
+  "grading_path": "./grading.json",
+  "metrics_path": "./metrics.json",
+  "transcript_path": "./transcript.json",
+  "transcript_raw_path": "./transcript-raw.jsonl",
+  "transcript_summary": {
+    "total_turns": 6,
+    "tool_calls": {
+      "file_read": 1,
+      "file_write": 0,
+      "file_edit": 1,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 1,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [
+      "package.json"
+    ],
+    "files_modified": [
+      "src/config.ts"
+    ],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "o11y": {
+    "total_turns": 5,
+    "tool_calls": {
+      "Read": 1,
+      "Grep": 1,
+      "Edit": 1
+    },
+    "total_tool_calls": 3,
+    "web_fetches": [],
+    "files_read": [
+      "package.json"
+    ],
+    "files_modified": [
+      "src/config.ts"
+    ],
+    "files_deleted": [],
+    "shell_commands": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "output_paths": {
+    "answer": "./outputs/answer.md"
+  }
+}

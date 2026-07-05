@@ -1,0 +1,118 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-c674d781aa11513f31ce",
+  "generated_at": "2026-07-05T03:32:08.982Z",
+  "test_id": "imported-codex-config-fix",
+  "target": "transcript",
+  "suite": "transcript-import",
+  "category": "examples/showcase/trace-evaluation/transcript-import",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-c674d781aa11513f31ce",
+    "trace_id": "2a63718feef2102f68a2cb7ed2b2fcc2",
+    "root_span_id": "828ef708e1b9c684"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {
+      "Read": 1,
+      "Grep": 1,
+      "Edit": 1
+    },
+    "tool_call_counts": {
+      "Read": 1,
+      "Grep": 1,
+      "Edit": 1
+    },
+    "tool_category_counts": {
+      "file_read": 1,
+      "grep": 1,
+      "file_edit": 1
+    },
+    "total_tool_calls": 3,
+    "total_steps": 5,
+    "total_turns": 5,
+    "tool_call_events": [
+      {
+        "position": 0,
+        "tool": "Read",
+        "category": "file_read",
+        "tool_call_id": "call-read-package",
+        "message_index": 2,
+        "tool_index": 0
+      },
+      {
+        "position": 1,
+        "tool": "Grep",
+        "category": "grep",
+        "tool_call_id": "call-grep-timeout",
+        "message_index": 3,
+        "tool_index": 0
+      },
+      {
+        "position": 2,
+        "tool": "Edit",
+        "category": "file_edit",
+        "tool_call_id": "call-edit-timeout",
+        "message_index": 4,
+        "tool_index": 0
+      }
+    ],
+    "shell_commands": [],
+    "files_read": [
+      {
+        "path": "package.json",
+        "tool_call_id": "call-read-package",
+        "source": "tool_input"
+      }
+    ],
+    "files_modified": [
+      {
+        "path": "src/config.ts",
+        "tool_call_id": "call-edit-timeout",
+        "operation": "edit",
+        "source": "tool_input"
+      }
+    ],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 165,
+    "transcript_chars": 4193,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 1200,
+    "total_seconds": 1.2,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 5,
+    "total_tool_calls": 3,
+    "tool_calls": {
+      "Read": 1,
+      "Grep": 1,
+      "Edit": 1
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "transcript",
+  "target": "transcript",
+  "transcript_summary": {
+    "total_turns": 6,
+    "tool_calls": {
+      "file_read": 1,
+      "file_write": 0,
+      "file_edit": 1,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 1,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [
+      "package.json"
+    ],
+    "files_modified": [
+      "src/config.ts"
+    ],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Inspect the project and change the default request timeout to 5000ms."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the project metadata and locate the timeout setting before editing."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "call-read-package",
+          "tool_name": "file_read",
+          "name": "Read",
+          "input": {
+            "path": "package.json"
+          },
+          "result": {
+            "status": "unknown",
+            "output": {
+              "name": "agentv-example-service",
+              "scripts": [
+                "test",
+                "lint"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "call-grep-timeout",
+          "tool_name": "grep",
+          "name": "Grep",
+          "input": {
+            "pattern": "timeout",
+            "path": "src"
+          },
+          "result": {
+            "status": "unknown",
+            "output": {
+              "matches": [
+                "src/config.ts:12: timeoutMs: 0"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "call-edit-timeout",
+          "tool_name": "file_edit",
+          "name": "Edit",
+          "input": {
+            "path": "src/config.ts",
+            "old_string": "timeoutMs: 0",
+            "new_string": "timeoutMs: 5000"
+          },
+          "result": {
+            "status": "unknown",
+            "output": {
+              "changed": true,
+              "diff": "- timeoutMs: 0\n+ timeoutMs: 5000"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Updated src/config.ts so the default request timeout is 5000ms. I inspected package.json first, found the timeout setting with Grep, and only edited the config file."
+        }
+      ]
+    }
+  ]
+}

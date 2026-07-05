@@ -1,0 +1,184 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Found Read at position 0",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Found Grep at position 1",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Found Edit at position 2",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Tool calls 3 <= 5 max",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "LLM calls 5 <= 5 max",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Duration 1200ms <= 5000ms max",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Trace has tool calls (3)",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Trace has assistant model turns (5)",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Provider metrics are present on replayed output",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Assistant messages available (5)",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 10,
+    "failed": 0,
+    "total": 10,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "imported-tool-sequence",
+      "type": "tool-trajectory",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Found Read at position 0",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Found Grep at position 1",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Found Edit at position 2",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "imported-execution-budget",
+      "type": "execution-metrics",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Tool calls 3 <= 5 max",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "LLM calls 5 <= 5 max",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Duration 1200ms <= 5000ms max",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "replay-proof",
+      "type": "script",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Trace has tool calls (3)",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Trace has assistant model turns (5)",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Provider metrics are present on replayed output",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Assistant messages available (5)",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    }
+  ]
+}
