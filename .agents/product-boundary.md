@@ -37,6 +37,20 @@ Dashboard must not require the `px` CLI at runtime, must not query Phoenix datab
 
 AgentV transcript artifacts are not Phoenix-native conversation inputs. Model-call spans may contain cumulative input messages, so treating Phoenix span input as a linear transcript can duplicate or distort the conversation. Keep AgentV transcript/index/storage semantics in AgentV artifacts.
 
+## Promptfoo-Compatible Authoring Boundary
+
+AgentV should adopt Promptfoo-compatible eval matrix authoring where it strengthens repo-native evaluation, but Promptfoo is reference evidence rather than schema authority. The core mental model is `prompts x tests/vars x targets`, with repeat samples and retries applied as run policy after the authored matrix is resolved.
+
+Keep these AgentV-native boundaries explicit:
+
+- `targets` are systems under test. A target `id` is stable AgentV identity; `provider` inside the target names the backend or adapter kind.
+- Top-level Promptfoo `providers` is not the canonical AgentV authoring key.
+- Coding-agent testbeds use `environment` recipes for host/Docker substrate, setup, fixtures, services, and cwd. Do not make Promptfoo lifecycle `extensions` or public `workspace` authoring the canonical testbed contract.
+- Top-level `env` means provider/eval environment variables. `extensions` remain lifecycle hooks.
+- Reusable prompts, tests, defaults, and environments use field-local `file://` refs such as `prompts: file://...`, `tests: file://...`, and `environment: file://...`.
+- Grouping and Dashboard navigation use tags and run-bundle metadata, not experiment path buckets, Vercel path layout, or model-as-experiment grouping.
+- AgentV run bundles, traces, transcripts, datasets, indexes, and Git-backed artifacts stay AgentV-owned. Do not design an Opik export path or Phoenix projection path for those artifacts.
+
 ## Design Principles
 
 ### 1. Lightweight Core, Plugin Extensibility
@@ -72,7 +86,7 @@ Aim for the maximum feature surface with the minimum primitives.
 Before proposing a new feature, enumerate which existing primitives could achieve the same outcome when composed.
 
 - Oracle validation is a `cli` provider target that runs a reference solution through the same evaluators.
-- Snapshot MCP for benchmarks is frozen data in the workspace template plus `before_all` and `after_all` hooks.
+- Snapshot MCP for benchmarks is frozen data in the environment recipe plus `before_all` and `after_all` hooks.
 - Harness variant comparison is target hooks with different `before_each` setup scripts.
 - Skill evaluation is `tool-trajectory` plus `execution-metrics` plus `rubric` composed via `assert-set`.
 
