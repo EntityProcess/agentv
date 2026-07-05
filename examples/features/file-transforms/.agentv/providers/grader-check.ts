@@ -17,7 +17,7 @@ writeFileSync(
       score: passed ? 1 : 0,
       assertions: [
         {
-          text: 'preprocessed file content reached the llm grader',
+          text: 'transformed file content reached the llm grader',
           passed,
           evidence: passed
             ? 'found transformed spreadsheet text in prompt'

@@ -22,7 +22,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [assert-set](assert-set/) | Safety gate and weighted assertion groups |
 | [threshold-grader](threshold-grader/) | Pass a test if a configurable percentage of sub-graders pass |
 | [multi-turn-conversation](multi-turn-conversation/) | Grade a multi-turn conversation with per-turn score breakdowns |
-| [preprocessors](preprocessors/) | Convert `ContentFile` outputs with `default_test.options.transform` before `llm-rubric` runs |
+| [file-transforms](file-transforms/) | Convert `ContentFile` outputs with `default_test.options.transform` before `llm-rubric` runs |
 
 ---
 
@@ -159,7 +159,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [local-cli](local-cli/) | Workspace & targets |
 | [multi-turn-conversation](multi-turn-conversation/) | LLM grading |
 | [nlp-metrics](nlp-metrics/) | Deterministic assertions |
-| [preprocessors](preprocessors/) | LLM grading |
+| [file-transforms](file-transforms/) | LLM grading |
 | [prompt-template-sdk](prompt-template-sdk/) | TypeScript SDK |
 | [repo-lifecycle](repo-lifecycle/) | Workspace & targets |
 | [rubric](rubric/) | LLM grading |

@@ -113,7 +113,7 @@ Plain assertion strings are short-form rubric criteria: AgentV groups them into
 `llm-rubric` and writes each criterion to `grading.json.assertion_results` for the
 Dashboard. Use explicit `type: llm-rubric` when you need weights, required flags, or
 `score_ranges`, or when you need a custom grader prompt, grader target, or
-preprocessing; use string `value` for free-form rubric checks. Executable
+output transforms; use string `value` for free-form rubric checks. Executable
 graders use `type: script`.
 
 The target can be an eval-local object when this eval needs target settings of its own:

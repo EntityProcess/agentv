@@ -199,7 +199,7 @@ export default defineEval({
 });
 ```
 
-The helpers return ordinary `assert` entries such as `type: contains`, `type: llm-rubric`, and `type: script`. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
+The helpers return ordinary `assert` entries such as `type: contains`, `type: llm-rubric`, and `type: script`. Use the shared `transform` option for assertion-level output shaping. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
 
 If you are coming from Braintrust `scores` or DeepEval metrics, model reusable checks as small AgentV-native helper factories that return these grader configs. They still lower to the same YAML/runtime contract:
 

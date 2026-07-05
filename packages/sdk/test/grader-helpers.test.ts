@@ -18,11 +18,18 @@ import {
 describe('grader helper config builders', () => {
   it('returns existing AgentV assertion/evaluator config shapes', () => {
     expect(containsGrader('Hello')).toEqual({ type: 'contains', value: 'Hello' });
-    expect(equalsGrader('exact answer', { metric: 'exact-answer', minScore: 1 })).toEqual({
+    expect(
+      equalsGrader('exact answer', {
+        metric: 'exact-answer',
+        minScore: 1,
+        transform: 'output.trim()',
+      }),
+    ).toEqual({
       metric: 'exact-answer',
       type: 'equals',
       value: 'exact answer',
       minScore: 1,
+      transform: 'output.trim()',
     });
     expect(exactGrader('same answer')).toEqual({ type: 'equals', value: 'same answer' });
     expect(regexGrader(/hello\s+world/i, { metric: 'hello-pattern' })).toEqual({
@@ -108,6 +115,7 @@ describe('grader helper config builders', () => {
               prompt: 'Grade whether the answer is useful.',
               target: 'grader-target',
               maxSteps: 2,
+              transform: 'output.trim()',
             }),
             graders.script(['bun', 'run', 'graders/check.ts'], {
               metric: 'scripted-check',
@@ -150,6 +158,7 @@ describe('grader helper config builders', () => {
         prompt: 'Grade whether the answer is useful.',
         target: 'grader-target',
         max_steps: 2,
+        transform: 'output.trim()',
       },
       {
         metric: 'scripted-check',
@@ -167,6 +176,7 @@ describe('grader helper config builders', () => {
     expect(yaml).toContain('type: llm-rubric');
     expect(yaml).toContain('type: script');
     expect(yaml).toContain('max_steps: 2');
+    expect(yaml).toContain('transform: output.trim()');
     expect(yaml).toContain('max_calls: 2');
     expect(yaml).toContain('min_score: 0.8');
     expect(yaml).toContain('score_range:');

@@ -569,13 +569,7 @@ async function parseGraderList(
     const pushEvaluator = (config: GraderConfig): void => {
       evaluators.push(transform !== undefined ? { ...config, transform } : config);
     };
-    const mergedPreprocessors = await parseMergedPreprocessors(
-      rawEvaluator.preprocessors as JsonValue | undefined,
-      defaultPreprocessors,
-      searchRoots,
-      name,
-      evalId,
-    );
+    const inheritedInternalPreprocessors = defaultPreprocessors;
 
     // Custom assertion types — store with their type name for registry dispatch
     if (isCustomType) {
@@ -788,7 +782,9 @@ async function parseGraderList(
         ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
         ...(Object.keys(mergedConfig).length > 0 ? { config: mergedConfig } : {}),
-        ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
+        ...(inheritedInternalPreprocessors
+          ? { preprocessors: inheritedInternalPreprocessors }
+          : {}),
         ...(targetConfig !== undefined ? { target: targetConfig } : {}),
       });
       continue;
@@ -1684,7 +1680,9 @@ async function parseGraderList(
         ...(finalConfig ? { config: finalConfig } : {}),
         ...(llmMaxSteps !== undefined ? { max_steps: llmMaxSteps } : {}),
         ...(llmTemperature !== undefined ? { temperature: llmTemperature } : {}),
-        ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
+        ...(inheritedInternalPreprocessors
+          ? { preprocessors: inheritedInternalPreprocessors }
+          : {}),
       });
       continue;
     }
@@ -1705,7 +1703,7 @@ async function parseGraderList(
       ...(finalConfig ? { config: finalConfig } : {}),
       ...(llmMaxSteps !== undefined ? { max_steps: llmMaxSteps } : {}),
       ...(llmTemperature !== undefined ? { temperature: llmTemperature } : {}),
-      ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
+      ...(inheritedInternalPreprocessors ? { preprocessors: inheritedInternalPreprocessors } : {}),
     });
   }
 

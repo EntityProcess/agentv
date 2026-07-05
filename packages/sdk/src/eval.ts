@@ -75,12 +75,6 @@ export interface EvalAssertionConfig {
   readonly [key: string]: unknown;
 }
 
-export interface EvalPreprocessor {
-  readonly type: string;
-  readonly command: string | readonly string[];
-  readonly [key: string]: unknown;
-}
-
 export interface EvalWorkspaceHook {
   readonly command?: string | readonly string[];
   readonly timeoutMs?: number;
@@ -229,7 +223,6 @@ export interface EvalDefinition {
   readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly assert?: readonly EvalAssertionConfig[];
-  readonly preprocessors?: readonly EvalPreprocessor[];
   readonly workspace?: EvalWorkspace | string;
 }
 
@@ -312,6 +305,11 @@ function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'input')) {
     throw new Error(
       "defineEval() does not accept top-level 'input'. Use prompts with default test vars or tests[].vars instead.",
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'preprocessors')) {
+    throw new Error(
+      "defineEval() does not accept top-level 'preprocessors'. Use defaultTest.options.transform or assertion-level transform instead.",
     );
   }
   if (

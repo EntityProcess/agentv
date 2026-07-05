@@ -145,7 +145,6 @@ export {
   type EvalExecution,
   type EvalMessage,
   type EvalMessageContent,
-  type EvalPreprocessor,
   type EvalRequires,
   type EvalTargetRef,
   type EvalTest,

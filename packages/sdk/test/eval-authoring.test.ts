@@ -261,6 +261,17 @@ describe('YAML-aligned eval authoring helpers', () => {
     ).toThrow(/tests\[0\]\.input/);
   });
 
+  it('rejects removed public preprocessor authoring', () => {
+    expect(() =>
+      defineEval({
+        name: 'removed-preprocessors',
+        prompts: ['{{ input }}'],
+        preprocessors: [{ type: 'xlsx', command: ['bun', 'run', 'xlsx-to-text.ts'] }],
+        tests: [{ id: 'hello', vars: { input: 'Say hello' } }],
+      } as never),
+    ).toThrow(/top-level 'preprocessors'.*defaultTest\.options\.transform/);
+  });
+
   it('rejects removed experiment authoring blocks', () => {
     expect(() =>
       defineEval({
