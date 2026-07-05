@@ -1,0 +1,80 @@
+{
+  "pass": false,
+  "score": 0,
+  "reason": "One or more grading components failed.",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "No answer was provided.",
+      "component_results": [
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "No answer was provided.",
+          "assertion": {
+            "name": "answer_quality",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "grader-openai-proxy",
+            "value": "States 2 + 2 = 4"
+          }
+        },
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "The required word is absent.",
+          "assertion": {
+            "name": "answer_quality",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "grader-openai-proxy",
+            "value": "Includes exact word 'component-results'"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "answer_quality",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "grader-openai-proxy"
+      },
+      "metadata": {
+        "details": {
+          "pass": false,
+          "score": 0,
+          "reason": "The response is empty and does not state that 2 + 2 equals 4 or include the required word component-results.",
+          "checks": [
+            {
+              "text": "States 2 + 2 = 4",
+              "pass": false,
+              "score": 0,
+              "reason": "No answer was provided.",
+              "evidence": "Empty response"
+            },
+            {
+              "text": "Includes exact word 'component-results'",
+              "pass": false,
+              "score": 0,
+              "reason": "The required word is absent.",
+              "evidence": "Empty response"
+            }
+          ]
+        },
+        "token_usage": {
+          "input": 0,
+          "output": 0
+        },
+        "duration_ms": 2339,
+        "started_at": "2026-07-05T09:59:54.599Z",
+        "ended_at": "2026-07-05T09:59:56.938Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "answer_quality": 0
+  },
+  "metadata": {
+    "execution_status": "quality_failure"
+  }
+}

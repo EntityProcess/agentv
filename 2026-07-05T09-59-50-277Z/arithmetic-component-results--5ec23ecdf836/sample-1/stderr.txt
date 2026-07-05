@@ -1,0 +1,1 @@
+Warning: Invalid thinking level "none". Valid values: off, minimal, low, medium, high, xhigh
