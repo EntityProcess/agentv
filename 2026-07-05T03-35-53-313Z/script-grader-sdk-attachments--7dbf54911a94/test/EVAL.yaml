@@ -1,0 +1,37 @@
+target: local_cli
+prompts:
+  - "{{ input }}"
+tests:
+  - id: script-grader-sdk-attachments
+    expected_output:
+      - role: assistant
+        content: "Attachments detected (2): example.txt, python.instructions.md."
+    vars:
+      input:
+        - role: system
+          content:
+            - type: file
+              value: files/examples/features/script-grader-sdk/evals/python.instructions.md
+        - role: user
+          content:
+            - type: text
+              value: Please echo this request in one short sentence and mention all attached files by name.
+            - type: file
+              value: files/examples/features/script-grader-sdk/evals/example.txt
+    assert:
+      - metric: attachment-check
+        type: script
+        command:
+          - bun
+          - run
+          - ../scripts/verify-attachments.ts
+        cwd: undefined
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        rubrics:
+          - id: rubric-1
+            outcome: The CLI echoes the prompt and lists attachment names.
+            weight: 1
+            required: true
+        weight: 1
