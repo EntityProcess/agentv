@@ -14,27 +14,43 @@ describe('environment recipe schema validation', () => {
     ],
   };
 
-  it('accepts host environment setup args with repo provenance fields', () => {
+  it('accepts host environment setup argv with cwd and timeout', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       environment: {
         type: 'host',
         workdir: './repo-a',
         setup: {
-          command: './setup.sh',
+          command: ['bash', '-lc', 'bun install && bun run build'],
+          cwd: '.',
+          timeout_ms: 120000,
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects environment setup args with actionable guidance', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      environment: {
+        type: 'host',
+        workdir: './repo-a',
+        setup: {
+          command: ['bash', './setup.sh'],
           args: {
             repo: 'https://github.com/org/repo.git',
-            commit: 'main',
-            ancestor: 1,
-            sparse: ['src', 'package.json'],
           },
         },
       },
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(
+      result.error?.issues.some((issue) => issue.message.includes('environment.setup.args')),
+    ).toBe(true);
   });
 
-  it('accepts GitHub org/name shorthand in environment setup args', () => {
+  it('rejects string environment setup commands', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       environment: {
@@ -42,30 +58,15 @@ describe('environment recipe schema validation', () => {
         workdir: './repo-a',
         setup: {
           command: './setup.sh',
-          args: {
-            repo: 'org/repo',
-            commit: '4a1b2c3d',
-          },
         },
       },
     });
-    expect(result.success).toBe(true);
-  });
-
-  it('accepts Docker environment setup args without repo identity', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      environment: {
-        type: 'docker',
-        image: 'swebench/sweb.eval.django__django:latest',
-        workdir: '/testbed',
-        setup: {
-          command: './setup.sh',
-          args: { commit: 'abc123' },
-        },
-      },
-    });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(
+      JSON.stringify(result.error?.issues).includes(
+        'environment.setup.command must be a non-empty argv array',
+      ),
+    ).toBe(true);
   });
 
   it('rejects legacy source field', () => {

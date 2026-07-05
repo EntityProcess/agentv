@@ -2245,7 +2245,7 @@ tests:
       ).toBe(true);
     });
 
-    it('accepts host environment setup args with repo provenance', async () => {
+    it('accepts host environment setup argv with cwd and timeout', async () => {
       const filePath = path.join(tempDir, 'environment-host.yaml');
       await writeFile(
         filePath,
@@ -2255,12 +2255,9 @@ environment:
   type: host
   workdir: ./repo
   setup:
-    command: ./setup.sh
-    args:
-      repo: https://github.com/org/repo.git
-      commit: main
-      sparse:
-        include: src/**
+    command: ["bash", "-lc", "bun install && bun run build"]
+    cwd: "."
+    timeout_ms: 120000
 tests:
   - id: test-1
     criteria: Goal
@@ -2275,7 +2272,7 @@ tests:
       expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
     });
 
-    it('accepts Docker environment setup args without repo identity', async () => {
+    it('errors when environment setup args are authored', async () => {
       const filePath = path.join(tempDir, 'environment-docker.yaml');
       await writeFile(
         filePath,
@@ -2286,7 +2283,7 @@ environment:
   image: swebench/sweb.eval.django__django:latest
   workdir: /testbed
   setup:
-    command: ./setup.sh
+    command: ["bash", "./setup.sh"]
     args:
       commit: abc123
 tests:
@@ -2299,8 +2296,39 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(true);
-      expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) => e.message.includes('environment.setup.args is not supported')),
+      ).toBe(true);
+    });
+
+    it('errors when environment setup command is a string', async () => {
+      const filePath = path.join(tempDir, 'environment-string-command.yaml');
+      await writeFile(
+        filePath,
+        `prompts:
+  - "{{ prompt }}"
+environment:
+  type: host
+  workdir: ./repo
+  setup:
+    command: ./setup.sh
+tests:
+  - id: test-1
+    criteria: Goal
+    vars:
+      prompt: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) =>
+          e.message.includes('environment.setup.command must be a non-empty string array'),
+        ),
+      ).toBe(true);
     });
 
     it('errors when Docker environment omits both image and context', async () => {

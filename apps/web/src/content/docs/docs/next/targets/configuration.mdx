@@ -422,13 +422,13 @@ Target hooks follow the same schema as workspace hooks:
 ```yaml
 hooks:
   before_all:
-    command: ["setup.sh"]       # Command array or shell string
+    command: ["bash", "./setup.sh"] # Command argv
     timeout_ms: 60000           # Optional timeout
     cwd: "./scripts"            # Optional working directory
   before_each:
-    command: "echo setup"       # String shorthand (runs via sh -c)
+    command: ["bash", "-lc", "echo setup"]
   after_each:
-    command: ["cleanup.sh"]
+    command: ["bash", "./cleanup.sh"]
   after_all:
-    command: ["teardown.sh"]
+    command: ["bash", "./teardown.sh"]
 ```

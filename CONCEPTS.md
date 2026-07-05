@@ -57,11 +57,13 @@ targets:
 type: host
 workdir: ./workspaces/bottle
 setup:
-  command: ./scripts/setup-workspace.sh
-  args:
-    repo: https://github.com/bottlepy/bottle.git
-    commit: 0207a34f0c5716cd292dd4480253ad35d3da49f3
-    path: ./workspaces/bottle
+  command:
+    - bash
+    - ./scripts/setup-workspace.sh
+    - https://github.com/bottlepy/bottle.git
+    - 0207a34f0c5716cd292dd4480253ad35d3da49f3
+    - ./workspaces/bottle
+  timeout_ms: 120000
 ```
 
 ```yaml

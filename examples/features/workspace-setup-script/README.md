@@ -42,11 +42,13 @@ environment:
   type: host
   workdir: ../workspace-template
   setup:
-    command: ../scripts/materialize-repo.sh
-    args:
-      path: ./my-repo
-      repo: https://github.com/EntityProcess/agentv.git
-      commit: main
+    command:
+      - bash
+      - ../scripts/materialize-repo.sh
+      - ./my-repo
+      - https://github.com/EntityProcess/agentv.git
+      - main
+    cwd: "."
 ```
 
 The extension reads `context.workspace_path` and `context.eval_dir`, refreshes `.allagents/`, runs `allagents workspace init`, registers the local marketplace with `--scope project`, syncs plugins, and validates that expected artifacts exist.

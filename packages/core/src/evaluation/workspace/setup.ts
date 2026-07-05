@@ -87,7 +87,7 @@ export interface EnvironmentSetupExecution {
   readonly workdir: string;
   readonly type?: 'host' | 'docker';
   readonly image?: string;
-  readonly command?: readonly string[] | string;
+  readonly command?: readonly string[];
   readonly cwd?: string;
   readonly output?: string;
   readonly error?: string;

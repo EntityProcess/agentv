@@ -3,23 +3,19 @@ import { describe, expect, it } from 'bun:test';
 import { buildEnvironmentRecipeProvenance } from '../../src/evaluation/environment/provenance.js';
 
 describe('environment recipe provenance', () => {
-  it('redacts setup command, args, env, and logs while preserving emitted repo provenance', () => {
+  it('redacts setup argv and logs while preserving emitted repo provenance', () => {
     const provenance = buildEnvironmentRecipeProvenance({
       environment: {
         type: 'host',
         workdir: '/workspaces/app',
         sourceDir: '/repo/.agentv/environments',
+        env: {
+          GITHUB_TOKEN: 'github-secret',
+        },
         setup: {
           command: ['node', 'setup.mjs', '--api-key', 'sk-live-secret'],
-          args: {
-            repo: 'example/app',
-            api_key: 'sk-live-secret',
-            nested: { token: 'nested-secret' },
-          },
-          env: {
-            SETUP_MODE: 'test',
-            GITHUB_TOKEN: 'github-secret',
-          },
+          cwd: '.',
+          timeoutMs: 120000,
         },
       },
       setupExecutions: [
@@ -38,15 +34,10 @@ describe('environment recipe provenance', () => {
     });
 
     expect(provenance?.setup?.command).toEqual(['node', 'setup.mjs', '--api-key', '<redacted>']);
-    expect(provenance?.setup?.args).toEqual({
-      repo: 'example/app',
-      api_key: '<redacted>',
-      nested: { token: '<redacted>' },
-    });
-    expect(provenance?.setup?.env).toEqual({
-      SETUP_MODE: 'test',
-      GITHUB_TOKEN: '<redacted>',
-    });
+    expect(provenance?.setup).not.toHaveProperty('args');
+    expect(provenance?.setup).not.toHaveProperty('env');
+    expect(provenance?.setup?.cwd).toBe('.');
+    expect(provenance?.setup?.timeoutMs).toBe(120000);
     expect(provenance?.setupExecutions?.[0]?.output).toContain('used <redacted>');
     expect(provenance?.setupExecutions?.[0]?.output).not.toContain('sk-live-secret');
     expect(provenance?.setupExecutions?.[0]?.output).not.toContain('github-secret');

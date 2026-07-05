@@ -58,7 +58,7 @@ function providerFactory(captured: ProviderRequest[]): RunEvaluationOptions['pro
 }
 
 describe('host environment runtime', () => {
-  it('creates host workdir and passes deterministic setup args on stdin from recipe source cwd', async () => {
+  it('creates host workdir and runs setup argv from explicit cwd', async () => {
     const root = tempDir('agentv-host-env-');
     const sourceDir = path.join(root, '.agentv/environments');
     const workdir = path.join(sourceDir, 'checkout');
@@ -79,24 +79,17 @@ describe('host environment runtime', () => {
       workdir,
       sourceDir,
       setup: {
-        command: ['node', 'setup.mjs'],
-        args: {
-          repo: 'example/repo',
-          nested: { count: 2, enabled: true },
-        },
+        command: ['node', '../setup.mjs'],
+        cwd: '.',
       },
     });
 
     const payload = JSON.parse(await readFile(path.join(workdir, 'setup-payload.json'), 'utf8'));
     expect(result.status).toBe('success');
     expect(existsSync(workdir)).toBe(true);
-    expect(payload.cwd).toBe(sourceDir);
+    expect(payload.cwd).toBe(workdir);
     expect(payload.envWorkdir).toBe(workdir);
     expect(payload.payload).toEqual({
-      args: {
-        repo: 'example/repo',
-        nested: { count: 2, enabled: true },
-      },
       environment: {
         type: 'host',
         workdir,
@@ -113,7 +106,6 @@ describe('host environment runtime', () => {
         sourceDir: root,
         setup: {
           command: ['node', '-e', "console.error('setup failed'); process.exit(7)"],
-          args: { reason: 'test' },
         },
       }),
     ).rejects.toMatchObject({
@@ -121,7 +113,6 @@ describe('host environment runtime', () => {
         status: 'failed',
         exitCode: 7,
         stderr: 'setup failed\n',
-        args: { reason: 'test' },
       },
     });
   });

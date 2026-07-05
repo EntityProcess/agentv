@@ -10,10 +10,9 @@ import { parseYamlValue } from '../yaml-loader.js';
 const FILE_PROTOCOL = 'file://';
 
 export type EnvironmentSetupConfig = {
-  readonly command: string | readonly string[];
-  readonly args?: JsonObject;
-  readonly env?: Readonly<Record<string, string>>;
-  readonly timeout_seconds?: number;
+  readonly command: readonly string[];
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
 };
 
 type EnvironmentRecipeSource = {
@@ -221,32 +220,26 @@ function parseSetup(
   if (!isJsonObject(raw)) {
     throw new Error(`${location} must be an object.`);
   }
-  assertNoUnknownFields(raw, location, ['command', 'args', 'env', 'timeout_seconds']);
+  assertNoUnknownFields(raw, location, ['command', 'cwd', 'timeout_ms']);
   const command = raw.command;
   if (
-    !(
-      typeof command === 'string' ||
-      (Array.isArray(command) &&
-        command.length > 0 &&
-        command.every((entry) => typeof entry === 'string' && entry.trim().length > 0))
-    )
+    !Array.isArray(command) ||
+    command.length === 0 ||
+    !command.every((entry) => typeof entry === 'string' && entry.trim().length > 0)
   ) {
-    throw new Error(`${location}.command must be a non-empty string or argv array.`);
+    throw new Error(
+      `${location}.command must be a non-empty string array, where command[0] is the executable and command[1...] are argv arguments. Use ["bash", "-lc", "..."] for shell behavior.`,
+    );
   }
-  const args = raw.args;
-  if (args !== undefined && !isJsonObject(args)) {
-    throw new Error(`${location}.args must be an object when provided.`);
+  const cwd = readOptionalString(raw.cwd, `${location}.cwd`);
+  const timeoutMs = raw.timeout_ms;
+  if (timeoutMs !== undefined && (typeof timeoutMs !== 'number' || timeoutMs <= 0)) {
+    throw new Error(`${location}.timeout_ms must be a positive number of milliseconds.`);
   }
-  const timeoutSeconds = raw.timeout_seconds;
-  if (timeoutSeconds !== undefined && (typeof timeoutSeconds !== 'number' || timeoutSeconds <= 0)) {
-    throw new Error(`${location}.timeout_seconds must be a positive number.`);
-  }
-  const env = parseStringRecord(raw.env, `${location}.env`);
   return {
     command,
-    ...(isJsonObject(args) ? { args } : {}),
-    ...(env !== undefined && { env }),
-    ...(typeof timeoutSeconds === 'number' ? { timeout_seconds: timeoutSeconds } : {}),
+    ...(cwd !== undefined && { cwd }),
+    ...(typeof timeoutMs === 'number' ? { timeoutMs } : {}),
   };
 }
 
@@ -370,6 +363,21 @@ function assertNoUnknownFields(
   const allowedFields = new Set(allowed);
   const unknown = Object.keys(raw).find((key) => !allowedFields.has(key));
   if (unknown) {
+    if (location.endsWith('.setup') && unknown === 'args') {
+      throw new Error(
+        `${location}.args is not supported. Put the executable and arguments in ${location}.command as a non-empty argv array, for example command: ["bash", "-lc", "..."].`,
+      );
+    }
+    if (location.endsWith('.setup') && unknown === 'env') {
+      throw new Error(
+        `${location}.env is not supported. Use environment.env for environment-scoped variables.`,
+      );
+    }
+    if (location.endsWith('.setup') && unknown === 'timeout_seconds') {
+      throw new Error(
+        `${location}.timeout_seconds is not supported. Use ${location}.timeout_ms with milliseconds.`,
+      );
+    }
     throw new Error(`${location}.${unknown} is not supported in environment recipes.`);
   }
 }

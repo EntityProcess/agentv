@@ -1230,7 +1230,7 @@ export interface EnvironmentSetupProvenance {
   readonly status: 'skipped' | 'success' | 'failed';
   readonly testId: string;
   readonly workdir: string;
-  readonly command?: string | readonly string[];
+  readonly command?: readonly string[];
   readonly cwd?: string;
   readonly output?: string;
   readonly error?: string;
@@ -1248,10 +1248,9 @@ export interface EnvironmentRecipeProvenance {
   readonly sourceDir: string;
   readonly workdir: string;
   readonly setup?: {
-    readonly command: string | readonly string[];
-    readonly args?: JsonObject;
-    readonly env?: Readonly<Record<string, string>>;
-    readonly timeoutSeconds?: number;
+    readonly command: readonly string[];
+    readonly cwd?: string;
+    readonly timeoutMs?: number;
   };
   readonly setupExecutions?: readonly EnvironmentSetupProvenance[];
   readonly docker?: {

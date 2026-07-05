@@ -8,7 +8,6 @@ import type {
 import type {
   EnvironmentRecipeProvenance,
   EnvironmentSetupProvenance,
-  JsonObject,
   JsonValue,
 } from '../types.js';
 import type { EnvironmentSetupExecution } from '../workspace/setup.js';
@@ -100,9 +99,8 @@ function redactSetupConfig(
 ): EnvironmentRecipeProvenance['setup'] {
   return {
     command: redactCommand(setup.command, secretValues),
-    ...(setup.args ? { args: redactJsonObject(setup.args, secretValues) } : {}),
-    ...(setup.env ? { env: redactStringRecord(setup.env, secretValues) } : {}),
-    ...(setup.timeout_seconds !== undefined ? { timeoutSeconds: setup.timeout_seconds } : {}),
+    ...(setup.cwd ? { cwd: setup.cwd } : {}),
+    ...(setup.timeoutMs !== undefined ? { timeoutMs: setup.timeoutMs } : {}),
   };
 }
 
@@ -134,9 +132,6 @@ function redactCommand(
   command: EnvironmentSetupConfig['command'],
   secretValues: readonly string[],
 ): EnvironmentSetupConfig['command'] {
-  if (typeof command === 'string') {
-    return redactSecretAssignments(redactString(command, secretValues));
-  }
   return command.map((part, index) => {
     const previous = index > 0 ? command[index - 1] : undefined;
     if (previous && isSecretKey(previous.replace(/^-+/, ''))) {
@@ -144,35 +139,6 @@ function redactCommand(
     }
     return redactSecretAssignments(redactString(part, secretValues));
   });
-}
-
-function redactJsonObject(value: JsonObject, secretValues: readonly string[]): JsonObject {
-  return redactJsonValue(value, secretValues) as JsonObject;
-}
-
-function redactJsonValue(
-  value: JsonValue,
-  secretValues: readonly string[],
-  key?: string,
-): JsonValue {
-  if (key && isSecretKey(key)) {
-    return '<redacted>';
-  }
-  if (typeof value === 'string') {
-    return redactString(value, secretValues);
-  }
-  if (Array.isArray(value)) {
-    return value.map((entry) => redactJsonValue(entry, secretValues));
-  }
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([entryKey, entryValue]) => [
-        entryKey,
-        redactJsonValue(entryValue, secretValues, entryKey),
-      ]),
-    );
-  }
-  return value;
 }
 
 function redactStringRecord(
@@ -190,8 +156,7 @@ function redactStringRecord(
 function collectSecretValues(environment: EnvironmentRecipe): string[] {
   const values: string[] = [];
   collectSecretValuesFromRecord(environment.env, values);
-  collectSecretValuesFromRecord(environment.setup?.env, values);
-  collectSecretValuesFromJson(environment.setup?.args, values);
+  collectSecretValuesFromCommand(environment.setup?.command, values);
   if (environment.type === 'docker') {
     collectSecretValuesFromRecord(environment.secrets, values);
   }
@@ -209,27 +174,21 @@ function collectSecretValuesFromRecord(
   }
 }
 
-function collectSecretValuesFromJson(
-  value: JsonValue | undefined,
+function collectSecretValuesFromCommand(
+  command: readonly string[] | undefined,
   values: string[],
-  key?: string,
 ): void {
-  if (value === undefined) {
-    return;
-  }
-  if (key && isSecretKey(key) && typeof value === 'string') {
-    values.push(value);
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      collectSecretValuesFromJson(entry, values);
+  for (const [index, part] of (command ?? []).entries()) {
+    const previous = index > 0 ? command?.[index - 1] : undefined;
+    if (previous && isSecretKey(previous.replace(/^-+/, ''))) {
+      values.push(part);
+      continue;
     }
-    return;
-  }
-  if (value && typeof value === 'object') {
-    for (const [entryKey, entryValue] of Object.entries(value)) {
-      collectSecretValuesFromJson(entryValue, values, entryKey);
+    const assignment = part.match(
+      /^[A-Z0-9_-]*(api[_-]?key|auth|credential|password|passwd|private[_-]?key|secret|token)[A-Z0-9_-]*=(.+)$/i,
+    );
+    if (assignment?.[2]) {
+      values.push(assignment[2]);
     }
   }
 }

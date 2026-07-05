@@ -85,10 +85,9 @@ describe('prepareDockerEnvironment', () => {
         workdir: '/workspace',
         sourceDir: '/evals',
         setup: {
-          command: ['node', 'setup.mjs'],
-          args: { repo: 'fixture' },
-          env: { SETUP_TOKEN: 'secret-value' },
-          timeout_seconds: 3,
+          command: ['node', 'setup.mjs', '--repo', 'fixture'],
+          cwd: '.',
+          timeoutMs: 3000,
         },
       },
       executor,
@@ -107,11 +106,14 @@ describe('prepareDockerEnvironment', () => {
       ],
     ]);
     expect(result.status).toBe('success');
-    expect(result.targetRuntime.setup).toEqual([expect.stringContaining("printf %s '{")]);
-    expect(result.targetRuntime.setup?.[0]).toContain("SETUP_TOKEN='secret-value'");
-    expect(result.targetRuntime.setup?.[0]).toContain("'node' 'setup.mjs'");
-    expect(result.targetRuntime.setup?.[0]).toContain('"repo": "fixture"');
-    expect(result.targetRuntime.setup?.[0]).toContain('"SETUP_TOKEN": "secret-value"');
+    expect(result.targetRuntime.setup).toEqual([
+      {
+        command: ['node', 'setup.mjs', '--repo', 'fixture'],
+        cwd: '/workspace',
+        stdin: expect.stringContaining('"workdir": "/workspace"'),
+        timeout_ms: 3000,
+      },
+    ]);
   });
 
   it('does not add a duplicate temp mount when the recipe already mounts that target', async () => {

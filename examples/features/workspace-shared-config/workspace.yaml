@@ -1,8 +1,10 @@
 type: host
 workdir: ./workspace-template
 setup:
-  command: ./scripts/materialize-repo.sh
-  args:
-    path: ./agentv
-    repo: https://github.com/EntityProcess/agentv.git
-    commit: main
+  command:
+    - bash
+    - ../scripts/materialize-repo.sh
+    - ./agentv
+    - https://github.com/EntityProcess/agentv.git
+    - main
+  cwd: "."

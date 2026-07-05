@@ -427,12 +427,55 @@ const WorkspaceSchema = z
 
 const EnvironmentSetupSchema = z
   .object({
-    command: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]),
-    args: JsonObjectSchema.optional(),
-    env: z.record(z.string()).optional(),
-    timeout_seconds: z.number().gt(0).optional(),
+    command: z
+      .array(z.string().min(1), {
+        invalid_type_error:
+          'environment.setup.command must be a non-empty argv array. Use ["bash", "-lc", "..."] for shell behavior.',
+      })
+      .min(1, {
+        message:
+          'environment.setup.command must be a non-empty argv array. Use ["bash", "-lc", "..."] for shell behavior.',
+      }),
+    cwd: z.string().min(1).optional(),
+    timeout_ms: z.number().gt(0).optional(),
   })
-  .strict();
+  .passthrough()
+  .superRefine((value, ctx) => {
+    const record = value as Record<string, unknown>;
+    if (Object.prototype.hasOwnProperty.call(record, 'args')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['args'],
+        message:
+          'environment.setup.args is not supported. Put executable arguments in environment.setup.command as argv entries.',
+      });
+    }
+    if (Object.prototype.hasOwnProperty.call(record, 'env')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['env'],
+        message:
+          'environment.setup.env is not supported. Use environment.env for environment-scoped variables.',
+      });
+    }
+    if (Object.prototype.hasOwnProperty.call(record, 'timeout_seconds')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['timeout_seconds'],
+        message:
+          'environment.setup.timeout_seconds is not supported. Use timeout_ms in milliseconds.',
+      });
+    }
+    for (const key of Object.keys(record)) {
+      if (!['command', 'cwd', 'timeout_ms', 'args', 'env', 'timeout_seconds'].includes(key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `environment.setup.${key} is not supported. Supported fields are command, cwd, and timeout_ms.`,
+        });
+      }
+    }
+  });
 
 const EnvironmentBaseSchema = z.object({
   workdir: z.string().min(1),

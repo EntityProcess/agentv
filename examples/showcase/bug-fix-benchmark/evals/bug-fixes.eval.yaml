@@ -6,11 +6,13 @@ environment:
   type: host
   workdir: ./repo
   setup:
-    command: ../scripts/materialize-repo.sh
-    args:
-      path: ./repo
-      repo: https://github.com/EntityProcess/agentv
-      commit: 6e446b722627e9df017b22e391fa63320362d8c7
+    command:
+      - bash
+      - ../scripts/materialize-repo.sh
+      - ./repo
+      - https://github.com/EntityProcess/agentv
+      - 6e446b722627e9df017b22e391fa63320362d8c7
+    cwd: "."
 target:
   name: claude-baseline
   extends: "{{ env.AGENT_TARGET }}"

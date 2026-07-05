@@ -38,7 +38,7 @@ environment:
     cpus: 2          # optional Docker CPU limit
 ```
 
-For evals that need a repo pinned to a dataset snapshot, keep that metadata in `environment.setup.args`:
+For evals that need a repo pinned to a dataset snapshot, pass the snapshot inputs through the setup argv:
 
 ```yaml
 environment:
@@ -46,12 +46,12 @@ environment:
   image: swebench/sweb.eval.x86_64.django__django-15180
   workdir: /testbed
   setup:
-    command: ./setup.sh
-    args:
-      commit: abc123def
+    command: ["bash", "./setup.sh", "abc123def"]
+    cwd: "."
+    timeout_ms: 120000
 ```
 
-Prebuilt images can carry the repository inside the container, while the setup args record the dataset snapshot being evaluated.
+Prebuilt images can carry the repository inside the container, while the setup command argv records the dataset snapshot being evaluated.
 
 ## Running
 

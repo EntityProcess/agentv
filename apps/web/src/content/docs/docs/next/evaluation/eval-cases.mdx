@@ -207,10 +207,13 @@ environment:
   type: host
   workdir: ./agentv
   setup:
-    command: ./scripts/materialize-repo.sh
-    args:
-      repo: https://github.com/EntityProcess/agentv.git
-      commit: 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+    command:
+      - bash
+      - ./scripts/materialize-repo.sh
+      - https://github.com/EntityProcess/agentv.git
+      - 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+    cwd: "."
+    timeout_ms: 120000
 ```
 
 For benchmark task packs with source pins, patches, generated rows, and

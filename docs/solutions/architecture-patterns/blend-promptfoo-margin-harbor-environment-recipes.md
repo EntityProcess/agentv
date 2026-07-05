@@ -38,7 +38,7 @@ Use a deliberate blend:
 - **Margin Evals is the closest local coding-agent UX and artifact reference.** Borrow the product lessons: filesystem-native suite ergonomics, local side-by-side coding-agent runs, immutable run bundles, resume/artifact discipline, and explicit per-case image/cwd/test execution.
 - **Harbor and Terminal-Bench 2 are the strongest Docker substrate references.** Borrow explicit Docker image/context/dockerfile, resources, env, workdir controls, dataset/runtime separation, and runner-boundary discipline.
 
-The v1 AgentV recipe fields should stay small: `type: host|docker`, `workdir`, `setup.command`, `setup.args`, `env`, and Docker `image`, `context`, `dockerfile`, `resources`, `mounts`, and `secrets` as the scoped Docker surface. Keep `workdir` explicit for v1. Do not infer authoring semantics from Dockerfile `WORKDIR`, even though Harbor can derive an effective cwd when needed; explicit authoring is easier to review and matches Margin's explicit cwd posture.
+The v1 AgentV recipe fields should stay small: `type: host|docker`, `workdir`, `setup.command` as a non-empty argv array, optional setup `cwd` and `timeout_ms`, environment-scoped `env`, and Docker `image`, `context`, `dockerfile`, `resources`, `mounts`, and `secrets` as the scoped Docker surface. Keep `workdir` explicit for v1. Do not infer authoring semantics from Dockerfile `WORKDIR`, even though Harbor can derive an effective cwd when needed; explicit authoring is easier to review and matches Margin's explicit cwd posture.
 
 Do not add these concepts in the current environment epic:
 
