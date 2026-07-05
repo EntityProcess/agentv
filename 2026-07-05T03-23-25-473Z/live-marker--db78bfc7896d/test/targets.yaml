@@ -1,0 +1,11 @@
+targets:
+  - id: claude-sdk-host
+    provider: claude-sdk
+    config:
+      command:
+        - claude
+      cwd: .agentv/results/av-y7eq-9-workspace
+      max_turns: 1
+      timeout_seconds: 90
+      stream_log: raw
+      runtime: host

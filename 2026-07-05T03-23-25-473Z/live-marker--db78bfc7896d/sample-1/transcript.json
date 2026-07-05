@@ -1,0 +1,55 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "claude-sdk-host",
+  "target": "claude-sdk-host",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "claude-sdk child runner exit: exit code 1"
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "claude-sdk-host",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Return exactly this marker and nothing else:\nAGENTV-LIVE-MATRIX-OK"
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "claude-sdk-host",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Error occurred: claude-sdk child runner exit: exit code 1"
+        }
+      ]
+    }
+  ]
+}

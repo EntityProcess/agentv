@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-52ab70fa56ad25211cb9",
+  "generated_at": "2026-07-05T03:23:30.070Z",
+  "test_id": "live-marker",
+  "target": "claude-sdk-host",
+  "suite": "av-y7eq-9-host-runtime-live-marker",
+  "category": ".agentv/results/av-y7eq-9-inputs/live-marker",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-52ab70fa56ad25211cb9",
+    "trace_id": "96187971873d3a4d6a69645e44536d9f",
+    "root_span_id": "8b964ea491e6f91c"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "claude-sdk child runner exit: exit code 1",
+        "stage": "agent"
+      },
+      {
+        "message": "claude-sdk child runner exit: exit code 1",
+        "event_id": "error"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 57,
+    "transcript_chars": 898,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
