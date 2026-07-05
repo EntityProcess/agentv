@@ -350,34 +350,140 @@ describe('CodexCliProvider', () => {
     expect(response.targetExecution?.errorKind).toBe('sandbox_infra_failure');
   });
 
-  it('runs codex-app-server through the configured argv and JSON request payload', async () => {
-    const runner = mock(
-      async (opts: { prompt: string; executable: string; args: readonly string[] }) => ({
-        stdout: JSON.stringify({ output: [{ text: 'app server answer' }] }),
-        stderr: '',
-        exitCode: 0,
-      }),
+  it('runs codex-app-server through initialize, thread/start, and turn/start JSON-RPC messages', async () => {
+    const serverScript = path.join(fixturesRoot, 'fake-codex-app-server.js');
+    const captureFile = path.join(fixturesRoot, 'app-server-requests.json');
+    await writeFile(
+      serverScript,
+      [
+        "const { writeFileSync } = require('node:fs');",
+        'const captureFile = process.argv[2];',
+        'let buffer = "";',
+        'const requests = [];',
+        'function send(message) { process.stdout.write(`${JSON.stringify(message)}\\n`); }',
+        'function capture(message) { requests.push(message); writeFileSync(captureFile, JSON.stringify(requests)); }',
+        'function handle(message) {',
+        '  capture(message);',
+        '  if (message.method === "initialize") {',
+        '    send({ id: message.id, result: { userAgent: "fake", codexHome: process.cwd(), platformFamily: "unix", platformOs: "linux" } });',
+        '    return;',
+        '  }',
+        '  if (message.method === "thread/start") {',
+        '    send({ id: message.id, result: { thread: { id: "thread-1" } } });',
+        '    return;',
+        '  }',
+        '  if (message.method === "turn/start") {',
+        '    send({ id: message.id, result: { turn: { id: "turn-1", items: [], itemsView: "notLoaded", status: "inProgress", error: null, startedAt: null, completedAt: null, durationMs: null } } });',
+        '    send({ method: "item/completed", params: { threadId: "thread-1", turnId: "turn-1", completedAtMs: Date.now(), item: { type: "agentMessage", id: "msg-1", text: "app server answer", phase: "final_answer", memoryCitation: null } } });',
+        '    send({ method: "turn/completed", params: { threadId: "thread-1", turn: { id: "turn-1", items: [], itemsView: "notLoaded", status: "completed", error: null, startedAt: 1, completedAt: 2, durationMs: 1000 } } });',
+        '    setTimeout(() => process.exit(0), 0);',
+        '  }',
+        '}',
+        'process.stdin.setEncoding("utf8");',
+        'process.stdin.on("data", (chunk) => {',
+        '  buffer += chunk;',
+        '  const lines = buffer.split(/\\r?\\n/);',
+        '  buffer = lines.pop() ?? "";',
+        '  for (const line of lines) {',
+        '    if (line.trim()) handle(JSON.parse(line));',
+        '  }',
+        '});',
+      ].join('\n'),
+      'utf8',
     );
-    const provider = new CodexAppServerProvider(
-      'codex-app',
-      {
-        command: [process.execPath, 'app-server', '--profile', 'eng'],
-        runtime: { mode: 'host' },
-      },
-      runner,
-    );
+    const provider = new CodexAppServerProvider('codex-app', {
+      command: [
+        process.execPath,
+        serverScript,
+        captureFile,
+        '-c',
+        'model_provider="agentv-openai"',
+        'app-server',
+        '--stdio',
+      ],
+      model: 'gpt-5.4-mini',
+      modelReasoningEffort: 'low',
+      sandboxMode: 'workspace-write',
+      approvalPolicy: 'never',
+      runtime: { mode: 'host' },
+      systemPrompt: 'system instructions',
+    });
 
     const response = await provider.invoke({ question: 'hello', evalCaseId: 'case-app' });
 
-    const invocation = runner.mock.calls[0][0];
-    expect(invocation.executable).toBe(process.execPath);
-    expect(invocation.args).toEqual(['app-server', '--profile', 'eng']);
-    expect(JSON.parse(invocation.prompt)).toMatchObject({
-      type: 'agentv.invoke',
-      question: 'hello',
-      eval_case_id: 'case-app',
+    const captured = JSON.parse(await readFile(captureFile, 'utf8')) as Array<{
+      method: string;
+      params: Record<string, unknown>;
+    }>;
+    expect(captured.map((message) => message.method)).toEqual([
+      'initialize',
+      'thread/start',
+      'turn/start',
+    ]);
+    expect(captured[1].params).toMatchObject({
+      model: 'gpt-5.4-mini',
+      modelProvider: 'agentv-openai',
+      approvalPolicy: 'never',
+      sandbox: 'workspace-write',
+      baseInstructions: 'system instructions',
+      ephemeral: true,
     });
+    expect(captured[2].params).toMatchObject({
+      threadId: 'thread-1',
+      approvalPolicy: 'never',
+      model: 'gpt-5.4-mini',
+      effort: 'low',
+    });
+    expect(captured[2].params.input).toEqual([
+      expect.objectContaining({
+        type: 'text',
+        text: expect.stringContaining('[[ ## user_query ## ]]'),
+        text_elements: [],
+      }),
+    ]);
     expect(response.targetExecution?.providerKind).toBe('codex-app-server');
     expect(extractLastAssistantContent(response.output)).toBe('app server answer');
+  });
+
+  it('maps codex-app-server JSON-RPC errors to a target execution envelope', async () => {
+    const serverScript = path.join(fixturesRoot, 'fake-codex-app-server-error.js');
+    await writeFile(
+      serverScript,
+      [
+        'let buffer = "";',
+        'function send(message) { process.stdout.write(`${JSON.stringify(message)}\\n`); }',
+        'function handle(message) {',
+        '  if (message.method === "initialize") {',
+        '    send({ id: message.id, result: { userAgent: "fake", codexHome: process.cwd(), platformFamily: "unix", platformOs: "linux" } });',
+        '    return;',
+        '  }',
+        '  send({ id: message.id, error: { code: -32602, message: "bad thread config" } });',
+        '}',
+        'process.stdin.setEncoding("utf8");',
+        'process.stdin.on("data", (chunk) => {',
+        '  buffer += chunk;',
+        '  const lines = buffer.split(/\\r?\\n/);',
+        '  buffer = lines.pop() ?? "";',
+        '  for (const line of lines) {',
+        '    if (line.trim()) handle(JSON.parse(line));',
+        '  }',
+        '});',
+      ].join('\n'),
+      'utf8',
+    );
+    const provider = new CodexAppServerProvider('codex-app-error', {
+      command: [process.execPath, serverScript],
+      runtime: { mode: 'host' },
+      timeoutMs: 1000,
+    });
+
+    const response = await provider.invoke({ question: 'hello' });
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('malformed_output');
+    expect(response.targetExecution?.message).toContain('bad thread config');
+    expect(response.targetExecution?.logs?.stderr?.text).toContain(
+      'Codex app-server JSON-RPC error',
+    );
   });
 });
