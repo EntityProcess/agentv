@@ -1,0 +1,77 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Output contains \"agentv protocol provider ok\"",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Exact phrase match",
+      "passed": true,
+      "evidence": "The answer is exactly 'agentv protocol provider ok'.",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "contains-agentv protocol provider ok",
+      "type": "contains",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Output contains \"agentv protocol provider ok\"",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Exact phrase match",
+          "passed": true,
+          "evidence": "The answer is exactly 'agentv protocol provider ok'.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ],
+      "details": {
+        "pass": true,
+        "score": 1,
+        "reason": "The response matches the requested exact phrase exactly.",
+        "threshold": 0.8,
+        "checks": [
+          {
+            "text": "Exact phrase match",
+            "pass": true,
+            "score": 1,
+            "reason": "The answer is exactly 'agentv protocol provider ok'.",
+            "evidence": "agentv protocol provider ok"
+          }
+        ]
+      }
+    }
+  ]
+}

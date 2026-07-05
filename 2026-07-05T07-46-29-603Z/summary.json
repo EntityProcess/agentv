@@ -1,0 +1,141 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-05T07-46-29-603Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 3544,
+    "input_tokens": 3523,
+    "output_tokens": 21,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "protocol-marker",
+      "suite": "av-t2o5-7-host-protocol-provider-fixes",
+      "eval_path": ".agentv/results/av-t2o5-7-inputs/live-marker.eval.yaml",
+      "target": "pi-rpc-local",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "protocol-marker",
+          "suite": "av-t2o5-7-host-protocol-provider-fixes",
+          "eval_path": ".agentv/results/av-t2o5-7-inputs/live-marker.eval.yaml",
+          "target": "pi-rpc-local",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 5408
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-05T07-46-29-603Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/host-protocol-provider-fixes/.agentv/results/av-t2o5-7-inputs/live-marker.eval.yaml",
+    "timestamp": "2026-07-05T07:46:52.420Z",
+    "targets": [
+      "pi-rpc-local"
+    ],
+    "tests_run": [
+      "protocol-marker"
+    ],
+    "experiment": "av-t2o5-7-host-protocol-provider-fixes",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "cli_flags",
+      "eval_files": [
+        ".agentv/results/av-t2o5-7-inputs/live-marker.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "pi-rpc-local": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 5.408,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 3544,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "contains-agentv protocol provider ok:contains": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 5408,
+      "total_seconds": 5.408,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 3544,
+      "input": 3523,
+      "output": 21,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,17 @@
+target: pi-rpc-local
+prompts:
+  - "{{ input }}"
+tests:
+  - id: protocol-marker
+    vars:
+      input: "Reply with the exact phrase: agentv protocol provider ok"
+    assert:
+      - metric: contains-agentv protocol provider ok
+        type: contains
+        value: agentv protocol provider ok
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: Pass if the assistant clearly returns the requested exact phrase.
+        config:
+          threshold: 0.8
