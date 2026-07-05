@@ -1,0 +1,15 @@
+targets:
+  - id: copilot-sdk-local
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: copilot-sdk
+    config:
+      subprovider: openai
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      api_format: responses
+      timeout_seconds: 120
+      model_id: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+      wire_model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+      stream_log: raw
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
