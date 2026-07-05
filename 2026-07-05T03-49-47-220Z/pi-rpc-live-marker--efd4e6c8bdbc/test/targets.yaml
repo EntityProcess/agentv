@@ -1,0 +1,16 @@
+targets:
+  - id: pi-rpc-local
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    provider: pi-rpc
+    config:
+      command:
+        - pi
+      subprovider: openai
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "[redacted]"
+      thinking: low
+      cwd: .agentv/results/av-t2o5-5-workspace
+      timeout_seconds: 90
+      stream_log: raw
+      runtime: host
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"

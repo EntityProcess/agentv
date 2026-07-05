@@ -1,0 +1,25 @@
+target: pi-rpc-local
+prompts:
+  - "{{ input }}"
+tests:
+  - id: pi-rpc-live-marker
+    vars:
+      input: |-
+        Return exactly this marker and nothing else:
+        AGENTV-PI-RPC-OK
+    assert:
+      - metric: contains-AGENTV-PI-RPC-OK
+        type: contains
+        value: AGENTV-PI-RPC-OK
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        rubrics:
+          - id: rubric-1
+            outcome: The response contains the exact marker AGENTV-PI-RPC-OK.
+            weight: 1
+            required: true
+          - id: rubric-2
+            outcome: The response is concise and does not claim the task could not be performed.
+            weight: 1
+            required: true
