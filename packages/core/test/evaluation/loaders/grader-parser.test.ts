@@ -15,6 +15,7 @@ import type {
   LlmRubricGraderConfig,
   RegexGraderConfig,
   ScriptGraderConfig,
+  SkillUsedGraderConfig,
 } from '../../../src/evaluation/types.js';
 
 describe('parseGraders - deterministic assertion types', () => {
@@ -454,6 +455,32 @@ describe('parseGraders - deterministic assertion types', () => {
         'test-1',
       ),
     ).rejects.toThrow("Unsupported promptfoo assertion type 'tool-call-f1'");
+  });
+
+  it('parses promptfoo-compatible skill-used assertions', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          { type: 'skill-used', value: 'csv-analyzer' },
+          { type: 'not-skill-used', value: { pattern: 'web-*', max: 0 } },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators?.[0]).toMatchObject({
+      name: 'skill-used-csv-analyzer',
+      type: 'skill-used',
+      value: 'csv-analyzer',
+    } satisfies Partial<SkillUsedGraderConfig>);
+    expect(evaluators?.[1]).toMatchObject({
+      name: 'not-skill-used',
+      type: 'not-skill-used',
+      value: { pattern: 'web-*', max: 0 },
+    } satisfies Partial<SkillUsedGraderConfig>);
   });
 });
 

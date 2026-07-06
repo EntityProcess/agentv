@@ -12,6 +12,7 @@ import {
   groupTranscriptJsonLines,
   readTranscriptJsonl,
 } from '../import/types.js';
+import { deriveSkillCallsFromMessages, skillCallMetadata } from './providers/skill-calls.js';
 import type { ProviderResponse } from './providers/types.js';
 import type { ReplayFixtureLookup } from './replay-fixtures.js';
 
@@ -49,6 +50,7 @@ export function transcriptReplayRecordToProviderResponse(
   const entry = record.entry;
   return {
     output: entry.messages,
+    metadata: skillCallMetadata(deriveSkillCallsFromMessages(entry.messages)),
     tokenUsage: entry.tokenUsage,
     durationMs: entry.durationMs,
     costUsd: entry.costUsd ?? undefined,

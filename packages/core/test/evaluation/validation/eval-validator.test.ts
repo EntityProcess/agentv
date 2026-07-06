@@ -1681,6 +1681,32 @@ tests:
       ).toBe(true);
     });
 
+    it('accepts promptfoo-compatible skill-used assertions', async () => {
+      const filePath = path.join(tempDir, 'assert-skill-used.yaml');
+      await writeFile(
+        filePath,
+        `prompts:
+  - "{{ prompt }}"
+tests:
+  - id: test-1
+    vars:
+      prompt: "Use csv tools"
+    assert:
+      - type: skill-used
+        value:
+          pattern: "csv-*"
+          min: 1
+      - type: not-skill-used
+        value: web-search
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
     it('validates required field accepts boolean', async () => {
       const filePath = path.join(tempDir, 'assert-required-bool.yaml');
       await writeFile(

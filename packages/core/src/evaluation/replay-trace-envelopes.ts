@@ -10,6 +10,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
+import { deriveSkillCallsFromMessages, skillCallMetadata } from './providers/skill-calls.js';
 import type { ProviderResponse } from './providers/types.js';
 import {
   type ReplayFixtureLookup,
@@ -83,6 +84,7 @@ export function traceEnvelopeReplayRecordToProviderResponse(
 
   return {
     output,
+    metadata: skillCallMetadata(deriveSkillCallsFromMessages(output)),
     tokenUsage: summary.tokenUsage,
     costUsd: summary.costUsd,
     durationMs: summary.durationMs,

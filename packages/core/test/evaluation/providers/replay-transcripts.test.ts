@@ -23,7 +23,13 @@ describe('ReplayProvider transcript source', () => {
         {
           role: 'assistant',
           content: 'I inspected it.',
-          toolCalls: [{ tool: 'Read', input: { path: 'package.json' }, output: '{}' }],
+          toolCalls: [
+            {
+              tool: 'Read',
+              input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+              output: 'skill instructions',
+            },
+          ],
         },
       ],
       source: {
@@ -53,6 +59,14 @@ describe('ReplayProvider transcript source', () => {
     expect(response.output).toEqual(transcript.messages);
     expect(response.tokenUsage).toEqual({ input: 10, output: 5 });
     expect(response.durationMs).toBe(1234);
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'csv-analyzer',
+        input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+        path: '.agents/skills/csv-analyzer/SKILL.md',
+        source: 'heuristic',
+      },
+    ]);
     expect(response.raw?.replay_transcript).toMatchObject({
       test_id: 'copilot-case',
       target: 'copilot-cli',

@@ -15,6 +15,7 @@ import {
   LlmGrader,
   ScriptGrader,
   SkillTriggerGrader,
+  SkillUsedGrader,
   TokenUsageGrader,
   ToolTrajectoryGrader,
   runContainsAllAssertion,
@@ -64,6 +65,7 @@ import type {
   ScriptGraderConfig,
   SimilarGraderConfig,
   SkillTriggerGraderConfig,
+  SkillUsedGraderConfig,
   StartsWithGraderConfig,
   TokenUsageGraderConfig,
 } from '../types.js';
@@ -255,6 +257,11 @@ export const skillTriggerFactory: GraderFactoryFn = (config) => {
   return new SkillTriggerGrader(config as SkillTriggerGraderConfig);
 };
 
+/** Factory for Promptfoo-compatible `skill-used` and `not-skill-used` evaluators. */
+export const skillUsedFactory: GraderFactoryFn = (config) => {
+  return new SkillUsedGrader(config as SkillUsedGraderConfig);
+};
+
 /** Factory for `contains` deterministic assertion. */
 export const containsFactory: GraderFactoryFn = (config) => {
   const c = config as ContainsGraderConfig;
@@ -424,6 +431,8 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('cost', costFactory)
     .register('token-usage', tokenUsageFactory)
     .register('execution-metrics', executionMetricsFactory)
+    .register('skill-used', skillUsedFactory)
+    .register('not-skill-used', skillUsedFactory)
     .register('skill-trigger', skillTriggerFactory)
     .register('assert-set', assertSetFactory)
     .register('contains', containsFactory)

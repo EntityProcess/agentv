@@ -215,6 +215,28 @@ export interface ToolCall {
 }
 
 /**
+ * Normalized provider skill-call metadata.
+ *
+ * This mirrors Promptfoo's `providerResponse.metadata.skillCalls` semantics:
+ * provider/import adapters populate entries from explicit provider events where
+ * possible, or from normalized tool-call evidence when the provider lacks a
+ * first-class skill event. Assertions consume this read model instead of
+ * scanning transcripts.
+ */
+export interface SkillCall {
+  /** Stable skill name. */
+  readonly name: string;
+  /** Original provider/tool input when available. */
+  readonly input?: unknown;
+  /** Skill file path or resolved descriptor path when available. */
+  readonly path?: string;
+  /** Evidence source such as `tool` or `heuristic`. */
+  readonly source?: string;
+  /** Whether the provider reported the skill attempt as errored. */
+  readonly isError?: boolean;
+}
+
+/**
  * An output message from agent execution.
  * Represents a single message in the conversation with optional tool calls.
  */
@@ -342,6 +364,10 @@ export interface ProviderStepInfo {
 export interface ProviderResponse {
   readonly raw?: unknown;
   readonly usage?: JsonObject;
+  readonly metadata?: Record<string, unknown> & {
+    readonly skillCalls?: readonly SkillCall[];
+    readonly attemptedSkillCalls?: readonly SkillCall[];
+  };
   readonly targetExecution?: TargetExecutionEnvelope;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly output?: readonly Message[];

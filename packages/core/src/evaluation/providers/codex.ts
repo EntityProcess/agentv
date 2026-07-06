@@ -8,6 +8,7 @@ import { recordCodexLogEntry } from './codex-log-tracker.js';
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { deriveSkillCallsFromToolCalls, skillCallMetadata } from './skill-calls.js';
 import type { CodexResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -176,6 +177,7 @@ export class CodexProvider implements Provider {
           model: this.config.model,
           logFile: logger?.filePath,
         },
+        metadata: skillCallMetadata(deriveSkillCallsFromToolCalls(completedToolCalls)),
         output,
         tokenUsage,
         durationMs,

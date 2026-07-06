@@ -72,6 +72,7 @@ export interface SdkChildErrorWire {
 export interface SdkChildProviderResponseWire {
   readonly raw?: unknown;
   readonly usage?: JsonObject;
+  readonly metadata?: ProviderResponse['metadata'];
   readonly output?: readonly Message[];
   readonly token_usage?: ProviderTokenUsage;
   readonly cost_usd?: number;
@@ -142,6 +143,7 @@ export function providerResponseToWire(response: ProviderResponse): SdkChildProv
   return {
     raw: response.raw,
     usage: response.usage,
+    metadata: response.metadata,
     output: response.output,
     token_usage: response.tokenUsage,
     cost_usd: response.costUsd,
@@ -157,6 +159,7 @@ export function providerResponseFromWire(response: SdkChildProviderResponseWire)
   return {
     raw: response.raw,
     usage: response.usage,
+    metadata: response.metadata,
     output: response.output,
     tokenUsage: response.token_usage,
     costUsd: response.cost_usd,

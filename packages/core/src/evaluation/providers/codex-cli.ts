@@ -12,6 +12,7 @@ import { trackChild } from '../../runtime/child-tracker.js';
 import { recordCodexLogEntry } from './codex-log-tracker.js';
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { deriveSkillCallsFromMessages, skillCallMetadata } from './skill-calls.js';
 import type { CodexResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -232,6 +233,7 @@ export class CodexCliProvider implements Provider {
           inputFiles,
           logFile: logger?.filePath,
         },
+        metadata: skillCallMetadata(deriveSkillCallsFromMessages(messages)),
         output: messages,
         durationMs,
         targetExecution: {

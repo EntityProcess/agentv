@@ -234,6 +234,52 @@ describe('ClaudeProvider', () => {
     expect(firstMsg?.toolCalls?.[0]?.id).toBe('tc-1');
   });
 
+  it('normalizes Claude Skill tool calls into provider skill metadata', async () => {
+    const queryMock = mock(() =>
+      createMockQuery({
+        messages: [
+          {
+            type: 'assistant',
+            message: {
+              content: [
+                {
+                  type: 'tool_use',
+                  name: 'Skill',
+                  input: { skill: 'csv-analyzer' },
+                  id: 'skill-1',
+                },
+              ],
+            },
+          },
+          {
+            type: 'result',
+            subtype: 'success',
+            total_cost_usd: 0.01,
+            duration_ms: 500,
+            usage: {},
+          },
+        ],
+      }),
+    );
+
+    mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+      query: queryMock,
+    }));
+
+    const { ClaudeProvider } = await import('../../../src/evaluation/providers/claude.js');
+
+    const provider = new ClaudeProvider('test-target', {});
+    const response = await provider.invoke({ question: 'Use csv analyzer' });
+
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'csv-analyzer',
+        input: { skill: 'csv-analyzer' },
+        source: 'tool',
+      },
+    ]);
+  });
+
   it('sets bypassPermissions in query options', async () => {
     const queryMock = mock((_params: unknown) =>
       createMockQuery({

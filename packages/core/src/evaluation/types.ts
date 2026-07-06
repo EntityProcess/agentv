@@ -180,6 +180,8 @@ const GRADER_KIND_VALUES = [
   'script',
   'llm-grader',
   'tool-trajectory',
+  'skill-used',
+  'not-skill-used',
   'field-accuracy',
   'latency',
   'cost',
@@ -906,6 +908,27 @@ export type SkillTriggerGraderConfig = {
   readonly negate?: boolean;
 };
 
+export type SkillUsedValue =
+  | string
+  | readonly string[]
+  | {
+      readonly name?: string;
+      readonly pattern?: string;
+      readonly min?: number;
+      readonly max?: number;
+    };
+
+export type SkillUsedGraderConfig = {
+  readonly name: string;
+  readonly type: 'skill-used' | 'not-skill-used';
+  readonly value: SkillUsedValue;
+  readonly weight?: number;
+  readonly required?: boolean;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
+  readonly negate?: boolean;
+};
+
 /**
  * Configuration for the inline-assert evaluator.
  * Wraps an AssertFn for in-process evaluation via the evaluate() API.
@@ -926,6 +949,7 @@ export type GraderConfig = (
   | LlmGraderConfig
   | LlmRubricGraderConfig
   | ToolTrajectoryGraderConfig
+  | SkillUsedGraderConfig
   | FieldAccuracyGraderConfig
   | LatencyGraderConfig
   | CostGraderConfig
