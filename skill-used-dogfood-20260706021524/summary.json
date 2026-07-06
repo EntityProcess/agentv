@@ -1,0 +1,147 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "skill-used-dogfood-20260706021524",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 27646,
+    "input_tokens": 27132,
+    "output_tokens": 514,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "skill-used-live",
+      "suite": "skill-used-live-codex-skill",
+      "eval_path": "/tmp/agentv-skill-used-dogfood/skill-used-live-codex-skill.yaml",
+      "target": "codex-live",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "skill-used-live",
+          "suite": "skill-used-live-codex-skill",
+          "eval_path": "/tmp/agentv-skill-used-dogfood/skill-used-live-codex-skill.yaml",
+          "target": "codex-live",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 18754
+        }
+      ],
+      "pass_rate": 1,
+      "pass_any": true
+    }
+  ],
+  "metadata": {
+    "run_id": "skill-used-dogfood-20260706021524",
+    "eval_file": "/tmp/agentv-skill-used-dogfood/skill-used-live-codex-skill.yaml",
+    "timestamp": "2026-07-06T00:15:46.920Z",
+    "targets": [
+      "codex-live"
+    ],
+    "tests_run": [
+      "skill-used-live"
+    ],
+    "experiment": "skill-used-live-codex-skill",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "cli_flags",
+      "eval_files": [
+        "/tmp/agentv-skill-used-dogfood/skill-used-live-codex-skill.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "codex-live": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 18.754,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 27646,
+        "stddev": 0
+      },
+      "tool_calls": {
+        "mean": 1,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "skill-used-codex/list_mcp_resources:skill-used": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 18754,
+      "total_seconds": 18.754,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 27646,
+      "input": 27132,
+      "output": 514,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 1,
+      "tool_calls": {
+        "Skill": 1
+      }
+    }
+  },
+  "notes": []
+}

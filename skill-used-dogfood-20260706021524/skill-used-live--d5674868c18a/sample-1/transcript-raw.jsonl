@@ -1,0 +1,10 @@
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":0},"content":"# Codex SDK stream log"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":1},"content":"# target: codex-live"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":2},"content":"# eval: skill-used-live"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":3},"content":"# attempt: 1"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":4},"content":"# started: 2026-07-06T00:15:26.782Z"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":5},"content":"[+00:06] [item.completed] agent_message: I’ll query MCP resources in the workspace via the requested MCP resource listing tool now, then report back in one sentence including `MCP_RESOURCES_CHECKED`."}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":6},"content":"[+00:06] [item.started] mcp_tool_call: codex/list_mcp_resources"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":7},"content":"[+00:06] [item.completed] mcp_tool_call: codex/list_mcp_resources"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":8},"content":"[+00:18] [item.completed] agent_message: `MCP_RESOURCES_CHECKED`: I called `list_mcp_resources` and it returned an empty resource list (`\"resources\":[]`) in this workspace."}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":9},"content":"[+00:18] [turn.completed] input=27132 output=514"}

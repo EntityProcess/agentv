@@ -1,0 +1,91 @@
+{
+  "pass": true,
+  "score": 1,
+  "reason": "All grading components passed.",
+  "component_results": [
+    {
+      "pass": true,
+      "score": 1,
+      "reason": "Observed required skill(s): codex/list_mcp_resources. Actual skills: codex/list_mcp_resources (tool)",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "Observed required skill(s): codex/list_mcp_resources. Actual skills: codex/list_mcp_resources (tool)",
+          "assertion": {
+            "name": "skill-used-codex/list_mcp_resources",
+            "type": "skill-used",
+            "weight": 1,
+            "value": "Observed required skill(s): codex/list_mcp_resources. Actual skills: codex/list_mcp_resources (tool)"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "skill-used-codex/list_mcp_resources",
+        "type": "skill-used",
+        "weight": 1
+      },
+      "metadata": {
+        "details": {
+          "assertion_type": "skill-used"
+        },
+        "duration_ms": 1,
+        "started_at": "2026-07-06T00:15:45.563Z",
+        "ended_at": "2026-07-06T00:15:45.564Z"
+      }
+    },
+    {
+      "pass": true,
+      "score": 1,
+      "reason": "Grader passed.",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The response is a single sentence ending with a period and explicitly contains `MCP_RESOURCES_CHECKED` (as ``MCP_RESOURCES_CHECKED`: I called ...`).",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "live-grader",
+            "value": "[rubric-1] Response is one sentence and includes MCP_RESOURCES_CHECKED"
+          }
+        },
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "A `codex/list_mcp_resources` tool call is listed, and the response itself says it was called and returned `\"resources\":[]`, showing the MCP inspection was attempted/completed before replying.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "live-grader",
+            "value": "[rubric-2] The assistant attempted or completed an MCP resource inspection before answering"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "live-grader"
+      },
+      "metadata": {
+        "token_usage": {
+          "input": 0,
+          "output": 0
+        },
+        "duration_ms": 1356,
+        "started_at": "2026-07-06T00:15:45.564Z",
+        "ended_at": "2026-07-06T00:15:46.920Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "skill-used-codex/list_mcp_resources": 1,
+    "llm-rubric": 1
+  },
+  "metadata": {
+    "execution_status": "ok"
+  }
+}

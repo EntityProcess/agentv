@@ -1,0 +1,1 @@
+`MCP_RESOURCES_CHECKED`: I called `list_mcp_resources` and it returned an empty resource list (`"resources":[]`) in this workspace.

@@ -1,0 +1,72 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "codex-sdk",
+  "target": "codex-live",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 1,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "codex-sdk",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Use the codex/list_mcp_resources skill/tool to inspect available MCP resources.\nThen reply in one sentence including MCP_RESOURCES_CHECKED."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "codex-sdk",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "`MCP_RESOURCES_CHECKED`: I called `list_mcp_resources` and it returned an empty resource list (`\"resources\":[]`) in this workspace."
+        },
+        {
+          "type": "tool_use",
+          "id": "item_1",
+          "tool_name": "agent_task",
+          "name": "Skill",
+          "input": {
+            "skill": "codex/list_mcp_resources"
+          },
+          "result": {
+            "status": "unknown",
+            "output": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"resources\":[]}"
+                }
+              ],
+              "structured_content": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
