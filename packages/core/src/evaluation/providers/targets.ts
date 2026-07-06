@@ -908,7 +908,6 @@ export type ResolvedTarget =
  * here automatically makes it valid in targets.yaml without a separate update.
  */
 export const COMMON_TARGET_SETTINGS = [
-  'use_target',
   'runtime',
   'batch_requests',
   'subagent_mode_allowed',
