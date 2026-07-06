@@ -4,48 +4,67 @@
 #
 # "grader" is the LLM used for scoring; agent targets reference it via
 # grader_target so eval execution and grading use separate models.
+#
+# default/agent/llm/grader are concrete targets, not env-var-driven aliases:
+# AgentV removed the `use_target` indirection field with no replacement, so a
+# target id can no longer redirect to "whichever target another target names".
+# These four mirror today's AGENT_TARGET/LLM_TARGET/GRADER_TARGET selection
+# (copilot-cli / azure / azure) so `target: llm` etc. across examples/ keep
+# resolving. To switch the active provider, edit the definitions below
+# directly (or point examples at a different concrete target id) instead of
+# changing an env var.
 
 targets:
-  # ── Default target (use) ───────────────────────────────────────────
-  # Evals without an explicit target resolve to "default". The use
-  # redirects to a named target, controlled via AGENT_TARGET env var.
-  # One env var switches the entire provider config (auth, model, etc.).
-  # Example: AGENT_TARGET=copilot-cli  or  AGENT_TARGET=claude
+  # ── Default target ──────────────────────────────────────────────────
+  # Evals without an explicit target resolve to "default" by convention.
   - id: default
-    use_target: ${{ AGENT_TARGET }}
+    provider: copilot-cli
+    model: "{{ env.COPILOT_MODEL }}"
+    grader_target: grader
+    stream_log: raw
 
   - id: agent
-    use_target: ${{ AGENT_TARGET }}
+    provider: copilot-cli
+    model: "{{ env.COPILOT_MODEL }}"
+    grader_target: grader
+    stream_log: raw
 
   # ── LLM target (text generation, no agent binary needed) ────────────
-  # Delegates to LLM_TARGET — same provider used for grading and LLM evals.
   - id: llm
-    use_target: ${{ LLM_TARGET }}
+    provider: azure
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    version: "{{ env.AZURE_OPENAI_API_VERSION }}"
 
   # ── Grader (LLM-as-judge) ──────────────────────────────────────────
-  # Used by agent targets via grader_target. Switch provider via GRADER_TARGET.
+  # Used by agent targets via grader_target.
   - id: grader
-    use_target: ${{ GRADER_TARGET }}
+    provider: azure
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    version: "{{ env.AZURE_OPENAI_API_VERSION }}"
 
   # ── Named agent targets ───────────────────────────────────────────
   - id: copilot
     provider: copilot-cli
-    model: ${{ COPILOT_MODEL }}
+    model: "{{ env.COPILOT_MODEL }}"
     grader_target: grader
     stream_log: raw
 
   - id: copilot-sdk
     provider: copilot-sdk
-    model: ${{ COPILOT_MODEL }}
+    model: "{{ env.COPILOT_MODEL }}"
     grader_target: grader
     stream_log: raw
 
   - id: copilot-sdk-azure
     provider: copilot-sdk
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
     subprovider: azure
-    base_url: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    base_url: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
     grader_target: grader
     stream_log: raw
 
@@ -60,15 +79,15 @@ targets:
   - id: pi
     provider: pi-cli
     subprovider: openrouter
-    model: ${{ OPENROUTER_MODEL }}
-    api_key: ${{ OPENROUTER_API_KEY }}
+    model: "{{ env.OPENROUTER_MODEL }}"
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
     grader_target: grader
 
   - id: pi-sdk
     provider: pi-coding-agent
     subprovider: openai
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
+    base_url: "{{ env.OPENAI_ENDPOINT }}"
+    api_key: "{{ env.OPENAI_API_KEY }}"
     model: gpt-5.5
     grader_target: openai
     thinking: low
@@ -78,37 +97,37 @@ targets:
   - id: pi-azure
     provider: pi-cli
     subprovider: azure
-    base_url: ${{ AZURE_OPENAI_ENDPOINT }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    base_url: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
     grader_target: grader
 
   - id: pi-sdk-azure
     provider: pi-coding-agent
     subprovider: azure
-    base_url: ${{ AZURE_OPENAI_ENDPOINT }}
+    base_url: "{{ env.AZURE_OPENAI_ENDPOINT }}"
     model: gpt-5.5
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
     grader_target: grader
     thinking: low
     stream_log: raw
 
   - id: codex
     provider: codex
-    executable: ${{ CODEX_EXECUTABLE }}
-    model: ${{ CODEX_MODEL }}
-    model_reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
+    executable: "{{ env.CODEX_EXECUTABLE }}"
+    model: "{{ env.CODEX_MODEL }}"
+    model_reasoning_effort: "{{ env.CODEX_REASONING_EFFORT }}"
     grader_target: grader
-    cwd: ${{ CODEX_WORKSPACE_DIR }}
-    log_dir: ${{ CODEX_LOG_DIR }}
+    cwd: "{{ env.CODEX_WORKSPACE_DIR }}"
+    log_dir: "{{ env.CODEX_LOG_DIR }}"
     stream_log: raw
 
   # ── LLM targets (direct model access) ─────────────────────────────
   - id: gh-models
     provider: openai
     base_url: https://models.github.ai/inference
-    api_key: ${{ GH_MODELS_TOKEN }}
-    model: ${{ GH_MODELS_MODEL }}
+    api_key: "{{ env.GH_MODELS_TOKEN }}"
+    model: "{{ env.GH_MODELS_MODEL }}"
 
   # Single Azure target. Always uses Azure's Responses API
   # (`/openai/v1/responses`); the api version defaults to `v1` and can be
@@ -117,52 +136,52 @@ targets:
   # `base_url` instead.
   - id: azure
     provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    version: ${{ AZURE_OPENAI_API_VERSION }}
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    version: "{{ env.AZURE_OPENAI_API_VERSION }}"
 
   - id: gemini
     provider: gemini
-    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
-    model: ${{ GEMINI_MODEL_NAME }}
+    api_key: "{{ env.GOOGLE_GENERATIVE_AI_API_KEY }}"
+    model: "{{ env.GEMINI_MODEL_NAME }}"
 
   - id: openai
     provider: openai
-    endpoint: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    model: ${{ OPENAI_MODEL }}
+    endpoint: "{{ env.OPENAI_ENDPOINT }}"
+    api_key: "{{ env.OPENAI_API_KEY }}"
+    model: "{{ env.OPENAI_MODEL }}"
 
   # Local OpenAI-compatible endpoint. Useful for dogfood against a local proxy
   # without changing provider-specific target labels.
   - id: local-openai
     provider: openai
-    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+    api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
     grader_target: local-openai-grader
 
   - id: local-openai-grader
     provider: openai
-    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+    api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
 
   - id: pi-cli-openai
     provider: pi-cli
     subprovider: openai
-    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+    api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
     grader_target: local-openai-grader
     thinking: low
     stream_log: raw
 
   - id: codex-sdk-openai
     provider: codex
-    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+    api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
     api_format: responses
     model_reasoning_effort: low
     grader_target: local-openai-grader
@@ -171,34 +190,34 @@ targets:
   - id: copilot-sdk-openai
     provider: copilot-sdk
     subprovider: openai
-    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+    api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+    model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
     grader_target: local-openai-grader
     stream_log: raw
 
   - id: openrouter
     provider: openrouter
-    api_key: ${{ OPENROUTER_API_KEY }}
-    model: ${{ OPENROUTER_MODEL }}
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
+    model: "{{ env.OPENROUTER_MODEL }}"
 
   # ── MiMo (Xiaomi) via OpenRouter ───────────────────────────────────
   - id: mimo
     provider: openrouter
-    api_key: ${{ OPENROUTER_API_KEY }}
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
     model: xiaomi/mimo-v2.5-pro
     grader_target: grader
 
   - id: mimo-flash
     provider: openrouter
-    api_key: ${{ OPENROUTER_API_KEY }}
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
     model: xiaomi/mimo-v2-flash
     grader_target: grader
 
   - id: mimo-direct
     provider: openai
     base_url: https://token-plan-sgp.xiaomimimo.com/v1
-    api_key: ${{ XIAOMI_MIMO_API_KEY }}
+    api_key: "{{ env.XIAOMI_MIMO_API_KEY }}"
     model: xiaomi/mimo-v2.5-pro
     max_output_tokens: 131072
     grader_target: grader
