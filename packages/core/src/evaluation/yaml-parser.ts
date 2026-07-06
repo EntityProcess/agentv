@@ -299,6 +299,11 @@ function rejectRemovedScenarioRowFields(row: JsonObject, location: string): void
   if (row.evalcases !== undefined) {
     throw new Error(`${location}.evalcases has been removed. Use ${location} fields directly.`);
   }
+  if (row.provider_output !== undefined) {
+    throw new Error(
+      `${location}.provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.`,
+    );
+  }
   if (row.input !== undefined) {
     throw new Error(
       `${location}.input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in ${location}.vars.`,
@@ -1428,6 +1433,7 @@ async function loadTestsFromParsedYamlValue(
   if (options?.allowInternalExpectedOutput !== true) {
     rejectAuthoredExpectedOutput(interpolated);
   }
+  rejectAuthoredProviderOutput(interpolated);
 
   const rawSuite = rawParsed as RawTestSuite;
   const resolvedDefaultTest = await resolveDefaultTestValue(
@@ -1884,6 +1890,7 @@ function buildEvalSuiteResult(
   if (options?.allowInternalExpectedOutput !== true) {
     rejectAuthoredExpectedOutput(parsed);
   }
+  rejectAuthoredProviderOutput(parsed);
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
@@ -2050,6 +2057,28 @@ function rejectAuthoredExpectedOutput(parsed: JsonObject): void {
     }
     throw new Error(
       `tests[${index}].expected_output has been removed from authored eval YAML. Put the reference answer in tests[].vars.expected_output and consume it with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.`,
+    );
+  }
+}
+
+function rejectAuthoredProviderOutput(parsed: JsonObject): void {
+  if (isJsonObject(parsed.default_test) && parsed.default_test.provider_output !== undefined) {
+    throw new Error(
+      'default_test.provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.',
+    );
+  }
+
+  if (!Array.isArray(parsed.tests)) {
+    return;
+  }
+
+  for (let index = 0; index < parsed.tests.length; index++) {
+    const entry = parsed.tests[index];
+    if (!isJsonObject(entry) || entry.provider_output === undefined) {
+      continue;
+    }
+    throw new Error(
+      `tests[${index}].provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.`,
     );
   }
 }

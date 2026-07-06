@@ -1397,61 +1397,6 @@
                           }
                         ]
                       },
-                      "provider_output": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {},
-                            "additionalProperties": {}
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "role": {
-                                  "type": "string",
-                                  "enum": ["system", "user", "assistant", "tool"]
-                                },
-                                "content": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "object",
-                                      "properties": {},
-                                      "additionalProperties": {}
-                                    },
-                                    {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "type": {
-                                            "type": "string",
-                                            "enum": ["text", "file", "image"]
-                                          },
-                                          "value": {
-                                            "type": "string"
-                                          }
-                                        },
-                                        "required": ["type", "value"],
-                                        "additionalProperties": false
-                                      }
-                                    }
-                                  ]
-                                }
-                              },
-                              "required": ["role", "content"],
-                              "additionalProperties": false
-                            }
-                          }
-                        ]
-                      },
                       "input": {
                         "not": {}
                       },
@@ -1913,7 +1858,7 @@
                         "minimum": 1
                       }
                     },
-                    "additionalProperties": false
+                    "additionalProperties": true
                   },
                   {
                     "type": "object",
@@ -4472,61 +4417,6 @@
                     }
                   ]
                 },
-                "provider_output": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": {}
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "role": {
-                            "type": "string",
-                            "enum": ["system", "user", "assistant", "tool"]
-                          },
-                          "content": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "object",
-                                "properties": {},
-                                "additionalProperties": {}
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "enum": ["text", "file", "image"]
-                                    },
-                                    "value": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": ["type", "value"],
-                                  "additionalProperties": false
-                                }
-                              }
-                            ]
-                          }
-                        },
-                        "required": ["role", "content"],
-                        "additionalProperties": false
-                      }
-                    }
-                  ]
-                },
                 "expected_output": {
                   "not": {}
                 },
@@ -5954,61 +5844,6 @@
                             }
                           ]
                         },
-                        "provider_output": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "object",
-                              "properties": {},
-                              "additionalProperties": {}
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "role": {
-                                    "type": "string",
-                                    "enum": ["system", "user", "assistant", "tool"]
-                                  },
-                                  "content": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {},
-                                        "additionalProperties": {}
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "type": {
-                                              "type": "string",
-                                              "enum": ["text", "file", "image"]
-                                            },
-                                            "value": {
-                                              "type": "string"
-                                            }
-                                          },
-                                          "required": ["type", "value"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    ]
-                                  }
-                                },
-                                "required": ["role", "content"],
-                                "additionalProperties": false
-                              }
-                            }
-                          ]
-                        },
                         "input": {
                           "not": {}
                         },
@@ -6470,7 +6305,7 @@
                           "minimum": 1
                         }
                       },
-                      "additionalProperties": false
+                      "additionalProperties": true
                     }
                   },
                   "tests": {
@@ -7659,61 +7494,6 @@
                             }
                           ]
                         },
-                        "provider_output": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "object",
-                              "properties": {},
-                              "additionalProperties": {}
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "role": {
-                                    "type": "string",
-                                    "enum": ["system", "user", "assistant", "tool"]
-                                  },
-                                  "content": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {},
-                                        "additionalProperties": {}
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "type": {
-                                              "type": "string",
-                                              "enum": ["text", "file", "image"]
-                                            },
-                                            "value": {
-                                              "type": "string"
-                                            }
-                                          },
-                                          "required": ["type", "value"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    ]
-                                  }
-                                },
-                                "required": ["role", "content"],
-                                "additionalProperties": false
-                              }
-                            }
-                          ]
-                        },
                         "input": {
                           "not": {}
                         },
@@ -8175,7 +7955,7 @@
                           "minimum": 1
                         }
                       },
-                      "additionalProperties": false
+                      "additionalProperties": true
                     }
                   }
                 },

@@ -1085,7 +1085,6 @@ scenarios:
     - id: translate-french
       vars:
         phrase: hello
-      provider_output: bonjour
       assert:
         - type: equals
           value: bonjour
@@ -1101,7 +1100,6 @@ scenarios:
     - id: translate-spanish
       vars:
         phrase: goodbye
-      provider_output: adios
       assert:
         - type: equals
           value: adios
@@ -1120,7 +1118,6 @@ scenarios:
       - id: translate-italian
         vars:
           phrase: hello
-        provider_output: ciao
         assert:
           - type: equals
             value: ciao

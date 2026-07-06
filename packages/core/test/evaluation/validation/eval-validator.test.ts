@@ -455,14 +455,13 @@ evaluate_options:
   max_eval_time_ms: 120000
   filter_range: [0, 10]
 tests:
-  - description: fixed output row
+  - description: target output row
     vars:
       diff: change
     options:
       repeat:
         count: 3
         strategy: mean
-    provider_output: "Looks safe."
     assert:
       - type: contains
         value: safe
@@ -564,7 +563,6 @@ scenarios:
   tests:
     - vars:
         phrase: hello
-      provider_output: bonjour
       assert:
         - type: equals
           value: bonjour
@@ -579,7 +577,6 @@ scenarios:
   tests:
     - vars:
         phrase: goodbye
-      provider_output: adios
       assert:
         - type: equals
           value: adios
@@ -597,7 +594,6 @@ scenarios:
     tests:
       - vars:
           phrase: hello
-        provider_output: ciao
         assert:
           - type: equals
             value: ciao
@@ -609,6 +605,34 @@ scenarios:
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects authored provider_output with explicit target guidance', async () => {
+    const filePath = path.join(tempDir, 'provider-output-removed.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Review {{ diff }}"
+tests:
+  - vars:
+      diff: change
+    provider_output: "Looks safe."
+    assert:
+      - type: contains
+        value: safe
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].provider_output',
+        message: expect.stringContaining('Use an explicit deterministic target'),
+      }),
+    );
   });
 
   it('rejects scenario tests without input when only some config rows supply prompts', async () => {
@@ -2546,6 +2570,31 @@ tests: file://suite-input-cases.csv
           severity: 'error',
           location: 'tests',
           message: expect.stringContaining('Unsupported promptfoo __expected assertion "similar"'),
+        }),
+      );
+    });
+
+    it('rejects removed promptfoo CSV provider output columns during validation', async () => {
+      await writeFile(
+        path.join(tempDir, 'provider-output-cases.csv'),
+        'id,input,__expected,__provider_output\ncase,Hello,contains:Hi,Hi there\n',
+      );
+
+      const filePath = path.join(tempDir, 'provider-output-csv.yaml');
+      await writeFile(
+        filePath,
+        `tests: file://provider-output-cases.csv
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          location: 'tests',
+          message: expect.stringContaining('__provider_output has been removed from CSV imports'),
         }),
       );
     });

@@ -357,7 +357,6 @@ function parseCsvCases(content: string, filePath: string): JsonObject[] {
     let prefix = '';
     let suffix = '';
     let criteria: string | undefined;
-    let expectedOutput: string | undefined;
     let metric: string | undefined;
     let threshold: number | undefined;
 
@@ -379,7 +378,9 @@ function parseCsvCases(content: string, filePath: string): JsonObject[] {
       } else if (key === '__description') {
         criteria = value;
       } else if (key === '__provider_output' || key === '__providerOutput') {
-        expectedOutput = value;
+        throw new Error(
+          `${key} has been removed from CSV imports. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.`,
+        );
       } else if (key === '__metric') {
         metric = value;
       } else if (key === '__threshold') {
@@ -435,7 +436,6 @@ function parseCsvCases(content: string, filePath: string): JsonObject[] {
       id: id && id.trim() !== '' ? id : `row-${rowIndex + 1}`,
       ...(caseInput !== undefined ? { input: caseInput } : {}),
       ...(criteria ? { criteria } : {}),
-      ...(expectedOutput ? { expected_output: expectedOutput } : {}),
       ...(assertions.length > 0 ? { assert: assertions } : {}),
       ...(threshold !== undefined ? { threshold } : {}),
       ...(threshold !== undefined ? { execution: { threshold } } : {}),

@@ -257,7 +257,6 @@ const KNOWN_DEFAULT_TEST_FIELDS = new Set([
   'provider',
   'providers',
   'prompts',
-  'provider_output',
   'assert',
   'assert_scoring_function',
   'options',
@@ -358,7 +357,6 @@ const KNOWN_TEST_FIELDS = new Set([
   'provider',
   'providers',
   'prompts',
-  'provider_output',
   'input',
   'input_files',
   'assert',
@@ -400,6 +398,10 @@ const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 REMOVED_TEST_FIELDS.set(
   'input',
   "tests[].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.",
+);
+REMOVED_TEST_FIELDS.set(
+  'provider_output',
+  'tests[].provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.',
 );
 REMOVED_TEST_FIELDS.set(
   'preprocessors',
@@ -756,10 +758,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         : false;
     validateInputField(evalCase.input, `${location}.input`, absolutePath, errors, {
       required:
-        !hasPromptMdFallback &&
-        evalCase.prompts === undefined &&
-        parsed.prompts === undefined &&
-        evalCase.provider_output === undefined,
+        !hasPromptMdFallback && evalCase.prompts === undefined && parsed.prompts === undefined,
     });
 
     const expectedOutputField = evalCase.expected_output;
@@ -1420,9 +1419,19 @@ function validateDefaultTest(
         filePath,
         location: `default_test.${key}`,
         message:
-          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, assert, assert_scoring_function, options, threshold, metadata.',
+          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, assert, assert_scoring_function, options, threshold, metadata.',
       });
     }
+  }
+
+  if (defaultTest.provider_output !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'default_test.provider_output',
+      message:
+        'default_test.provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.',
+    });
   }
 
   if (defaultTest.expected_output !== undefined) {
@@ -1547,16 +1556,11 @@ async function validateScenarios(
       const test = scenario.tests[testIndex];
       const everyConfigProvidesInput =
         scenarioConfigs.length > 0 &&
-        scenarioConfigs.every(
-          (config) =>
-            isObject(config) &&
-            (config.prompts !== undefined || config.provider_output !== undefined),
-        );
+        scenarioConfigs.every((config) => isObject(config) && config.prompts !== undefined);
       const requireInput =
         isObject(test) &&
         parsed.prompts === undefined &&
         test.prompts === undefined &&
-        test.provider_output === undefined &&
         !everyConfigProvidesInput;
       await validateScenarioTestLikeRow(
         test,

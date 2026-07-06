@@ -566,11 +566,13 @@ mini-DSL (`contains:*`, `icontains:*`, `contains-any:*`, `contains-all:*`,
 `file://*.py`; file paths inside CSV cells are resolved relative to the CSV
 file). Unsupported assertion forms such as `similar:*` are rejected during
 validation instead of being skipped at runtime.
-`__provider_output` becomes first-class `expected_output` reference data,
-`__metric` names the generated assertions, `__threshold` sets the test threshold,
-`__metadata:<key>` adds metadata, and `__config:__expectedN:threshold` sets an
-assertion `min_score`. Ordinary columns become `vars`, so CSV rows can rely on
-suite-level `prompts` that interpolate those variables.
+`__provider_output` is rejected; use an explicit deterministic target such as
+`provider: cli` for fixed outputs, or a replay/fixture target for captured
+provider responses. `__metric` names the generated assertions, `__threshold`
+sets the test threshold, `__metadata:<key>` adds metadata, and
+`__config:__expectedN:threshold` sets an assertion `min_score`. Ordinary
+columns become `vars`, so CSV rows can rely on suite-level `prompts` that
+interpolate those variables.
 
 String shorthand is raw-case-only. Use a direct raw-case path or file ref when
 you want case data to run in the parent suite context:

@@ -83,7 +83,7 @@ describe('EvalFileSchema input shorthand', () => {
       scenarios: [
         {
           config: [{ vars: { language: 'Spanish' } }],
-          tests: [{ vars: { phrase: 'hello' }, provider_output: 'hola' }],
+          tests: [{ vars: { phrase: 'hello' }, assert: [{ type: 'equals', value: 'hola' }] }],
         },
         'file://scenarios/*.yaml',
       ],
@@ -415,11 +415,10 @@ describe('EvalFileSchema input shorthand', () => {
       },
       tests: [
         {
-          description: 'grades a fixed provider output',
+          description: 'grades rendered target output',
           vars: {
             diff: 'change',
           },
-          provider_output: 'Looks safe.',
           assert: [
             {
               type: 'contains',
@@ -481,6 +480,21 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects authored provider_output fields', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Review {{ diff }}'],
+      tests: [
+        {
+          vars: { diff: 'change' },
+          provider_output: 'Looks safe.',
+          assert: [{ type: 'contains', value: 'safe' }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('rejects composite as an authored assertion grouping type', () => {
