@@ -143,7 +143,11 @@ export interface EvalCaseTrial {
   scores?: ScoreEntry[];
   assertions?: AssertionEntry[];
   error?: string;
+  /** Compact target-runtime error classification; full envelope lives at `target_execution_path`. */
+  target_error_kind?: string;
+  /** Legacy pre-v5.4 fat row field accepted when reading older bundles; superseded by `target_error_kind`. */
   targetExecution?: TargetExecutionEnvelope;
+  /** Legacy pre-v5.4 fat row field accepted when reading older bundles; superseded by `target_error_kind`. */
   target_execution?: TargetExecutionEnvelope;
   target_execution_path?: string;
   stdout_path?: string;
@@ -280,7 +284,11 @@ export interface EvalResult {
   score: number;
   executionStatus?: string;
   error?: string;
+  /** Compact target-runtime error classification; full envelope lives at `target_execution_path`. */
+  target_error_kind?: string;
+  /** Legacy pre-v5.4 fat row field accepted when reading older bundles; superseded by `target_error_kind`. */
   targetExecution?: TargetExecutionEnvelope;
+  /** Legacy pre-v5.4 fat row field accepted when reading older bundles; superseded by `target_error_kind`. */
   target_execution?: TargetExecutionEnvelope;
   target_execution_path?: string;
   stdout_path?: string;
