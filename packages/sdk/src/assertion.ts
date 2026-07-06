@@ -41,6 +41,7 @@ export type AssertionType =
   | 'llm-rubric'
   | 'script'
   | 'assert-set'
+  /** @deprecated Authored eval YAML rejects this compatibility-only runtime type. */
   | 'tool-trajectory'
   | 'skill-used'
   | 'not-skill-used'
@@ -54,6 +55,7 @@ export type AssertionType =
   | 'cost'
   | 'token-usage'
   | 'execution-metrics'
+  /** @deprecated Authored eval YAML rejects this compatibility-only runtime type. */
   | 'skill-trigger'
   | 'contains'
   | 'contains-any'

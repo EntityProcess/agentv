@@ -73,7 +73,7 @@ The proof script runs the replay eval with common LLM API keys blanked. It then 
 - the result target is `replay_coding_agent`,
 - the proof script grader ran once per test,
 - replayed target metrics are preserved,
-- deterministic graders produced fresh scores for `tool-trajectory`, `execution-metrics`, `recovery-check`, and `replay-proof`.
+- deterministic graders produced fresh scores for `trajectory:*`, `execution-metrics`, `recovery-check`, and `replay-proof`.
 
 To record a new fixture from a live target, run the same eval with the live
 target and `--record-replay`:

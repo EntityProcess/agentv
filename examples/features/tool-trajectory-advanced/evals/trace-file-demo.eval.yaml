@@ -6,11 +6,12 @@ tests:
   - id: in-order-validation
     assert:
       - metric: search-then-fetch
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: webSearch
-          - tool: fetchPage
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - webSearch
+            - fetchPage
       - Agent searches for product information, then fetches detailed specs.
     vars:
       input:
@@ -19,13 +20,14 @@ tests:
   - id: exact-sequence-validation
     assert:
       - metric: exact-workflow
-        type: tool-trajectory
-        mode: exact
-        expected:
-          - tool: webSearch
-          - tool: fetchPage
-          - tool: webSearch
-          - tool: summarize
+        type: trajectory:tool-sequence
+        value:
+          mode: exact
+          steps:
+            - webSearch
+            - fetchPage
+            - webSearch
+            - summarize
       - "Agent follows the exact research workflow: search, fetch, search reviews, summarize."
     vars:
       input:
@@ -34,11 +36,14 @@ tests:
   - id: any-order-with-minimums
     assert:
       - metric: research-depth
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          webSearch: 2
-          fetchPage: 1
+        type: trajectory:tool-used
+        value:
+          name: webSearch
+          min: 2
+      - type: trajectory:tool-used
+        value:
+          name: fetchPage
+          min: 1
       - Agent performs at least 2 web searches and 1 page fetch for thorough research.
     vars:
       input:
@@ -47,15 +52,12 @@ tests:
   - id: tool-input-validation
     assert:
       - metric: input-validator
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: webSearch
-            input:
-              query: ThinkPad X1 Carbon Gen 11 specifications
-          - tool: fetchPage
-            input:
-              url: https://www.lenovo.com/thinkpad-x1-carbon-gen11
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - webSearch
+            - fetchPage
       - Agent searches with relevant product keywords and fetches from authoritative source.
     vars:
       input:
@@ -64,17 +66,12 @@ tests:
   - id: tool-output-validation
     assert:
       - metric: output-validator
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: webSearch
-            output:
-              results:
-                - link: https://www.lenovo.com/thinkpad-x1-carbon-gen11
-                  snippet: 14-inch business ultrabook with Intel Core processors
-          - tool: fetchPage
-            output:
-              title: ThinkPad X1 Carbon Gen 11 | Premium Business Laptop
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - webSearch
+            - fetchPage
       - Web search returns results with links and snippets; fetch returns product specs.
     vars:
       input:
@@ -83,19 +80,23 @@ tests:
   - id: combined-validation
     assert:
       - metric: workflow-validator
-        type: tool-trajectory
-        mode: exact
-        expected:
-          - tool: webSearch
-          - tool: fetchPage
-          - tool: webSearch
-          - tool: summarize
+        type: trajectory:tool-sequence
+        value:
+          mode: exact
+          steps:
+            - webSearch
+            - fetchPage
+            - webSearch
+            - summarize
       - metric: research-depth
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          webSearch: 2
-          fetchPage: 1
+        type: trajectory:tool-used
+        value:
+          name: webSearch
+          min: 2
+      - type: trajectory:tool-used
+        value:
+          name: fetchPage
+          min: 1
       - |-
         Agent performs comprehensive product research:
         1. Initial web search for product specs

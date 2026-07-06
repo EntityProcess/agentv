@@ -40,10 +40,10 @@ tests:
   - id: data-analysis-combined
     assert:
       - metric: trajectory-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          search: 1
+        type: trajectory:tool-used
+        value:
+          name: search
+          min: 1
       - metric: tool-f1
         type: script
         command:

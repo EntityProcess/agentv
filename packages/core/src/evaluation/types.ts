@@ -894,10 +894,9 @@ export type AssertSetGraderConfig = {
 };
 
 /**
- * Configuration for the skill-trigger evaluator.
- * Detects whether the agent invoked a named skill as its first tool call.
- * Tool-name resolution is automatic based on the provider kind.
- * For providers not covered by the built-in mapping, use a script grader.
+ * @deprecated Internal compatibility config for older runtime helpers.
+ * Authored eval YAML rejects `skill-trigger`; use `skill-used` or
+ * `not-skill-used` instead.
  */
 export type SkillTriggerGraderConfig = {
   readonly name: string;

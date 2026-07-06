@@ -435,6 +435,88 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('rejects stale skill-trigger assertions with migration guidance', () => {
+    const positive = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [{ type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: true }],
+        },
+      ],
+    });
+    const negative = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [{ type: 'skill-trigger', skill: 'web-search', should_trigger: false }],
+        },
+      ],
+    });
+
+    expect(positive.success).toBe(false);
+    expect(negative.success).toBe(false);
+    if (!positive.success) {
+      expect(collectIssueMessages(positive.error.issues)).toContain(
+        "Authored assertion type 'skill-trigger' has been removed. Replace skill: csv-analyzer with type: skill-used, value: csv-analyzer.",
+      );
+    }
+    if (!negative.success) {
+      expect(collectIssueMessages(negative.error.issues)).toContain(
+        "Authored assertion type 'skill-trigger' has been removed. Replace skill: web-search with type: not-skill-used, value: web-search.",
+      );
+    }
+  });
+
+  it('rejects stale tool-trajectory assertions with migration guidance', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [
+            {
+              type: 'tool-trajectory',
+              mode: 'exact',
+              expected: [{ tool: 'search', args: { q: 'agentv' } }, { tool: 'fetch' }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const messages = collectIssueMessages(result.error.issues);
+      expect(messages.some((message) => message.includes('trajectory:tool-sequence'))).toBe(true);
+      expect(messages.some((message) => message.includes('trajectory:tool-args-match'))).toBe(true);
+    }
+  });
+
+  it('rejects stale latency-specific tool-trajectory as unsupported future scope', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [
+            {
+              type: 'tool-trajectory',
+              mode: 'exact',
+              expected: [{ tool: 'Read', max_duration_ms: 500 }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        collectIssueMessages(result.error.issues).some((message) =>
+          message.includes('unsupported future scope'),
+        ),
+      ).toBe(true);
+    }
+  });
+
   it('rejects invalid default_test values', () => {
     const invalidThreshold = EvalFileSchema.safeParse({
       default_test: {

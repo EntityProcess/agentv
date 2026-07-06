@@ -569,22 +569,33 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
 ```
 Use `assert-set` for Promptfoo-aligned assertion grouping. Without `threshold`, the set passes only when every nonzero-weight child assertion passes. With `threshold`, the weighted aggregate score determines the set verdict. Parent `config` is inherited by children, and child `config` keys override parent keys. Do not use `type: composite`; AgentV rejects it.
 
-### tool-trajectory
+### Skill And Trajectory Assertions
 ```yaml
-- name: tool_check
-  type: tool-trajectory
-  mode: any_order            # any_order | in_order | exact
-  minimums:                  # for any_order
-    knowledgeSearch: 2
-  expected:                  # for in_order/exact
-    - tool: knowledgeSearch
-      args: { query: "search term" }   # partial deep equality match
-    - tool: documentRetrieve
-      args: any                        # any arguments accepted
-      max_duration_ms: 5000            # per-tool latency assertion
-    - tool: summarize                  # omit args to skip argument checking
+- type: skill-used
+  value: csv-analyzer
+- type: not-skill-used
+  value:
+    pattern: "web-*"
+    max: 0
+- type: trajectory:tool-used
+  value:
+    name: knowledgeSearch
+    min: 2
+- type: trajectory:tool-sequence
+  value:
+    mode: exact
+    steps: [knowledgeSearch, documentRetrieve]
+- type: trajectory:tool-args-match
+  value:
+    name: knowledgeSearch
+    args: { query: "search term" }
+    mode: partial
 ```
-`tool-trajectory` is an AgentV-specific extension over AgentV-normalized transcripts. Do not use Promptfoo `trajectory:*`, `tool-call-f1`, `skill-used`, or `trace-*` names; AgentV rejects those until their trace semantics are implemented directly.
+Use Promptfoo-compatible `skill-used`, `not-skill-used`, and `trajectory:*`
+assertions for new eval YAML. Do not author `skill-trigger` or
+`tool-trajectory`; AgentV rejects them with migration guidance. Per-tool
+latency checks from old `tool-trajectory` YAML do not have a Promptfoo
+trajectory equivalent yet; use a `script` assertion for that behavior.
 
 ### field-accuracy
 ```yaml

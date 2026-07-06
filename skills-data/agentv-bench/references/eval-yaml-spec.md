@@ -171,18 +171,29 @@ Same as contains variants but explicitly case-insensitive.
 
 ### Tool inspection assertions
 
-#### `tool-trajectory`
+#### `trajectory:tool-used`
 
-- **Fields:** `expected` (array of expected tool calls), `mode` (string: `any_order` | `in_order` | `exact` | `subset` | `superset`)
-- **Recipe:** Inspect AgentV-normalized transcript/tool-call data. Match against expected based on mode.
-- **PASS:** tool calls match expected pattern per mode.
-- **Boundary:** This is an AgentV extension. Promptfoo `trajectory:*`, `tool-call-f1`, `skill-used`, and `trace-*` assertion names are rejected until implemented directly.
+- **Fields:** `value.name` (string, required), `value.min` (number, optional)
+- **Recipe:** Inspect AgentV-normalized transcript/tool-call data and count matching tool calls.
+- **PASS:** matching calls meet the requested minimum.
 
-#### `skill-trigger`
+#### `trajectory:tool-sequence`
 
-- **Fields:** `skill_name` (string, required)
-- **Recipe:** Check if the agent invoked the named skill in its tool calls.
-- **PASS:** skill was triggered.
+- **Fields:** `value.steps` (array of tool names, required), `value.mode` (`in_order` | `exact`)
+- **Recipe:** Inspect AgentV-normalized transcript/tool-call data and compare the observed sequence.
+- **PASS:** tool calls match the expected sequence for the selected mode.
+
+#### `trajectory:tool-args-match`
+
+- **Fields:** `value.name` (string, required), `value.args` (object, required), `value.mode` (`partial` | `exact`)
+- **Recipe:** Inspect matching tool calls and compare arguments.
+- **PASS:** at least one matching call has the expected arguments.
+
+#### `skill-used` / `not-skill-used`
+
+- **Fields:** `value` (skill name string or pattern object, required)
+- **Recipe:** Check whether the agent invoked the named skill in its tool calls.
+- **PASS:** `skill-used` finds the skill; `not-skill-used` confirms it is absent.
 
 ### LLM-judged assertions (require Claude reasoning)
 

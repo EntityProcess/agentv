@@ -6,7 +6,7 @@ core workflow step.
 
 **Provider compatibility**: Description optimization applies to any agent platform with
 skill-discovery mechanisms — Claude Code, Codex (`.agents/` or `.codex/` folders), Copilot,
-and others. The `skill-trigger` grader checks whether the agent invoked the right skill,
+and others. The `skill-used` and `not-skill-used` graders check whether the agent invoked the right skill,
 regardless of how discovery works on that platform.
 
 ## Step 1: Generate Trigger EVAL.yaml
@@ -36,14 +36,13 @@ tests:
   - id: should-trigger-casual-optimize
     input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
     assert:
-      - type: skill-trigger
-        skill: agentv-bench
+      - type: skill-used
+        value: agentv-bench
   - id: should-not-trigger-build-error
     input: "my TypeScript build is failing with type errors in src/auth.ts"
     assert:
-      - type: skill-trigger
-        skill: agentv-bench
-        should_trigger: false
+      - type: not-skill-used
+        value: agentv-bench
 ```
 
 ## Step 2: Review with User

@@ -1,5 +1,5 @@
 name: latency-assertions
-description: Latency assertions for per-step performance validation
+description: Tool sequence checks for the latency demo target
 target: mock_latency_agent
 prompts:
   - "{{ input }}"
@@ -7,12 +7,12 @@ tests:
   - id: latency-pass
     assert:
       - metric: fast-read
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: Read
-            max_duration_ms: 200
-      - Agent reads the config file quickly.
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - Read
+      - Agent reads the config file.
     vars:
       input:
         - role: user
@@ -20,12 +20,12 @@ tests:
   - id: latency-fail
     assert:
       - metric: slow-read
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: Read
-            max_duration_ms: 10
-      - Agent reads the file but takes too long.
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - Read
+      - Agent reads the file.
     vars:
       input:
         - role: user
@@ -33,19 +33,16 @@ tests:
   - id: mixed-latency
     assert:
       - metric: data-pipeline-perf
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: fetchData
-            max_duration_ms: 1000
-          - tool: validateSchema
-          - tool: transformData
-            max_duration_ms: 500
-          - tool: saveResults
-            max_duration_ms: 200
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - fetchData
+            - validateSchema
+            - transformData
+            - saveResults
       - |-
-        Agent performs data processing workflow with timing constraints
-        on critical operations.
+        Agent performs the data processing workflow in the expected order.
     vars:
       input:
         - role: user
@@ -53,16 +50,14 @@ tests:
   - id: exact-with-latency
     assert:
       - metric: auth-perf
-        type: tool-trajectory
-        mode: exact
-        expected:
-          - tool: checkCredentials
-            max_duration_ms: 100
-          - tool: generateToken
-            max_duration_ms: 50
-          - tool: auditLog
-            max_duration_ms: 200
-      - Agent authenticates user with performance requirements.
+        type: trajectory:tool-sequence
+        value:
+          mode: exact
+          steps:
+            - checkCredentials
+            - generateToken
+            - auditLog
+      - Agent authenticates the user with the expected tool sequence.
     vars:
       input:
         - role: user
@@ -70,18 +65,25 @@ tests:
   - id: latency-with-args
     assert:
       - metric: weather-perf
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: search
-            args:
-              query: weather Paris
-            max_duration_ms: 500
-          - tool: get_weather
-            args:
-              location: Paris
-            max_duration_ms: 1000
-      - Agent searches for weather with specific query and responds quickly.
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - search
+            - get_weather
+      - type: trajectory:tool-args-match
+        value:
+          name: search
+          args:
+            query: weather Paris
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: get_weather
+          args:
+            location: Paris
+          mode: partial
+      - Agent searches for weather with the specific query.
     vars:
       input:
         - role: user

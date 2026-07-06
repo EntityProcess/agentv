@@ -1,13 +1,13 @@
 # Tool Evaluation Plugin Patterns
 
-This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `tool_trajectory` grader. These patterns are intentionally implemented as plugins (script graders) rather than built-ins because they involve domain-specific logic or semantic evaluation.
+This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `trajectory:*` assertions. These patterns are intentionally implemented as plugins (script graders) rather than built-ins because they involve domain-specific logic or semantic evaluation.
 
 ## When to Use Plugins vs Built-ins
 
 | Pattern | Implementation | Reason |
 |---------|----------------|--------|
-| Tool name/sequence matching | Built-in (`tool_trajectory`) | Deterministic, reusable primitive |
-| Argument matching | Built-in (`tool_trajectory`) | Extension of sequence matching |
+| Tool name/sequence matching | Built-in (`trajectory:*`) | Deterministic, reusable primitive |
+| Argument matching | Built-in (`trajectory:tool-args-match`) | Extension of sequence matching |
 | Tool selection correctness | **Plugin** | Requires semantic judgment |
 | Tool input appropriateness | **Plugin** | Domain-specific criteria |
 | Tool output utilization | **Plugin** | Requires understanding tool purposes |

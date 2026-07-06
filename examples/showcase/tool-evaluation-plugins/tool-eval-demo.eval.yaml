@@ -6,11 +6,14 @@ tests:
   - id: tool-selection-demo
     assert:
       - metric: trajectory-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          search: 1
-          fetch: 1
+        type: trajectory:tool-used
+        value:
+          name: search
+          min: 1
+      - type: trajectory:tool-used
+        value:
+          name: fetch
+          min: 1
       - metric: selection-quality
         type: script
         command:
@@ -42,12 +45,13 @@ tests:
   - id: combined-evaluation
     assert:
       - metric: workflow-trajectory
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: search
-          - tool: validate
-          - tool: process
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - search
+            - validate
+            - process
       - metric: selection-check
         type: script
         command:

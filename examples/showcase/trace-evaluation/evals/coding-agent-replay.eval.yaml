@@ -6,22 +6,31 @@ tests:
   - id: inspect-and-fix-config
     assert:
       - metric: expected-tool-sequence
-        type: tool-trajectory
-        mode: in_order
-        args_match: superset
-        expected:
-          - tool: Read
-            args:
-              path: package.json
-            max_duration_ms: 100
-          - tool: Grep
-            args:
-              pattern: timeout
-            max_duration_ms: 100
-          - tool: Edit
-            args:
-              path: src/config.ts
-            max_duration_ms: 100
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - Read
+            - Grep
+            - Edit
+      - type: trajectory:tool-args-match
+        value:
+          name: Read
+          args:
+            path: package.json
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: Grep
+          args:
+            pattern: timeout
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: Edit
+          args:
+            path: src/config.ts
+          mode: partial
       - metric: execution-budget
         type: execution-metrics
         max_tool_calls: 5
@@ -45,22 +54,31 @@ tests:
   - id: recover-from-tool-error
     assert:
       - metric: recovery-sequence
-        type: tool-trajectory
-        mode: in_order
-        args_match: superset
-        expected:
-          - tool: Read
-            args:
-              path: src/missing-config.ts
-            max_duration_ms: 100
-          - tool: Read
-            args:
-              path: src/config.ts
-            max_duration_ms: 100
-          - tool: Edit
-            args:
-              path: src/config.ts
-            max_duration_ms: 100
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - Read
+            - Read
+            - Edit
+      - type: trajectory:tool-args-match
+        value:
+          name: Read
+          args:
+            path: src/missing-config.ts
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: Read
+          args:
+            path: src/config.ts
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: Edit
+          args:
+            path: src/config.ts
+          mode: partial
       - metric: recovery-check
         type: script
         command:

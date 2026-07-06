@@ -80,8 +80,10 @@ For LLM-graded types: be rigorous and fair. Score based on substance, not exact 
 
 | Type | How to evaluate |
 |------|----------------|
-| `tool-trajectory` | Inspect transcript for tool calls, match against expected sequence/mode |
-| `skill-trigger` | Check if the named skill was invoked in tool calls |
+| `trajectory:tool-used` | Inspect transcript for tool presence and minimum call counts |
+| `trajectory:tool-sequence` | Inspect transcript for expected tool call order |
+| `trajectory:tool-args-match` | Inspect transcript for expected tool arguments |
+| `skill-used` / `not-skill-used` | Check whether the named skill was invoked in tool calls |
 
 If transcript data is not available for tool inspection assertions, record `score: null` with a note that transcript data was not captured. Exclude from the weighted average.
 

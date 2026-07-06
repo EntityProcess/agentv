@@ -8,29 +8,25 @@ prompts:
 tests:
   - id: should-trigger-direct-request
     assert:
-      - type: skill-trigger
-        skill: acme-deploy
-        should_trigger: true
+      - type: skill-used
+        value: acme-deploy
     vars:
       input: How do I deploy payments-api to production?
   - id: should-trigger-casual-phrasing
     assert:
-      - type: skill-trigger
-        skill: acme-deploy
-        should_trigger: true
+      - type: skill-used
+        value: acme-deploy
     vars:
       input: I need to roll back user-service in staging, what's the Acme deploy procedure for that?
   - id: should-not-trigger-unrelated
     assert:
-      - type: skill-trigger
-        skill: acme-deploy
-        should_trigger: false
+      - type: not-skill-used
+        value: acme-deploy
     vars:
       input: What time is it in Tokyo right now?
   - id: should-not-trigger-near-miss
     assert:
-      - type: skill-trigger
-        skill: acme-deploy
-        should_trigger: false
+      - type: not-skill-used
+        value: acme-deploy
     vars:
       input: Write a Python function that parses JSON logs and extracts error messages

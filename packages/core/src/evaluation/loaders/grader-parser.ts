@@ -126,6 +126,91 @@ function isTrajectoryGraderKind(value: string): value is TrajectoryGraderKind {
   return TRAJECTORY_GRADER_TYPES.has(value);
 }
 
+function formatJsonValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function hasToolTrajectoryLatencyCheck(rawEvaluator: JsonObject): boolean {
+  const expected = rawEvaluator.expected;
+  return (
+    Array.isArray(expected) &&
+    expected.some(
+      (item) =>
+        isJsonObject(item) &&
+        (item.max_duration_ms !== undefined || item.maxDurationMs !== undefined),
+    )
+  );
+}
+
+function staleSkillTriggerMessage(rawEvaluator: JsonObject): string {
+  const skillName = asString(rawEvaluator.skill);
+  const shouldTrigger = rawEvaluator.should_trigger !== false;
+  if (!skillName) {
+    return "Authored assertion type 'skill-trigger' has been removed. Use 'skill-used' with value: <skill> for expected skill use, or 'not-skill-used' with value: <skill> when the skill must not be used.";
+  }
+  const replacementType = shouldTrigger ? 'skill-used' : 'not-skill-used';
+  return `Authored assertion type 'skill-trigger' has been removed. Replace skill: ${skillName} with type: ${replacementType}, value: ${skillName}.`;
+}
+
+function staleToolTrajectoryMessage(rawEvaluator: JsonObject): string {
+  const mode = asString(rawEvaluator.mode);
+  if (hasToolTrajectoryLatencyCheck(rawEvaluator)) {
+    return "Authored assertion type 'tool-trajectory' has been removed. Per-tool latency checks such as max_duration_ms have no Promptfoo trajectory:* equivalent in AgentV yet; use a custom script assertion or track this as unsupported future scope.";
+  }
+
+  if (mode === 'any_order' && isJsonObject(rawEvaluator.minimums)) {
+    const entries = Object.entries(rawEvaluator.minimums);
+    const [toolName, min] = entries[0] ?? [];
+    const example =
+      typeof toolName === 'string'
+        ? ` For example: type: trajectory:tool-used, value: { name: ${toolName}, min: ${formatJsonValue(min)} }.`
+        : '';
+    return `Authored assertion type 'tool-trajectory' has been removed. Replace mode: any_order minimums with one Promptfoo trajectory:tool-used assertion per tool.${example}`;
+  }
+
+  if ((mode === 'in_order' || mode === 'exact') && Array.isArray(rawEvaluator.expected)) {
+    const steps = rawEvaluator.expected
+      .filter(isJsonObject)
+      .map((item) => item.tool)
+      .filter((tool): tool is string => typeof tool === 'string');
+    const hasArgs = rawEvaluator.expected.some(
+      (item) => isJsonObject(item) && item.args !== undefined && item.args !== 'any',
+    );
+    const sequenceHint =
+      steps.length > 0
+        ? ` Use type: trajectory:tool-sequence, value: { mode: ${mode}, steps: ${formatJsonValue(steps)} }.`
+        : ' Use type: trajectory:tool-sequence with value: { mode, steps }.';
+    const argsHint = hasArgs
+      ? ' Move expected args checks to trajectory:tool-args-match with Promptfoo mode: partial or exact.'
+      : '';
+    return `Authored assertion type 'tool-trajectory' has been removed.${sequenceHint}${argsHint}`;
+  }
+
+  return "Authored assertion type 'tool-trajectory' has been removed. Use Promptfoo trajectory:* assertions: trajectory:tool-used for tool presence/counts, trajectory:tool-sequence for in_order/exact steps, and trajectory:tool-args-match for argument checks. AgentV-specific latency checks are unsupported future scope.";
+}
+
+function staleAuthoredGraderMessage(rawEvaluator: JsonObject): string | undefined {
+  const rawType = rawEvaluator.type;
+  if (typeof rawType !== 'string') {
+    return undefined;
+  }
+  const type = rawType.replace(/_/g, '-');
+  if (type === 'skill-trigger') {
+    return staleSkillTriggerMessage(rawEvaluator);
+  }
+  if (type === 'tool-trajectory') {
+    return staleToolTrajectoryMessage(rawEvaluator);
+  }
+  return undefined;
+}
+
 function assertSupportedPromptfooType(type: string, evalId: string, name?: string): void {
   const baseType = type.startsWith('not-') ? type.slice(4) : type;
   if (!UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES.has(baseType)) {
@@ -537,6 +622,13 @@ async function parseGraderList(
     const inverse = negatedType && isTrajectoryGraderKind(negatedType) ? true : undefined;
 
     if (typeof normalizedType === 'string') {
+      const staleMessage = staleAuthoredGraderMessage(rawEvaluator);
+      if (staleMessage) {
+        throw new Error(
+          `Unsupported grader '${rawType}' in '${evalId}'` +
+            `${rawName ? ` for evaluator '${rawName}'` : ''}. ${staleMessage}`,
+        );
+      }
       const replacement = removedGraderReplacement(normalizedType);
       if (replacement) {
         throw new Error(

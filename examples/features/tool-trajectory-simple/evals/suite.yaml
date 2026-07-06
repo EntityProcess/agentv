@@ -7,11 +7,14 @@ tests:
   - id: any-order-pass
     assert:
       - metric: tool-usage-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          knowledgeSearch: 2
-          documentRetrieve: 1
+        type: trajectory:tool-used
+        value:
+          name: knowledgeSearch
+          min: 2
+      - type: trajectory:tool-used
+        value:
+          name: documentRetrieve
+          min: 1
       - |-
         Agent successfully researches the topic by searching knowledge base multiple times
         and retrieving relevant documents.
@@ -22,13 +25,14 @@ tests:
   - id: in-order-pass
     assert:
       - metric: workflow-sequence
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: fetchData
-          - tool: validateSchema
-          - tool: transformData
-          - tool: saveResults
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - fetchData
+            - validateSchema
+            - transformData
+            - saveResults
       - Agent follows the correct data processing workflow.
     vars:
       input:
@@ -37,12 +41,13 @@ tests:
   - id: exact-auth-flow
     assert:
       - metric: auth-sequence-exact
-        type: tool-trajectory
-        mode: exact
-        expected:
-          - tool: checkCredentials
-          - tool: generateToken
-          - tool: auditLog
+        type: trajectory:tool-sequence
+        value:
+          mode: exact
+          steps:
+            - checkCredentials
+            - generateToken
+            - auditLog
       - Agent performs authentication in the exact required sequence.
     vars:
       input:
@@ -51,11 +56,14 @@ tests:
   - id: metrics-check
     assert:
       - metric: metrics-tools
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          getCpuMetrics: 1
-          getMemoryMetrics: 1
+        type: trajectory:tool-used
+        value:
+          name: getCpuMetrics
+          min: 1
+      - type: trajectory:tool-used
+        value:
+          name: getMemoryMetrics
+          min: 1
       - Agent uses the metrics tools to check CPU and memory.
     vars:
       input:
@@ -64,12 +72,18 @@ tests:
   - id: partial-match
     assert:
       - metric: tool-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          knowledgeSearch: 1
-          documentRetrieve: 1
-          generateReport: 1
+        type: trajectory:tool-used
+        value:
+          name: knowledgeSearch
+          min: 1
+      - type: trajectory:tool-used
+        value:
+          name: documentRetrieve
+          min: 1
+      - type: trajectory:tool-used
+        value:
+          name: generateReport
+          min: 1
       - Agent should use search, retrieve, and report tools.
     vars:
       input:
@@ -78,16 +92,24 @@ tests:
   - id: exact-args-match
     assert:
       - metric: arg-validation
-        type: tool-trajectory
-        mode: in_order
-        args_match: superset
-        expected:
-          - tool: search
-            args:
-              query: weather Paris
-          - tool: get_weather
-            args:
-              location: Paris
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - search
+            - get_weather
+      - type: trajectory:tool-args-match
+        value:
+          name: search
+          args:
+            query: weather Paris
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: get_weather
+          args:
+            location: Paris
+          mode: partial
       - Agent searches for weather and retrieves forecast for the correct city.
     vars:
       input:
@@ -96,17 +118,19 @@ tests:
   - id: skip-args-validation
     assert:
       - metric: workflow-sequence-only
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: load_data
-            args:
-              source: customers
-            args_match: superset
-          - tool: transform
-            args: any
-          - tool: save_data
-            args: any
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - load_data
+            - transform
+            - save_data
+      - type: trajectory:tool-args-match
+        value:
+          name: load_data
+          args:
+            source: customers
+          mode: partial
       - Agent loads data, transforms it, and saves. Arguments don't matter.
     vars:
       input:
@@ -115,12 +139,14 @@ tests:
   - id: superset-mode
     assert:
       - metric: required-tools
-        type: tool-trajectory
-        mode: superset
-        args_match: superset
-        expected:
-          - tool: knowledgeSearch
-          - tool: documentRetrieve
+        type: trajectory:tool-used
+        value:
+          name: knowledgeSearch
+          min: 1
+      - type: trajectory:tool-used
+        value:
+          name: documentRetrieve
+          min: 1
       - |-
         Agent must call both search and analyze tools during execution.
         Extra tool calls are acceptable.
@@ -131,13 +157,11 @@ tests:
   - id: subset-mode
     assert:
       - metric: safe-tools-only
-        type: tool-trajectory
-        mode: subset
-        expected:
-          - tool: getCpuMetrics
-          - tool: getMemoryMetrics
-          - tool: knowledgeSearch
-          - tool: documentRetrieve
+        type: not-trajectory:tool-used
+        value:
+          - writeFile
+          - deleteFile
+          - mutateData
       - |-
         Agent must only use approved read-only tools.
         No write or delete operations should occur.
@@ -148,14 +172,14 @@ tests:
   - id: mixed-args-match
     assert:
       - metric: mixed-precision
-        type: tool-trajectory
-        mode: in_order
-        args_match: ignore
-        expected:
-          - tool: fetchData
-          - tool: validateSchema
-          - tool: transformData
-          - tool: saveResults
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - fetchData
+            - validateSchema
+            - transformData
+            - saveResults
       - Agent calls tools with varying argument precision requirements.
     vars:
       input:
@@ -164,16 +188,18 @@ tests:
   - id: field-list-match
     assert:
       - metric: check-source-only
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: fetchData
-            args:
-              source: api
-            args_match:
-              - source
-          - tool: saveResults
-            args_match: ignore
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - fetchData
+            - saveResults
+      - type: trajectory:tool-args-match
+        value:
+          name: fetchData
+          args:
+            source: api
+          mode: partial
       - |-
         Agent fetches data from the correct source.
         Other arguments like pagination or format don't matter.

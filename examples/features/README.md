@@ -50,8 +50,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [tool-trajectory-simple](tool-trajectory-simple/) | Validate expected tool call sequences |
-| [tool-trajectory-advanced](tool-trajectory-advanced/) | Tool trajectory checks with `expected_output` and per-call assertions |
-| [latency-assertions](latency-assertions/) | Assert `max_duration_ms` per tool call to catch performance regressions |
+| [tool-trajectory-advanced](tool-trajectory-advanced/) | Promptfoo trajectory checks with `expected_output` and per-call assertions |
+| [latency-assertions](latency-assertions/) | Tool sequence and argument checks for a latency-flavored mock target |
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | F1 precision/recall scoring for tool-call accuracy |
 | [trace-evaluation](trace-evaluation/) | Inspect agent internals: LLM call counts, tool executions, step durations |
 

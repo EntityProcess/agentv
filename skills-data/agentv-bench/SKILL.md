@@ -117,7 +117,7 @@ Start with 2-3 realistic test cases — the kind of thing a real user would actu
 
 Good assertions are objectively verifiable and have descriptive names. Subjective quality ("the output is good") is better evaluated qualitatively — don't force assertions onto things that need human judgment.
 
-**Grader types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `assert-set`, `script`, `tool-trajectory`, `llm-rubric`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
+**Grader types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `assert-set`, `skill-used`, `not-skill-used`, `trajectory:*`, `script`, `llm-rubric`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
 
 Prefer deterministic graders over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-rubric`.
 

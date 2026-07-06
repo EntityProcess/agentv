@@ -51,9 +51,12 @@ For a v4.42.4-era eval:
 15. Replace authored `preprocessors` and deprecated Promptfoo `postprocess`
     with `transform` at `default_test.options`, `tests[].options`, or the
     assertion that needs the shaped output.
-16. Keep raw cases under `tests` / `tests: file://...`; run full eval suites
+16. Replace `type: skill-trigger` with `skill-used` or `not-skill-used`.
+17. Replace `type: tool-trajectory` with Promptfoo-compatible `trajectory:*`
+    assertions where there is a direct mapping.
+18. Keep raw cases under `tests` / `tests: file://...`; run full eval suites
     directly with CLI multi-file selection and tags.
-17. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
+19. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
 
 ## Assertions Renamed To `assert`
 
@@ -210,6 +213,101 @@ Current runtime still carries `EvalTest.criteria` internally because prompt
 templates and custom graders can consume it. The breaking authoring change is
 that workers should not depend on missing `assert` plus `criteria` to define
 the whole grading contract for new migrated YAML.
+
+## `skill-trigger` And `tool-trajectory` Replaced By Promptfoo Assertions
+
+### v4.42.4 Shape
+
+Older AgentV YAML used AgentV-specific skill and tool trajectory assertions:
+
+```yaml
+assert:
+  - type: skill-trigger
+    skill: csv-analyzer
+    should_trigger: true
+  - type: tool-trajectory
+    mode: any_order
+    minimums:
+      search: 2
+  - type: tool-trajectory
+    mode: exact
+    expected:
+      - tool: search
+        args:
+          q: agentv
+      - tool: fetch
+```
+
+### Current Shape
+
+Current authored eval YAML uses Promptfoo-compatible assertions:
+
+```yaml
+assert:
+  - type: skill-used
+    value: csv-analyzer
+  - type: trajectory:tool-used
+    value:
+      name: search
+      min: 2
+  - type: trajectory:tool-sequence
+    value:
+      mode: exact
+      steps: [search, fetch]
+  - type: trajectory:tool-args-match
+    value:
+      name: search
+      args:
+        q: agentv
+      mode: partial
+```
+
+### Migration Steps
+
+- Replace `type: skill-trigger`, `skill: X`, `should_trigger: true` with
+  `type: skill-used`, `value: X`.
+- Replace `type: skill-trigger`, `skill: X`, `should_trigger: false` with
+  `type: not-skill-used`, `value: X`.
+- Replace `type: tool-trajectory`, `mode: any_order`, and `minimums: { Tool: N }`
+  with one `trajectory:tool-used` assertion per tool:
+
+  ```yaml
+  - type: trajectory:tool-used
+    value:
+      name: Tool
+      min: N
+  ```
+
+- Replace `mode: in_order` or `mode: exact` plus `expected` tool steps with
+  `trajectory:tool-sequence`:
+
+  ```yaml
+  - type: trajectory:tool-sequence
+    value:
+      mode: exact
+      steps: [search, fetch]
+  ```
+
+- Move old `expected[].args` checks to `trajectory:tool-args-match`. Use
+  `mode: exact` only for exact argument equality; otherwise use Promptfoo's
+  partial argument matching.
+- Do not carry old `max_duration_ms` per-tool latency checks under
+  `trajectory:*`. There is no Promptfoo-compatible equivalent in AgentV yet;
+  use a `script` assertion or track the behavior as future scope.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "skill-trigger|tool-trajectory" path/to/evals path/to/.agentv/templates
+```
+
+### Compatibility Notes
+
+The runtime still has private compatibility classes and tests for older
+helpers. That does not make `skill-trigger` or `tool-trajectory` valid authored
+eval YAML. Normal Promptfoo-aligned eval files fail validation and parsing with
+the replacement guidance above.
 
 ## Authored `input` Moved To `prompts` Plus Vars
 

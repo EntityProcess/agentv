@@ -16,10 +16,10 @@ tests:
           - ../graders/check-batch-cli-output.ts
         cwd: .
       - metric: tool-trajectory-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          aml_screening: 1
+        type: trajectory:tool-used
+        value:
+          name: aml_screening
+          min: 1
       - Batch runner returns a JSON object with decision=CLEAR.
     vars:
       input:
@@ -53,10 +53,10 @@ tests:
           - ../graders/check-batch-cli-output.ts
         cwd: .
       - metric: tool-trajectory-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          aml_screening: 1
+        type: trajectory:tool-used
+        value:
+          name: aml_screening
+          min: 1
       - Batch runner returns a JSON object with decision=REVIEW.
     vars:
       input:
@@ -90,10 +90,10 @@ tests:
           - ../graders/check-batch-cli-output.ts
         cwd: .
       - metric: tool-trajectory-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          aml_screening: 1
+        type: trajectory:tool-used
+        value:
+          name: aml_screening
+          min: 1
       - Batch runner returns a JSON object with decision=REVIEW.
     vars:
       input:
@@ -127,10 +127,10 @@ tests:
           - ../graders/check-batch-cli-output.ts
         cwd: .
       - metric: tool-trajectory-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          aml_screening: 1
+        type: trajectory:tool-used
+        value:
+          name: aml_screening
+          min: 1
       - Batch runner returns a JSON object with decision=REVIEW.
     vars:
       input:

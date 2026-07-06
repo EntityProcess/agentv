@@ -63,9 +63,8 @@ tests:
           - type: text
             value: "Find the top 3 months by revenue."
     assert:
-      - type: skill-trigger
-        skill: csv-analyzer
-        should_trigger: true
+      - type: skill-used
+        value: csv-analyzer
       - type: llm-rubric
         value: "Output identifies November as the highest revenue month"
       - type: contains
@@ -105,7 +104,7 @@ bun apps/cli/src/cli.ts eval multi-provider-skill-trigger.EVAL.yaml \
   --target copilot-cli --targets ../.agentv/targets.yaml
 ```
 
-The `skill-trigger` grader automatically handles each provider's tool-call format:
+The `skill-used` and `not-skill-used` graders automatically handle each provider's tool-call format:
 
 | Provider | Detection method |
 |----------|-----------------|
@@ -115,7 +114,7 @@ The `skill-trigger` grader automatically handles each provider's tool-call forma
 
 ## Copilot note
 
-When running `skill-trigger` evals against Copilot targets, real traces may show provider-specific tool names such as:
+When running skill-use evals against Copilot targets, real traces may show provider-specific tool names such as:
 
 ```text
 Using skill: <skill-name>
