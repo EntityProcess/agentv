@@ -1,0 +1,93 @@
+{
+  "pass": true,
+  "score": 1,
+  "reason": "All grading components passed.",
+  "component_results": [
+    {
+      "pass": true,
+      "score": 1,
+      "reason": "Grader passed.",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The answer explicitly says, 'Q4 revenue increased to $10 million from $8 million,' which matches the required revenue statement.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "azure",
+            "value": "[supported-revenue] States Q4 revenue increased to $10M from $8M."
+          }
+        },
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The answer states, 'Gross margin declined to 42% from 45%,' which aligns with the source note and contains no contradiction.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "azure",
+            "value": "[no-margin-contradiction] Gross margin declined to 42% from 45%."
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "azure"
+      },
+      "metadata": {
+        "token_usage": {
+          "input": 423,
+          "output": 170
+        },
+        "duration_ms": 2019,
+        "started_at": "2026-07-06T10:09:21.689Z",
+        "ended_at": "2026-07-06T10:09:23.708Z"
+      }
+    },
+    {
+      "pass": true,
+      "score": 1,
+      "reason": "Grader passed.",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The answer faithfully restates both source facts: Q4 revenue increased to $10 million from $8 million, and gross margin declined to 42% from 45%. It adds brief interpretive language, but nothing contradicts the source.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "azure",
+            "value": "[rubric-1] Summarize the source faithfully. Include supported material facts and avoid\nclaims that contradict the source."
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "azure"
+      },
+      "metadata": {
+        "token_usage": {
+          "input": 326,
+          "output": 101
+        },
+        "duration_ms": 1813,
+        "started_at": "2026-07-06T10:09:23.708Z",
+        "ended_at": "2026-07-06T10:09:25.521Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "llm-rubric": 1
+  },
+  "metadata": {
+    "execution_status": "ok"
+  }
+}

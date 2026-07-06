@@ -1,0 +1,142 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-06T10-09-18-123Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 107,
+    "input_tokens": 63,
+    "output_tokens": 44,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.00024525
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "finance-summary-operator-guards",
+      "suite": "rubric-operators",
+      "eval_path": "examples/features/rubric/evals/operators.eval.yaml",
+      "target": "azure",
+      "total_samples": 1,
+      "passed_samples": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "finance-summary-operator-guards",
+          "suite": "rubric-operators",
+          "eval_path": "examples/features/rubric/evals/operators.eval.yaml",
+          "target": "azure",
+          "sample_index": 1,
+          "status": "passed",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 1893,
+          "cost_usd": 0.00024525
+        }
+      ],
+      "pass_rate": 1,
+      "pass_any": true
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-06T10-09-18-123Z",
+    "eval_file": "/home/christso/projects/EntityProcess/agentv/examples/features/rubric/evals/operators.eval.yaml",
+    "timestamp": "2026-07-06T10:09:25.521Z",
+    "targets": [
+      "azure"
+    ],
+    "tests_run": [
+      "finance-summary-operator-guards"
+    ],
+    "experiment": "rubric-operators",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        "examples/features/rubric/evals/operators.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "azure": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 1.893,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 107,
+        "stddev": 0
+      },
+      "cost_usd": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 1893,
+      "total_seconds": 1.893,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 107,
+      "input": 63,
+      "output": 44,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": 0.00024525,
+      "source": "provider_reported"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}
