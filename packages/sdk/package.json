@@ -1,6 +1,6 @@
 {
   "name": "@agentv/sdk",
-  "version": "5.3.0-next.1",
+  "version": "5.3.1-next.1",
   "description": "Evaluation SDK for AgentV - build custom assertions and script graders",
   "type": "module",
   "repository": {
@@ -33,7 +33,7 @@
   },
   "files": ["dist", "README.md"],
   "dependencies": {
-    "@agentv/core": "5.3.0-next.1",
+    "@agentv/core": "5.3.1-next.1",
     "yaml": "^2.8.3",
     "zod": "^3.23.8"
   }
