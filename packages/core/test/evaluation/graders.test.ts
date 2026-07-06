@@ -1196,6 +1196,40 @@ describe('LlmGrader (llm-grader)', () => {
     expect(graderProvider.requests).toHaveLength(4);
   });
 
+  it('includes a raw-response preview in the skip reason when the model never returns JSON', async () => {
+    // Regression for a real dogfood failure: a grader target that ignores the
+    // JSON-only instruction and returns prose. The JSON.parse error alone
+    // ("Unexpected identifier ...") gives no clue what the model actually
+    // said, so the skip reason must carry a preview of the raw text too.
+    const proseResponse = textResponse(
+      'This response is relevant and accurate based on the provided sources.',
+    );
+    const graderProvider = new SequenceCapturingProvider([
+      proseResponse,
+      proseResponse,
+      proseResponse,
+      proseResponse,
+    ]);
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    expect(result.verdict).toBe('skip');
+    expect(result.assertions[0]?.text).toContain('raw response:');
+    expect(result.assertions[0]?.text).toContain('This response is relevant and accurate');
+  });
+
   it('keeps skipping on unrecoverable malformed JSON', async () => {
     const graderProvider = new StubProvider(textResponse('{"score":'));
 

@@ -7,7 +7,10 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 
 import { AGENTV_RESULTS_ARTIFACTS_REF, type EvaluationResult } from '@agentv/core';
-import { maybeAutoExportRunArtifacts } from '../../../src/commands/results/remote.js';
+import {
+  formatPendingMergeWarnings,
+  maybeAutoExportRunArtifacts,
+} from '../../../src/commands/results/remote.js';
 
 function cleanGitEnv(): Record<string, string> {
   const env: Record<string, string> = {};
@@ -144,6 +147,39 @@ function payload(projectDir: string, runDir: string) {
     eval_summaries: [],
   };
 }
+
+describe('formatPendingMergeWarnings', () => {
+  it('returns no warnings when there is no pending merge', () => {
+    expect(formatPendingMergeWarnings(undefined)).toEqual([]);
+  });
+
+  it('surfaces the sync branch and compare URL so results do not read as lost', () => {
+    const warnings = formatPendingMergeWarnings({
+      temp_branch: 'agentv/results-sync/20260706T121445Z-agentv-results-v1-0aceae',
+      target_branch: 'agentv/results/v1',
+      compare_url:
+        'https://github.com/example/repo/compare/agentv/results/v1...agentv/results-sync/20260706T121445Z-agentv-results-v1-0aceae',
+      created_at: '2026-07-06T12:14:45Z',
+    });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('agentv/results-sync/20260706T121445Z-agentv-results-v1-0aceae');
+    expect(warnings[0]).toContain('agentv/results/v1');
+    expect(warnings[0]).toContain('https://github.com/example/repo/compare/');
+    expect(warnings[0]).toContain('not lost');
+  });
+
+  it('still explains the merge without a compare URL when none is available', () => {
+    const warnings = formatPendingMergeWarnings({
+      temp_branch: 'agentv/results-sync/20260706T121445Z-agentv-results-v1-0aceae',
+      target_branch: 'agentv/results/v1',
+      created_at: '2026-07-06T12:14:45Z',
+    });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('pull request.');
+  });
+});
 
 describe('maybeAutoExportRunArtifacts', () => {
   let rootDir: string;

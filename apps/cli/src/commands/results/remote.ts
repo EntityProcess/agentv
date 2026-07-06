@@ -7,6 +7,7 @@ import {
   type GitListedRun,
   type NormalizedResultsConfig,
   type ResultsConfig,
+  type ResultsPendingMerge,
   type ResultsRepoStatus,
   type RuntimeResultsConfig,
   confirmResultsMergeAndPull,
@@ -510,6 +511,27 @@ function relativeRunPathFromManifestPath(relativeManifestPath: string): string {
     : manifestDir;
 }
 
+/**
+ * When an auto-export push is blocked by a genuine results-content conflict,
+ * `directPushResultsWithDetails` still pushes the local run to a temp
+ * `agentv/results-sync/...` branch (see docs/adr/0007) so the results are not
+ * lost. Surface that branch (and its compare URL, when available) so the
+ * warning doesn't read as "results were dropped" when they were, in fact,
+ * pushed and only need a human-merged pull request.
+ */
+export function formatPendingMergeWarnings(
+  pendingMerge: ResultsPendingMerge | undefined,
+): string[] {
+  if (!pendingMerge) {
+    return [];
+  }
+  const { temp_branch, target_branch, compare_url } = pendingMerge;
+  const mergeSuffix = compare_url ? `: ${compare_url}` : '.';
+  return [
+    `Warning: results were pushed to '${temp_branch}' instead — they are not lost. Merge that branch into ${target_branch} with a pull request${mergeSuffix}`,
+  ];
+}
+
 export async function maybeAutoExportRunArtifacts(
   payload: RemoteExportPayload,
 ): Promise<RemoteExportStatus> {
@@ -540,6 +562,9 @@ export async function maybeAutoExportRunArtifacts(
         throw new Error(pushResult.block_reason ?? 'Results branch push conflict');
       }
       console.warn(`Warning: skipping results export: ${pushResult.block_reason}`);
+      for (const line of formatPendingMergeWarnings(pushResult.pending_merge)) {
+        console.warn(line);
+      }
       return 'failed';
     }
 
