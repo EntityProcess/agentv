@@ -108,6 +108,32 @@ describe('resolveEvalPaths', () => {
     expect(resolved).toEqual([path.normalize(tsFile)]);
   });
 
+  it('does not discover agentvconfig.ts files from directory auto-expansion', async () => {
+    const evalDir = path.join(tempDir, 'evals');
+    mkdirSync(evalDir, { recursive: true });
+
+    const tsFile = path.join(evalDir, 'agentvconfig.ts');
+    const helperFile = path.join(evalDir, 'helper.ts');
+    writeFileSync(tsFile, 'export default { tests: [] }');
+    writeFileSync(helperFile, 'export const helper = true');
+
+    await expect(resolveEvalPaths([tempDir], tempDir)).rejects.toThrow(
+      'No eval files matched any provided paths or globs',
+    );
+  });
+
+  it('does not discover promptfooconfig.ts files from directory auto-expansion', async () => {
+    const evalDir = path.join(tempDir, 'evals');
+    mkdirSync(evalDir, { recursive: true });
+
+    const tsFile = path.join(evalDir, 'promptfooconfig.ts');
+    writeFileSync(tsFile, 'export default { tests: [] }');
+
+    await expect(resolveEvalPaths([tempDir], tempDir)).rejects.toThrow(
+      'No eval files matched any provided paths or globs',
+    );
+  });
+
   it('discovers Agent Skills evals.json from directory auto-expansion when read adapters are enabled', async () => {
     const evalDir = path.join(tempDir, 'skills', 'demo', 'evals');
     mkdirSync(evalDir, { recursive: true });
@@ -140,6 +166,29 @@ describe('resolveEvalPaths', () => {
     writeFileSync(tsFile, 'export default { tests: [] }');
 
     const resolved = await resolveEvalPaths([tsFile], tempDir);
+
+    expect(resolved).toEqual([path.normalize(tsFile)]);
+  });
+
+  it('does not accept arbitrary direct .ts file paths as eval configs', async () => {
+    const tsFile = path.join(tempDir, 'helper.ts');
+    writeFileSync(tsFile, 'export const helper = true');
+
+    await expect(resolveEvalPaths([tsFile], tempDir)).rejects.toThrow(
+      'No eval files matched any provided paths or globs',
+    );
+  });
+
+  it('filters arbitrary TypeScript files from broad globs', async () => {
+    const evalDir = path.join(tempDir, 'evals');
+    mkdirSync(evalDir, { recursive: true });
+
+    const tsFile = path.join(evalDir, 'custom.eval.mts');
+    const helperFile = path.join(evalDir, 'helper.ts');
+    writeFileSync(tsFile, 'export default { tests: [] }');
+    writeFileSync(helperFile, 'export const helper = true');
+
+    const resolved = await resolveEvalPaths(['evals/**/*.ts', 'evals/**/*.mts'], tempDir);
 
     expect(resolved).toEqual([path.normalize(tsFile)]);
   });

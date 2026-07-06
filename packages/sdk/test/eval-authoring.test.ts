@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { defineEval, evalSuite, serializeEvalYaml, toEvalYamlObject } from '../src/eval.js';
+import { defineEval, serializeEvalYaml, toEvalYamlObject } from '../src/eval.js';
 
 describe('YAML-aligned eval authoring helpers', () => {
   it('lowers known AgentV fields to canonical snake_case without broad key rewriting', () => {
@@ -173,7 +173,7 @@ describe('YAML-aligned eval authoring helpers', () => {
   });
 
   it('serializes canonical YAML and uses the assert block', () => {
-    const suite = evalSuite({
+    const suite = defineEval({
       name: 'yaml-round-trip',
       prompts: ['{{ input }}'],
       tests: [

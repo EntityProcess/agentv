@@ -755,32 +755,36 @@ Use `@agentv/sdk` as the public lightweight SDK package for TypeScript/JavaScrip
 
 ### YAML-aligned eval authoring
 ```typescript
-import { defineEval, graders } from '@agentv/sdk';
+// evals/helper-suite.eval.ts
+import { graders, type EvalConfig } from '@agentv/sdk';
 
-export default defineEval({
+const config: EvalConfig = {
   name: 'helper-suite',
   target: 'default',
-  // The SDK helper lowers this to evaluate_options.repeat in generated YAML.
+  // TypeScript config loading lowers this to evaluate_options.repeat.
   repeat: {
     count: 3,
     strategy: 'pass_any',
     earlyExit: false,
   },
   threshold: 0.8,
+  prompts: ['{{ task }}'],
   tests: [
     {
       id: 'json-answer',
-      input: 'Return a JSON answer with a status field.',
+      vars: { task: 'Return a JSON answer with a status field.' },
       assert: [
         graders.json({ name: 'valid-json', required: true }),
         graders.regex(/"status"\s*:/, { name: 'status-key' }),
       ],
     },
   ],
-});
+};
+
+export default config;
 ```
 
-The `graders` catalog returns ordinary `assert` entries such as `type: is-json`, `type: regex`, `type: llm-rubric`, and `type: script`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
+The `graders` catalog returns ordinary `assert` entries such as `type: is-json`, `type: regex`, `type: llm-rubric`, and `type: script`. Explicit `*.eval.ts` and `*.eval.mts` files should default-export an `EvalConfig`; `defineEval(config)` is only an optional thin helper over that same shape. TypeScript config loading lowers camelCase fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
 
 If adapting Braintrust `scores` or DeepEval metrics, write small AgentV helper factories that return `graders.*` configs:
 

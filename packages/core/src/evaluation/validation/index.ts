@@ -3,7 +3,8 @@
  */
 
 export { detectFileType, isValidSchema, getExpectedSchema } from './file-type.js';
-export { validateEvalFile } from './eval-validator.js';
+export { isTypeScriptEvalConfigFileName } from '../loaders/ts-eval-loader.js';
+export { validateEvalFile, validateTypeScriptEvalConfigFile } from './eval-validator.js';
 export { validateCasesFile } from './cases-validator.js';
 export { validateTargetsFile } from './targets-validator.js';
 export { validateConfigFile } from './config-validator.js';

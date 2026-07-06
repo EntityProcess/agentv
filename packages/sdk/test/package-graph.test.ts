@@ -48,4 +48,16 @@ describe('core/sdk package graph', () => {
 
     expect(offenders).toEqual([]);
   });
+
+  it('exports EvalConfig as the single TypeScript eval authoring type', () => {
+    const indexSource = readFileSync(path.join(repoRoot, 'packages/sdk/src/index.ts'), 'utf8');
+    const evalSource = readFileSync(path.join(repoRoot, 'packages/sdk/src/eval.ts'), 'utf8');
+
+    expect(indexSource).toContain('type EvalConfig');
+    expect(indexSource).not.toContain('EvalDefinition');
+    expect(indexSource).not.toContain('evalSuite');
+    expect(evalSource).toContain('export interface EvalConfig');
+    expect(evalSource).not.toContain('export interface EvalDefinition');
+    expect(evalSource).not.toContain('export function evalSuite');
+  });
 });

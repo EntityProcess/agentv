@@ -1,6 +1,7 @@
 import { constants } from 'node:fs';
 import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { isTypeScriptEvalConfigFileName, typeScriptEvalConfigGlob } from '@agentv/core';
 import fg from 'fast-glob';
 
 import { isAgentSkillsEvalsJsonFile } from '../read-adapters/agent-skills-evals.js';
@@ -10,7 +11,7 @@ export interface ResolveEvalPathOptions {
 }
 
 function isNativeEvalFile(filePath: string): boolean {
-  return /\.(ya?ml|jsonl|[cm]?ts)$/i.test(filePath);
+  return /\.(ya?ml|jsonl)$/i.test(filePath) || isTypeScriptEvalConfigFileName(filePath);
 }
 
 function shouldInspectJsonPath(filePath: string): boolean {
@@ -79,8 +80,8 @@ export async function resolveEvalPaths(
       if (candidateStats.isDirectory()) {
         // Auto-expand directory to recursive eval file glob
         const filePattern = options.allowReadAdapters
-          ? '{suite.yaml,suite.yml,*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts,evals.json,*.evals.json}'
-          : '{suite.yaml,suite.yml,*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}';
+          ? `{suite.yaml,suite.yml,*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,${typeScriptEvalConfigGlob()},evals.json,*.evals.json}`
+          : `{suite.yaml,suite.yml,*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,${typeScriptEvalConfigGlob()}}`;
         const dirGlob = path.posix.join(candidatePath.replace(/\\/g, '/'), `**/${filePattern}`);
         const dirMatches = await fg(dirGlob, {
           absolute: true,

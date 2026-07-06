@@ -5,11 +5,13 @@ import {
   type ValidationResult,
   type ValidationSummary,
   detectFileType,
+  isTypeScriptEvalConfigFileName,
   validateCasesFile,
   validateConfigFile,
   validateEvalFile,
   validateFileReferences,
   validateTargetsFile,
+  validateTypeScriptEvalConfigFile,
   validateWorkspacePaths,
 } from '@agentv/core/evaluation/validation';
 import fg from 'fast-glob';
@@ -34,6 +36,10 @@ export async function validateFiles(paths: readonly string[]): Promise<Validatio
 
 async function validateSingleFile(filePath: string): Promise<ValidationResult> {
   const absolutePath = path.resolve(filePath);
+
+  if (isTypeScriptEvalConfigFileName(absolutePath)) {
+    return validateTypeScriptEvalConfigFile(absolutePath);
+  }
 
   // Detect file type (now infers from path if $schema is missing)
   const fileType = await detectFileType(absolutePath);
@@ -97,12 +103,14 @@ async function expandPaths(paths: readonly string[]): Promise<readonly string[]>
       const stats = await stat(absolutePath);
 
       if (stats.isFile()) {
-        if (isYamlFile(absolutePath)) expanded.add(absolutePath);
+        if (isYamlFile(absolutePath) || isTypeScriptEvalConfigFileName(absolutePath)) {
+          expanded.add(absolutePath);
+        }
         continue;
       }
       if (stats.isDirectory()) {
-        const yamlFiles = await findYamlFiles(absolutePath);
-        for (const f of yamlFiles) expanded.add(f);
+        const evalFiles = await findEvalFiles(absolutePath);
+        for (const f of evalFiles) expanded.add(f);
         continue;
       }
     } catch {
@@ -120,11 +128,13 @@ async function expandPaths(paths: readonly string[]): Promise<readonly string[]>
       followSymbolicLinks: true,
     });
 
-    const yamlMatches = matches.filter((f) => isYamlFile(f));
-    if (yamlMatches.length === 0) {
-      console.warn(`Warning: No YAML files matched pattern: ${inputPath}`);
+    const evalMatches = matches.filter((f) => isYamlFile(f) || isTypeScriptEvalConfigFileName(f));
+    if (evalMatches.length === 0) {
+      console.warn(
+        `Warning: No eval YAML or TypeScript config files matched pattern: ${inputPath}`,
+      );
     }
-    for (const f of yamlMatches) expanded.add(path.normalize(f));
+    for (const f of evalMatches) expanded.add(path.normalize(f));
   }
 
   const sorted = Array.from(expanded);
@@ -132,7 +142,7 @@ async function expandPaths(paths: readonly string[]): Promise<readonly string[]>
   return sorted;
 }
 
-async function findYamlFiles(dirPath: string): Promise<readonly string[]> {
+async function findEvalFiles(dirPath: string): Promise<readonly string[]> {
   const results: string[] = [];
 
   try {
@@ -146,9 +156,12 @@ async function findYamlFiles(dirPath: string): Promise<readonly string[]> {
         if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
           continue;
         }
-        const subFiles = await findYamlFiles(fullPath);
+        const subFiles = await findEvalFiles(fullPath);
         results.push(...subFiles);
-      } else if (entry.isFile() && isEvalYamlFile(entry.name)) {
+      } else if (
+        entry.isFile() &&
+        (isEvalYamlFile(entry.name) || isTypeScriptEvalConfigFileName(entry.name))
+      ) {
         results.push(fullPath);
       }
     }

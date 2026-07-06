@@ -776,6 +776,36 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   };
 }
 
+export async function validateTypeScriptEvalConfigFile(
+  filePath: string,
+): Promise<ValidationResult> {
+  const absolutePath = path.resolve(filePath);
+
+  try {
+    const { loadTsEvalSuite } = await import('../loaders/ts-eval-loader.js');
+    await loadTsEvalSuite(absolutePath, process.cwd());
+    return {
+      valid: true,
+      filePath: absolutePath,
+      fileType: 'eval',
+      errors: [],
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      filePath: absolutePath,
+      fileType: 'eval',
+      errors: [
+        {
+          severity: 'error',
+          filePath: absolutePath,
+          message: (error as Error).message,
+        },
+      ],
+    };
+  }
+}
+
 async function validateSuiteWorkspaceConfigs(
   parsed: JsonObject,
   absolutePath: string,

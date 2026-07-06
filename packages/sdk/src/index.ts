@@ -131,7 +131,6 @@ export {
   type AssertEntry,
   type ConversationTurnInput,
   type EvalAssertionInput,
-  type EvalConfig,
   type EvalRunArtifacts,
   type EvalRunResult,
   type EvalSummary,
@@ -140,12 +139,11 @@ export {
 
 export {
   defineEval,
-  evalSuite,
   serializeEvalYaml,
   toEvalYamlObject,
   type DefinedEvalSuite,
   type EvalAssertionConfig,
-  type EvalDefinition,
+  type EvalConfig,
   type EvalDockerEnvironment,
   type EvalDockerEnvironmentMount,
   type EvalDockerEnvironmentResources,

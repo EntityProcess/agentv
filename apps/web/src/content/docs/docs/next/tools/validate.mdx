@@ -12,21 +12,27 @@ The `validate` command checks evaluation files for schema errors without running
 
 ```bash
 agentv validate evals/my-eval.yaml
+agentv validate evals/greeting.eval.ts
 ```
 
 Validate multiple files:
 
 ```bash
-agentv validate evals/**/*.yaml
+agentv validate "evals/**/*.yaml" "evals/**/*.ts"
 ```
 
 ## What It Checks
 
-- YAML/JSONL syntax
+- YAML/JSONL syntax and TypeScript config default exports
 - Required fields: `id`, input data (`input` or prompt matrix `vars`), and at least one grader under `assert`
 - Grader references (command paths, prompt files)
 - Target references match entries in `targets.yaml`
 - Rubric structure and field types
+
+For TypeScript eval configs, `agentv validate` imports and materializes the file
+through the same core loader used by `agentv eval`. Supported TypeScript config
+filenames are `*.eval.ts` and `*.eval.mts`; arbitrary `.ts` helper files are
+ignored during directory and glob expansion.
 
 ## When to Use
 

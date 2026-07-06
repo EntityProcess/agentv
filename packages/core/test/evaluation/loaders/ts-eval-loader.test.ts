@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import path from 'node:path';
 
-import { loadTsEvalFile } from '../../../src/evaluation/loaders/ts-eval-loader.js';
+import {
+  isTypeScriptEvalConfigFileName,
+  loadTsEvalFile,
+} from '../../../src/evaluation/loaders/ts-eval-loader.js';
 import { loadTestSuite, loadTests } from '../../../src/evaluation/yaml-parser.js';
 
 const fixtureDir = path.join(import.meta.dir, 'fixtures');
@@ -15,18 +18,13 @@ describe('loadTsEvalFile', () => {
     expect(tests?.[0]?.id).toBe('greeting');
   });
 
-  it('loads named "config" export', async () => {
-    const result = await loadTsEvalFile(path.join(fixtureDir, 'named-config.eval.ts'));
-    const tests = (result.config as { tests?: Array<{ id?: string }> }).tests;
-    expect(result.config).toBeDefined();
-    expect(tests?.[0]?.id).toBe('named-config');
-  });
-
-  it('loads named "evalConfig" export', async () => {
-    const result = await loadTsEvalFile(path.join(fixtureDir, 'eval-config-named.eval.ts'));
-    const tests = (result.config as { tests?: Array<{ id?: string }> }).tests;
-    expect(result.config).toBeDefined();
-    expect(tests?.[0]?.id).toBe('eval-config-named');
+  it('rejects named config exports', async () => {
+    await expect(loadTsEvalFile(path.join(fixtureDir, 'named-config.eval.ts'))).rejects.toThrow(
+      'Export an EvalConfig as the default export',
+    );
+    await expect(
+      loadTsEvalFile(path.join(fixtureDir, 'eval-config-named.eval.ts')),
+    ).rejects.toThrow('Export an EvalConfig as the default export');
   });
 
   it('loads YAML-aligned sdk eval exports', async () => {
@@ -38,7 +36,7 @@ describe('loadTsEvalFile', () => {
 
   it('throws when no supported eval export is found', async () => {
     await expect(loadTsEvalFile(path.join(fixtureDir, 'no-config.eval.ts'))).rejects.toThrow(
-      'no supported eval export found',
+      'default export',
     );
   });
 
@@ -61,6 +59,31 @@ describe('loadTsEvalFile', () => {
     expect(suite.budgetUsd).toBe(1.5);
     expect(suite.threshold).toBe(0.9);
     expect(suite.inlineTarget?.name).toBe('inline-target');
+  });
+
+  it('materializes *.eval.ts default exports with relative imports', async () => {
+    const suite = await loadTestSuite(path.join(fixtureDir, 'relative-import.eval.ts'), fixtureDir);
+
+    expect(suite.tests).toHaveLength(1);
+    expect(suite.tests[0].id).toBe('relative-import');
+    expect(suite.tests[0].input).toEqual([{ role: 'user', content: 'Say hello' }]);
+    expect(suite.targetSpec).toEqual({ name: 'mock-target' });
+    expect(suite.budgetUsd).toBe(1);
+    expect(suite.experimentConfig?.repeat?.count).toBe(2);
+    expect(suite.tags).toEqual({ experiment: 'ts-config', group: 'loader' });
+  });
+
+  it('materializes *.eval.mts default exports', async () => {
+    const suite = await loadTestSuite(path.join(fixtureDir, 'module.eval.mts'), fixtureDir);
+
+    expect(suite.tests).toHaveLength(1);
+    expect(suite.tests[0].id).toBe('module-mts-config');
+  });
+
+  it('reports invalid TypeScript eval contracts through suite loading', async () => {
+    await expect(
+      loadTestSuite(path.join(fixtureDir, 'invalid-contract.eval.ts'), fixtureDir),
+    ).rejects.toThrow("top-level 'providers'");
   });
 
   it('materializes a YAML-aligned sdk eval through loadTestSuite', async () => {
@@ -92,5 +115,16 @@ describe('loadTsEvalFile', () => {
     expect(tests).toHaveLength(1);
     expect(tests[0].id).toBe('greeting');
     expect(tests[0].category).toBe('sdk');
+  });
+
+  it('recognizes only explicit TypeScript eval config filenames', () => {
+    expect(isTypeScriptEvalConfigFileName('promptfooconfig.ts')).toBe(false);
+    expect(isTypeScriptEvalConfigFileName('promptfooconfig.mts')).toBe(false);
+    expect(isTypeScriptEvalConfigFileName('agentvconfig.ts')).toBe(false);
+    expect(isTypeScriptEvalConfigFileName('agentvconfig.mts')).toBe(false);
+    expect(isTypeScriptEvalConfigFileName('suite.eval.ts')).toBe(true);
+    expect(isTypeScriptEvalConfigFileName('suite.eval.mts')).toBe(true);
+    expect(isTypeScriptEvalConfigFileName('.agentv/assertions/custom-check.ts')).toBe(false);
+    expect(isTypeScriptEvalConfigFileName('helpers/custom-check.ts')).toBe(false);
   });
 });

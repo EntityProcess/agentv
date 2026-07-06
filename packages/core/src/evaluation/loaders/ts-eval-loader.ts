@@ -1,25 +1,56 @@
 /**
- * Loads an eval suite from a TypeScript *.eval.ts file.
+ * Loads an eval suite from a TypeScript eval config file.
  *
- * Each TS eval file must export an EvalConfig as its default export or
- * as a named export called `config` or `evalConfig`.
+ * Each TS eval file must export an EvalConfig as its default export.
+ * Supported filenames are explicit AgentV *.eval.ts / *.eval.mts files.
  *
  * The file is loaded via dynamic import() which works natively in Bun
  * and requires tsx/jiti for Node.js.
- *
- * To add a new export convention: add the name to EXPORT_NAMES below.
  */
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { type EvalConfig, materializeEvalConfig } from '../evaluate.js';
+import { type EvalConfig as ProgrammaticEvalConfig, materializeEvalConfig } from '../evaluate.js';
 import { createFunctionProvider } from '../providers/function-provider.js';
 import type { ProviderFactoryFn } from '../providers/provider-registry.js';
 import type { TargetDefinition } from '../providers/types.js';
 import { type EvalSuiteResult, loadTestSuiteFromYamlObject } from '../yaml-parser.js';
 
-const EXPORT_NAMES = ['default', 'config', 'evalConfig'] as const;
 const SDK_EVAL_SUITE_SYMBOL = Symbol.for('@agentv/sdk/eval-suite');
 const SDK_TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('@agentv/sdk/to-eval-yaml-object');
+const TS_EVAL_CONFIG_NAME_RE = /^.+\.eval\.(?:m)?ts$/i;
+const TS_EVAL_CONFIG_GLOB = '*.eval.ts,*.eval.mts' as const;
+
+const KNOWN_SNAKE_CASE_KEYS = {
+  afterAll: 'after_all',
+  afterEach: 'after_each',
+  argsMatch: 'args_match',
+  beforeAll: 'before_all',
+  beforeEach: 'before_each',
+  cachePath: 'cache_path',
+  budgetUsd: 'budget_usd',
+  conversationId: 'conversation_id',
+  costLimitUsd: 'cost_limit_usd',
+  dependsOn: 'depends_on',
+  earlyExit: 'early_exit',
+  expectedOutput: 'expected_output',
+  failOnError: 'fail_on_error',
+  inputFiles: 'input_files',
+  keepWorkspaces: 'keep_workspaces',
+  maxConcurrency: 'max_concurrency',
+  maxCostUsd: 'max_cost_usd',
+  maxDurationMs: 'max_duration_ms',
+  maxToolCalls: 'max_tool_calls',
+  onDependencyFailure: 'on_dependency_failure',
+  onTurnFailure: 'on_turn_failure',
+  outputPath: 'output_path',
+  readOnly: 'read_only',
+  reasoningEffort: 'reasoning_effort',
+  skipDefaults: 'skip_defaults',
+  timeoutMs: 'timeout_ms',
+  timeoutSeconds: 'timeout_seconds',
+  useTarget: 'use_target',
+  windowSize: 'window_size',
+} as const;
 
 type SdkEvalSuiteExport = Record<string, unknown> & {
   readonly [SDK_EVAL_SUITE_SYMBOL]: true;
@@ -27,7 +58,7 @@ type SdkEvalSuiteExport = Record<string, unknown> & {
 };
 
 export interface TsEvalResult {
-  readonly config: EvalConfig | SdkEvalSuiteExport;
+  readonly config: ProgrammaticEvalConfig | SdkEvalSuiteExport | Record<string, unknown>;
   readonly filePath: string;
 }
 
@@ -36,27 +67,29 @@ export interface TsEvalSuiteResult extends EvalSuiteResult {
   readonly providerFactory?: ProviderFactoryFn;
 }
 
-/**
- * Import a *.eval.ts file and extract the EvalConfig export.
- * Tries default, `config`, and `evalConfig` named exports in priority order.
- */
+export function isTypeScriptEvalConfigFileName(filePath: string): boolean {
+  return TS_EVAL_CONFIG_NAME_RE.test(path.basename(filePath));
+}
+
+export function typeScriptEvalConfigGlob(): string {
+  return TS_EVAL_CONFIG_GLOB;
+}
+
+/** Import a TypeScript eval config file and extract its default EvalConfig export. */
 export async function loadTsEvalFile(filePath: string): Promise<TsEvalResult> {
   const absolutePath = path.resolve(filePath);
   const moduleUrl = pathToFileURL(absolutePath).href;
   const module = await import(moduleUrl);
 
-  let config: EvalConfig | SdkEvalSuiteExport | undefined;
-  for (const name of EXPORT_NAMES) {
-    const candidate = module[name];
-    if (isSupportedTsEvalExport(candidate)) {
-      config = candidate;
-      break;
-    }
-  }
-
+  const config = module.default;
   if (!config) {
     throw new Error(
-      `${filePath}: no supported eval export found. Export defineEval(...) or an EvalConfig as default, 'config', or 'evalConfig'.`,
+      `${filePath}: no supported eval export found. Export an EvalConfig as the default export.`,
+    );
+  }
+  if (!isSupportedTsEvalExport(config)) {
+    throw new Error(
+      `${filePath}: default export must be an EvalConfig object. Export a plain EvalConfig object or defineEval(config) as default.`,
     );
   }
 
@@ -83,7 +116,14 @@ export async function loadTsEvalSuite(
     );
   }
 
-  const materialized = await materializeEvalConfig(config, {
+  if (!isProgrammaticEvalConfig(config) && isYamlAlignedEvalConfig(config)) {
+    return loadTestSuiteFromYamlObject(absolutePath, lowerTypeScriptEvalConfig(config), repoRoot, {
+      ...options,
+      allowInternalExpectedOutput: true,
+    });
+  }
+
+  const materialized = await materializeEvalConfig(config as ProgrammaticEvalConfig, {
     repoRoot,
     baseDir: path.dirname(absolutePath),
     filter: options?.filter,
@@ -123,16 +163,74 @@ function isSdkEvalSuiteExport(value: unknown): value is SdkEvalSuiteExport {
   );
 }
 
-function isSupportedTsEvalExport(value: unknown): value is EvalConfig | SdkEvalSuiteExport {
-  return isSdkEvalSuiteExport(value) || isEvalConfigLike(value);
+function isSupportedTsEvalExport(
+  value: unknown,
+): value is ProgrammaticEvalConfig | SdkEvalSuiteExport | Record<string, unknown> {
+  return (
+    isSdkEvalSuiteExport(value) || (!!value && typeof value === 'object' && !Array.isArray(value))
+  );
 }
 
-/**
- * Duck-type check for EvalConfig-like objects.
- * An EvalConfig must have at least one of: tests, specFile, or target.
- */
-function isEvalConfigLike(value: unknown): value is EvalConfig {
-  if (!value || typeof value !== 'object') return false;
+function isYamlAlignedEvalConfig(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const obj = value as Record<string, unknown>;
-  return 'tests' in obj || 'specFile' in obj || 'target' in obj || 'task' in obj;
+  return typeof obj.task !== 'function' && obj.specFile === undefined;
+}
+
+function isProgrammaticEvalConfig(value: unknown): value is ProgrammaticEvalConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const obj = value as Record<string, unknown>;
+  const target = obj.target;
+  return (
+    typeof obj.task === 'function' ||
+    typeof obj.specFile === 'string' ||
+    (!!target &&
+      typeof target === 'object' &&
+      !Array.isArray(target) &&
+      typeof (target as Record<string, unknown>).name === 'string')
+  );
+}
+
+function lowerTypeScriptEvalConfig(config: Record<string, unknown>): Record<string, unknown> {
+  const lowered = lowerEvalYamlValue(config) as Record<string, unknown>;
+  const { budget_usd: budgetUsd, repeat, ...withoutRuntimeAliases } = lowered;
+  if (budgetUsd === undefined && repeat === undefined) {
+    return lowered;
+  }
+
+  const evaluateOptions =
+    withoutRuntimeAliases.evaluate_options &&
+    typeof withoutRuntimeAliases.evaluate_options === 'object' &&
+    !Array.isArray(withoutRuntimeAliases.evaluate_options)
+      ? { ...(withoutRuntimeAliases.evaluate_options as Record<string, unknown>) }
+      : {};
+
+  if (budgetUsd !== undefined && evaluateOptions.budget_usd === undefined) {
+    evaluateOptions.budget_usd = budgetUsd;
+  }
+  if (repeat !== undefined && evaluateOptions.repeat === undefined) {
+    evaluateOptions.repeat = repeat;
+  }
+
+  return {
+    ...withoutRuntimeAliases,
+    evaluate_options: evaluateOptions,
+  };
+}
+
+function lowerEvalYamlValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => lowerEvalYamlValue(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+      const loweredKey = KNOWN_SNAKE_CASE_KEYS[key as keyof typeof KNOWN_SNAKE_CASE_KEYS] ?? key;
+      result[loweredKey] = lowerEvalYamlValue(nestedValue);
+    }
+    return result;
+  }
+
+  return value;
 }
