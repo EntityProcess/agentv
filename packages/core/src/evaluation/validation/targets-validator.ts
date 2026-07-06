@@ -347,6 +347,7 @@ function validateUnknownSettings(
     'env',
     'grader_target',
     'judge_target',
+    'use_target',
     'workers',
     '$schema',
     'targets',
@@ -695,17 +696,23 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     const provider = effectiveTarget.provider;
     const rawTarget = rawTargets[i];
     const rawUseTarget = isObject(rawTarget) ? rawTarget.use_target : undefined;
-    const hasUseTarget =
-      isNonEmptyString(effectiveTarget.use_target) || isNonEmptyString(rawUseTarget);
+    if (effectiveTarget.use_target !== undefined || rawUseTarget !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.use_target`,
+        message:
+          "The 'use_target' field has been removed from authored targets.yaml target definitions. Define a concrete target with 'provider' instead.",
+      });
+    }
     const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
     const isTemplated = isEnvTemplated(provider);
-    if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
+    if (typeof provider !== 'string' || provider.trim().length === 0) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.provider`,
-        message:
-          "Missing or invalid 'provider' field (must be a non-empty string, or use use_target for delegation)",
+        message: "Missing or invalid 'provider' field (must be a non-empty string)",
       });
     } else if (!isTemplated && (providerValue === 'claude' || providerValue === 'copilot')) {
       errors.push({

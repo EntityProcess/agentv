@@ -408,12 +408,13 @@ targets:
     ).toBe(true);
   });
 
-  it('accepts env-templated use_target values without resolving the env during validation', async () => {
+  it('rejects use_target on authored target definitions', async () => {
     const filePath = path.join(tempDir, 'templated-use-target.yaml');
     await writeFile(
       filePath,
       `targets:
   - id: default
+    provider: mock
     use_target: "{{ env.AGENT_TARGET }}"
   - id: grader
     use_target: "{{ env.GRADER_TARGET }}"
@@ -424,34 +425,23 @@ targets:
 `,
     );
 
-    const originalAgentTarget = process.env.AGENT_TARGET;
-    const originalGraderTarget = process.env.GRADER_TARGET;
-    Reflect.deleteProperty(process.env, 'AGENT_TARGET');
-    Reflect.deleteProperty(process.env, 'GRADER_TARGET');
+    const result = await validateTargetsFile(filePath);
 
-    try {
-      const result = await validateTargetsFile(filePath);
-
-      expect(result.valid).toBe(true);
-      expect(
-        result.errors.some(
-          (error) =>
-            error.severity === 'error' &&
-            error.message.includes("Missing or invalid 'provider' field"),
-        ),
-      ).toBe(false);
-    } finally {
-      if (originalAgentTarget === undefined) {
-        Reflect.deleteProperty(process.env, 'AGENT_TARGET');
-      } else {
-        process.env.AGENT_TARGET = originalAgentTarget;
-      }
-      if (originalGraderTarget === undefined) {
-        Reflect.deleteProperty(process.env, 'GRADER_TARGET');
-      } else {
-        process.env.GRADER_TARGET = originalGraderTarget;
-      }
-    }
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'targets[0].use_target',
+        message: expect.stringContaining("'use_target' field has been removed"),
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'targets[1].use_target',
+        message: expect.stringContaining("'use_target' field has been removed"),
+      }),
+    );
   });
 
   it('rejects legacy env interpolation in target YAML', async () => {
