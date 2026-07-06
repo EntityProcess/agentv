@@ -455,14 +455,13 @@ evaluate_options:
   max_eval_time_ms: 120000
   filter_range: [0, 10]
 tests:
-  - description: fixed output row
+  - description: target output row
     vars:
       diff: change
     options:
       repeat:
         count: 3
         strategy: mean
-    provider_output: "Looks safe."
     assert:
       - type: contains
         value: safe
@@ -551,6 +550,91 @@ scenarios:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates top-level scenario file refs and globs', async () => {
+    const filePath = path.join(tempDir, 'scenario-file-refs.yaml');
+    const scenarioDir = path.join(tempDir, 'scenario-file-refs');
+    await mkdir(scenarioDir, { recursive: true });
+    await writeFile(
+      path.join(scenarioDir, 'french.yaml'),
+      `- description: French translations
+  config:
+    - vars:
+        language: French
+  tests:
+    - vars:
+        phrase: hello
+      assert:
+        - type: equals
+          value: bonjour
+`,
+    );
+    await writeFile(
+      path.join(scenarioDir, 'spanish.yaml'),
+      `- description: Spanish translations
+  config:
+    - vars:
+        language: Spanish
+  tests:
+    - vars:
+        phrase: goodbye
+      assert:
+        - type: equals
+          value: adios
+`,
+    );
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Translate {{ vars.phrase }} to {{ vars.language }}"
+scenarios:
+  - description: inline Italian translation
+    config:
+      - vars:
+          language: Italian
+    tests:
+      - vars:
+          phrase: hello
+        assert:
+          - type: equals
+            value: ciao
+  - file://scenario-file-refs/*.yaml
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects authored provider_output with explicit target guidance', async () => {
+    const filePath = path.join(tempDir, 'provider-output-removed.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Review {{ diff }}"
+tests:
+  - vars:
+      diff: change
+    provider_output: "Looks safe."
+    assert:
+      - type: contains
+        value: safe
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].provider_output',
+        message: expect.stringContaining('Use an explicit deterministic target'),
+      }),
+    );
+  });
+
   it('rejects scenario tests without input when only some config rows supply prompts', async () => {
     const filePath = path.join(tempDir, 'scenario-mixed-config-prompts.yaml');
     await writeFile(
@@ -618,6 +702,32 @@ scenarios:
         severity: 'error',
         location: 'scenarios[1].tests',
         message: expect.stringContaining("Invalid 'tests' field"),
+      }),
+    );
+  });
+
+  it('rejects malformed external scenario files', async () => {
+    const filePath = path.join(tempDir, 'malformed-scenario-file-ref.yaml');
+    const scenarioDir = path.join(tempDir, 'malformed-scenario-file-ref');
+    await mkdir(scenarioDir, { recursive: true });
+    await writeFile(path.join(scenarioDir, 'broken.yaml'), '- not-an-object\n');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Review {{ vars.diff }}"
+scenarios:
+  - file://malformed-scenario-file-ref/broken.yaml
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0]',
+        message: expect.stringContaining('External scenario file contains non-object entry'),
       }),
     );
   });
@@ -2460,6 +2570,31 @@ tests: file://suite-input-cases.csv
           severity: 'error',
           location: 'tests',
           message: expect.stringContaining('Unsupported promptfoo __expected assertion "similar"'),
+        }),
+      );
+    });
+
+    it('rejects removed promptfoo CSV provider output columns during validation', async () => {
+      await writeFile(
+        path.join(tempDir, 'provider-output-cases.csv'),
+        'id,input,__expected,__provider_output\ncase,Hello,contains:Hi,Hi there\n',
+      );
+
+      const filePath = path.join(tempDir, 'provider-output-csv.yaml');
+      await writeFile(
+        filePath,
+        `tests: file://provider-output-cases.csv
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          location: 'tests',
+          message: expect.stringContaining('__provider_output has been removed from CSV imports'),
         }),
       );
     });

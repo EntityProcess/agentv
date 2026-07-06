@@ -50,15 +50,16 @@ One JSON test object per line:
 CSV files use ordinary columns for `id`, `input`, and `vars`, plus promptfoo-style magic columns for assertions and metadata:
 
 ```csv
-id,input,__expected,__provider_output,__metric,__threshold,__metadata:source,locale
-csv-test,Reply with a greeting,icontains:hello,Hello there,greeting,0.8,csv,en-US
+id,input,__expected,__metric,__threshold,__metadata:source,locale
+csv-test,Reply with a greeting,icontains:hello,greeting,0.8,csv,en-US
 ```
 
 `__expected` and `__expectedN` become AgentV assertions for the supported CSV
 mini-DSL. `latency(<ms>)`, `cost(<usd>)`, and `file://*.py` map to runnable
 AgentV graders, with CSV file paths resolved relative to the CSV file;
 unsupported promptfoo forms such as `similar:*` are rejected during validation.
-`__provider_output` becomes AgentV `expected_output`; ordinary non-magic
+Use an explicit deterministic target such as `provider: cli` for fixed outputs,
+or a replay/fixture target for captured provider responses. Ordinary non-magic
 columns such as `locale` become `vars` and can be interpolated by suite-level
 `input`.
 

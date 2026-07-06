@@ -700,7 +700,6 @@ const DefaultTestSchema = z
     provider: EvalTargetSchema.optional(),
     providers: EvalTargetsSchema.optional(),
     prompts: PromptsSchema.optional(),
-    provider_output: ExpectedOutputSchema.optional(),
     expected_output: z.never().optional(),
     assert: z.array(AssertionItemSchema).optional(),
     assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
@@ -741,35 +740,49 @@ const ConversationTurnSchema = z.object({
 
 const TestExecutionSchema = ExecutionSchema.omit({ target: true, targets: true }).strict();
 
-const EvalTestSchema = z.object({
-  id: z.string().min(1).optional(),
-  description: z.string().optional(),
-  vars: JsonObjectSchema.optional(),
-  provider: EvalTargetSchema.optional(),
-  providers: EvalTargetsSchema.optional(),
-  prompts: PromptsSchema.optional(),
-  provider_output: ExpectedOutputSchema.optional(),
-  input: z.never().optional(),
-  input_files: z.array(z.string()).optional(),
-  expected_output: z.never().optional(),
-  assert: z.array(AssertionItemSchema).optional(),
-  assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
-  options: JsonObjectSchema.optional(),
-  threshold: z.number().min(0).max(1).optional(),
-  execution: TestExecutionSchema.optional(),
-  run: RunOverrideSchema.optional(),
-  environment: EnvironmentSchema.optional(),
-  metadata: z.record(z.unknown()).optional(),
-  conversation_id: z.string().optional(),
-  suite: z.string().optional(),
-  depends_on: z.array(z.string()).optional(),
-  on_dependency_failure: z.enum(['skip', 'fail', 'run']).optional(),
-  mode: z.enum(['conversation']).optional(),
-  turns: z.array(ConversationTurnSchema).min(1).optional(),
-  aggregation: z.enum(['mean', 'min', 'max']).optional(),
-  on_turn_failure: z.enum(['continue', 'stop']).optional(),
-  window_size: z.number().int().min(1).optional(),
-});
+const EvalTestBaseSchema = z
+  .object({
+    id: z.string().min(1).optional(),
+    description: z.string().optional(),
+    vars: JsonObjectSchema.optional(),
+    provider: EvalTargetSchema.optional(),
+    providers: EvalTargetsSchema.optional(),
+    prompts: PromptsSchema.optional(),
+    input: z.never().optional(),
+    input_files: z.array(z.string()).optional(),
+    expected_output: z.never().optional(),
+    assert: z.array(AssertionItemSchema).optional(),
+    assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
+    options: JsonObjectSchema.optional(),
+    threshold: z.number().min(0).max(1).optional(),
+    execution: TestExecutionSchema.optional(),
+    run: RunOverrideSchema.optional(),
+    environment: EnvironmentSchema.optional(),
+    metadata: z.record(z.unknown()).optional(),
+    conversation_id: z.string().optional(),
+    suite: z.string().optional(),
+    depends_on: z.array(z.string()).optional(),
+    on_dependency_failure: z.enum(['skip', 'fail', 'run']).optional(),
+    mode: z.enum(['conversation']).optional(),
+    turns: z.array(ConversationTurnSchema).min(1).optional(),
+    aggregation: z.enum(['mean', 'min', 'max']).optional(),
+    on_turn_failure: z.enum(['continue', 'stop']).optional(),
+    window_size: z.number().int().min(1).optional(),
+  })
+  .passthrough();
+
+function rejectProviderOutput(value: Record<string, unknown>, context: z.RefinementCtx): void {
+  if (Object.prototype.hasOwnProperty.call(value, 'provider_output')) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['provider_output'],
+      message:
+        'tests[].provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.',
+    });
+  }
+}
+
+const EvalTestSchema = EvalTestBaseSchema.superRefine(rejectProviderOutput);
 
 const SelectPatternSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
 const SelectMetadataValueSchema = z.union([
@@ -836,7 +849,7 @@ const ConfigDefaultsSchema = z
   })
   .strict();
 
-const ScenarioConfigSchema = EvalTestSchema.partial();
+const ScenarioConfigSchema = EvalTestBaseSchema.partial().superRefine(rejectProviderOutput);
 
 const ScenarioSchema = z
   .object({
@@ -845,6 +858,12 @@ const ScenarioSchema = z
     tests: z.array(EvalTestSchema),
   })
   .strict();
+const ScenarioReferenceSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.startsWith('file://'), {
+    message: 'Scenario references must use file://...',
+  });
 
 const DerivedMetricSchema = z
   .object({
@@ -859,7 +878,7 @@ const TagsSchema = z.union([
 ]);
 
 const TOP_LEVEL_IMPORTS_MESSAGE =
-  "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.";
+  "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.";
 
 // ---------------------------------------------------------------------------
 // Top-level eval file
@@ -930,7 +949,7 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
   threshold: z.number().min(0).max(1).optional(),
   default_test: z.union([DefaultTestReferenceSchema, DefaultTestSchema]).optional(),
   environment: EnvironmentSchema.optional(),
-  scenarios: z.array(ScenarioSchema).optional(),
+  scenarios: z.array(z.union([ScenarioSchema, ScenarioReferenceSchema])).optional(),
   derived_metrics: z.array(DerivedMetricSchema).optional(),
   output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
   env: z.record(z.string()).optional(),

@@ -77,6 +77,21 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts scenario file references in top-level scenarios arrays', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Translate {{ phrase }} to {{ language }}'],
+      scenarios: [
+        {
+          config: [{ vars: { language: 'Spanish' } }],
+          tests: [{ vars: { phrase: 'hello' }, assert: [{ type: 'equals', value: 'hola' }] }],
+        },
+        'file://scenarios/*.yaml',
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('requires scenario config and tests arrays', () => {
     const result = EvalFileSchema.safeParse({
       prompts: ['Classify {{ request }}'],
@@ -400,11 +415,10 @@ describe('EvalFileSchema input shorthand', () => {
       },
       tests: [
         {
-          description: 'grades a fixed provider output',
+          description: 'grades rendered target output',
           vars: {
             diff: 'change',
           },
-          provider_output: 'Looks safe.',
           assert: [
             {
               type: 'contains',
@@ -466,6 +480,21 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects authored provider_output fields', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Review {{ diff }}'],
+      tests: [
+        {
+          vars: { diff: 'change' },
+          provider_output: 'Looks safe.',
+          assert: [{ type: 'contains', value: 'safe' }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('rejects composite as an authored assertion grouping type', () => {

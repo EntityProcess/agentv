@@ -55,6 +55,7 @@ import {
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import { loadPromptMdFallback } from './loaders/prompt-md-fallback.js';
+import { expandScenarioReferences } from './loaders/scenario-file-loader.js';
 import {
   expandInputShorthand,
   resolveExpectedMessages,
@@ -297,6 +298,11 @@ function rejectRemovedScenarioRowFields(row: JsonObject, location: string): void
   }
   if (row.evalcases !== undefined) {
     throw new Error(`${location}.evalcases has been removed. Use ${location} fields directly.`);
+  }
+  if (row.provider_output !== undefined) {
+    throw new Error(
+      `${location}.provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.`,
+    );
   }
   if (row.input !== undefined) {
     throw new Error(
@@ -807,7 +813,7 @@ function rejectAuthoredPostprocess(suite: RawTestSuite): void {
 function rejectTopLevelImports(suite: JsonObject): void {
   if (suite.imports !== undefined) {
     throw new Error(
-      "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
+      "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
     );
   }
 }
@@ -1427,6 +1433,7 @@ async function loadTestsFromParsedYamlValue(
   if (options?.allowInternalExpectedOutput !== true) {
     rejectAuthoredExpectedOutput(interpolated);
   }
+  rejectAuthoredProviderOutput(interpolated);
 
   const rawSuite = rawParsed as RawTestSuite;
   const resolvedDefaultTest = await resolveDefaultTestValue(
@@ -1494,7 +1501,14 @@ async function loadTestsFromParsedYamlValue(
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
 
-  const scenarioTestCases = lowerScenariosIntoTests(suite, evalFilePath);
+  const expandedScenarios = Array.isArray(suite.scenarios)
+    ? await expandScenarioReferences(suite.scenarios, evalFileDir)
+    : suite.scenarios;
+  const scenarioSuite =
+    expandedScenarios === undefined
+      ? suite
+      : ({ ...suite, scenarios: expandedScenarios } as RawTestSuite);
+  const scenarioTestCases = lowerScenariosIntoTests(scenarioSuite, evalFilePath);
   if (scenarioTestCases.length > 0) {
     expandedTestCases = [...expandedTestCases, ...scenarioTestCases];
   }
@@ -1876,6 +1890,7 @@ function buildEvalSuiteResult(
   if (options?.allowInternalExpectedOutput !== true) {
     rejectAuthoredExpectedOutput(parsed);
   }
+  rejectAuthoredProviderOutput(parsed);
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
@@ -2042,6 +2057,28 @@ function rejectAuthoredExpectedOutput(parsed: JsonObject): void {
     }
     throw new Error(
       `tests[${index}].expected_output has been removed from authored eval YAML. Put the reference answer in tests[].vars.expected_output and consume it with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.`,
+    );
+  }
+}
+
+function rejectAuthoredProviderOutput(parsed: JsonObject): void {
+  if (isJsonObject(parsed.default_test) && parsed.default_test.provider_output !== undefined) {
+    throw new Error(
+      'default_test.provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.',
+    );
+  }
+
+  if (!Array.isArray(parsed.tests)) {
+    return;
+  }
+
+  for (let index = 0; index < parsed.tests.length; index++) {
+    const entry = parsed.tests[index];
+    if (!isJsonObject(entry) || entry.provider_output === undefined) {
+      continue;
+    }
+    throw new Error(
+      `tests[${index}].provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.`,
     );
   }
 }

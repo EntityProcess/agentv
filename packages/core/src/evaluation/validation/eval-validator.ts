@@ -7,6 +7,11 @@ import { loadCasesFromDirectory, loadCasesFromFile } from '../loaders/case-file-
 import { resolveEnvironmentRecipe } from '../loaders/environment-recipe.js';
 import { buildSearchRoots } from '../loaders/file-resolver.js';
 import { loadPromptMdFallback } from '../loaders/prompt-md-fallback.js';
+import {
+  isScenarioFileReference,
+  resolveScenarioFileReference,
+} from '../loaders/scenario-file-loader.js';
+import type { JsonValue as EvalJsonValue } from '../types.js';
 import { isGraderKind } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
@@ -252,7 +257,6 @@ const KNOWN_DEFAULT_TEST_FIELDS = new Set([
   'provider',
   'providers',
   'prompts',
-  'provider_output',
   'assert',
   'assert_scoring_function',
   'options',
@@ -289,7 +293,7 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   [
     'imports',
-    "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
+    "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
   ],
   [
     'expected_output',
@@ -353,7 +357,6 @@ const KNOWN_TEST_FIELDS = new Set([
   'provider',
   'providers',
   'prompts',
-  'provider_output',
   'input',
   'input_files',
   'assert',
@@ -395,6 +398,10 @@ const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 REMOVED_TEST_FIELDS.set(
   'input',
   "tests[].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.",
+);
+REMOVED_TEST_FIELDS.set(
+  'provider_output',
+  'tests[].provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.',
 );
 REMOVED_TEST_FIELDS.set(
   'preprocessors',
@@ -589,10 +596,15 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
-  await validateScenarios(parsed.scenarios, parsed, absolutePath, errors, customAssertionTypes);
+  const expandedScenarios = await expandScenariosForValidation(
+    parsed.scenarios,
+    absolutePath,
+    errors,
+  );
+  await validateScenarios(expandedScenarios, parsed, absolutePath, errors, customAssertionTypes);
   const cases: JsonValue | undefined = parsed.tests;
   const hasImports = collectImportEntries(parsed).length > 0;
-  const hasScenarios = Array.isArray(parsed.scenarios);
+  const hasScenarios = Array.isArray(expandedScenarios);
 
   // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
@@ -746,10 +758,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         : false;
     validateInputField(evalCase.input, `${location}.input`, absolutePath, errors, {
       required:
-        !hasPromptMdFallback &&
-        evalCase.prompts === undefined &&
-        parsed.prompts === undefined &&
-        evalCase.provider_output === undefined,
+        !hasPromptMdFallback && evalCase.prompts === undefined && parsed.prompts === undefined,
     });
 
     const expectedOutputField = evalCase.expected_output;
@@ -1410,9 +1419,19 @@ function validateDefaultTest(
         filePath,
         location: `default_test.${key}`,
         message:
-          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, assert, assert_scoring_function, options, threshold, metadata.',
+          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, assert, assert_scoring_function, options, threshold, metadata.',
       });
     }
+  }
+
+  if (defaultTest.provider_output !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'default_test.provider_output',
+      message:
+        'default_test.provider_output is not supported in authored AgentV YAML. Use an explicit deterministic target such as provider: cli for fixed outputs, or use a replay/fixture target for captured provider responses.',
+    });
   }
 
   if (defaultTest.expected_output !== undefined) {
@@ -1537,16 +1556,11 @@ async function validateScenarios(
       const test = scenario.tests[testIndex];
       const everyConfigProvidesInput =
         scenarioConfigs.length > 0 &&
-        scenarioConfigs.every(
-          (config) =>
-            isObject(config) &&
-            (config.prompts !== undefined || config.provider_output !== undefined),
-        );
+        scenarioConfigs.every((config) => isObject(config) && config.prompts !== undefined);
       const requireInput =
         isObject(test) &&
         parsed.prompts === undefined &&
         test.prompts === undefined &&
-        test.provider_output === undefined &&
         !everyConfigProvidesInput;
       await validateScenarioTestLikeRow(
         test,
@@ -1558,6 +1572,43 @@ async function validateScenarios(
       );
     }
   }
+}
+
+async function expandScenariosForValidation(
+  scenarios: JsonValue | undefined,
+  filePath: string,
+  errors: ValidationError[],
+): Promise<JsonValue | undefined> {
+  if (!Array.isArray(scenarios)) {
+    return scenarios;
+  }
+
+  const expanded: JsonValue[] = [];
+  for (let scenarioIndex = 0; scenarioIndex < scenarios.length; scenarioIndex++) {
+    const scenario = scenarios[scenarioIndex];
+    if (!isScenarioFileReference(scenario as EvalJsonValue)) {
+      expanded.push(scenario);
+      continue;
+    }
+
+    try {
+      const externalScenarios = await resolveScenarioFileReference(
+        scenario,
+        path.dirname(filePath),
+      );
+      expanded.push(...(externalScenarios as JsonValue[]));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `scenarios[${scenarioIndex}]`,
+        message,
+      });
+    }
+  }
+
+  return expanded;
 }
 
 async function validateScenarioTestLikeRow(

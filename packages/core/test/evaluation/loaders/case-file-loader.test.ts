@@ -99,8 +99,8 @@ describe('resolveFileReference', () => {
     await writeFile(
       path.join(tempDir, 'cases', 'tests.csv'),
       [
-        'id,input,__expected,__expected2,__prefix,__suffix,__description,__provider_output,__metric,__threshold,__metadata:category,__metadata:tags[],__config:__expected2:threshold,locale',
-        'csv-1,"What is 2+2?",equals:4,icontains:four,"Answer briefly:"," Thanks","Arithmetic case","4","accuracy",0.7,math,"smoke,regression",0.6,en-US',
+        'id,input,__expected,__expected2,__prefix,__suffix,__description,__metric,__threshold,__metadata:category,__metadata:tags[],__config:__expected2:threshold,locale',
+        'csv-1,"What is 2+2?",equals:4,icontains:four,"Answer briefly:"," Thanks","Arithmetic case","accuracy",0.7,math,"smoke,regression",0.6,en-US',
       ].join('\n'),
     );
 
@@ -110,7 +110,6 @@ describe('resolveFileReference', () => {
     expect(cases[0]).toMatchObject({
       id: 'csv-1',
       input: 'Answer briefly:What is 2+2? Thanks',
-      expected_output: '4',
       criteria: 'Arithmetic case',
       threshold: 0.7,
       vars: { locale: 'en-US' },
@@ -120,6 +119,17 @@ describe('resolveFileReference', () => {
         { type: 'icontains', value: 'four', metric: 'accuracy', min_score: 0.6 },
       ],
     });
+  });
+
+  it('rejects removed promptfoo CSV provider output columns', async () => {
+    await writeFile(
+      path.join(tempDir, 'cases', 'provider-output.csv'),
+      ['id,input,__expected,__provider_output', 'csv-1,Hello,contains:Hi,Hi there'].join('\n'),
+    );
+
+    await expect(resolveFileReference('file://cases/provider-output.csv', tempDir)).rejects.toThrow(
+      /__provider_output has been removed from CSV imports/,
+    );
   });
 
   it('maps supported promptfoo expected DSL forms to runnable AgentV assertions', async () => {
@@ -526,8 +536,8 @@ tests:
     await writeFile(
       path.join(tempDir, 'magic-cases.csv'),
       [
-        'id,input,__expected,__metric,__threshold,__metadata:category,__provider_output',
-        'magic-csv,Hello,contains:Hi,greeting,0.9,smoke,Hi there',
+        'id,input,__expected,__metric,__threshold,__metadata:category',
+        'magic-csv,Hello,contains:Hi,greeting,0.9,smoke',
       ].join('\n'),
     );
     await writeFile(
@@ -543,7 +553,6 @@ tests: file://magic-cases.csv
     expect(tests[0].id).toBe('magic-csv');
     expect(tests[0].threshold).toBe(0.9);
     expect(tests[0].metadata).toMatchObject({ category: 'smoke' });
-    expect(tests[0].reference_answer).toBe('Hi there');
     expect(tests[0].assertions?.[0]).toMatchObject({
       name: 'greeting',
       type: 'contains',
