@@ -65,7 +65,7 @@ AgentV's eval tooling is designed for **execution quality**:
 - **`EVAL.yaml`** — define test cases with inputs, expected outputs, and assertions
 - **Agent Skills `evals.json` adapter** — run lightweight skill evaluation datasets directly or convert them into AgentV YAML
 - **`agentv eval`** — execute evaluations and collect results
-- **Graders** — `llm-rubric`, `script`, `tool-trajectory`, `contains`, `regex`, and others all measure execution behavior
+- **Graders** — `llm-rubric`, `script`, `trajectory:*`, `contains`, `regex`, and others all measure execution behavior
 
 These tools assume the skill is already loaded and invoked. They measure what happens *after* routing, not the routing decision itself.
 

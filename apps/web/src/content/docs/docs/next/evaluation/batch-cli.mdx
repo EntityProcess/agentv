@@ -111,9 +111,9 @@ JSONL where each line is a JSON object with an `id` matching a test:
 
 The `id` field must match the test `id` for AgentV to route output to the correct grader.
 
-### Output with Tool Trajectory
+### Output with Trajectory Assertions
 
-To enable `tool-trajectory` evaluation, include `output` with `tool_calls`:
+To enable `trajectory:*` assertions, include `output` with `tool_calls`:
 
 ```json
 {
@@ -138,7 +138,7 @@ To enable `tool-trajectory` evaluation, include `output` with `tool_calls`:
 }
 ```
 
-AgentV extracts tool calls directly from `output[].tool_calls[]` for `tool-trajectory` graders.
+AgentV extracts tool calls directly from `output[].tool_calls[]` for trajectory assertions.
 
 ## Grader Implementation
 

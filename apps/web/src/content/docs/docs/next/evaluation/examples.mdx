@@ -124,7 +124,7 @@ tests:
 
 See [`examples/features/file-transforms/`](../../../../../examples/features/file-transforms/) for a runnable end-to-end example with a file-producing target and custom grader target.
 
-## Tool Trajectory
+## Trajectory Assertions
 
 Validate that an agent uses specific tools during execution:
 
@@ -139,11 +139,14 @@ tests:
     input: Research REST vs GraphQL
     assert:
       - name: research-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          knowledgeSearch: 2
-          documentRetrieve: 1
+        type: trajectory:tool-used
+        value:
+          name: knowledgeSearch
+          min: 2
+      - type: trajectory:tool-used
+        value:
+          name: documentRetrieve
+          min: 1
 
   # Validate exact tool sequence
   - id: auth-flow
@@ -151,11 +154,12 @@ tests:
     input: Authenticate user
     assert:
       - name: auth-sequence
-        type: tool-trajectory
-        mode: exact
-        expected:
-          - tool: checkCredentials
-          - tool: generateToken
+        type: trajectory:tool-sequence
+        value:
+          mode: exact
+          steps:
+            - checkCredentials
+            - generateToken
 ```
 
 ## Offline Grader Benchmark
@@ -204,11 +208,12 @@ tests:
     input: Analyze trace
     assert:
       - name: trace-check
-        type: tool-trajectory
-        mode: in_order
-        expected:
-          - tool: webSearch
-          - tool: readFile
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - webSearch
+            - readFile
 ```
 
 ## Multi-Turn Conversation

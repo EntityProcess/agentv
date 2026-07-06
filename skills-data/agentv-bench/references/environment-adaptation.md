@@ -39,15 +39,15 @@ tool calls; reserve `output` for final-answer text checks.
 ```yaml
 # Example: script-grader for Codex skill-use detection
 tests:
-  - id: should-trigger-codex
+  - id: codex-skill-use
     input: "Analyze this CSV file"
     assert:
       - type: script
-        command: [bun, run, ./judges/codex-skill-trigger.ts]
+        command: [bun, run, ./judges/codex-skill-use.ts]
 ```
 
 ```typescript
-// judges/codex-skill-trigger.ts
+// judges/codex-skill-use.ts
 import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ messages }) => {

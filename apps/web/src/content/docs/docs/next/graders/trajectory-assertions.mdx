@@ -1,0 +1,185 @@
+---
+title: Trajectory Assertions
+description: Validate tool usage, tool order, arguments, step counts, and goal completion from agent traces.
+sidebar:
+  order: 5
+slug: docs/graders/trajectory-assertions
+---
+
+Trajectory assertions validate that an agent used expected tools during execution. They read AgentV-normalized traces from agent providers such as Codex, Copilot, and CLI targets with trace support.
+
+Use Promptfoo-compatible assertion names for authored eval YAML:
+
+- `trajectory:tool-used`
+- `trajectory:tool-sequence`
+- `trajectory:tool-args-match`
+- `trajectory:step-count`
+- `trajectory:goal-success`
+
+## Tool Usage
+
+Use `trajectory:tool-used` to require one or more tool calls. The `value` can be a string, an array of tool names, or an object with `name` or `pattern` plus optional `min` and `max` counts.
+
+```yaml
+assert:
+  - name: tool-usage
+    type: trajectory:tool-used
+    value:
+      name: knowledgeSearch
+      min: 2
+  - type: trajectory:tool-used
+    value:
+      name: documentRetrieve
+      min: 1
+```
+
+Use one assertion per required tool when each tool needs its own count.
+
+To forbid tool usage, invert `trajectory:tool-used`:
+
+```yaml
+assert:
+  - name: no-delete
+    type: not-trajectory:tool-used
+    value: deleteFile
+```
+
+## Tool Sequence
+
+Use `trajectory:tool-sequence` when tool order matters. `mode: in_order` allows unrelated calls between expected steps. `mode: exact` requires the observed tool sequence to match exactly.
+
+```yaml
+assert:
+  - name: workflow-sequence
+    type: trajectory:tool-sequence
+    value:
+      mode: in_order
+      steps:
+        - fetchData
+        - validateSchema
+        - transformData
+        - saveResults
+```
+
+```yaml
+assert:
+  - name: auth-sequence
+    type: trajectory:tool-sequence
+    value:
+      mode: exact
+      steps:
+        - checkCredentials
+        - generateToken
+        - auditLog
+```
+
+## Argument Matching
+
+Use `trajectory:tool-args-match` to check arguments for a matching tool call. `mode: partial` checks only the specified keys. `mode: exact` compares the complete argument object, with optional `defaults` and `ignore` fields for known runtime-added values.
+
+```yaml
+assert:
+  - name: search-validation
+    type: trajectory:tool-args-match
+    value:
+      name: search
+      args:
+        query: machine learning
+      mode: partial
+```
+
+## Step Counts
+
+Use `trajectory:step-count` to budget observed trajectory steps. The `type` field can target `tool`, `command`, `message`, `reasoning`, `search`, or `span` steps.
+
+```yaml
+assert:
+  - name: bounded-tools
+    type: trajectory:step-count
+    value:
+      type: tool
+      min: 1
+      max: 8
+```
+
+## Goal Success
+
+Use `trajectory:goal-success` when the final answer and trace together need LLM judgment. Configure an LLM grader target in the eval so AgentV can judge whether the observed trajectory achieved the goal.
+
+```yaml
+assert:
+  - name: goal
+    type: trajectory:goal-success
+    value:
+      goal: Find the order and compose a customer reply
+```
+
+## Complete Examples
+
+### Research Agent Validation
+
+```yaml
+description: Validate research agent tool usage
+target: codex_agent
+
+tests:
+  - id: comprehensive-research
+    criteria: Agent thoroughly researches the topic
+
+    input: Research machine learning frameworks
+
+    assert:
+      # Check minimum tool usage
+      - name: coverage
+        type: trajectory:tool-used
+        value:
+          name: webSearch
+          min: 1
+      - type: trajectory:tool-used
+        value:
+          name: documentRead
+          min: 2
+      - type: trajectory:tool-used
+        value:
+          name: noteTaking
+          min: 1
+
+      # Check workflow order
+      - name: workflow
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - webSearch
+            - documentRead
+            - summarize
+```
+
+### Multi-Step Pipeline
+
+```yaml
+tests:
+  - id: data-pipeline
+    criteria: Process data through complete pipeline
+
+    input: Process the customer dataset
+
+    assert:
+      - name: pipeline-check
+        type: trajectory:tool-sequence
+        value:
+          mode: exact
+          steps:
+            - loadData
+            - validate
+            - transform
+            - export
+```
+
+## Best Practices
+
+1. **Start with `trajectory:tool-used`**, then tighten to `trajectory:tool-sequence` when order matters.
+2. **Use one assertion per independent requirement** so failure output points to the exact missing tool or argument.
+3. **Combine with other graders**: use trajectory assertions for execution validation and `llm-rubric` for output quality.
+4. **Inspect traces first** with run artifacts or prepared trace files to understand agent behavior before writing assertions.
+5. **Use script assertions for custom validation** when built-in trajectory assertions are not expressive enough.
