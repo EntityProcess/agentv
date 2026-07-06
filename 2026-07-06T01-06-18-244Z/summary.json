@@ -1,0 +1,148 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-06T01-06-18-244Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 17836,
+    "input_tokens": 17734,
+    "output_tokens": 102,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "fizzbuzz",
+      "suite": "my-eval",
+      "eval_path": "examples/features/readme-quickstart/evals/my-eval.eval.yaml",
+      "target": "codex-sdk-openai",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "fizzbuzz",
+          "suite": "my-eval",
+          "eval_path": "examples/features/readme-quickstart/evals/my-eval.eval.yaml",
+          "target": "codex-sdk-openai",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 7363
+        }
+      ],
+      "pass_rate": 1,
+      "pass_any": true
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-06T01-06-18-244Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/artifact-metrics-flatten/examples/features/readme-quickstart/evals/my-eval.eval.yaml",
+    "timestamp": "2026-07-06T01:06:32.937Z",
+    "targets": [
+      "codex-sdk-openai"
+    ],
+    "tests_run": [
+      "fizzbuzz"
+    ],
+    "experiment": "with-skills",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        "examples/features/readme-quickstart/evals/my-eval.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1,
+    "tags": {
+      "experiment": "with-skills"
+    }
+  },
+  "run_summary": {
+    "codex-sdk-openai": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 7.363,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 17836,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "contains-fizz:contains": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "script:script": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 7363,
+      "total_seconds": 7.363,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 17836,
+      "input": 17734,
+      "output": 102,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}
