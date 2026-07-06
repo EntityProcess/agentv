@@ -18,6 +18,7 @@ import {
 } from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
+import { deriveSkillCallMetadataFromMessages } from './skill-calls.js';
 import type { PiRpcResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -137,6 +138,7 @@ export class PiRpcProvider implements Provider {
         inputFiles,
       },
       output,
+      metadata: deriveSkillCallMetadataFromMessages(output),
       tokenUsage,
       durationMs: endedAt - startedAt,
       startTime: new Date(startedAt).toISOString(),

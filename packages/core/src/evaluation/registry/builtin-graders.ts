@@ -14,7 +14,6 @@ import {
   LatencyGrader,
   LlmGrader,
   ScriptGrader,
-  SkillTriggerGrader,
   SkillUsedGrader,
   TokenUsageGrader,
   ToolTrajectoryGrader,
@@ -65,7 +64,6 @@ import type {
   ScriptAssertionGraderConfig,
   ScriptGraderConfig,
   SimilarGraderConfig,
-  SkillTriggerGraderConfig,
   SkillUsedGraderConfig,
   StartsWithGraderConfig,
   TokenUsageGraderConfig,
@@ -262,11 +260,6 @@ export const executionMetricsFactory: GraderFactoryFn = (config) => {
   });
 };
 
-/** Factory for `skill-trigger` evaluator. */
-export const skillTriggerFactory: GraderFactoryFn = (config) => {
-  return new SkillTriggerGrader(config as SkillTriggerGraderConfig);
-};
-
 /** Factory for Promptfoo-compatible `skill-used` and `not-skill-used` evaluators. */
 export const skillUsedFactory: GraderFactoryFn = (config) => {
   return new SkillUsedGrader(config as SkillUsedGraderConfig);
@@ -448,7 +441,6 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('execution-metrics', executionMetricsFactory)
     .register('skill-used', skillUsedFactory)
     .register('not-skill-used', skillUsedFactory)
-    .register('skill-trigger', skillTriggerFactory)
     .register('assert-set', assertSetFactory)
     .register('contains', containsFactory)
     .register('contains-any', containsAnyFactory)

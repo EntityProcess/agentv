@@ -55,8 +55,6 @@ export type AssertionType =
   | 'cost'
   | 'token-usage'
   | 'execution-metrics'
-  /** @deprecated Authored eval YAML rejects this compatibility-only runtime type. */
-  | 'skill-trigger'
   | 'contains'
   | 'contains-any'
   | 'contains-all'

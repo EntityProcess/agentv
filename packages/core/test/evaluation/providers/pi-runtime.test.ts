@@ -55,6 +55,45 @@ describe('Pi coding-agent runtime providers', () => {
     }
   });
 
+  it('emits skillCalls metadata from pi-cli tool events', async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), 'agentv-pi-cli-test-'));
+    const provider = new PiCliProvider('pi-cli-target', baseCliConfig(), async () => ({
+      stdout: `${JSON.stringify({
+        type: 'tool_execution_start',
+        toolName: 'read',
+        toolCallId: 'tc-1',
+        args: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+      })}\n${JSON.stringify({
+        type: 'tool_execution_end',
+        toolCallId: 'tc-1',
+        result: 'skill content',
+      })}\n${JSON.stringify({
+        type: 'agent_end',
+        messages: [{ role: 'assistant', content: [{ type: 'text', text: 'done' }] }],
+      })}\n`,
+      stderr: '',
+      exitCode: 0,
+    }));
+
+    try {
+      const response = await provider.invoke({ question: 'hello', cwd: workspace });
+
+      expect(response.metadata?.skillCalls).toEqual([
+        {
+          name: 'csv-analyzer',
+          input: {
+            path: '.agents/skills/csv-analyzer/SKILL.md',
+            file_path: '.agents/skills/csv-analyzer/SKILL.md',
+          },
+          path: '.agents/skills/csv-analyzer/SKILL.md',
+          source: 'heuristic',
+        },
+      ]);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
   it('returns structured pi-cli malformed-output errors', async () => {
     const workspace = await mkdtemp(path.join(tmpdir(), 'agentv-pi-cli-test-'));
     const provider = new PiCliProvider('pi-cli-target', baseCliConfig(), async () => ({

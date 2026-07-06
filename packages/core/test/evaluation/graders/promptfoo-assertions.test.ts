@@ -54,6 +54,25 @@ describe('promptfoo-compatible built-in assertions', () => {
     }
   });
 
+  it('does not register removed skill-trigger assertions', async () => {
+    const registry = createBuiltinRegistry();
+
+    await expect(
+      registry.create(
+        { name: 'stale', type: 'skill-trigger', skill: 'csv-analyzer' } as unknown as GraderConfig,
+        {
+          llmGrader: {
+            kind: 'llm-grader',
+            evaluate() {
+              throw new Error('not used');
+            },
+          },
+          registry,
+        },
+      ),
+    ).rejects.toThrow('Unknown grader type: "skill-trigger"');
+  });
+
   it('runs javascript assertions in-process', async () => {
     const result = await run({
       name: 'js',

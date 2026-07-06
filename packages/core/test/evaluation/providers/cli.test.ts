@@ -562,7 +562,11 @@ describe('CliProvider', () => {
               role: 'assistant',
               content: 'Response with tool calls',
               tool_calls: [
-                { tool: 'search', input: { query: 'hello' }, output: 'result' },
+                {
+                  tool: 'Read',
+                  input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+                  output: 'skill file',
+                },
                 { tool: 'analyze', input: { data: 123 } },
               ],
             },
@@ -588,10 +592,20 @@ describe('CliProvider', () => {
     expect(response.output).toHaveLength(1);
     expect(response.output?.[0].role).toBe('assistant');
     expect(response.output?.[0].toolCalls).toHaveLength(2);
-    expect(response.output?.[0].toolCalls?.[0].tool).toBe('search');
-    expect(response.output?.[0].toolCalls?.[0].input).toEqual({ query: 'hello' });
-    expect(response.output?.[0].toolCalls?.[0].output).toBe('result');
+    expect(response.output?.[0].toolCalls?.[0].tool).toBe('Read');
+    expect(response.output?.[0].toolCalls?.[0].input).toEqual({
+      path: '.agents/skills/csv-analyzer/SKILL.md',
+    });
+    expect(response.output?.[0].toolCalls?.[0].output).toBe('skill file');
     expect(response.output?.[0].toolCalls?.[1].tool).toBe('analyze');
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'csv-analyzer',
+        input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+        path: '.agents/skills/csv-analyzer/SKILL.md',
+        source: 'heuristic',
+      },
+    ]);
   });
 
   it('parses output from batch JSONL output', async () => {
@@ -605,7 +619,7 @@ describe('CliProvider', () => {
           output: [
             {
               role: 'assistant',
-              tool_calls: [{ tool: 'toolA', input: { x: 1 } }],
+              tool_calls: [{ tool: 'Read', input: { path: '.agents/skills/a/SKILL.md' } }],
             },
           ],
         };
@@ -615,7 +629,7 @@ describe('CliProvider', () => {
           output: [
             {
               role: 'assistant',
-              tool_calls: [{ tool: 'toolB', input: { y: 2 } }],
+              tool_calls: [{ tool: 'Read', input: { path: '.agents/skills/b/SKILL.md' } }],
             },
           ],
         };
@@ -643,9 +657,11 @@ describe('CliProvider', () => {
 
     expect(responses).toHaveLength(2);
     expect(responses[0]?.output).toBeDefined();
-    expect(responses[0]?.output?.[0].toolCalls?.[0].tool).toBe('toolA');
+    expect(responses[0]?.output?.[0].toolCalls?.[0].tool).toBe('Read');
+    expect(responses[0]?.metadata?.skillCalls?.[0]?.name).toBe('a');
     expect(responses[1]?.output).toBeDefined();
-    expect(responses[1]?.output?.[0].toolCalls?.[0].tool).toBe('toolB');
+    expect(responses[1]?.output?.[0].toolCalls?.[0].tool).toBe('Read');
+    expect(responses[1]?.metadata?.skillCalls?.[0]?.name).toBe('b');
   });
 
   it('handles messages without tool_calls', async () => {

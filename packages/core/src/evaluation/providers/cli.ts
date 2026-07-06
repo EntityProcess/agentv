@@ -13,6 +13,7 @@ import {
   type TargetRuntimeConfig,
   runDockerSandboxCommand,
 } from './sandbox-runner.js';
+import { deriveSkillCallMetadataFromMessages } from './skill-calls.js';
 import { buildTargetExecutionEnvelope, captureTargetExecutionLog } from './target-execution.js';
 import type { CliResolvedConfig } from './targets.js';
 import type {
@@ -543,6 +544,7 @@ export class CliProvider implements Provider {
 
       return {
         output: parsed.output,
+        metadata: deriveSkillCallMetadataFromMessages(parsed.output),
         tokenUsage: parsed.tokenUsage,
         costUsd: parsed.costUsd,
         durationMs: parsed.durationMs ?? measuredDurationMs,
@@ -804,6 +806,7 @@ export class CliProvider implements Provider {
 
         return {
           output: parsed.output,
+          metadata: deriveSkillCallMetadataFromMessages(parsed.output),
           tokenUsage: parsed.tokenUsage,
           costUsd: parsed.costUsd,
           durationMs: parsed.durationMs ?? perRequestFallbackMs,

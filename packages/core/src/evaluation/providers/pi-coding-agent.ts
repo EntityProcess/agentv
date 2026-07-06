@@ -28,6 +28,7 @@ import {
 } from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber, toPiContentArray } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
+import { deriveSkillCallMetadataFromMessages } from './skill-calls.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -512,6 +513,7 @@ export class PiCodingAgentProvider implements Provider {
             provider: this.config.subprovider,
           },
           output,
+          metadata: deriveSkillCallMetadataFromMessages(output),
           tokenUsage,
           costUsd,
           durationMs,

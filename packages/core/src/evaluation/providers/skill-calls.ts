@@ -12,6 +12,12 @@ export function deriveSkillCallsFromMessages(
   return deriveSkillCallsFromToolCalls(messages.flatMap((message) => message.toolCalls ?? []));
 }
 
+export function deriveSkillCallMetadataFromMessages(
+  messages: readonly Message[] | undefined,
+): ProviderResponseSkillMetadata | undefined {
+  return skillCallMetadata(deriveSkillCallsFromMessages(messages));
+}
+
 export function deriveSkillCallsFromToolCalls(
   toolCalls: readonly ToolCall[] | undefined,
 ): readonly SkillCall[] {
@@ -105,11 +111,16 @@ export function skillCallMetadata(
   if (skillCalls.length === 0) {
     return undefined;
   }
-  return { skillCalls };
+  const confirmed = skillCalls.filter((skillCall) => skillCall.isError !== true);
+  return dropUndefined({
+    skillCalls: confirmed.length > 0 ? confirmed : undefined,
+    attemptedSkillCalls: confirmed.length < skillCalls.length ? skillCalls : undefined,
+  });
 }
 
 type ProviderResponseSkillMetadata = {
-  readonly skillCalls: readonly SkillCall[];
+  readonly skillCalls?: readonly SkillCall[];
+  readonly attemptedSkillCalls?: readonly SkillCall[];
 };
 
 function skillPathCandidates(text: string): Array<{ name: string; path: string }> {

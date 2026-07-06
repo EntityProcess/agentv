@@ -15,6 +15,7 @@ import {
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { deriveSkillCallMetadataFromMessages } from './skill-calls.js';
 import type { CopilotSdkResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -331,6 +332,7 @@ export class CopilotSdkProvider implements Provider {
           logFile: logger?.filePath,
         },
         output,
+        metadata: deriveSkillCallMetadataFromMessages(output),
         tokenUsage,
         costUsd,
         durationMs,

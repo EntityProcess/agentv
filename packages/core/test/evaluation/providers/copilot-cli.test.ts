@@ -186,6 +186,19 @@ describe('CopilotCliProvider custom provider ACP mode', () => {
     const runner = mock(async () => {
       throw new Error('prompt mode should not be used');
     });
+    acpSessionUpdates = [
+      {
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'tc-1',
+          status: 'completed',
+          title: 'Read',
+          rawInput: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+          rawOutput: 'skill content',
+        },
+      },
+      ...acpSessionUpdates,
+    ];
     const provider = new CopilotCliProvider(
       'copilot-cli-custom',
       {
@@ -209,6 +222,17 @@ describe('CopilotCliProvider custom provider ACP mode', () => {
     });
 
     expect(extractLastAssistantContent(response.output)).toBe('agentv-copilot-gateway-ok');
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'csv-analyzer',
+        input: {
+          path: '.agents/skills/csv-analyzer/SKILL.md',
+          file_path: '.agents/skills/csv-analyzer/SKILL.md',
+        },
+        path: '.agents/skills/csv-analyzer/SKILL.md',
+        source: 'heuristic',
+      },
+    ]);
     expect(response.targetExecution?.status).toBe('success');
     expect(response.targetExecution?.providerKind).toBe('copilot-cli');
     expect(runner).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import type { JsonObject } from '../types.js';
+import { deriveSkillCallMetadataFromMessages } from './skill-calls.js';
 import type {
   ChatPrompt,
   Message,
@@ -156,10 +157,12 @@ export function providerResponseToWire(response: ProviderResponse): SdkChildProv
 }
 
 export function providerResponseFromWire(response: SdkChildProviderResponseWire): ProviderResponse {
+  const derivedMetadata = deriveSkillCallMetadataFromMessages(response.output);
+  const metadata = { ...derivedMetadata, ...response.metadata };
   return {
     raw: response.raw,
     usage: response.usage,
-    metadata: response.metadata,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     output: response.output,
     tokenUsage: response.token_usage,
     costUsd: response.cost_usd,
