@@ -49,8 +49,9 @@ implements equivalent semantics directly.
 | Deterministic assertion vocabulary | Common Promptfoo types include `contains`, `icontains`, `contains-any`, `contains-all`, `starts-with`, `regex`, `is-json`, `equals`, `latency`, `cost`, `javascript`, `python`, `webhook`, `similar`, and `llm-rubric`. | AgentV accepts the implemented overlap, including `contains`, `icontains`, `contains-any`, `contains-all`, `starts-with`, `regex`, `is-json`, `equals`, `latency`, `cost`, `javascript`, `python`, `webhook`, `similar`, and `llm-rubric`. | Align with Promptfoo | Unsupported Promptfoo assertion names error instead of silently becoming custom assertion names. |
 | Custom assertion terminology | Promptfoo calls normal eval custom logic assertions, with fixed code assertion types such as `javascript`, `python`, `ruby`, and `webhook`. | `defineAssertion()` files in `.agentv/assertions/` become reusable assertion type names. | Keep AgentV extension | AgentV keeps assertion terminology and extends discovery to arbitrary assertion type names such as `has-citation`. |
 | Script/custom grader terminology | Promptfoo custom code assertions are still assertion types. | `defineScriptGrader()` powers command-backed graders referenced with `type: script` and `command:`. | Keep AgentV divergence | Use script grader wording only for command-backed or LLM-backed scoring components that need explicit score and assertion-result control. |
-| Tool and trace assertions | Promptfoo includes `trajectory:tool-used`, `trajectory:tool-sequence`, `trajectory:tool-args-match`, `trajectory:step-count`, `trajectory:goal-success`, `tool-call-f1`, `skill-used`, `trace-span-count`, `trace-span-duration`, and `trace-error-spans`. | AgentV rejects those names until their semantics are implemented directly. | Defer/future-scope | These names are not aliases for AgentV's `tool-trajectory` grader. |
-| Tool trajectory grader | No direct Promptfoo alias for AgentV-normalized transcript semantics. | `type: tool-trajectory`. | Keep AgentV extension | This is AgentV-specific and operates over AgentV-normalized transcripts and trace summaries. |
+| Skill assertions | Promptfoo includes `skill-used` for checking whether an agent invoked a named skill. | `type: skill-used` and `type: not-skill-used` with `value: <skill>` or a matcher object. | Align with Promptfoo | AgentV evaluates these against normalized tool-call and skill-use trace data. |
+| Trajectory assertions | Promptfoo includes `trajectory:tool-used`, `trajectory:tool-sequence`, `trajectory:tool-args-match`, `trajectory:step-count`, and `trajectory:goal-success`. | AgentV accepts the same assertion names over AgentV-normalized traces. | Align with Promptfoo | Use these for tool presence, order, argument checks, step budgets, and LLM-judged goal success. |
+| Other Promptfoo trace assertions | Promptfoo also includes `tool-call-f1`, `trace-span-count`, `trace-span-duration`, and `trace-error-spans`. | Not accepted yet. | Defer/future-scope | Use `script` assertions or `execution-metrics` when current AgentV primitives cover the requirement. |
 | Coding-agent testbeds | Promptfoo normal evals do not define a typed coding-agent testbed primitive. | `environment`, usually inline or `environment: file://...`, plus distinct top-level `env` and lifecycle `extensions`. | Keep AgentV extension | `environment` is an AgentV extension informed by Margin local-agent ergonomics and Harbor/Terminal-Bench Docker substrate evidence. Use it for host/Docker workdir, setup argv, fixtures, services, and repo materialization. Use top-level `env` for provider/eval variables and `extensions` for lifecycle hooks. |
 | Run artifacts and inspection | Promptfoo owns its own result viewer and output formats. | AgentV writes `.agentv/results/<run_id>/` bundles with `summary.json`, `.internal/index.jsonl`, sidecars, and local Dashboard support. | Keep AgentV extension | AgentV-owned bundles are the source of truth for compare, Dashboard, CI, and adapters. Phoenix is link-out correlation only through safe external trace metadata. |
 | Compare command | Promptfoo has its own result comparison surfaces. | `agentv results compare <baseline-index.jsonl> <candidate-index.jsonl>`. | Keep AgentV extension | Compare consumes completed AgentV run indexes such as `.agentv/results/<run_id>/.internal/index.jsonl`. |
@@ -121,10 +122,10 @@ tests:
       task: Update the refund policy handler.
     expected_output: The handler supports the damaged-item exception.
     assert:
-      - type: tool-trajectory
-        mode: any_order
-        minimums:
-          shell: 1
+      - type: trajectory:tool-used
+        value:
+          name: shell
+          min: 1
       - type: script
         command: [bun, run, graders/check-refund-policy.ts]
 ```

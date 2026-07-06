@@ -41,28 +41,30 @@ Covers tool call correctness, argument validity, execution path, and redundancy.
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Tool sequence | `tool-trajectory` (`in_order`, `exact`) |
-| Minimum tool usage | `tool-trajectory` (`any_order`) |
-| Argument correctness | `tool-trajectory` with `args` matching |
+| Tool sequence | `trajectory:tool-sequence` (`in_order`, `exact`) |
+| Minimum tool usage | `trajectory:tool-used` |
+| Argument correctness | `trajectory:tool-args-match` |
 | Custom validation logic | `script` |
 
 ```yaml
 # Layer 2: Action — verify the agent called the right tools
 assert:
   - name: tool-sequence
-    type: tool-trajectory
-    mode: in_order
-    expected:
-      - tool: searchDocs
-      - tool: readFile
-      - tool: applyEdit
+    type: trajectory:tool-sequence
+    value:
+      mode: in_order
+      steps:
+        - searchDocs
+        - readFile
+        - applyEdit
 
   - name: arg-check
-    type: tool-trajectory
-    mode: any_order
-    minimums:
-      searchDocs: 1
-      readFile: 1
+    type: trajectory:tool-args-match
+    value:
+      name: searchDocs
+      args:
+        query: payment retry policy
+      mode: partial
 ```
 
 ## Layer 3: End-to-End
@@ -154,10 +156,10 @@ tests:
 
       # Layer 2: Action
       - name: tool-usage
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          search: 1
+        type: trajectory:tool-used
+        value:
+          name: search
+          min: 1
 
       # Layer 3: End-to-End
       - name: correct-answer

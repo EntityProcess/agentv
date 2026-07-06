@@ -217,7 +217,7 @@ Keep your baseline stable across iterations. Only re-run the baseline when the t
 
 ## Graduating to EVAL.yaml
 
-When `evals.json` is your starting point, you can run it directly for quick checks. Convert it to EVAL.yaml before using AgentV's workspace isolation, script graders, tool trajectory checks, or multi-turn conversations:
+When `evals.json` is your starting point, you can run it directly for quick checks. Convert it to EVAL.yaml before using AgentV's workspace isolation, script graders, trajectory assertions, or multi-turn conversations:
 
 ```bash
 agentv eval evals.json --target claude
@@ -258,7 +258,7 @@ After converting, you can:
 - Replace `llm-rubric` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
 - Add `workspace` configuration for file-system isolation
 - Use `script` for custom scoring logic
-- Define `tool-trajectory` assertions to check tool usage patterns
+- Define `skill-used`, `not-skill-used`, or `trajectory:*` assertions to check tool usage patterns
 
 See [Agent Skills evals.json Adapter](/docs/integrations/agent-skills-evals/) for the full field mapping and side-by-side comparison.
 
@@ -328,7 +328,7 @@ Start simple and add complexity only when the evaluation results demand it:
 1. **Start with EVAL.yaml** — 5-10 test cases, natural-language checks
 2. **Add deterministic checks** — when you find assertions that can be exact (`contains`, `regex`)
 3. **Run or convert existing `evals.json`** — when Agent Skills tooling owns the source file
-4. **Add tool trajectory checks** — when tool usage patterns matter
+4. **Add trajectory assertions** — when tool usage patterns matter
 5. **Use rubrics** — when you need weighted, structured scoring criteria
 
 ## Automated Iteration
