@@ -9,6 +9,7 @@ import { recordClaudeLogEntry } from './claude-log-tracker.js';
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { deriveSkillCallsFromToolCalls, skillCallMetadata } from './skill-calls.js';
 import type { ClaudeResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -213,6 +214,7 @@ export class ClaudeSdkProvider implements Provider {
           model: this.config.model,
           logFile: logger?.filePath,
         },
+        metadata: skillCallMetadata(deriveSkillCallsFromToolCalls(completedToolCalls)),
         output,
         tokenUsage,
         costUsd,

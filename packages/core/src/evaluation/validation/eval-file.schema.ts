@@ -16,7 +16,6 @@ const JsonObjectSchema = z.object({}).catchall(z.unknown());
 const JsonRecordSchema = z.record(z.unknown());
 const UnsupportedPromptfooAssertionTypes = new Set([
   'tool-call-f1',
-  'skill-used',
   'trajectory:goal-success',
   'trajectory:tool-args-match',
   'trajectory:step-count',
@@ -230,6 +229,8 @@ const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
     'python',
     'webhook',
     'similar',
+    'skill-used',
+    'not-skill-used',
     'contains',
     'contains-any',
     'contains-all',

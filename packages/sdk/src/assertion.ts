@@ -42,6 +42,8 @@ export type AssertionType =
   | 'script'
   | 'assert-set'
   | 'tool-trajectory'
+  | 'skill-used'
+  | 'not-skill-used'
   | 'field-accuracy'
   | 'latency'
   | 'cost'

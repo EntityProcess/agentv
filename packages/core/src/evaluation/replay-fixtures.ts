@@ -16,6 +16,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 
+import { deriveSkillCallsFromMessages, skillCallMetadata } from './providers/skill-calls.js';
 import type { ResolvedTarget } from './providers/targets.js';
 import type { Message, ProviderResponse, ProviderTokenUsage, ToolCall } from './providers/types.js';
 import type { EvalTest } from './types.js';
@@ -403,6 +404,7 @@ export function replayFixtureRecordToProviderResponse(
 ): ProviderResponse {
   return {
     output: record.output,
+    metadata: skillCallMetadata(deriveSkillCallsFromMessages(record.output)),
     tokenUsage: record.tokenUsage,
     costUsd: record.costUsd,
     durationMs: record.durationMs,

@@ -105,7 +105,6 @@ const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
   'human',
   'max-score',
   'tool-call-f1',
-  'skill-used',
   'trajectory:goal-success',
   'trajectory:tool-args-match',
   'trajectory:step-count',

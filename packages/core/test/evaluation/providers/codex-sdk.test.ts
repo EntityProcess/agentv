@@ -416,6 +416,44 @@ describe('CodexProvider (SDK)', () => {
     expect(msg?.toolCalls?.[0]?.id).toBe('cmd-1');
   });
 
+  it('normalizes Codex SKILL.md command reads into provider skill metadata', async () => {
+    const thread = createMockThread({
+      events: [
+        {
+          type: 'item.completed',
+          item: {
+            id: 'cmd-1',
+            type: 'command_execution',
+            command: 'sed -n 1,80p .agents/skills/csv-analyzer/SKILL.md',
+            aggregated_output: 'skill instructions',
+            status: 'completed',
+          },
+        },
+        {
+          type: 'item.completed',
+          item: { id: 'msg-1', type: 'agent_message', text: 'Used the skill' },
+        },
+      ],
+    });
+    const codexInstance = createMockCodex(thread);
+    const sdkMock = mockCodexSdk(codexInstance);
+
+    mock.module('@openai/codex-sdk', () => sdkMock);
+    const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
+
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
+    const response = await provider.invoke({ question: 'Use csv analyzer' });
+
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'csv-analyzer',
+        input: { command: 'sed -n 1,80p .agents/skills/csv-analyzer/SKILL.md' },
+        path: '.agents/skills/csv-analyzer/SKILL.md',
+        source: 'heuristic',
+      },
+    ]);
+  });
+
   it('extracts file change tool calls from events', async () => {
     const thread = createMockThread({
       events: [

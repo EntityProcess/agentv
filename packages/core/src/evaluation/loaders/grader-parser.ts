@@ -106,7 +106,6 @@ const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
   'human',
   'max-score',
   'tool-call-f1',
-  'skill-used',
   'trajectory:goal-success',
   'trajectory:tool-args-match',
   'trajectory:step-count',
@@ -954,6 +953,27 @@ async function parseGraderList(
       };
 
       pushEvaluator(config);
+      continue;
+    }
+
+    if (typeValue === 'skill-used' || typeValue === 'not-skill-used') {
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
+
+      pushEvaluator({
+        name,
+        type: typeValue,
+        value: rawEvaluator.value as import('../types.js').SkillUsedGraderConfig['value'],
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+      });
       continue;
     }
 
@@ -1915,6 +1935,17 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
   const arrayValue = Array.isArray(rawEvaluator.value) ? rawEvaluator.value : undefined;
 
   switch (typeValue) {
+    case 'skill-used':
+    case 'not-skill-used': {
+      const rawValue = rawEvaluator.value;
+      if (typeof rawValue === 'string' && rawValue.trim()) {
+        return `${typeValue}-${rawValue.trim()}`;
+      }
+      if (Array.isArray(rawValue)) {
+        return `${typeValue}-${rawValue.length}`;
+      }
+      return typeValue;
+    }
     case 'skill-trigger': {
       const skillValue = asString(rawEvaluator.skill);
       return skillValue ? `skill-trigger-${skillValue}` : 'skill-trigger';

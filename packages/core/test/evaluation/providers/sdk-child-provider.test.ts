@@ -29,6 +29,13 @@ describe('SdkChildProvider', () => {
     const response = await provider.invoke({ question: 'hello' });
 
     expect(extractLastAssistantContent(response.output)).toBe('child ok');
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'codex/list_mcp_resources',
+        input: { skill: 'codex/list_mcp_resources' },
+        source: 'tool',
+      },
+    ]);
     const raw = response.raw as {
       child_runner?: { events?: readonly { message?: string }[]; stderr?: string };
     };
@@ -148,6 +155,15 @@ if (mode === 'success') {
   write({
     type: 'result',
     response: {
+      metadata: {
+        skillCalls: [
+          {
+            name: 'codex/list_mcp_resources',
+            input: { skill: 'codex/list_mcp_resources' },
+            source: 'tool',
+          },
+        ],
+      },
       output: [{ role: 'assistant', content: 'child ok' }],
       token_usage: { input: 1, output: 2 },
       duration_ms: 3,

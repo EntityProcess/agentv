@@ -2657,6 +2657,9 @@ function buildProviderResponseTransformMetadata(
 ): JsonObject | undefined {
   const metadata: Record<string, JsonValue> = {};
   const fields: Array<readonly [string, unknown]> = [
+    ['metadata', response.metadata],
+    ['skill_calls', response.metadata?.skillCalls],
+    ['attempted_skill_calls', response.metadata?.attemptedSkillCalls],
     ['raw', response.raw],
     ['usage', response.usage],
     ['token_usage', response.tokenUsage],
