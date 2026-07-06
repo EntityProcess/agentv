@@ -1355,6 +1355,7 @@ export class LlmGrader implements Grader {
 
     let lastError: Error | undefined;
     let lastInvalidResponse: StructuredGenerationResult | undefined;
+    let lastRawText: string | undefined;
     let shouldAttemptStructureFix = false;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -1374,6 +1375,7 @@ export class LlmGrader implements Grader {
           data = parseResponse ? parseResponse(raw) : (schema.parse(raw) as unknown as TData);
         } catch (e: unknown) {
           lastError = e instanceof Error ? e : new Error(String(e));
+          lastRawText = result.text;
           shouldAttemptStructureFix = canRepairResponse;
           continue;
         }
@@ -1388,8 +1390,9 @@ export class LlmGrader implements Grader {
     }
 
     if (shouldAttemptStructureFix && lastInvalidResponse) {
+      let repaired: StructuredGenerationResult | undefined;
       try {
-        const repaired = await this.generateStructuredResponse({
+        repaired = await this.generateStructuredResponse({
           context,
           graderProvider,
           systemPrompt,
@@ -1407,11 +1410,14 @@ export class LlmGrader implements Grader {
         };
       } catch (e: unknown) {
         lastError = e instanceof Error ? e : new Error(String(e));
+        lastRawText = repaired?.text ?? lastRawText;
       }
     }
 
     throw new Error(
-      `Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: ${lastError?.message}`,
+      `Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: ${lastError?.message}${
+        lastRawText ? ` | raw response: ${truncateForErrorMessage(lastRawText)}` : ''
+      }`,
     );
   }
 
@@ -1490,6 +1496,21 @@ export function buildPromptfooRubricOutputSchema(): string {
     '',
     'The "checks" array is optional. Return only JSON.',
   ].join('\n');
+}
+
+/**
+ * Cap a raw evaluator response so it stays readable inline in an error/reason
+ * message, while still giving enough context (e.g. "the model returned prose
+ * instead of JSON") to debug a grader parse failure without re-running it.
+ */
+const RAW_RESPONSE_PREVIEW_LENGTH = 300;
+
+function truncateForErrorMessage(text: string): string {
+  const normalized = text.trim().replace(/\s+/g, ' ');
+  if (normalized.length <= RAW_RESPONSE_PREVIEW_LENGTH) {
+    return JSON.stringify(normalized);
+  }
+  return JSON.stringify(`${normalized.slice(0, RAW_RESPONSE_PREVIEW_LENGTH)}…`);
 }
 
 function buildStructureRepairPrompt(options: {
