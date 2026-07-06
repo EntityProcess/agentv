@@ -188,10 +188,12 @@ function numeric(values: readonly (number | undefined)[]): number[] {
 }
 
 function caseTrials(result: EvalResult): readonly EvalCaseTrial[] {
-  return result.attempts ?? result.trials ?? [];
+  return result.samples ?? result.attempts ?? result.trials ?? [];
 }
 
 function caseTrialPassed(trial: EvalCaseTrial, passThreshold: number): boolean {
+  if (trial.status === 'passed') return true;
+  if (trial.status === 'failed' || trial.status === 'skipped') return false;
   if (trial.verdict === 'pass') return true;
   if (trial.verdict === 'fail') return false;
   return typeof trial.score === 'number' ? trial.score >= passThreshold : false;

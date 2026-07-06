@@ -782,7 +782,7 @@ function addTrialRunCatalogEntries(
     ? normalizeArtifactRelativePath(record.result_dir)
     : undefined;
   if (!resultDir) return;
-  for (const trial of record.attempts ?? record.trials ?? []) {
+  for (const trial of record.samples ?? record.attempts ?? record.trials ?? []) {
     const rawPath =
       typeof trial.sample_path === 'string'
         ? trial.sample_path
@@ -1133,13 +1133,13 @@ function buildRepeatTrialReadModels(
   baseDir: string,
   record: ResultManifestRecord,
 ): Array<Record<string, unknown>> | undefined {
-  const attempts = record.attempts ?? record.trials;
-  if (!attempts || attempts.length === 0) return undefined;
+  const samples = record.samples ?? record.attempts ?? record.trials;
+  if (!samples || samples.length === 0) return undefined;
   const resultDir = record.result_dir
     ? normalizeArtifactRelativePath(record.result_dir)
     : undefined;
 
-  return attempts.map((trial) => {
+  return samples.map((trial) => {
     const rawPath =
       typeof trial.sample_path === 'string'
         ? trial.sample_path
@@ -1211,7 +1211,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
   return results.map((result, index) => {
     const record = records[index];
     if (!record) return result;
-    const attempts = buildRepeatTrialReadModels(baseDir, record);
+    const samples = buildRepeatTrialReadModels(baseDir, record);
     return {
       ...result,
       ...(record.aggregation && { aggregation: record.aggregation }),
@@ -1226,7 +1226,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
       ...(record.transcript_raw_path && { transcript_raw_path: record.transcript_raw_path }),
       ...(record.output_path && { output_path: record.output_path }),
       ...(record.answer_path && { answer_path: record.answer_path }),
-      ...(attempts && { attempts }),
+      ...(samples && { samples }),
     };
   });
 }

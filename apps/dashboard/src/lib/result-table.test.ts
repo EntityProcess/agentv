@@ -122,9 +122,9 @@ describe('result-table model', () => {
           testId: 'repeat-case',
           eval_path: 'evals/strict-layout.eval.yaml',
           target: 'openai',
-          trials: [
-            { attempt: 0, attempt_path: 'attempt-1', score: 1, verdict: 'pass' },
-            { attempt: 1, attempt_path: 'attempt-2', score: 0.4, verdict: 'fail' },
+          samples: [
+            { sample: 1, sample_index: 0, sample_path: 'sample-1', score: 1, status: 'passed' },
+            { sample: 2, sample_index: 1, sample_path: 'sample-2', score: 0.4, status: 'failed' },
           ],
         }),
       ],
@@ -154,26 +154,29 @@ describe('result-table model', () => {
         result({
           testId: 'flaky-repeat-case',
           score: 0.5,
-          attempts: [
+          samples: [
             {
-              attempt: 0,
-              attempt_path: 'sample-1',
+              sample: 1,
+              sample_index: 0,
+              sample_path: 'sample-1',
               score: 1,
-              verdict: 'pass',
+              status: 'passed',
               duration_ms: 4200,
             },
             {
-              attempt: 1,
-              attempt_path: 'sample-2',
+              sample: 2,
+              sample_index: 1,
+              sample_path: 'sample-2',
               score: 0.42,
-              verdict: 'fail',
+              status: 'failed',
               duration_ms: 5100,
             },
             {
-              attempt: 2,
-              attempt_path: 'sample-3',
+              sample: 3,
+              sample_index: 2,
+              sample_path: 'sample-3',
               score: 0,
-              verdict: 'fail',
+              status: 'failed',
               execution_status: 'execution_error',
               error: 'target timed out',
             },
@@ -198,22 +201,20 @@ describe('result-table model', () => {
         result({
           testId: 'sample-path-case',
           score: 1,
-          attempts: [
+          samples: [
             {
-              attempt: 0,
-              sample_index: 1,
+              sample: 1,
+              sample_index: 0,
               sample_path: 'sample-1',
-              attempt_path: 'attempt-1',
               score: 1,
-              verdict: 'pass',
+              status: 'passed',
             },
             {
-              attempt: 1,
-              sample_index: 2,
+              sample: 2,
+              sample_index: 1,
               sample_path: 'sample-2',
-              attempt_path: 'attempt-2',
               score: 1,
-              verdict: 'pass',
+              status: 'passed',
             },
           ],
         }),

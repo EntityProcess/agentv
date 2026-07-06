@@ -602,13 +602,16 @@ export function ResultRowsTable({
 }
 
 function caseTrialPassed(trial: EvalCaseTrial, passThreshold: number): boolean {
+  if (trial.status === 'passed') return true;
+  if (trial.status === 'failed' || trial.status === 'skipped') return false;
   if (trial.verdict === 'pass') return true;
   if (trial.verdict === 'fail') return false;
   return typeof trial.score === 'number' ? trial.score >= passThreshold : false;
 }
 
 function trialNumber(trial: EvalCaseTrial, index = 0): number {
-  if (typeof trial.sample_index === 'number') return trial.sample_index;
+  if (typeof trial.sample === 'number') return trial.sample;
+  if (typeof trial.sample_index === 'number') return trial.sample_index + 1;
   if (typeof trial.attempt === 'number') return trial.attempt + 1;
   return index + 1;
 }

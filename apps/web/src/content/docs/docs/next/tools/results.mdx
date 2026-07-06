@@ -121,9 +121,9 @@ Duplicate policy is explicit:
 
 ### Metrics sidecar
 
-Each attempt directory includes `metrics.json`
+Each sample directory includes `metrics.json`
 (`schema_version: "agentv.metrics.v2"`). This is an AgentV-owned derived
-projection over the attempt trace/transcript, result row, and `grading.json`.
+projection over the sample trace/transcript, result row, and `grading.json`.
 It is the compact executor behavior summary for dashboards, comparison exports,
 and metric-style graders; it is not canonical trace storage.
 Executor counters such as `tool_calls`, `total_tool_calls`,
@@ -133,13 +133,13 @@ at the top level next to `duration`, `tokens`, `cost`, `execution`, and
 artifacts, and safe `external_trace` correlation metadata.
 
 Every case uses aggregate `summary.json`, then stores execution artifact details
-under `sample-N/`. Each `sample-N/` contains a compact per-attempt manifest
+under `sample-N/`. Each `sample-N/` contains a compact per-sample manifest
 `result.json`, `grading.json`, `metrics.json`,
 `transcript.json`, `transcript-raw.jsonl`, `outputs/answer.md`, and
 `outputs/file_changes.diff` when workspace changes were captured. The
-`result.json` file carries AgentV `execution_status` and `verdict` fields plus
+`result.json` file carries AgentV `execution_status` and outcome `status` fields plus
 `grading_path`, `metrics_path`, transcript, output, and `file_changes_path`
-paths. Treat `sample-N/` as an artifact attempt folder, not as a comparison
+paths. Treat `sample-N/` as an artifact sample folder, not as a comparison
 dimension; stochastic samples and infrastructure retries should be represented
 with explicit sample/retry metadata rather than inferred from folder names.
 
@@ -150,7 +150,7 @@ conversation transcript with canonical `tool_name` values, joined
 persist a public `trace.json` sidecar in run bundles; external observability
 systems can be linked through safe `external_trace` metadata when available.
 `summary.json` remains the run-level aggregate summary. `.internal/index.jsonl` is the
-canonical row index for the run: one row per result, attempt, or case, carrying
+canonical row index for the run: one row per result, sample, or case, carrying
 lightweight explicit paths such as `transcript_path`, `transcript_raw_path`,
 `file_changes_path`, and `metrics_path` plus artifact pointers only when
 detached payload publishing needs them. Dashboard search indexes, SQLite

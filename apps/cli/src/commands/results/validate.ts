@@ -46,6 +46,11 @@ interface IndexEntry {
   readonly timing_path?: string;
   readonly metrics_path?: string;
   readonly result_dir?: string;
+  readonly samples?: readonly {
+    readonly sample_path?: string;
+    readonly attempt_path?: string;
+    readonly run_path?: string;
+  }[];
   readonly attempts?: readonly {
     readonly attempt_path?: string;
     readonly sample_path?: string;
@@ -362,24 +367,24 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       }
     }
 
-    for (const attempt of entry.attempts ?? entry.trials ?? []) {
-      const attemptPath = attempt.attempt_path ?? attempt.run_path;
-      if (!entry.result_dir || !attemptPath) {
+    for (const sample of entry.samples ?? entry.attempts ?? entry.trials ?? []) {
+      const samplePath = sample.sample_path ?? sample.attempt_path ?? sample.run_path;
+      if (!entry.result_dir || !samplePath) {
         continue;
       }
-      const runDirPath = path.join(runDir, entry.result_dir, attemptPath);
+      const runDirPath = path.join(runDir, entry.result_dir, samplePath);
       const resultPath = path.join(runDirPath, 'result.json');
       const gradingPath = path.join(runDirPath, 'grading.json');
       if (!existsSync(resultPath)) {
         diagnostics.push({
           severity: 'error',
-          message: `${testId}: result.json not found at '${path.posix.join(entry.result_dir, attemptPath, 'result.json')}'`,
+          message: `${testId}: result.json not found at '${path.posix.join(entry.result_dir, samplePath, 'result.json')}'`,
         });
       }
       if (!existsSync(gradingPath)) {
         diagnostics.push({
           severity: 'error',
-          message: `${testId}: grading.json not found at '${path.posix.join(entry.result_dir, attemptPath, 'grading.json')}'`,
+          message: `${testId}: grading.json not found at '${path.posix.join(entry.result_dir, samplePath, 'grading.json')}'`,
         });
       }
     }

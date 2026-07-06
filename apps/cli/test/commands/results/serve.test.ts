@@ -2373,15 +2373,16 @@ describe('serve app', () => {
           ...RESULT_A,
           test_id: 'repeat-case',
           result_dir: resultDir,
-          attempts: [
+          samples: [
             {
-              attempt: 0,
-              attempt_path: 'attempt-1',
+              sample: 1,
+              sample_index: 0,
+              sample_path: 'attempt-1',
               score: 0.25,
-              verdict: 'fail',
+              status: 'failed',
               transcript_summary: firstSummary,
             },
-            { attempt: 1, attempt_path: 'attempt-2', score: 1, verdict: 'pass' },
+            { sample: 2, sample_index: 1, sample_path: 'attempt-2', score: 1, status: 'passed' },
           ],
         }),
       );
@@ -2391,7 +2392,7 @@ describe('serve app', () => {
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
         results: Array<{
-          attempts?: Array<{
+          samples?: Array<{
             transcript_path?: string;
             transcript_summary?: Record<string, unknown>;
             total_tool_calls?: number;
@@ -2400,15 +2401,15 @@ describe('serve app', () => {
         }>;
       };
 
-      expect(data.results[0]?.attempts?.[0]?.transcript_summary).toEqual(firstSummary);
-      expect(data.results[0]?.attempts?.[1]?.transcript_summary).toEqual(secondSummary);
-      expect(data.results[0]?.attempts?.map((trial) => trial.transcript_path)).toEqual([
+      expect(data.results[0]?.samples?.[0]?.transcript_summary).toEqual(firstSummary);
+      expect(data.results[0]?.samples?.[1]?.transcript_summary).toEqual(secondSummary);
+      expect(data.results[0]?.samples?.map((trial) => trial.transcript_path)).toEqual([
         `${resultDir}/attempt-1/transcript.json`,
         `${resultDir}/attempt-2/transcript.json`,
       ]);
-      expect(data.results[0]?.attempts?.map((trial) => trial.total_tool_calls)).toEqual([1, 2]);
-      expect(data.results[0]?.attempts?.[0]?.tool_calls).toEqual({ Bash: 1 });
-      expect(data.results[0]?.attempts?.[1]?.tool_calls).toEqual({ Read: 2 });
+      expect(data.results[0]?.samples?.map((trial) => trial.total_tool_calls)).toEqual([1, 2]);
+      expect(data.results[0]?.samples?.[0]?.tool_calls).toEqual({ Bash: 1 });
+      expect(data.results[0]?.samples?.[1]?.tool_calls).toEqual({ Read: 2 });
     });
 
     it('loads historical runs without test bundle metadata', async () => {

@@ -29,7 +29,7 @@ ADR as historical context; current run bundles use `.internal/index.jsonl`,
 ## Context
 
 AgentV needs a result output contract that works for local runs, CI gates,
-Dashboard inspection, static reports, comparisons, repeated attempts, imported
+Dashboard inspection, static reports, comparisons, repeated samples, imported
 suites, manual prepare/grade attempts, and downstream adapters. The contract
 must remain portable across repositories and machines without requiring a
 hosted database or an external observability system.
@@ -37,10 +37,10 @@ hosted database or an external observability system.
 Several pressures make directory-derived semantics brittle:
 
 - A single CLI invocation can run multiple targets or imported suites.
-- Repeated attempts can create multiple attempts for one case.
+- Repeated samples can create multiple sample outputs for one case.
 - Two suites can reuse the same test ID.
 - Dashboard and compare tools need dynamic filters across experiment, target,
-  variant, source eval, attempt, status, score, and metadata.
+  variant, source eval, sample, status, score, and metadata.
 - Result bundles can be copied, combined, published, imported, or projected into
   another storage location.
 - Future schema evolution should add row fields or sidecars without requiring a
@@ -75,8 +75,8 @@ An AgentV result output is a run-centric bundle with this root contract:
         file_changes.diff     # when workspace file changes exist
 ```
 
-`run-N/result.json` uses AgentV-owned status fields: `execution_status` carries
-the attempt execution classification and `verdict` carries the grader verdict.
+`sample-N/result.json` uses AgentV-owned status fields: `execution_status` carries
+the execution classification and `status` carries the normalized sample outcome.
 It does not export external runner status enums.
 
 `summary.json` and `index.jsonl` are complementary:
@@ -85,7 +85,7 @@ It does not export external runner status enums.
   score summaries, duration, token/cost totals, writer metadata, and run-level
   display fields. Run listings, CI summaries, and quick Dashboard cards should
   use it.
-- `index.jsonl` owns row-level truth: one row per result, attempt, or
+- `index.jsonl` owns row-level truth: one row per result, sample, or
   case-level aggregate, with identity fields, filter metadata, status, scores,
   and explicit run-relative paths to sidecars. Dashboard detail routing,
   compare/trend tooling, rerun lookup, and adapters should use it.
@@ -135,19 +135,19 @@ identity is the manifest data, not the directory spelling.
 
 ## Row Metadata Owns Filtering
 
-Experiment, target, variant, attempt, source eval, source target, imported suite
+Experiment, target, variant, sample, source eval, source target, imported suite
 metadata, repeat policy results, execution status, and artifact path fields
 belong in result rows because consumers need to filter after the run is written.
 
 This supports:
 
 - multi-target runs where one bundle contains rows for several candidates;
-- repeated attempts where one logical case has multiple attempt records;
+- repeated samples where one logical case has multiple sample records;
 - imported suites where source suite metadata differs from wrapper eval
   metadata;
 - Dashboard filters and detail routing without pre-splitting folders for every
   view;
-- comparison tools that group by experiment, target, variant, attempt, or eval
+- comparison tools that group by experiment, target, variant, sample, or eval
   path;
 - adapter projections that can evolve by preserving unknown fields and adding
   new sidecar path fields;
@@ -198,7 +198,7 @@ Negative:
 Rejected. A hierarchy such as
 `experiments/<experiment>/<target>/<variant>/<attempt>/...` makes simple cases
 look organized, but it turns every new filter dimension into a storage decision.
-It also breaks down for multi-target runs, imported suites, repeated attempts,
+It also breaks down for multi-target runs, imported suites, repeated samples,
 manual grading, combined bundles, and copied result repositories.
 
 ### Single aggregate manifest only

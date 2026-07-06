@@ -127,13 +127,18 @@ export interface AssertionEntry {
 }
 
 export interface EvalCaseTrial {
-  attempt?: number;
+  sample?: number;
   sample_index?: number;
-  retry_index?: number;
   sample_path?: string;
+  status?: string;
+  /** Legacy pre-v5 repeat sample field accepted when reading older bundles. */
+  attempt?: number;
+  retry_index?: number;
+  /** Legacy pre-v5 repeat sample path accepted when reading older bundles. */
   attempt_path?: string;
   run_path?: string;
   score?: number;
+  /** Legacy pre-v5 normalized outcome accepted when reading older bundles. */
   verdict?: string;
   scores?: ScoreEntry[];
   assertions?: AssertionEntry[];
@@ -162,6 +167,10 @@ export interface EvalCaseTrial {
 export type EvalTrialAggregation =
   | {
       strategy: 'pass_any';
+      passed_samples?: number;
+      total_samples?: number;
+      pass_rate?: number;
+      /** Legacy pre-v5 aggregate fields accepted when reading older bundles. */
       passed_attempts?: number;
       total_attempts?: number;
     }
@@ -289,6 +298,8 @@ export interface EvalResult {
   externalTrace?: CamelExternalTraceMetadata;
   metadata?: Record<string, unknown>;
   source_traceability?: SourceTraceability;
+  samples?: EvalCaseTrial[];
+  /** Legacy pre-v5 repeat sample fields accepted when reading older bundles. */
   attempts?: EvalCaseTrial[];
   trials?: EvalCaseTrial[];
   aggregation?: EvalTrialAggregation;

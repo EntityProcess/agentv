@@ -16,7 +16,7 @@ Finalized contract:
 - Public native grading artifacts use a recursive Promptfoo-style grading result in AgentV `snake_case`: `pass`, `score`, `reason`, optional `component_results`, `assertion`, `named_scores`, and `metadata`.
 - Each `component_results[]` entry recursively uses the same shape; SDK/script `checks` conveniences normalize into `component_results` at the artifact boundary.
 - Do not emit public `assertion_results`, assertions-as-results, `passed`, `evidence`, `verdict`, `graders`, or `checks` for native AgentV grading artifacts.
-- Summary and index vocabulary should prefer `pass_rate`, `pass_count`, `sample_count`, and `passed`/`pass_any`; reserve `pass_at_k`/pass@k for explicit sampling metrics with a real `k`.
+- Summary and index vocabulary should prefer `pass_rate`, `passed_samples`, `total_samples`, and `status: "passed"`/`pass_any`; reserve `pass_at_k`/pass@k for explicit sampling metrics with a real `k`.
 
 Wire formats remain `snake_case`; internal TypeScript remains `camelCase` with boundary translation.
 

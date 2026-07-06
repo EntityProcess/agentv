@@ -40,11 +40,24 @@ export function formatSummary(
 
   if (grading) {
     const metadata = grading.metadata ?? {};
-    passed =
-      typeof metadata.pass_count === 'number' ? metadata.pass_count : grading.pass ? total : 0;
+    const passedSamples =
+      typeof metadata.passed_samples === 'number'
+        ? metadata.passed_samples
+        : typeof metadata.pass_count === 'number'
+          ? metadata.pass_count
+          : undefined;
+    const totalSamples =
+      typeof metadata.total_samples === 'number'
+        ? metadata.total_samples
+        : typeof metadata.sample_count === 'number'
+          ? metadata.sample_count
+          : undefined;
+    // pass_count/sample_count are legacy pre-v5 aggregate metadata names.
+    // Keep reading them so `agentv results summary` works on older bundles.
+    passed = passedSamples ?? (grading.pass ? total : 0);
     failed =
-      typeof metadata.sample_count === 'number' && typeof metadata.pass_count === 'number'
-        ? metadata.sample_count - metadata.pass_count
+      totalSamples !== undefined && passedSamples !== undefined
+        ? totalSamples - passed
         : total - passed;
     passRate =
       typeof metadata.pass_rate === 'number'

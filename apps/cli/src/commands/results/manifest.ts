@@ -36,6 +36,16 @@ export interface ResultManifestRecord {
   readonly variant?: string;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
+  readonly samples?: readonly {
+    readonly sample?: number;
+    readonly sample_index?: number;
+    readonly sample_path?: string;
+    readonly run_path?: string;
+    readonly score?: number;
+    readonly status?: string;
+    readonly [key: string]: unknown;
+  }[];
+  /** Legacy pre-v5 repeat sample field accepted when reading older bundles. */
   readonly attempts?: readonly {
     readonly attempt?: number;
     readonly attempt_path?: string;
@@ -45,6 +55,7 @@ export interface ResultManifestRecord {
     readonly verdict?: string;
     readonly [key: string]: unknown;
   }[];
+  /** Legacy pre-v5 repeat sample field accepted when reading older bundles. */
   readonly trials?: readonly {
     readonly attempt?: number;
     readonly attempt_path?: string;

@@ -192,9 +192,9 @@ evaluate_options:
     cost_limit_usd: 1.00
 ```
 
-`evaluate_options.repeat.strategy` controls verdict aggregation. `pass_any`
-treats the case as successful when any completed attempt passes; `pass_all`
-requires every completed attempt to pass. `mean` and `confidence_interval`
+`evaluate_options.repeat.strategy` controls sample aggregation. `pass_any`
+treats the case as successful when any completed sample passes; `pass_all`
+requires every completed sample to pass. `mean` and `confidence_interval`
 aggregate scores where supported today. `evaluate_options.repeat.early_exit` is
 only a scheduling and cost optimization: `pass_any` may stop at the first pass,
 and `pass_all` may stop at the first fail. Leave it unset or `false` when you

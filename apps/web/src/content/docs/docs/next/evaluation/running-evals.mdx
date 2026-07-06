@@ -159,7 +159,7 @@ inspection, or rerun workflows, share the generated run directory and its
 organizing bulky prompts, fixtures, or tests while authoring an eval, but they
 are optional input organization rather than a separate artifact schema.
 
-For the full root layout, per-attempt sidecars, pointer rules, and integration
+For the full root layout, per-sample sidecars, pointer rules, and integration
 guidance, use the [Result Artifact Contract](/docs/reference/result-artifacts/).
 
 Use repo-relative `eval_path`, `test_id`, and `target` as the source identity
@@ -174,7 +174,7 @@ available. It no longer emits a generated prompt sidecar for result rows.
 
 Use `agentv prepare` when you want AgentV to set up one eval case but a human,
 external agent, or separate harness should perform the work. The workflow is:
-prepare the workspace and prompt, run the external attempt in that workspace,
+prepare the workspace and prompt, run the external sample in that workspace,
 then grade the final state with `agentv grade --prepared` without rerunning the
 target provider. See [Prepare](/docs/tools/prepare/) for the full workflow,
 manifest shape, and optional trace/session input with `--trace`.
@@ -252,7 +252,7 @@ environment:
 Notes:
 - Temp environment materialization is the default for harness-managed testbeds.
 - `--workspace-path` uses an existing machine-local directory as-is.
-- Runtime workspace paths are incompatible with per-attempt environment isolation.
+- Runtime workspace paths are incompatible with per-sample environment isolation.
 - Environment reset policy resets file state after each case.
 
 ### Resume an Interrupted Run
@@ -642,7 +642,7 @@ Run the same eval against the replay alias:
 agentv eval evals/legal-review.eval.yaml --target replay_coding_agent
 ```
 
-Replay fixture rows are strict snake_case JSONL. Each row is keyed by `suite` or `eval_path`, `test_id`, `source_target`, `attempt`, and optional `variant`; missing or duplicate rows fail before grading. Rows preserve the recorded target `output`, `tool_calls`, `transcript`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, and `end_time` when the live provider supplied them.
+Replay fixture rows are strict snake_case JSONL. Each row is keyed by `suite` or `eval_path`, `test_id`, `source_target`, `sample_index`, and optional `variant`; missing or duplicate rows fail before grading. Rows preserve the recorded target `output`, `tool_calls`, `transcript`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, and `end_time` when the live provider supplied them.
 
 The replay provider never invokes the live target. It only returns the recorded target output, then AgentV runs graders fresh against that output. Keep replay fixtures separate from the response cache and from cached grader judgments.
 

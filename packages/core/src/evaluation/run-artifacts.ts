@@ -415,10 +415,11 @@ export interface GradingArtifact {
 }
 
 export type TrialResultArtifact = {
-  readonly attempt: number;
+  readonly sample: number;
+  readonly sample_index: number;
   readonly sample_path?: string;
   readonly score: number;
-  readonly verdict: string;
+  readonly status: string;
   readonly scores?: IndexArtifactEntry['scores'];
   readonly error?: string;
   readonly cost_usd?: number;
@@ -431,13 +432,15 @@ export type TrialResultArtifact = {
 export type TrialAggregationArtifact =
   | {
       readonly strategy: 'pass_any';
-      readonly passed_attempts: number;
-      readonly total_attempts: number;
+      readonly passed_samples: number;
+      readonly total_samples: number;
+      readonly pass_rate: number;
     }
   | {
       readonly strategy: 'pass_all';
-      readonly passed_attempts: number;
-      readonly total_attempts: number;
+      readonly passed_samples: number;
+      readonly total_samples: number;
+      readonly pass_rate: number;
       readonly min: number;
     }
   | {
@@ -600,7 +603,7 @@ export interface IndexArtifactEntry {
   readonly named_scores?: Record<string, number>;
   readonly derived_metrics?: Record<string, unknown>;
   readonly provenance?: string;
-  readonly attempts?: readonly TrialResultArtifact[];
+  readonly samples?: readonly TrialResultArtifact[];
   readonly aggregation?: TrialAggregationArtifact;
   readonly execution_status?: string;
   readonly error?: string;
@@ -669,7 +672,7 @@ export interface AdditionalResultArtifactsContext {
 
 export interface AgentVRunResultArtifact {
   readonly execution_status: EvaluationResult['executionStatus'];
-  readonly verdict: TrialResult['verdict'];
+  readonly status: string;
   readonly sample_index?: number;
   readonly retry_index?: number;
   readonly target_execution?: TargetExecutionWire;
@@ -707,8 +710,8 @@ export interface AgentVRunResultArtifact {
 }
 
 export interface RepeatCaseSummaryArtifact {
-  readonly total_attempts: number;
-  readonly passed_attempts: number;
+  readonly total_samples: number;
+  readonly passed_samples: number;
   readonly pass_rate: string;
   readonly mean_duration_ms: number;
   readonly mean_duration_seconds: number;
@@ -809,6 +812,17 @@ function resultVerdict(result: EvaluationResult): EvaluationVerdict {
     return 'pass';
   }
   return 'fail';
+}
+
+function statusFromVerdict(verdict: EvaluationVerdict): 'passed' | 'failed' | 'skipped' {
+  switch (verdict) {
+    case 'pass':
+      return 'passed';
+    case 'skip':
+      return 'skipped';
+    case 'fail':
+      return 'failed';
+  }
 }
 
 function passFromVerdict(verdict: EvaluationVerdict | undefined, score: number): boolean {
@@ -1032,10 +1046,11 @@ function toTrialArtifacts(
     return undefined;
   }
   return trials.map((trial) => ({
-    attempt: trial.attempt,
+    sample: trial.attempt + 1,
+    sample_index: trial.sampleIndex ?? trial.attempt,
     sample_path: trial.result ? sampleDirName(trial.attempt) : undefined,
     score: trial.score,
-    verdict: trial.verdict,
+    status: statusFromVerdict(trial.verdict),
     scores: toIndexScores(trial.scores),
     error: trial.error,
     cost_usd: trial.costUsd,
@@ -1060,14 +1075,16 @@ function toTrialAggregationArtifact(
     case 'pass_any':
       return {
         strategy: aggregation.strategy,
-        passed_attempts: aggregation.passedAttempts,
-        total_attempts: aggregation.totalAttempts,
+        passed_samples: aggregation.passedAttempts,
+        total_samples: aggregation.totalAttempts,
+        pass_rate: percentage(aggregation.passedAttempts, aggregation.totalAttempts),
       };
     case 'pass_all':
       return {
         strategy: aggregation.strategy,
-        passed_attempts: aggregation.passedAttempts,
-        total_attempts: aggregation.totalAttempts,
+        passed_samples: aggregation.passedAttempts,
+        total_samples: aggregation.totalAttempts,
+        pass_rate: percentage(aggregation.passedAttempts, aggregation.totalAttempts),
         min: aggregation.min,
       };
     case 'mean':
@@ -1212,8 +1229,8 @@ function buildRepeatCaseSummaryArtifact(
   const meanDurationMs = timing.duration.mean_ms ?? fallbackMeanMs;
 
   return {
-    total_attempts: totalRuns,
-    passed_attempts: passedRuns,
+    total_samples: totalRuns,
+    passed_samples: passedRuns,
     pass_rate: formatRepeatPassRate(passedRuns, totalRuns),
     mean_duration_ms: meanDurationMs,
     mean_duration_seconds: timing.duration.mean_seconds ?? roundSecondsFromMs(meanDurationMs),
@@ -1344,7 +1361,7 @@ function buildAgentVRunResultArtifact(params: {
     : undefined;
   return dropUndefined({
     execution_status: params.trial.executionStatus ?? params.result.executionStatus,
-    verdict: params.trial.verdict,
+    status: statusFromVerdict(params.trial.verdict),
     sample_index: params.result.sampleIndex,
     retry_index: params.result.retryIndex,
     target_execution: toTargetExecutionWire(params.targetExecution),
@@ -1672,7 +1689,7 @@ export function buildGradingArtifact(
     ...(result.fileChanges ? { workspace_changes: parseWorkspaceChanges(result.fileChanges) } : {}),
     ...(options?.includeTrials
       ? {
-          attempts: toIndexTrialArtifacts(result),
+          samples: toIndexTrialArtifacts(result),
           aggregation: toTrialAggregationArtifact(result.aggregation),
         }
       : {}),
@@ -1968,8 +1985,8 @@ export function buildRunSummaryArtifact(
       eval_path?: string;
       target: string;
       variant?: string;
-      sample_count: number;
-      pass_count: number;
+      total_samples: number;
+      passed_samples: number;
       status_counts: Record<string, number>;
       samples: Record<string, unknown>[];
     }
@@ -1989,14 +2006,14 @@ export function buildRunSummaryArtifact(
         eval_path: evalPath,
         target: result.target ?? 'unknown',
         variant: result.variant,
-        sample_count: 0,
-        pass_count: 0,
+        total_samples: 0,
+        passed_samples: 0,
         status_counts: {},
         samples: [],
       };
-      caseSummary.sample_count += 1;
+      caseSummary.total_samples += 1;
       if (verdict === 'pass') {
-        caseSummary.pass_count += 1;
+        caseSummary.passed_samples += 1;
       }
       caseSummary.status_counts[status ?? 'unknown'] =
         (caseSummary.status_counts[status ?? 'unknown'] ?? 0) + 1;
@@ -2008,7 +2025,7 @@ export function buildRunSummaryArtifact(
         variant: result.variant,
         sample_index: sampleIndex,
         retry_index: result.metadata?.retry_index,
-        verdict,
+        status: statusFromVerdict(verdict),
         score: trial.score,
         execution_status: status,
         failure_stage: trial.failureStage,
@@ -2023,10 +2040,10 @@ export function buildRunSummaryArtifact(
   });
   const caseSummaries = [...casesByKey.values()].map((entry) => ({
     ...entry,
-    pass_rate: percentage(entry.pass_count, entry.sample_count),
-    pass_any: entry.pass_count > 0,
+    pass_rate: percentage(entry.passed_samples, entry.total_samples),
+    pass_any: entry.passed_samples > 0,
   }));
-  const passedCases = caseSummaries.filter((entry) => entry.pass_count > 0).length;
+  const passedCases = caseSummaries.filter((entry) => entry.passed_samples > 0).length;
   const erroredInstances = instances.filter(
     (entry) => entry.execution_status === 'execution_error',
   ).length;
@@ -2175,8 +2192,8 @@ export function buildAggregateGradingArtifact(
     component_results: componentResults.length > 0 ? componentResults : undefined,
     named_scores: collectNamedScores(qualityResults.flatMap((result) => result.scores ?? [])),
     metadata: {
-      pass_count: qualityResults.filter((result) => resultVerdict(result) === 'pass').length,
-      sample_count: qualityResults.length,
+      passed_samples: qualityResults.filter((result) => resultVerdict(result) === 'pass').length,
+      total_samples: qualityResults.length,
       pass_rate: percentage(
         qualityResults.filter((result) => resultVerdict(result) === 'pass').length,
         qualityResults.length,
@@ -2458,7 +2475,7 @@ export function buildIndexArtifactEntry(
     named_scores: collectNamedScores(result.scores),
     derived_metrics: resultDerivedMetrics(result),
     provenance: resultProvenance(result),
-    attempts: toIndexTrialArtifacts(result),
+    samples: toIndexTrialArtifacts(result),
     aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,
@@ -2599,7 +2616,7 @@ export function buildResultIndexArtifact(
     named_scores: collectNamedScores(result.scores),
     derived_metrics: resultDerivedMetrics(result),
     provenance: resultProvenance(result),
-    attempts: toIndexTrialArtifacts(result),
+    samples: toIndexTrialArtifacts(result),
     aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,

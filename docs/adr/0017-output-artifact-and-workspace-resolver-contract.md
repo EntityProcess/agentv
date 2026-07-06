@@ -68,7 +68,7 @@ protocol payloads. AgentV wrappers around those payloads still use `snake_case`.
    maintained consolidated single-file export (generate on demand if ever needed).
    3 of 4 references split; only promptfoo consolidates (for its DB/hosted model).
 2. **Queryable aggregate ← margin-lab**: run-root `summary.json` is a rich `jq`-queryable
-   `Summary` (run_id, status breakdown, `pass_rate`, `pass_count`, `sample_count`,
+   `Summary` (run_id, status breakdown, `pass_rate`, `passed_samples`, `total_samples`,
    per-case `passed`/`pass_any` where applicable, per-instance summaries, usage, and
    infra-failure taxonomy) — widen AgentV's current thin summary to this. Reserve
    `pass_at_k`/pass@k vocabulary for explicit sampling metrics with a true `k`; do not
@@ -170,8 +170,8 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 }
 ```
 
-Summary and index guidance: use `pass_rate`, `pass_count`, and `sample_count` for run
-and case aggregates; use `passed` for one execution outcome and `pass_any` when any
+Summary and index guidance: use `pass_rate`, `passed_samples`, and `total_samples` for run
+and case aggregates; use `status: "passed"` for one execution outcome and `pass_any` when any
 sample in a repeated case passed. Use `pass_at_k` only when the metric is an explicit
 sampling metric with a real `k` and the calculation is documented on the summary row.
 Index rows should stay lightweight: identity/outcome/named score/token usage fields
@@ -198,7 +198,7 @@ and `outputs_path`, not a full embedded grading tree.
 - **Dashboard default view is sensible, never odd/empty:** because `tags.experiment` is value-defaulted to the eval/suite name (always populated), the default view groups by `experiment` (real names, no "(none)" wall) or a recent-runs list; the grouping key is a user preference they can change, not the absence of a default.
 
 ### Run organization: cross-run index, repeat naming, experiment-as-tag
-- **Cross-run index (rebuildable cache, not source of truth):** keep per-run `index.jsonl` (rows = cases); add a cross-run catalog `.agentv/results/.indexes/runs.jsonl` (already-reserved `.indexes` namespace) — **one row per run** (run_id, timestamp, targets, `tags` incl experiment, aggregate `pass_rate`/`pass_count`/`sample_count`, and explicit `pass_at_k` only when present). Derived by scanning `*/summary.json`, rebuildable, optional (Dashboard can glob summaries as fallback). JSONL (append per run), **not `index.json`**.
+- **Cross-run index (rebuildable cache, not source of truth):** keep per-run `index.jsonl` (rows = cases); add a cross-run catalog `.agentv/results/.indexes/runs.jsonl` (already-reserved `.indexes` namespace) — **one row per run** (run_id, timestamp, targets, `tags` incl experiment, aggregate `pass_rate`/`passed_samples`/`total_samples`, and explicit `pass_at_k` only when present). Derived by scanning `*/summary.json`, rebuildable, optional (Dashboard can glob summaries as fallback). JSONL (append per run), **not `index.json`**.
 - **Repeat folder = `sample-N`, not `run-N`.** "run" is overloaded (`run_id` = the whole invocation). Rename `run-${attempt+1}` → `sample-1`, `sample-2`, … (matches margin `samples_per_case`/`sample_index`, explicit sampling metrics, and AgentV's `repeat`; Inspect's `epoch` is the ML-jargon alt). Keep the metadata split: `sample_index` = repeats, `retry_index` = infra retries.
 - **`experiment` has no *structural* privilege, but its *value* is auto-defaulted.** No storage dir (already `<run_id>/`), no top-level field (`tags.experiment`), no special schema; tag keys sort **alphabetically**; the default grouping/compare **key** is a user preference (any tag — AgentV blesses none). `--experiment X` = sugar for `--tag experiment=X`. **The one convenience:** the harness auto-populates the `experiment` tag's **value** when unset, deriving it from the eval/suite name (ADR-0009: `--experiment` > authored `tags.experiment` > eval/suite name). So every run always has a meaningful `experiment` value and is groupable — without the author setting anything. This is a default *value*, not a privileged *key*.
 

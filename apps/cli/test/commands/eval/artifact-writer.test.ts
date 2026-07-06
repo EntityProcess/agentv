@@ -283,29 +283,34 @@ describe('buildGradingArtifact', () => {
     const grading = buildGradingArtifact(result);
 
     expectNoLegacyFields(grading);
-    expect(grading.metadata?.attempts).toBeUndefined();
+    expect(grading.metadata?.samples).toBeUndefined();
     expect(grading.metadata?.aggregation).toBeUndefined();
 
     const gradingWithTrials = buildGradingArtifact(result, { includeTrials: true });
     expectNoLegacyFields(gradingWithTrials);
-    expect(gradingWithTrials.metadata?.attempts).toEqual([
+    expect(gradingWithTrials.metadata?.samples).toEqual([
       {
-        attempt: 0,
+        sample: 1,
+        sample_index: 0,
         score: 0.4,
+        status: 'failed',
         execution_status: 'quality_failure',
         failure_stage: 'evaluator',
         failure_reason_code: 'threshold_not_met',
       },
       {
-        attempt: 1,
+        sample: 2,
+        sample_index: 1,
         score: 1,
+        status: 'passed',
         cost_usd: 0.03,
       },
     ]);
     expect(gradingWithTrials.metadata?.aggregation).toEqual({
       strategy: 'pass_any',
-      passed_attempts: 1,
-      total_attempts: 2,
+      passed_samples: 1,
+      total_samples: 2,
+      pass_rate: 0.5,
     });
 
     const passAll = buildGradingArtifact(
@@ -321,8 +326,9 @@ describe('buildGradingArtifact', () => {
     );
     expect(passAll.metadata?.aggregation).toEqual({
       strategy: 'pass_all',
-      passed_attempts: 1,
-      total_attempts: 2,
+      passed_samples: 1,
+      total_samples: 2,
+      pass_rate: 0.5,
       min: 0.4,
     });
   });
@@ -786,8 +792,8 @@ describe('buildAggregateGradingArtifact', () => {
     const aggregate = buildAggregateGradingArtifact(results);
 
     expect(aggregate.metadata).toEqual({
-      pass_count: 2,
-      sample_count: 2,
+      passed_samples: 2,
+      total_samples: 2,
       pass_rate: 1,
     });
   });
@@ -817,8 +823,8 @@ describe('buildAggregateGradingArtifact', () => {
     expect(aggregate.score).toBe(0.775);
     expect(aggregate.pass).toBe(false);
     expect(aggregate.metadata).toEqual({
-      pass_count: 1,
-      sample_count: 2,
+      passed_samples: 1,
+      total_samples: 2,
       pass_rate: 0.5,
     });
   });
@@ -838,7 +844,7 @@ describe('buildAggregateGradingArtifact', () => {
     expect(aggregate.component_results?.[0].assertion?.id).toBe('test-1');
     expect(aggregate.score).toBe(0.9);
     expect(aggregate.pass).toBe(true);
-    expect(aggregate.metadata?.sample_count).toBe(2);
+    expect(aggregate.metadata?.total_samples).toBe(2);
   });
 
   it('excludes execution-error assertions from aggregate quality summary', () => {
@@ -861,8 +867,8 @@ describe('buildAggregateGradingArtifact', () => {
     expect(aggregate.score).toBe(0.9);
     expect(aggregate.pass).toBe(true);
     expect(aggregate.metadata).toEqual({
-      pass_count: 1,
-      sample_count: 1,
+      passed_samples: 1,
+      total_samples: 1,
       pass_rate: 1,
     });
   });
@@ -874,8 +880,8 @@ describe('buildAggregateGradingArtifact', () => {
     expect(aggregate.pass).toBe(false);
     expect(aggregate.component_results).toBeUndefined();
     expect(aggregate.metadata).toEqual({
-      pass_count: 0,
-      sample_count: 0,
+      passed_samples: 0,
+      total_samples: 0,
       pass_rate: 0,
     });
   });
@@ -934,12 +940,13 @@ describe('buildIndexArtifactEntry', () => {
       metrics_path: 'alpha/sample-1/metrics.json',
       output_path: 'alpha/outputs/answer.md',
       answer_path: 'alpha/outputs/answer.md',
-      attempts: [
+      samples: [
         {
-          attempt: 0,
+          sample: 1,
+          sample_index: 0,
           sample_path: 'sample-1',
           score: 0.9,
-          verdict: 'fail',
+          status: 'failed',
           scores: [
             {
               name: 'quality',
@@ -1001,9 +1008,9 @@ describe('buildIndexArtifactEntry', () => {
       },
     );
 
-    expect(entry.attempts).toEqual([
-      { attempt: 0, score: 0.8, verdict: 'pass' },
-      { attempt: 1, score: 0.6, verdict: 'fail', error: 'missing token' },
+    expect(entry.samples).toEqual([
+      { sample: 1, sample_index: 0, score: 0.8, status: 'passed' },
+      { sample: 2, sample_index: 1, score: 0.6, status: 'failed', error: 'missing token' },
     ]);
     expect(entry.aggregation).toEqual({
       strategy: 'mean',
@@ -1550,9 +1557,9 @@ describe('writeArtifactsFromResults', () => {
 
     const [indexEntry] = await readIndexLines(paths.indexPath);
     const repeatRowDir = expectRowDir(indexEntry, 'repeat-case');
-    expect(indexEntry?.attempts).toMatchObject([
-      { attempt: 0, sample_path: 'sample-1', score: 0.25, verdict: 'fail' },
-      { attempt: 1, sample_path: 'sample-2', score: 1, verdict: 'pass' },
+    expect(indexEntry?.samples).toMatchObject([
+      { sample: 1, sample_index: 0, sample_path: 'sample-1', score: 0.25, status: 'failed' },
+      { sample: 2, sample_index: 1, sample_path: 'sample-2', score: 1, status: 'passed' },
     ]);
     expect(indexEntry?.aggregation).toEqual({
       strategy: 'confidence_interval',
@@ -1577,8 +1584,8 @@ describe('writeArtifactsFromResults', () => {
       await readFile(path.join(paths.testArtifactDir, repeatRowDir, 'summary.json'), 'utf8'),
     ) as Record<string, unknown>;
     expect(caseSummary).toMatchObject({
-      total_attempts: 2,
-      passed_attempts: 1,
+      total_samples: 2,
+      passed_samples: 1,
       pass_rate: '50%',
       mean_duration_ms: 3000,
       mean_duration_seconds: 3,
@@ -1624,7 +1631,7 @@ describe('writeArtifactsFromResults', () => {
     ) as Record<string, unknown>;
     expect(runOneResult).toMatchObject({
       execution_status: 'quality_failure',
-      verdict: 'fail',
+      status: 'failed',
       duration_ms: 2000,
       duration_seconds: 2,
       model: 'test-target',
@@ -1635,8 +1642,8 @@ describe('writeArtifactsFromResults', () => {
       output_paths: { answer: './outputs/answer.md' },
     });
     expect(runOneResult).not.toHaveProperty('timing');
-    expect(runOneResult).not.toHaveProperty('status');
-    expect(indexEntry?.attempts?.[0]?.transcript_summary).toEqual(runOneResult.transcript_summary);
+    expect(runOneResult).not.toHaveProperty('verdict');
+    expect(indexEntry?.samples?.[0]?.transcript_summary).toEqual(runOneResult.transcript_summary);
 
     const runTwoAnswer = await readFile(
       path.join(paths.testArtifactDir, repeatRowDir, 'sample-2', 'outputs', 'answer.md'),
@@ -1652,15 +1659,15 @@ describe('writeArtifactsFromResults', () => {
     ) as Record<string, unknown>;
     expect(runTwoResult).toMatchObject({
       execution_status: 'ok',
-      verdict: 'pass',
+      status: 'passed',
       grading_path: './grading.json',
       metrics_path: './metrics.json',
       transcript_path: './transcript.json',
       transcript_raw_path: './transcript-raw.jsonl',
     });
     expect(runTwoResult).not.toHaveProperty('timing');
-    expect(runTwoResult).not.toHaveProperty('status');
-    expect(indexEntry?.attempts?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
+    expect(runTwoResult).not.toHaveProperty('verdict');
+    expect(indexEntry?.samples?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
   });
 
   it('keys prompt-expanded resume checks by authored test id plus prompt id', () => {
