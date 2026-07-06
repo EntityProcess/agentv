@@ -16,6 +16,7 @@ import type {
   RegexGraderConfig,
   ScriptGraderConfig,
   SkillUsedGraderConfig,
+  TrajectoryGraderConfig,
 } from '../../../src/evaluation/types.js';
 
 describe('parseGraders - deterministic assertion types', () => {
@@ -429,21 +430,31 @@ describe('parseGraders - deterministic assertion types', () => {
     ).rejects.toThrow("Unsupported promptfoo assertion type 'bleu'");
   });
 
-  it('rejects promptfoo trajectory/tool assertion types with a future-scope diagnostic', async () => {
-    await expect(
-      parseGraders(
-        {
-          assert: [
-            { metric: 'tool-sequence', type: 'trajectory:tool-sequence', value: ['search'] },
-          ],
-        },
-        undefined,
-        [tempDir],
-        'test-1',
-      ),
-    ).rejects.toThrow(
-      "Unsupported promptfoo assertion type 'trajectory:tool-sequence' in 'test-1' for evaluator 'tool-sequence'. This type is future scope in AgentV",
+  it('parses promptfoo trajectory assertion types as built-ins', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          { metric: 'tool-sequence', type: 'trajectory:tool-sequence', value: ['search'] },
+          { type: 'not-trajectory:tool-used', value: 'delete_order' },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
     );
+
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators?.[0]).toEqual({
+      name: 'tool-sequence',
+      type: 'trajectory:tool-sequence',
+      value: ['search'],
+    } satisfies TrajectoryGraderConfig);
+    expect(evaluators?.[1]).toEqual({
+      name: 'trajectory:tool-used',
+      type: 'trajectory:tool-used',
+      value: 'delete_order',
+      inverse: true,
+    } satisfies TrajectoryGraderConfig);
 
     await expect(
       parseGraders(

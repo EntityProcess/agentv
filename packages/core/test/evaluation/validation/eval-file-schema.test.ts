@@ -416,17 +416,23 @@ describe('EvalFileSchema input shorthand', () => {
     }
   });
 
-  it('rejects unsupported promptfoo trajectory assertion types in schema validation', () => {
+  it('accepts promptfoo trajectory assertion types in schema validation', () => {
     const result = EvalFileSchema.safeParse({
       tests: [
         {
           ...baseTest,
-          assert: [{ type: 'trajectory:tool-sequence', value: ['search'] }],
+          assert: [
+            { type: 'trajectory:tool-used', value: 'search' },
+            { type: 'trajectory:tool-args-match', value: { name: 'search', args: { q: 'x' } } },
+            { type: 'trajectory:tool-sequence', value: ['search'] },
+            { type: 'trajectory:step-count', value: { type: 'tool', min: 1 } },
+            { type: 'trajectory:goal-success', value: 'Search for the answer' },
+          ],
         },
       ],
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('rejects invalid default_test values', () => {

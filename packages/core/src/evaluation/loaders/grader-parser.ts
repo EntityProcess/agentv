@@ -12,6 +12,7 @@ import type {
   JsonObject,
   JsonValue,
   RubricOperator,
+  TrajectoryGraderKind,
 } from '../types.js';
 import { RUBRIC_OPERATOR_VALUES, isGraderKind } from '../types.js';
 import { validateCustomPromptContent } from '../validation/prompt-validator.js';
@@ -106,17 +107,24 @@ const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
   'human',
   'max-score',
   'tool-call-f1',
-  'trajectory:goal-success',
-  'trajectory:tool-args-match',
-  'trajectory:step-count',
-  'trajectory:tool-sequence',
-  'trajectory:tool-used',
   'trace-error-spans',
   'trace-span-count',
   'trace-span-duration',
   'search-rubric',
   'word-count',
 ]);
+
+const TRAJECTORY_GRADER_TYPES = new Set<string>([
+  'trajectory:tool-used',
+  'trajectory:tool-args-match',
+  'trajectory:tool-sequence',
+  'trajectory:step-count',
+  'trajectory:goal-success',
+]);
+
+function isTrajectoryGraderKind(value: string): value is TrajectoryGraderKind {
+  return TRAJECTORY_GRADER_TYPES.has(value);
+}
 
 function assertSupportedPromptfooType(type: string, evalId: string, name?: string): void {
   const baseType = type.startsWith('not-') ? type.slice(4) : type;
@@ -519,16 +527,23 @@ async function parseGraderList(
     const rawEvaluator = withInheritedAssertionConfig(rawEvaluatorEntry, inheritedAssertionConfig);
     const rawName = asString(rawEvaluator.metric);
     const rawType = rawEvaluator.type;
-    const typeValue = typeof rawType === 'string' ? normalizeGraderType(rawType) : rawType;
+    const normalizedType = typeof rawType === 'string' ? normalizeGraderType(rawType) : rawType;
+    const negatedType =
+      typeof normalizedType === 'string' && normalizedType.startsWith('not-')
+        ? normalizedType.slice(4)
+        : undefined;
+    const typeValue =
+      negatedType && isTrajectoryGraderKind(negatedType) ? negatedType : normalizedType;
+    const inverse = negatedType && isTrajectoryGraderKind(negatedType) ? true : undefined;
 
-    if (typeof typeValue === 'string') {
-      const replacement = removedGraderReplacement(typeValue);
+    if (typeof normalizedType === 'string') {
+      const replacement = removedGraderReplacement(normalizedType);
       if (replacement) {
         throw new Error(
           `Unsupported grader '${rawType}' in '${evalId}'. Use '${replacement}' instead.`,
         );
       }
-      assertSupportedPromptfooType(typeValue, evalId, rawName);
+      assertSupportedPromptfooType(normalizedType, evalId, rawName);
     }
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
@@ -569,6 +584,26 @@ async function parseGraderList(
       evaluators.push(transform !== undefined ? { ...config, transform } : config);
     };
     const inheritedInternalPreprocessors = defaultPreprocessors;
+
+    if (isTrajectoryGraderKind(typeValue)) {
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
+      pushEvaluator({
+        name,
+        type: typeValue,
+        ...(rawEvaluator.value !== undefined ? { value: rawEvaluator.value as JsonValue } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
+        ...(inverse || negate ? { inverse: true } : {}),
+      });
+      continue;
+    }
 
     // Custom assertion types — store with their type name for registry dispatch
     if (isCustomType) {

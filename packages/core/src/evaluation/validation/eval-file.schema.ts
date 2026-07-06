@@ -16,11 +16,6 @@ const JsonObjectSchema = z.object({}).catchall(z.unknown());
 const JsonRecordSchema = z.record(z.unknown());
 const UnsupportedPromptfooAssertionTypes = new Set([
   'tool-call-f1',
-  'trajectory:goal-success',
-  'trajectory:tool-args-match',
-  'trajectory:step-count',
-  'trajectory:tool-sequence',
-  'trajectory:tool-used',
   'trace-error-spans',
   'trace-span-count',
   'trace-span-duration',
@@ -158,6 +153,17 @@ const ToolTrajectorySchema = EvaluatorCommonSchema.extend({
   argsMatch: ArgsMatchSchema.optional(),
 });
 
+const TrajectoryAssertionSchema = EvaluatorCommonSchema.extend({
+  type: z.enum([
+    'trajectory:tool-used',
+    'trajectory:tool-args-match',
+    'trajectory:tool-sequence',
+    'trajectory:step-count',
+    'trajectory:goal-success',
+  ]),
+  value: z.unknown().optional(),
+});
+
 const FieldConfigSchema = z.object({
   path: z.string(),
   match: z.enum(['exact', 'numeric_tolerance', 'date']),
@@ -258,6 +264,7 @@ const EvaluatorSchema = z.union([
   PromptfooAssertionSchema,
   IncludeSchema,
   ToolTrajectorySchema,
+  TrajectoryAssertionSchema,
   FieldAccuracySchema,
   LatencySchema,
   CostSchema,

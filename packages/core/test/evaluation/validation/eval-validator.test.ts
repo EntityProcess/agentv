@@ -1655,30 +1655,27 @@ tests:
       ).toBe(true);
     });
 
-    it('rejects known unsupported promptfoo trajectory assertions', async () => {
-      const filePath = path.join(tempDir, 'assert-trajectory-unsupported.yaml');
+    it('accepts promptfoo trajectory assertions', async () => {
+      const filePath = path.join(tempDir, 'assert-trajectory-supported.yaml');
       await writeFile(
         filePath,
-        `tests:
+        `prompts:
+  - "Use tools"
+tests:
   - id: test-1
-    input: "Use tools"
     assert:
       - type: trajectory:tool-sequence
         value:
           - search
+      - type: not-trajectory:tool-used
+        value: delete_order
 `,
       );
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(false);
-      expect(
-        result.errors.some(
-          (e) =>
-            e.severity === 'error' &&
-            e.message.includes("Unsupported promptfoo assertion type 'trajectory:tool-sequence'"),
-        ),
-      ).toBe(true);
+      expect(result.valid).toBe(true);
+      expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
     });
 
     it('accepts promptfoo-compatible skill-used assertions', async () => {

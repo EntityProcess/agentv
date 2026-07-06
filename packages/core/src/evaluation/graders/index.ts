@@ -66,6 +66,9 @@ export type { TokenUsageGraderOptions } from './token-usage.js';
 export { ToolTrajectoryGrader } from './tool-trajectory.js';
 export type { ToolTrajectoryGraderOptions } from './tool-trajectory.js';
 
+export { TrajectoryGrader } from './trajectory.js';
+export type { TrajectoryGraderOptions } from './trajectory.js';
+
 // Deterministic assertions
 export {
   runContainsAssertion,

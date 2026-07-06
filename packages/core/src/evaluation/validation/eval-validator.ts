@@ -105,11 +105,6 @@ const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
   'human',
   'max-score',
   'tool-call-f1',
-  'trajectory:goal-success',
-  'trajectory:tool-args-match',
-  'trajectory:step-count',
-  'trajectory:tool-sequence',
-  'trajectory:tool-used',
   'trace-error-spans',
   'trace-span-count',
   'trace-span-duration',
@@ -2343,6 +2338,7 @@ function validateAssertArray(
 
     if (
       !isGraderKind(typeValue) &&
+      !isGraderKind(baseTypeValue) &&
       !PROMPTFOO_ASSERTION_TYPES.has(typeValue) &&
       !customAssertionTypes.has(typeValue)
     ) {
