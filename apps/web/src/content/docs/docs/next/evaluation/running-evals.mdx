@@ -457,7 +457,18 @@ Project-local YAML config takes precedence over home/global YAML config. AgentV 
 
 Within one config directory, AgentV reads `config.yaml` first and `config.local.yaml` second. The local overlay wins: plain objects deep-merge, arrays replace, and scalar values from `config.local.yaml` override `config.yaml`.
 
-Use `config.yaml` for portable defaults and shared eval-definition fields that can be committed with the eval project. Use `config.local.yaml` for machine-local overrides such as private paths, local result remotes, Dashboard project registry entries, or temporary execution defaults. Project-local `config.local.yaml` is gitignored by default.
+Use project-local `config.yaml` for portable defaults and shared
+eval-definition fields that can be committed with the eval project. Do not put
+operator-specific result publishing remotes in a shared eval project's
+`.agentv/config.yaml`: different users and CI identities often publish to
+different result repositories or do not publish at all. Put those project
+registry and result-sync preferences in the user/global AgentV config pair
+(`$AGENTV_HOME/config.yaml` or `$AGENTV_HOME/config.local.yaml`, default
+`~/.agentv/...`) unless the project intentionally owns one canonical public
+results repo. Use project-local `config.local.yaml` only for local overrides
+that must stay beside the checkout, such as temporary execution defaults or
+private workspace paths. Project-local `config.local.yaml` is gitignored by
+default.
 
 ### YAML config (`config.yaml` plus optional `config.local.yaml`)
 
@@ -653,7 +664,11 @@ set AGENTV_HOME=D:\agentv-config
 
 When unset, AgentV uses `~/.agentv`.
 
-For local workspaces, put portable registry defaults in `$AGENTV_HOME/config.yaml` and machine-local project paths or result remotes in `$AGENTV_HOME/config.local.yaml`:
+For local workspaces, prefer registering projects and result remotes in the
+user/global AgentV config pair instead of committing them to the eval project.
+Use `$AGENTV_HOME/config.yaml` for your normal personal or CI registry. Use
+`$AGENTV_HOME/config.local.yaml` when the values are temporary, machine-local, or
+an overlay on a shared mounted global config.
 
 ```yaml
 projects:
@@ -663,6 +678,10 @@ projects:
       path: /home/user/agentv-results
       branch: agentv/results/v1
 ```
+
+Only commit `projects[].results` in a project-local `.agentv/config.yaml` when
+that repository deliberately owns a shared canonical results destination, such
+as a public demo results repo.
 
 For larger registries, `$AGENTV_HOME/config.yaml` can point `projects` at a
 bare project array:

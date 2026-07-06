@@ -41,6 +41,17 @@ Phoenix, hosted DB, or inbound webhook server at runtime.
 
 Replace the force-push path with a two-layer, no-force-push design.
 
+**Configuration placement — result publishing is user/global by default.**
+Remote result sync describes where a particular operator or CI identity publishes
+artifacts, so it is normally user-specific. Do not commit AgentV's own result
+publishing remote, local result checkout path, or `auto_push` preference into the
+AgentV repo or a shared eval project's `.agentv/config.yaml` unless the project
+intentionally owns one canonical public results repo. Configure operator-specific
+result remotes in the user/global AgentV config pair (`$AGENTV_HOME/config.yaml`
+or `$AGENTV_HOME/config.local.yaml`, default `~/.agentv/...`) under `projects:`.
+This keeps clones and contributors from inheriting someone else's publication
+destination while still allowing CI or demos to mount a prepared global config.
+
 **Layer 1 — auto-merge the common case.** On a non-fast-forward results push, run
 a bounded `fetch → merge → push` loop using artifact-aware Git merge drivers:
 `merge=union` for the append-only `index.jsonl` and a small `agentv-json`
