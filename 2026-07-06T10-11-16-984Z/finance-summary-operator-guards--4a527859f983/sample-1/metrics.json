@@ -1,0 +1,56 @@
+{
+  "schema_version": "agentv.metrics.v2",
+  "artifact_id": "metrics-59bf12e845481d0211a2",
+  "generated_at": "2026-07-06T10:11:24.916Z",
+  "test_id": "finance-summary-operator-guards",
+  "target": "azure",
+  "suite": "rubric-operators",
+  "category": "examples/features/rubric/operators",
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "tool_calls": {},
+  "tool_call_counts": {},
+  "tool_category_counts": {},
+  "total_tool_calls": 0,
+  "total_steps": 1,
+  "total_turns": 1,
+  "tool_call_events": [],
+  "shell_commands": [],
+  "files_read": [],
+  "files_modified": [],
+  "files_created": [],
+  "files_deleted": [],
+  "web_fetches": [],
+  "errors": [],
+  "errors_encountered": 0,
+  "output_chars": 227,
+  "transcript_chars": 1476,
+  "reasoning_blocks": [],
+  "thinking_blocks": 0,
+  "duration": {
+    "total_ms": 2193,
+    "total_seconds": 2.193,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 112,
+    "input": 63,
+    "output": 49,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": 0.00026775,
+    "source": "provider_reported"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
