@@ -1,0 +1,1 @@
+I checked the MCP resource registry via `list_mcp_resources` and found zero available resources, so `MCP_RESOURCES_CHECKED` confirms no MCP resources are currently exposed.
