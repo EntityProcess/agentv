@@ -24,6 +24,9 @@ export {
   resolveResultsConfigForProject,
   type AgentVConfig as AgentVYamlConfig,
   type ResultsConfig,
+  type HooksConfig,
+  type EnvFromEntry,
+  type EnvFromFormat,
 } from './evaluation/loaders/config-loader.js';
 export {
   loadTsEvalFile,
@@ -238,6 +241,14 @@ export {
 export { discoverGraders } from './evaluation/registry/grader-discovery.js';
 export { RunBudgetTracker } from './evaluation/run-budget-tracker.js';
 export { runBeforeSessionHook, parseEnvOutput } from './evaluation/hooks.js';
+export {
+  loadEnvPathFiles,
+  runEnvFromEntries,
+  parseShellExportsEnv,
+  parseJsonEnv,
+  type EnvPathLoadResult,
+  type EnvFromRunResult,
+} from './evaluation/env-injection.js';
 export {
   trackChild,
   killAllTrackedChildren,
