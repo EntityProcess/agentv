@@ -10,8 +10,8 @@ Targets define which agent or LLM provider to evaluate. AgentV uses one
 composable config graph across project manifests and eval files:
 
 - `.agentv/config.yaml` is the project-local discovery and composition root. It
-  can hold targets, graders, tests, defaults, execution policy, results
-  settings, and repo-local project policy.
+  can hold targets, tests, defaults, execution policy, results settings, and
+  repo-local project policy.
 - `$AGENTV_HOME/config.yaml` is the user/operator config. Use it for defaults
   that apply across projects, project registry data, default result locations,
   and provider defaults that should not be copied into each repo.
@@ -43,9 +43,9 @@ targets:
       command: ["codex", "app-server"]
       model: gpt-5-codex
 
-graders:
   - id: openai-grader
     provider: openai
+    runtime: host
     config:
       model: gpt-5-mini
 
@@ -60,6 +60,11 @@ the shorthand for the current machine, or object form when you need
 `mode: host | profile | sandbox` plus runtime-specific settings. Provider
 settings belong under `config`. Process-backed coding-agent providers use
 `config.command` as a non-empty argv array.
+
+A grader is not a separate kind of entity — it is a target selected for a
+grading role, either through `defaults.grader` (shown above) or an
+assertion-level target override. There is no separate `graders:` list;
+authoring one is a hard error telling you to move each entry into `targets`.
 
 ## Runtime Modes
 
@@ -128,9 +133,9 @@ targets:
       command: ["codex", "app-server"]
       model: gpt-5-codex
 
-graders:
   - id: openai-grader
     provider: openai
+    runtime: host
     config:
       model: gpt-5-mini
 
@@ -151,7 +156,6 @@ can be decomposed like this:
 
 ```yaml
 targets: file://targets.yaml
-graders: file://graders.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
@@ -167,6 +171,12 @@ a bare array, not an object wrapped in `targets:`:
   config:
     command: ["codex", "app-server"]
     model: gpt-5-codex
+
+- id: openai-grader
+  provider: openai
+  runtime: host
+  config:
+    model: gpt-5-mini
 ```
 
 ```yaml

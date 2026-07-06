@@ -21,9 +21,9 @@ targets:
     config:
       command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
 
-graders:
   - id: azure-grader
     provider: azure
+    runtime: host
     config:
       endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
       api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
@@ -133,9 +133,9 @@ targets:
     config:
       command: cp fixtures/{EVAL_ID}.expected.txt {OUTPUT_FILE}
 
-graders:
   - id: azure-grader
     provider: azure
+    runtime: host
     config:
       endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
       api_key: "{{ env.AZURE_OPENAI_API_KEY }}"

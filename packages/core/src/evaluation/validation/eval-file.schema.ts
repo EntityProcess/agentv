@@ -834,14 +834,6 @@ const ConfigTargetSchema = z
   })
   .strict();
 
-const ConfigGraderSchema = z
-  .object({
-    id: z.string().min(1),
-    provider: z.string().min(1),
-    config: JsonRecordSchema.optional(),
-  })
-  .strict();
-
 const ConfigDefaultsSchema = z
   .object({
     target: z.string().min(1).optional(),
@@ -918,7 +910,12 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
     })
     .optional(),
   // Shared composable config graph fields
-  graders: z.union([z.array(ConfigGraderSchema), z.string().min(1)]).optional(),
+  graders: z
+    .never({
+      invalid_type_error:
+        "Top-level 'graders' has been removed. A grader is just a target — move each entry into 'targets' and select it via 'defaults.grader' or an assertion's target override.",
+    })
+    .optional(),
   defaults: z.union([ConfigDefaultsSchema, z.string().min(1)]).optional(),
   // Removed legacy aliases
   eval_cases: z

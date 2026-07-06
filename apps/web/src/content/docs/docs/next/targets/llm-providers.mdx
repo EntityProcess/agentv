@@ -66,9 +66,10 @@ For smoke tests and dogfood runs against a local OpenAI-compatible proxy, keep
 the endpoint, model, and placeholder key in environment variables:
 
 ```yaml
-graders:
+targets:
   - id: local-openai-grader
     provider: openai
+    runtime: host
     config:
       api_format: chat
       base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"

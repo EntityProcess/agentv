@@ -265,7 +265,6 @@ function parseConfigObject(
       ...(refs && { refs }),
       ...(tags && { tags }),
       ...(graph.targets && { targets: graph.targets }),
-      ...(graph.graders && { graders: graph.graders }),
       ...(graph.tests && { tests: graph.tests }),
       ...(graph.defaults && { defaults: graph.defaults }),
       configDir: projectDir,

@@ -184,9 +184,9 @@ targets:
     config:
       base_url: http://localhost:8080
 
-graders:
   - id: azure-grader
     provider: azure
+    runtime: host
     config:
       endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
       api_key: "{{ env.AZURE_OPENAI_API_KEY }}"

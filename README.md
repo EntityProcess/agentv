@@ -44,9 +44,9 @@ targets:
       api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
       model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
 
-graders:
   - id: local-openai-grader
     provider: openai
+    runtime: host
     config:
       api_format: chat
       base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"

@@ -7,14 +7,15 @@ graph into direct field refs:
 
 ```yaml
 targets: file://targets.yaml
-graders: file://graders.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
 
 Each referenced file contains that field's value directly, such as a bare target
 array in `.agentv/targets.yaml` and a bare defaults object in
-`.agentv/defaults.yaml`.
+`.agentv/defaults.yaml`. A grader is not a separate kind of entity — it is a
+target listed under `targets` like any other, selected for the grading role
+via `defaults.grader`.
 
 Run it against a local OpenAI-compatible endpoint:
 

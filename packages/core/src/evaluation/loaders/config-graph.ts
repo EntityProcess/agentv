@@ -61,12 +61,6 @@ export type NormalizedTargetConfig = {
   readonly config: Record<string, unknown>;
 };
 
-export type NormalizedGraderConfig = {
-  readonly id: string;
-  readonly provider: string;
-  readonly config: Record<string, unknown>;
-};
-
 export type ConfigDefaults = {
   readonly target?: string;
   readonly grader?: string;
@@ -78,7 +72,6 @@ export type ConfigExecution = {
 
 export type ComposableConfigGraph = {
   readonly targets?: readonly NormalizedTargetConfig[];
-  readonly graders?: readonly NormalizedGraderConfig[];
   readonly tests?: readonly unknown[];
   readonly defaults?: ConfigDefaults;
   readonly execution?: ConfigExecution;
@@ -124,12 +117,14 @@ export function normalizeComposableConfigGraph(
   configPath: string,
   options: NormalizeOptions = {},
 ): ComposableConfigGraph {
+  if (rawConfig.graders !== undefined) {
+    throw new Error(
+      `Field 'graders' in ${configPath} has been removed. A grader is just a target — move each entry into 'targets' and select it via 'defaults.grader' or an assertion's target override, not a separate grader list.`,
+    );
+  }
   const graph: ComposableConfigGraph = {
     ...(rawConfig.targets !== undefined
       ? { targets: parseTargets(rawConfig.targets, `${configPath}:targets`) }
-      : {}),
-    ...(rawConfig.graders !== undefined
-      ? { graders: parseGraders(rawConfig.graders, `${configPath}:graders`) }
       : {}),
     ...(rawConfig.tests !== undefined
       ? { tests: parseArray(rawConfig.tests, `${configPath}:tests`) }
@@ -253,20 +248,6 @@ function parseRuntime(value: unknown, location: string): NormalizedRuntimeConfig
   throw new Error(`Invalid ${location}: use 'host' or an object with mode: host|profile|sandbox.`);
 }
 
-function parseGraders(value: unknown, location: string): readonly NormalizedGraderConfig[] {
-  return parseArray(value, location).map((entry, index) => {
-    const graderLocation = `${location}[${index}]`;
-    if (!isPlainConfigObject(entry)) {
-      throw new Error(`Invalid ${graderLocation}: grader must be an object.`);
-    }
-    const id = readRequiredString(entry.id, `${graderLocation}.id`);
-    const provider = readRequiredString(entry.provider, `${graderLocation}.provider`);
-    const config = readOptionalObject(entry.config, `${graderLocation}.config`) ?? {};
-    validateCommand(config.command, `${graderLocation}.config.command`);
-    return { id, provider, config };
-  });
-}
-
 function parseDefaults(value: unknown, location: string): ConfigDefaults {
   const defaults = readOptionalObject(value, location);
   if (!defaults) {
@@ -315,27 +296,27 @@ function parseExecution(
 }
 
 function validateDefaultSelections(graph: ComposableConfigGraph, configPath: string): void {
-  // Only validated against targets/graders defined inline in this same config
-  // document. `defaults.target`/`defaults.grader` may instead name a target
-  // defined in a separately-discovered `.agentv/targets.yaml`, which this
-  // graph has no visibility into — that case is resolved (and, on an unknown
-  // name, reported) lazily at eval-run time, the same way CLI
-  // `--grader-target` already is.
-  if (graph.defaults?.target !== undefined && graph.targets && graph.targets.length > 0) {
-    const targetIds = new Set(graph.targets.map((target) => target.id));
-    if (!targetIds.has(graph.defaults.target)) {
-      throw new Error(
-        `Invalid defaults.target in ${configPath}: '${graph.defaults.target}' does not match a configured target id.`,
-      );
-    }
+  // A grader is just a target selected for a grading role, not a separate
+  // entity — `defaults.target` and `defaults.grader` both resolve against the
+  // same `targets` pool. Only validated against targets defined inline in
+  // this same config document; either may instead name a target defined in a
+  // separately-discovered `.agentv/targets.yaml`, which this graph has no
+  // visibility into — that case is resolved (and, on an unknown name,
+  // reported) lazily at eval-run time, the same way CLI `--grader-target`
+  // already is.
+  if (!graph.targets || graph.targets.length === 0) {
+    return;
   }
-  if (graph.defaults?.grader !== undefined && graph.graders && graph.graders.length > 0) {
-    const graderIds = new Set(graph.graders.map((grader) => grader.id));
-    if (!graderIds.has(graph.defaults.grader)) {
-      throw new Error(
-        `Invalid defaults.grader in ${configPath}: '${graph.defaults.grader}' does not match a configured grader id.`,
-      );
-    }
+  const targetIds = new Set(graph.targets.map((target) => target.id));
+  if (graph.defaults?.target !== undefined && !targetIds.has(graph.defaults.target)) {
+    throw new Error(
+      `Invalid defaults.target in ${configPath}: '${graph.defaults.target}' does not match a configured target id.`,
+    );
+  }
+  if (graph.defaults?.grader !== undefined && !targetIds.has(graph.defaults.grader)) {
+    throw new Error(
+      `Invalid defaults.grader in ${configPath}: '${graph.defaults.grader}' does not match a configured target id.`,
+    );
   }
 }
 
