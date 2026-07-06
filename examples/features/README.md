@@ -121,7 +121,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [sdk-custom-assertion](sdk-custom-assertion/) | Custom assertion types using `defineAssertion()` |
-| [sdk-eval-authoring](sdk-eval-authoring/) | YAML-aligned `.eval.ts` authoring using `defineEval()` |
+| [sdk-eval-authoring](sdk-eval-authoring/) | TypeScript `*.eval.ts` authoring using `EvalConfig` |
 | [sdk-programmatic-api](sdk-programmatic-api/) | Programmatic evaluation using `evaluate()` |
 | [sdk-config-file](sdk-config-file/) | Typed configuration with `defineConfig()` |
 | [prompt-template-sdk](prompt-template-sdk/) | Custom LLM grader prompts using `definePromptTemplate()` |

@@ -40,7 +40,7 @@ async function runValidateCommand(
 
 export const validateCommand = command({
   name: 'validate',
-  description: 'Validate AgentV eval and targets YAML files',
+  description: 'Validate AgentV eval, TypeScript config, and targets files',
   args: {
     paths: restPositionals({
       type: string,

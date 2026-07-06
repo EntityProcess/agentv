@@ -240,12 +240,12 @@ const { results, summary } = await evaluate({
 console.log(`${summary.passed}/${summary.total} passed`);
 ```
 
-Use `defineEval()` when you want AgentV to run the TypeScript eval file:
+Use `*.eval.ts` when you want AgentV to run a TypeScript eval config:
 
 ```typescript
-import { defineEval } from '@agentv/sdk';
+import type { EvalConfig } from '@agentv/sdk';
 
-export default defineEval({
+const config: EvalConfig = {
   description: 'Code generation quality',
   tags: { experiment: 'with-skills' },
   target: {
@@ -285,7 +285,9 @@ export default defineEval({
       ],
     },
   ],
-});
+};
+
+export default config;
 ```
 
 ## Documentation

@@ -1,19 +1,19 @@
-# SDK Example: YAML-Aligned Eval Authoring
+# SDK Example: TypeScript Eval Config Authoring
 
-Demonstrates authoring a `.eval.ts` suite with `defineEval()` from `@agentv/sdk` while still lowering to AgentV's canonical snake_case YAML/runtime contract.
+Demonstrates authoring an explicit `*.eval.ts` file with the `EvalConfig` type from `@agentv/sdk`.
 
 ## What It Shows
 
-1. `defineEval()` brands a TypeScript suite for the `.eval.ts` loader.
+1. `evals/greeting.eval.ts` uses a default export as the supported TypeScript eval config contract.
 2. The `graders` helper catalog returns ordinary `assert` entries.
-3. CamelCase authoring fields such as `inputFiles`, `expectedOutput`, `beforeAll`, and `beforeEach` lower to the canonical YAML/runtime keys.
+3. CamelCase authoring fields such as per-test `inputFiles` lower to the canonical YAML/runtime keys.
 4. The suite still runs through the standard CLI and YAML parser path instead of a separate SDK runner.
 
 ## Files
 
-- `evals/greeting.eval.ts` — the YAML-aligned TypeScript suite
+- `evals/greeting.eval.ts` — the TypeScript eval config
 - `.agentv/targets.yaml` — local mock target for a zero-credential run
-- `fixtures/*.md` — attached input files used by the suite
+- `fixtures/per-test-note.md` — attached input file used by the suite
 
 ## How to Run
 

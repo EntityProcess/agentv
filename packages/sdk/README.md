@@ -156,13 +156,13 @@ export default defineWorkspaceGrader(async ({ workspace }) => [
 
 The helper resolves `workspace_path` or `AGENTV_WORKSPACE_PATH`, reads files relative to the workspace, returns AgentV check objects, and computes `score` as passed checks divided by total checks. Prefer Vitest verifiers for checks that naturally fit a test file; use this lower-level helper for tiny one-off graders or custom score shaping.
 
-### defineEval (YAML-aligned `.eval.ts` authoring)
+### TypeScript eval config authoring
 
 ```typescript
-#!/usr/bin/env bun
-import { defineEval, graders } from '@agentv/sdk';
+// evals/greeting.eval.ts
+import { graders, type EvalConfig } from '@agentv/sdk';
 
-export default defineEval({
+const config: EvalConfig = {
   name: 'hello-suite',
   target: 'mock-sdk',
   prompts: ['{{ input }}'],
@@ -174,19 +174,21 @@ export default defineEval({
       assert: [graders.contains('Hello')],
     },
   ],
-});
+};
+
+export default config;
 ```
 
-`defineEval()` keeps TypeScript authoring in camelCase and lowers to the canonical snake_case YAML/runtime contract when AgentV loads the `.eval.ts` file.
+AgentV loads explicit `*.eval.ts` and `*.eval.mts` files through the same core loader used for YAML evals. The supported TypeScript contract is a default-exported `EvalConfig`. `defineEval(config)` is available as a thin optional helper over the same shape; plain typed default exports are the recommended path.
 
 ### Grader helpers
 
 Use the `graders` catalog when you want TypeScript helpers for common AgentV grader configs without creating a new eval vocabulary:
 
 ```typescript
-import { defineEval, graders } from '@agentv/sdk';
+import { graders, type EvalConfig } from '@agentv/sdk';
 
-export default defineEval({
+const config: EvalConfig = {
   name: 'grader-helper-suite',
   prompts: ['{{ input }}'],
   tests: [
@@ -207,7 +209,9 @@ export default defineEval({
       ],
     },
   ],
-});
+};
+
+export default config;
 ```
 
 The helpers return ordinary `assert` entries such as `type: contains`, `type: llm-rubric`, and `type: script`. Use the shared `transform` option for assertion-level output shaping. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
@@ -215,7 +219,7 @@ The helpers return ordinary `assert` entries such as `type: contains`, `type: ll
 If you are coming from Braintrust `scores` or DeepEval metrics, model reusable checks as small AgentV-native helper factories that return these grader configs. They still lower to the same YAML/runtime contract:
 
 ```typescript
-import { defineEval, graders } from '@agentv/sdk';
+import { graders, type EvalConfig } from '@agentv/sdk';
 
 function ragFaithfulness() {
   return graders.llmRubric(undefined, {
@@ -225,7 +229,7 @@ function ragFaithfulness() {
   });
 }
 
-export default defineEval({
+const config: EvalConfig = {
   name: 'rag-suite',
   prompts: ['{{ input }}'],
   tests: [
@@ -235,7 +239,9 @@ export default defineEval({
       assert: [ragFaithfulness()],
     },
   ],
-});
+};
+
+export default config;
 ```
 
 Python workflows should emit canonical YAML/JSONL or implement script graders over the stdin/stdout contract. The repo-local helper under `examples/features/sdk-python/` is an example, not a promised published Python package.
@@ -248,11 +254,12 @@ Python workflows should emit canonical YAML/JSONL or implement script graders ov
 - `defineVitestWorkspaceGrader(options)` - Embed the Vitest workspace verifier adapter in a custom script
 - `defineWorkspaceGrader(handler)` - Define a workspace-aware script grader with file assertion helpers
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
-- `defineEval(definition)` / `evalSuite(definition)` - Define a YAML-aligned `.eval.ts` suite
+- `defineEval(config)` - Optional helper for a default-exported TypeScript `EvalConfig`
 - `graders` - Catalog of built-in AgentV grader config helpers
 - `containsGrader`, `equalsGrader`, `exactGrader`, `regexGrader`, `isJsonGrader`, `jsonGrader`, `llmRubricGrader`, `scriptGrader` - Named grader helper functions
 - `toEvalYamlObject(definition)` / `serializeEvalYaml(definition)` - Lower or serialize canonical eval YAML
-- `EvalConfig`, `EvalRunResult`, `EvalSummary`, `EvalTestInput`, `EvalAssertionInput` - Programmatic evaluation types
+- `EvalConfig` - TypeScript eval config authoring type
+- `EvalRunResult`, `EvalSummary`, `EvalTestInput`, `EvalAssertionInput` - Programmatic evaluation types
 - `AssertionContext`, `AssertionScore` - Assertion types
 - `ScriptGraderInput`, `ScriptGraderResult`, `Workspace`, `WorkspaceAssertion` - Grader types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types

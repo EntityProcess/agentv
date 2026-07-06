@@ -211,7 +211,7 @@ export interface EvalRequires {
   readonly [key: string]: unknown;
 }
 
-export interface EvalDefinition {
+export interface EvalConfig {
   readonly $schema?: string;
   readonly name?: string;
   readonly description?: string;
@@ -267,8 +267,8 @@ function lowerEvalYamlValue(value: unknown): unknown {
   return value;
 }
 
-function lowerEvalDefinition(definition: unknown): Record<string, unknown> {
-  const lowered = lowerEvalYamlValue(definition) as Record<string, unknown>;
+function lowerEvalConfig(config: unknown): Record<string, unknown> {
+  const lowered = lowerEvalYamlValue(config) as Record<string, unknown>;
   const { budget_usd: budgetUsd, repeat, ...loweredWithoutRuntimeOptions } = lowered;
   if (budgetUsd === undefined && repeat === undefined) {
     return lowered;
@@ -293,7 +293,7 @@ function lowerEvalDefinition(definition: unknown): Record<string, unknown> {
   };
 }
 
-function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & DefinedEvalSuite {
+function attachEvalSuiteBrand<T extends EvalConfig>(definition: T): T & DefinedEvalSuite {
   validateTopLevelRuntimeFields(definition);
   const branded = definition as T & Partial<DefinedEvalSuite>;
 
@@ -319,7 +319,7 @@ function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & Defi
   return branded as T & DefinedEvalSuite;
 }
 
-function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
+function validateTopLevelRuntimeFields(definition: EvalConfig): void {
   const rawDefinition = definition as unknown as Record<string, unknown>;
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'input')) {
     throw new Error(
@@ -362,15 +362,8 @@ function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
  * non-enumerable lowering hook so AgentV can materialize the canonical
  * snake_case eval contract when the suite is loaded from a `.eval.ts` file.
  */
-export function defineEval<T extends EvalDefinition>(definition: T): T & DefinedEvalSuite {
+export function defineEval<T extends EvalConfig>(definition: T): T & DefinedEvalSuite {
   return attachEvalSuiteBrand(definition);
-}
-
-/**
- * Alias for `defineEval()` when a suite reads more clearly as a plain object.
- */
-export function evalSuite<T extends EvalDefinition>(definition: T): T & DefinedEvalSuite {
-  return defineEval(definition);
 }
 
 /**
@@ -380,17 +373,15 @@ export function evalSuite<T extends EvalDefinition>(definition: T): T & DefinedE
  * Only known AgentV wire keys are converted. Unknown keys are preserved as-is
  * so opaque assertion, provider, and metadata payloads are not corrupted.
  */
-export function toEvalYamlObject<T extends EvalDefinition | DefinedEvalSuite>(
+export function toEvalYamlObject<T extends EvalConfig | DefinedEvalSuite>(
   definition: T,
 ): LowerEvalYamlValue<T> {
-  return lowerEvalDefinition(definition) as LowerEvalYamlValue<T>;
+  return lowerEvalConfig(definition) as LowerEvalYamlValue<T>;
 }
 
 /**
  * Serialize an eval suite to canonical YAML.
  */
-export function serializeEvalYaml<T extends EvalDefinition | DefinedEvalSuite>(
-  definition: T,
-): string {
+export function serializeEvalYaml<T extends EvalConfig | DefinedEvalSuite>(definition: T): string {
   return stringifyYaml(toEvalYamlObject(definition), { lineWidth: 0 }).trimEnd();
 }

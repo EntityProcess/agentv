@@ -15,10 +15,12 @@ attempts and gates. Coding-agent testbeds, workdirs, Docker config, repository
 materialization, setup, and reset policy belong in `environment`. Provider
 environment-variable overrides belong in top-level `env`. Lifecycle hooks belong
 in `extensions`; runner-specific setup belongs in the `target` object, in
-`targets`, or in project config. AgentV supports two eval data formats: YAML and
-JSONL.
+`targets`, or in project config. AgentV supports YAML, JSONL, and explicit
+TypeScript eval config files.
 
-YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
+YAML is the canonical portable model. TypeScript helpers, generated fixtures,
+and Python scripts should lower to the same YAML/JSONL shapes rather than
+inventing a separate eval contract.
 Eval files describe the task, target binding, and run controls. Use
 `evaluate_options.max_concurrency` for authored suite concurrency. Operators can still
 override concurrency with `agentv eval --workers N`; do not author legacy
@@ -36,6 +38,32 @@ Eval YAML is AgentV's composable and runnable authoring primitive. It is a
 focused, shareable slice of the same config graph as `.agentv/config.yaml`.
 Use ordinary `*.eval.yaml` files for direct task suites. Raw case files are
 reusable data inputs, not a second runnable experiment format.
+
+For TypeScript config authoring, use an explicit `*.eval.ts` or `*.eval.mts`
+file with a typed default export:
+
+```typescript
+import type { EvalConfig } from '@agentv/sdk';
+
+const config: EvalConfig = {
+  target: 'local-mini',
+  prompts: ['Summarize {{ topic }} for {{ audience }}.'],
+  tests: [
+    {
+      id: 'release-notes',
+      vars: { topic: 'the July release notes', audience: 'engineers' },
+      assert: [{ type: 'contains', value: 'July' }],
+    },
+  ],
+};
+
+export default config;
+```
+
+Directory discovery includes `*.eval.ts` and `*.eval.mts`. Arbitrary helper
+`.ts` files are not eval configs. Custom assertions remain under
+`.agentv/assertions/*.ts` and are loaded through assertion discovery, not
+through the eval config loader.
 
 - A **task suite** is eval YAML that owns task context: `environment`, shared
   `prompts`, shared `assert`, fixtures, graders, and test cases. It can run

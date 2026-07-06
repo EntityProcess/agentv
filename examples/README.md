@@ -62,7 +62,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [vitest-workspace-grader](features/vitest-workspace-grader/) - Built-in AgentV adapter for Vitest workspace verifier files
 - [sdk-custom-assertion](features/sdk-custom-assertion/) - Custom assertion types using `defineAssertion()`
 - [sdk-programmatic-api](features/sdk-programmatic-api/) - Programmatic evaluation using `evaluate()`
-- [sdk-eval-authoring](features/sdk-eval-authoring/) - YAML-aligned `.eval.ts` authoring using `defineEval()`
+- [sdk-eval-authoring](features/sdk-eval-authoring/) - TypeScript `*.eval.ts` authoring using `EvalConfig`
 - [sdk-config-file](features/sdk-config-file/) - Typed configuration with `defineConfig()`
 - [prompt-template-sdk](features/prompt-template-sdk/) - Custom LLM grader prompts using `definePromptTemplate()`
 
@@ -87,7 +87,8 @@ Each example follows this structure:
 example-name/
 ├── evals/
 │   ├── suite.yaml     # Primary eval file
-│   ├── *.ts or *.py          # script graders (optional)
+│   ├── *.eval.ts             # TypeScript eval config (optional)
+│   ├── *.ts or *.py          # script graders and helper code (optional)
 │   └── *.md                  # LLM grader prompts (optional)
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/

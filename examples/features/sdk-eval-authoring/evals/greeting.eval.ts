@@ -1,24 +1,27 @@
-import { defineEval, graders } from '@agentv/sdk';
+import { type EvalConfig, graders } from '@agentv/sdk';
 
-export default defineEval({
+const config: EvalConfig = {
   name: 'sdk-eval-authoring',
-  description: 'YAML-aligned TypeScript eval authoring with @agentv/sdk',
-  inputFiles: ['../fixtures/shared-context.md'],
+  description: 'TypeScript eval config authoring with @agentv/sdk',
   target: 'mock-sdk',
   environment: {
     type: 'host',
     workdir: '../fixtures',
   },
+  prompts: ['Use the attached notes and {{ task }}'],
   tests: [
     {
       id: 'hello-from-typescript',
-      input: 'Use the attached notes and say hello.',
+      vars: {
+        task: 'say hello.',
+      },
       inputFiles: ['../fixtures/per-test-note.md'],
-      expectedOutput: 'Hello from the mock target',
       assert: [
         graders.contains('Hello', { name: 'mentions-hello' }),
         graders.regex(/mock target/i, { name: 'mentions-mock-target' }),
       ],
     },
   ],
-});
+};
+
+export default config;

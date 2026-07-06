@@ -59,13 +59,15 @@ import {
   createTargetClient,
   defineScriptGrader,
   defineEval,
+  type EvalConfig,
   definePromptTemplate,
   graders,
 } from '@agentv/sdk';
 ```
 
 - `defineScriptGrader(fn)` - Wraps evaluation function with stdin/stdout handling
-- `defineEval(definition)` - Defines a YAML-aligned `.eval.ts` suite
+- `EvalConfig` - Public TypeScript eval authoring type for default-exported `*.eval.ts` and `*.eval.mts` files
+- `defineEval(definition)` - Optional thin helper over the same `EvalConfig` shape
 - `graders` - Helper catalog that returns ordinary AgentV `assert` entries
 - `createTargetClient()` - Returns LLM proxy client (when `target: {}` configured)
   - `.invoke({question, systemPrompt})` - Single LLM call
@@ -81,7 +83,7 @@ For Python, the repo-local helper example in `examples/features/sdk-python/` kee
 Use helper factories for reusable Braintrust/DeepEval-inspired checks, but keep the result as AgentV `assert` entries:
 
 ```typescript
-import { defineEval, graders } from '@agentv/sdk';
+import { graders, type EvalConfig } from '@agentv/sdk';
 
 function ragFaithfulness() {
   return graders.llmRubric(undefined, {
@@ -91,19 +93,22 @@ function ragFaithfulness() {
   });
 }
 
-export default defineEval({
+const config: EvalConfig = {
   name: 'rag-suite',
+  prompts: ['{{ task }}'],
   tests: [
     {
       id: 'grounded-answer',
-      input: 'Answer using the retrieved context.',
+      vars: { task: 'Answer using the retrieved context.' },
       assert: [
         graders.contains('source', { name: 'mentions-source' }),
         ragFaithfulness(),
       ],
     },
   ],
-});
+};
+
+export default config;
 ```
 
 The helper lowers to ordinary YAML:
