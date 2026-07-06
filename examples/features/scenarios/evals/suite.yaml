@@ -1,19 +1,7 @@
 name: scenarios-demo
-description: Demonstrates Promptfoo-style scenario matrices with inline and file-backed scenarios.
+description: Demonstrates Promptfoo-style scenario matrices with shared tests crossed against language config rows.
 version: "1.0"
 prompts:
   - "Translate '{{ phrase }}' to {{ language }}."
 scenarios:
-  - description: Inline Portuguese scenario
-    config:
-      - vars:
-          language: Portuguese
-    tests:
-      - id: inline-portuguese-hello
-        vars:
-          phrase: hello
-          expected_translation: ola
-        assert:
-          - type: equals
-            value: "{{ expected_translation }}"
   - file://scenarios/*.yaml

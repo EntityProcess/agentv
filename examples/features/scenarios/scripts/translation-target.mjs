@@ -4,10 +4,12 @@ const promptFile = process.argv[2];
 const outputFile = process.argv[3];
 
 const translations = new Map([
-  ["Translate 'hello' to Portuguese.", 'ola'],
-  ["Translate 'hello' to French.", 'bonjour'],
-  ["Translate 'hello world' to Spanish.", 'hola mundo'],
+  ["Translate 'hello' to Spanish.", 'hola'],
   ["Translate 'thank you' to Spanish.", 'gracias'],
+  ["Translate 'hello' to French.", 'bonjour'],
+  ["Translate 'thank you' to French.", 'merci'],
+  ["Translate 'hello' to Portuguese.", 'ola'],
+  ["Translate 'thank you' to Portuguese.", 'obrigado'],
 ]);
 
 const prompt = readFileSync(promptFile, 'utf8').trim();

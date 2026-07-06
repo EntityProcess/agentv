@@ -1,64 +1,79 @@
 # Scenarios Example
 
-Demonstrates Promptfoo-style `scenarios` authoring with AgentV's current contract:
-top-level `prompts`, inline `scenarios`, `scenarios[].config`,
-`scenarios[].tests`, reference answers in `vars`, and explicit assertions.
+Demonstrates Promptfoo-style `scenarios` authoring with AgentV's current
+contract: top-level `prompts`, file-backed `scenarios`, `scenarios[].config`,
+`scenarios[].tests`, config-owned reference answers in `vars`, and explicit
+assertions.
 
 ## What This Shows
 
-- Crossing each scenario `config` row with each scenario `tests` row
-- Mixing inline scenario objects with `file://` scenario refs
-- Loading scenario files through a glob
-- Keeping reference answers in `vars.expected_translation`
-- Consuming reference answers with explicit `equals` assertions
+- Reusing one shared set of phrase tests across multiple language configs
+- Crossing three `config` rows with two `tests` rows to produce six cases
+- Loading the scenario matrix through a `file://` glob
+- Keeping per-language reference answers in config vars
+- Consuming config vars with explicit `equals` assertions
 - Running against a deterministic local CLI target
 
 ## Expansion
 
-The main eval contains one inline Portuguese scenario and one file glob:
+The main eval defines one prompt template and points `scenarios` at a file glob:
 
 ```yaml
+prompts:
+  - "Translate '{{ phrase }}' to {{ language }}."
 scenarios:
-  - description: Inline Portuguese scenario
-    config:
-      - vars:
-          language: Portuguese
-    tests:
-      - id: inline-portuguese-hello
-        vars:
-          phrase: hello
-          expected_translation: ola
-        assert:
-          - type: equals
-            value: "{{ expected_translation }}"
   - file://scenarios/*.yaml
 ```
 
-The glob loads `scenarios/french.yaml` and `scenarios/spanish.yaml`. AgentV
-flattens those files into the top-level scenario list before lowering each
-scenario as `config x tests`.
+The glob loads `scenarios/translation-matrix.yaml`. AgentV flattens that file
+into the top-level scenario list before lowering each scenario as
+`config x tests`.
 
-For example, the Spanish scenario has one config row and two tests:
+The scenario file keeps the changing data in `config` rows:
 
 ```yaml
 config:
-  - vars:
-      language: Spanish
-tests:
-  - id: spanish-hello-world
+  - id: spanish
     vars:
-      phrase: hello world
-      expected_translation: hola mundo
+      language: Spanish
+      expected_hello: hola
+      expected_thank_you: gracias
+  - id: french
+    vars:
+      language: French
+      expected_hello: bonjour
+      expected_thank_you: merci
 ```
 
-That row renders the prompt:
+The shared tests are written once:
 
-```text
-Translate 'hello world' to Spanish.
+```yaml
+tests:
+  - description: translates a greeting
+    vars: { phrase: hello }
+    assert:
+      - type: equals
+        value: "{{ expected_hello }}"
+  - description: translates a courtesy phrase
+    vars: { phrase: thank you }
+    assert:
+      - type: equals
+        value: "{{ expected_thank_you }}"
 ```
 
-The deterministic local CLI target returns `hola mundo`, and the assertion
-compares it to the reference answer from `vars.expected_translation`.
+That produces six concrete cases without duplicating the test content:
+
+| Config row | Test row | Rendered prompt | Expected value |
+| --- | --- | --- | --- |
+| `spanish` | greeting | `Translate 'hello' to Spanish.` | `hola` |
+| `spanish` | courtesy phrase | `Translate 'thank you' to Spanish.` | `gracias` |
+| `french` | greeting | `Translate 'hello' to French.` | `bonjour` |
+| `french` | courtesy phrase | `Translate 'thank you' to French.` | `merci` |
+| `portuguese` | greeting | `Translate 'hello' to Portuguese.` | `ola` |
+| `portuguese` | courtesy phrase | `Translate 'thank you' to Portuguese.` | `obrigado` |
+
+The deterministic local CLI target returns the translation, and the assertion
+compares it to the reference answer from the config row.
 
 ## Running
 
@@ -72,8 +87,7 @@ bun apps/cli/src/cli.ts eval run examples/features/scenarios/evals/suite.yaml \
 
 ## Key Files
 
-- `evals/suite.yaml` - Main eval with inline and file-backed scenarios
-- `evals/scenarios/french.yaml` - Scenario file loaded by glob
-- `evals/scenarios/spanish.yaml` - Scenario file loaded by glob
+- `evals/suite.yaml` - Main eval with a file-backed scenario matrix
+- `evals/scenarios/translation-matrix.yaml` - Scenario file loaded by glob
 - `targets.yaml` - Deterministic CLI target for running the example
 - `scripts/translation-target.mjs` - Prompt-to-translation target script

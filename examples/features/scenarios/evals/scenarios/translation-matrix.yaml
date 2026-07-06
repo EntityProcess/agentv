@@ -1,0 +1,30 @@
+- description: Translation languages crossed with shared phrase tests
+  config:
+    - id: spanish
+      vars:
+        language: Spanish
+        expected_hello: hola
+        expected_thank_you: gracias
+    - id: french
+      vars:
+        language: French
+        expected_hello: bonjour
+        expected_thank_you: merci
+    - id: portuguese
+      vars:
+        language: Portuguese
+        expected_hello: ola
+        expected_thank_you: obrigado
+  tests:
+    - description: translates a greeting
+      vars:
+        phrase: hello
+      assert:
+        - type: equals
+          value: "{{ expected_hello }}"
+    - description: translates a courtesy phrase
+      vars:
+        phrase: thank you
+      assert:
+        - type: equals
+          value: "{{ expected_thank_you }}"
