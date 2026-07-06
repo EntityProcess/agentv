@@ -15,19 +15,22 @@ Built-in graders for grading structured outputs and gating on execution metrics:
 
 ## Ground Truth
 
-Put the expected structured output in the test case `expected_output` (as an object or message array). Graders read expected values from there.
+Put the expected structured output in `tests[].vars.expected_output`. Graders
+read expected values from that explicit reference var.
 
 ```yaml
 tests:
   - id: invoice-001
-    expected_output:
-      invoice_number: "INV-2025-001234"
-      net_total: 1889
+    vars:
+      expected_output:
+        invoice_number: "INV-2025-001234"
+        net_total: 1889
 ```
 
 ## Field Accuracy
 
-Use `field-accuracy` to compare fields in the candidate JSON against the ground-truth object in `expected_output`.
+Use `field-accuracy` to compare fields in the candidate JSON against the
+ground-truth object in `vars.expected_output`.
 
 ```yaml
 assert:

@@ -138,19 +138,21 @@ sidebar:
 
 target: default
 
+prompts:
+  - - role: user
+      content: "What is the capital of France? Verify using a search tool."
+
 tests:
   - id: full-stack-eval
     criteria: >-
       Agent researches the topic, uses appropriate tools in order,
       produces a correct answer, and operates safely.
-
-    input:
-      - role: user
-        content: "What is the capital of France? Verify using a search tool."
-
-    expected_output: "The capital of France is Paris."
+    vars:
+      expected_output: "The capital of France is Paris."
 
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       # Layer 1: Reasoning
       - Agent reasoned about which tool to use before acting
 

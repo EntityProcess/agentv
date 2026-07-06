@@ -29,10 +29,11 @@ Each `scores[]` entry includes per-grader timing:
     {
       "name": "format_structure",
       "type": "llm-rubric",
+      "pass": true,
       "score": 0.9,
-      "verdict": "pass",
-      "assertions": [
-        { "text": "clear structure", "passed": true }
+      "reason": "The answer is clearly structured.",
+      "component_results": [
+        { "pass": true, "score": 0.9, "reason": "Clear structure is present." }
       ],
       "duration_ms": 9103,
       "started_at": "2026-03-09T00:05:10.123Z",

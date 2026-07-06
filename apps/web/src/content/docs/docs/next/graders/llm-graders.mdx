@@ -15,17 +15,22 @@ handled by the built-in `llm-rubric` rubric grader. Use `type: llm-rubric` when 
 need a custom prompt, target, or grader-specific transform:
 
 ```yaml
+prompts:
+  - "{{ task }}"
+
 tests:
   - id: simple-eval
-    input: "Debug this function..."
+    vars:
+      task: "Debug this function..."
     assert:
       - Correctly explains the bug and proposes a fix
 ```
 
-`expected_output` is passive gold/reference data. It is available to graders but
-does not create an LLM grading call by itself. Depending on the grader, it can
-be used as an exact target, a semantic reference answer, a structured object, or
-supporting context. See [How reference fields and assertions interact](/docs/evaluation/eval-cases/#how-reference-fields-and-assertions-interact).
+Reference answers belong in `vars.expected_output`. That var is available to
+graders, but it does not create an LLM grading call by itself. Consume it from
+an explicit assertion, usually `type: llm-rubric` with a `value` such as
+`"Matches the reference answer: {{ expected_output }}"`. See [How reference
+fields and assertions interact](/docs/evaluation/eval-cases/#how-reference-fields-and-assertions-interact).
 
 ## Configuration
 
@@ -87,6 +92,12 @@ Use `prompt: ./path/to/prompt.md` for the common relative-path case. Use `prompt
 
 Structured task input belongs in `input`. If `input` is a message whose `content` is a JSON object, `{{input}}` renders that object as formatted JSON for the grader prompt; no separate grader-only input field is required. Use `metadata` for provenance or suite-level source fields, and `rubrics_json` for rubric arrays.
 
+For Promptfoo-compatible custom rubric prompts, the standard judge prompt uses
+`{{ output }}` for the candidate answer and `{{ rubric }}` for the rendered
+assertion value. The judge response should be JSON-compatible with
+`{ "reason": string, "pass": boolean, "score": number }`; AgentV normalizes
+that into public `grading.json` fields `reason`, `pass`, and `score`.
+
 Suite-level `metadata` is inherited by every test. When rubric items vary per test, keep the grader on each test and reuse the prompt file:
 
 ```yaml
@@ -95,11 +106,15 @@ metadata:
   source_commit: 8d9419829f443f84b804d033bb2c3b1fbd788629
   source_file: src/evals/dataset/finance_agent.csv
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: apple-research
-    input:
-      company: Apple
-      ticker: AAPL
+    vars:
+      input:
+        company: Apple
+        ticker: AAPL
     metadata:
       row: 1
     assert:
@@ -254,17 +269,18 @@ Template variables are derived internally through three layers:
 
 What users write in YAML or JSONL:
 
-- `input` may be a shorthand string or a full message array. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`.
-- `expected_output` may be a shorthand string or a full message array. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`.
+- Prompt templates render from `tests[].vars` and `default_test.vars`.
+- `vars.expected_output` is a conventional reference-answer var. It is available to assertion values and grader templates, but it is not an authored sibling field on the test.
 
 ### 2. Resolved Layer
 
-After parsing, canonical message arrays replace the shorthand fields:
+After prompt rendering, canonical message arrays represent the resolved prompt
+input and reference data:
 
 - `input: TestMessage[]` -- canonical resolved input
 - `expected_output: TestMessage[]` -- canonical resolved expected output
 
-At this layer, `input` and `expected_output` no longer exist as separate fields.
+At this layer, authored prompt vars and resolved grader context are separate.
 
 ### 3. Template Variable Layer
 
@@ -284,8 +300,15 @@ Derived strings injected into grader prompts:
 
 ```yaml
 # User writes:
-input: "What is 2+2?"
-expected_output: "The answer is 4"
+prompts:
+  - "{{ question }}"
+tests:
+  - vars:
+      question: "What is 2+2?"
+      expected_output: "The answer is 4"
+    assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
 ```
 
 ```

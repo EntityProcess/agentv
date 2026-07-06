@@ -67,7 +67,11 @@ Emit a JSON object for numeric scores or multi-aspect results:
 | `pass` | `boolean` | Aggregate pass/fail decision |
 | `score` | `number` | 0.0 to 1.0 |
 | `reason` | `string` | Explanation for the aggregate decision |
-| `checks` | `Array<{ text, pass, score?, reason, evidence? }>` | Optional per-aspect results with verdict, optional score, reason, and evidence |
+| `checks` | `Array<{ text, pass, score?, reason }>` | Optional per-aspect authoring/API convenience results |
+
+`checks` is a script-grader convenience shape. Public `grading.json` artifacts
+normalize those entries into recursive `component_results` with `pass`, `score`,
+and `reason`.
 
 ### Plain-text output (exit-code convention)
 
@@ -381,7 +385,11 @@ Beyond the basic fields (`input`, `output`, `expected_output`), script graders r
 | `error_count` | `number` | Failed tool calls |
 | `llm_call_count` | `number` | Number of LLM calls (assistant messages) |
 
-Use `expected_output` for reference answers and `output` for the actual final answer from live runs. Use `messages` or `trace` when you need tool calls, intermediate messages, or replay/provenance data.
+Use `expected_output` for reference answers and `output` for the actual final
+answer from live runs. In authored YAML, put reference answers in
+`vars.expected_output` and consume them from explicit assertions. Use
+`messages` or `trace` when you need tool calls, intermediate messages, or
+replay/provenance data.
 
 ## Workspace Access
 

@@ -110,11 +110,11 @@ tests:
 ```
 
 Plain assertion strings are short-form rubric criteria: AgentV groups them into
-`llm-rubric` and writes each criterion to `grading.json.assertion_results` for the
-Dashboard. Use explicit `type: llm-rubric` when you need weights, required flags, or
-`score_ranges`, or when you need a custom grader prompt, grader target, or
-output transforms; use string `value` for free-form rubric checks. Executable
-graders use `type: script`.
+`llm-rubric` and writes grader detail to `grading.json.component_results` for
+the Dashboard. Use explicit `type: llm-rubric` when you need weights, required
+flags, `score_ranges`, a custom grader prompt, a grader target, or output
+transforms; use string `value` for free-form rubric checks. Executable graders
+use `type: script`.
 
 The target can be an eval-local object when this eval needs target settings of its own:
 
@@ -200,7 +200,7 @@ Run bundle layout:
 │   │   │   └── graders/          #   grader files used
 │   │   └── sample-1/             # one materialized sample
 │   │       ├── result.json       # compact attempt manifest
-│   │       ├── grading.json      # assertion_results and grader evidence
+│   │       ├── grading.json      # pass, score, reason, component_results
 │   │       ├── metrics.json      # tool calls, transcript stats, behavior metrics
 │   │       ├── transcript.json        # normalized agent transcript
 │   │       ├── transcript-raw.jsonl   # raw agent output (debugging)

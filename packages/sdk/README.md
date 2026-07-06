@@ -72,6 +72,9 @@ export default defineAssertion(({ output }) => ({
 ```
 
 Checks support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.
+`checks` is an SDK/script convenience shape; public `grading.json` artifacts
+normalize checks into recursive `component_results` with `pass`, `score`, and
+`reason`.
 
 ### defineScriptGrader (full control)
 

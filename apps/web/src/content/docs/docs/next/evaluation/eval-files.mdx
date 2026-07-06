@@ -105,8 +105,9 @@ Raw cases are just case data:
 ```yaml
 # evals/cases/refund-smoke.cases.yaml
 - id: damaged-item
-  input: The item arrived damaged. What should support do?
-  expected_output: Offer a replacement or refund path.
+  vars:
+    question: The item arrived damaged. What should support do?
+    expected_output: Offer a replacement or refund path.
 ```
 
 A run-focused eval stays ordinary eval YAML while choosing a target and run controls:
@@ -126,7 +127,10 @@ tests:
   - id: local-edge-case
     vars:
       question: Can a final-sale item be refunded after damage in transit?
-    expected_output: Explain the final-sale exception for damaged transit.
+      expected_output: Explain the final-sale exception for damaged transit.
+    assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
 ```
 
 The `experiments/` directory is optional and user-owned. AgentV does not infer
@@ -156,7 +160,10 @@ tests:
   - id: addition
     vars:
       question: What is 15 + 27?
-    expected_output: "42"
+      expected_output: "42"
+    assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
 ```
 
 ### Top-level Fields
@@ -214,6 +221,9 @@ prompts:
 default_test:
   vars:
     audience: engineers
+  assert:
+    - type: llm-rubric
+      value: "Matches the reference answer: {{ expected_output }}"
 
 targets:
   - id: local-mini
@@ -232,7 +242,7 @@ tests:
   - id: release-notes
     vars:
       topic: the July release notes
-    expected_output: concise release-note summary
+      expected_output: concise release-note summary
     assert:
       - Identifies the most important change
       - Avoids unsupported details
@@ -240,7 +250,7 @@ tests:
     vars:
       audience: executives
       topic: the next roadmap phase
-    expected_output: concise roadmap summary
+      expected_output: concise roadmap summary
     assert:
       - Identifies the main product direction
       - Uses the requested audience framing
@@ -662,16 +672,18 @@ tests:
   - id: capital
     vars:
       question: What is the capital of France?
-      expected_answer: Paris
+      expected_output: Paris
     criteria: "Answers {{ vars.question }} correctly"
-    expected_output: "{{ vars.expected_answer }}"
+    assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
 ```
 
 ### Behavior
 
 - `vars` is defined per test as an object, with optional defaults from `default_test.vars`
 - `{{ vars.name }}` and dotted paths like `{{ vars.user.name }}` are supported
-- Substitution applies to `prompts`, `criteria`, `expected_output`, assertion values/metrics, and conversation turn `input` / `expected_output` / assertions
+- Substitution applies to `prompts`, `criteria`, `vars.expected_output`, assertion values/metrics, and conversation turn `input` / `expected_output` / assertions
 - When the whole string is a single placeholder, the original JSON value is preserved
 - Missing variables render as empty strings following Nunjucks semantics
 - `vars` interpolation is separate from environment interpolation: `{{ vars.question }}` uses test data, `{{ env.PROJECT_NAME }}` uses environment variables

@@ -34,11 +34,11 @@ tests:
   - id: case-001
     criteria: |-
       Batch runner returns JSON with decision=CLEAR.
-
-    expected_output:
-      - role: assistant
-        content:
-          decision: CLEAR
+    vars:
+      expected_output:
+        - role: assistant
+          content:
+            decision: CLEAR
 
     input:
       - role: system
@@ -62,11 +62,11 @@ tests:
   - id: case-002
     criteria: |-
       Batch runner returns JSON with decision=REVIEW.
-
-    expected_output:
-      - role: assistant
-        content:
-          decision: REVIEW
+    vars:
+      expected_output:
+        - role: assistant
+          content:
+            decision: REVIEW
 
     input:
       - role: system
@@ -156,11 +156,12 @@ Each test has its own grader that validates the batch runner output. The grader 
 **Output (stdout):**
 ```json
 {
+  "pass": true,
   "score": 1.0,
-  "assertions": [
-    { "text": "decision matches: CLEAR", "passed": true }
-  ],
-  "reasoning": "Batch runner decision matches expected."
+  "reason": "Batch runner decision matches expected.",
+  "checks": [
+    { "text": "decision matches: CLEAR", "pass": true, "reason": "Expected and actual decisions are CLEAR." }
+  ]
 }
 ```
 
@@ -188,22 +189,23 @@ function main() {
     candidateDecision = undefined;
   }
 
-  const assertions: Array<{ text: string; passed: boolean }> = [];
+  const checks: Array<{ text: string; pass: boolean; reason: string }> = [];
 
   if (expectedDecision === candidateDecision) {
-    assertions.push({ text: `decision matches: ${expectedDecision}`, passed: true });
+    checks.push({ text: `decision matches: ${expectedDecision}`, pass: true, reason: 'Expected and actual decisions match.' });
   } else {
-    assertions.push({ text: `mismatch: expected=${expectedDecision} actual=${candidateDecision}`, passed: false });
+    checks.push({ text: `mismatch: expected=${expectedDecision} actual=${candidateDecision}`, pass: false, reason: 'Expected and actual decisions differ.' });
   }
 
-  const passed = assertions.every(a => a.passed);
+  const passed = checks.every((check) => check.pass);
 
   process.stdout.write(JSON.stringify({
+    pass: passed,
     score: passed ? 1 : 0,
-    assertions,
-    reasoning: passed
+    reason: passed
       ? 'Batch runner output matches expected.'
       : 'Batch runner output did not match expected.',
+    checks,
   }));
 }
 
@@ -222,15 +224,16 @@ main();
 
 ## Structured Content
 
-Use structured objects in `expected_output` to define expected output fields for easy validation:
+Use structured objects in `vars.expected_output` to define expected output fields for easy validation:
 
 ```yaml
-expected_output:
-  - role: assistant
-    content:
-      decision: CLEAR
-      confidence: high
-      reasons: []
+vars:
+  expected_output:
+    - role: assistant
+      content:
+        decision: CLEAR
+        confidence: high
+        reasons: []
 ```
 
 The grader extracts these fields and compares them against the parsed candidate output.

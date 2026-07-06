@@ -34,15 +34,17 @@ implements equivalent semantics directly.
 | --- | --- | --- | --- | --- |
 | TypeScript config file | `promptfooconfig.ts` default export typed as Promptfoo `UnifiedConfig`. | Explicit `*.eval.ts` or `*.eval.mts` default export typed as `EvalConfig` from `@agentv/sdk`. | Keep AgentV divergence | AgentV does not accept `promptfooconfig.ts` by default because the config semantics intentionally diverge: top-level `providers` is not an AgentV runtime alias, and AgentV keeps `target`/`targets`, `environment`, `evaluate_options`, and `assert` as its supported contract. Directory discovery includes explicit `*.eval.ts` and `*.eval.mts` config files, but not arbitrary helper `.ts` files. |
 | Prompt matrix | Top-level `prompts` rendered with each test's `vars`. | Top-level `prompts` rendered with `tests[].vars` and `default_test.vars`. | Align with Promptfoo | This is the canonical Promptfoo-compatible input shape in AgentV. Prompt entries can be inline strings, chat arrays, files, or generated prompt functions. |
-| Test rows | `tests` can be inline rows or a case-file reference; rows carry `vars`, `assert`, metadata, prompt/provider filters, and expected data. | `tests` can be inline rows or a raw-case path; rows carry `vars`, `assert`, `expected_output`, metadata, optional environment overrides, and run overrides. | Align with Promptfoo | AgentV uses field-local file refs such as `tests: file://...`, `prompts: file://...`, and `default_test: file://...`; coding-agent testbeds use `environment: file://...`. There is no separate imports table. |
+| Test rows | `tests` can be inline rows or a case-file reference; rows carry `vars`, `assert`, metadata, prompt/provider filters, and expected data through vars or assertion values. | `tests` can be inline rows or a raw-case path; rows carry `vars`, `assert`, metadata, optional environment overrides, and run overrides. | Align with Promptfoo | AgentV uses field-local file refs such as `tests: file://...`, `prompts: file://...`, and `default_test: file://...`; coding-agent testbeds use `environment: file://...`. There is no separate imports table. |
 | Variables | `tests[].vars` plus `defaultTest.vars`; prompt templates can reference top-level var names. | `tests[].vars` plus `default_test.vars`; templates can use `{{ name }}` or `{{ vars.name }}`. | Align with Promptfoo | Per-test vars override default vars by key. |
 | Default test | `defaultTest`, inline object or `file://` reference. | `default_test`, inline object or `file://` / `ref://` reference. | Align with Promptfoo | AgentV uses `snake_case` for YAML. Shared prompt matrix defaults belong in `default_test.vars`. |
+| Reference answers | Promptfoo stores reference data in assertion values or arbitrary vars such as `vars.expected_output`; `llm-rubric` consumes it when `value` includes `{{ expected_output }}`. | Store reference answers in `tests[].vars.expected_output` or `default_test.vars.expected_output`, then consume them explicitly with `assert` or `default_test.assert`, usually `type: llm-rubric` and `value: "Matches the reference answer: {{ expected_output }}"`. | Align with Promptfoo | A var named `expected_output` is just data. AgentV does not create hidden grading behavior for that name. Authored direct `expected_output` at eval, `default_test`, or test level is rejected in current YAML. |
 | Output transform | `defaultTest.options.transform`, `tests[].options.transform`, and assertion-level `transform`. | `default_test.options.transform`, `tests[].options.transform`, and assertion-level `transform`. | Align with Promptfoo | Use `transform` to shape provider output before grading, including file-output conversions such as `.xlsx` to text. `tests[].options.transform` overrides the inherited default transform; assertion-level `transform` is scoped to one grader. |
 | Deprecated `postprocess` | Older Promptfoo configs may still mention `postprocess`. | Rejected. | Removed/rejected surface | Use `transform`. AgentV intentionally does not adopt Promptfoo's deprecated `postprocess` spelling. |
 | Evaluate options | `evaluateOptions` for runtime controls. | `evaluate_options` for runtime controls. | Align with Promptfoo | AgentV uses `evaluate_options.repeat`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency`. |
 | Authored concurrency | Common Promptfoo usage includes runtime options such as `maxConcurrency`. | `evaluate_options.max_concurrency`. | Keep AgentV divergence | Do not author `execution.max_concurrency` or top-level `workers` in eval YAML. CLI `--workers` remains an operator override. |
 | Target selection | Promptfoo normal evals use `providers`; `targets` can alias providers in unified config. | Use top-level `target` for one system under test or top-level `targets` for a target matrix. | Keep AgentV divergence | AgentV reserves `provider` for the backend/adapter kind inside a target object. Top-level `providers` is rejected to avoid overloading that term. |
 | Target object identity | Provider options often use `id` for backend/provider spec and optional `label` for display or matching. | Target objects use stable `id` for target identity, `provider` for backend kind, optional `runtime`, and `config` for provider settings. | Keep AgentV divergence | AgentV does not copy Promptfoo's `label`/`id` baggage because `provider` already names the backend boundary. |
+| Provider-prompt mapping | `providerPromptMap` maps provider identities to prompt subsets. | Rejected. Use explicit AgentV composition: separate eval suites/files for target-specific prompt subsets, top-level `prompts` plus `tests`/`default_test.vars`, `target`/`targets` or CLI `--target`, and tags/run metadata for grouping. | Removed/rejected surface | AgentV avoids inheriting Promptfoo provider identity baggage. Do not author `providerPromptMap` or `provider_prompt_map`. |
 | Direct authored input | Promptfoo prompt authoring normally goes through `prompts` plus vars. | Top-level `input` and inline `tests[].input` are removed from normal authored eval YAML. External raw-case imports may still carry internal input rows for compatibility. | Removed AgentV extension | Author prompt text, chat/system/user messages, and file-backed prompt content as `prompts`; put row data in `tests[].vars` and shared defaults in `default_test.vars`. |
 | Authored preprocessors | Not Promptfoo's canonical output-shaping surface. | Rejected in current authored YAML. | Removed/rejected surface | Use `transform` at `default_test.options`, `tests[].options`, or the assertion that needs the shaped output. Historical versioned docs may still show old preprocessor examples. |
 | Suite assertions | `assert` entries can be strings or typed assertion objects. | `assert` entries can be strings, typed assertion objects, script graders, or AgentV extension graders. | Align with Promptfoo | Plain strings become semantic rubric checks. Use `assert`, not `assertions`, in current authored eval YAML. |
@@ -55,6 +57,7 @@ implements equivalent semantics directly.
 | Other Promptfoo trace assertions | Promptfoo also includes `tool-call-f1`, `trace-span-count`, `trace-span-duration`, and `trace-error-spans`. | Not accepted yet. | Defer/future-scope | Use `script` assertions or `execution-metrics` when current AgentV primitives cover the requirement. |
 | Coding-agent testbeds | Promptfoo normal evals do not define a typed coding-agent testbed primitive. | `environment`, usually inline or `environment: file://...`, plus distinct top-level `env` and lifecycle `extensions`. | Keep AgentV extension | `environment` is an AgentV extension informed by Margin local-agent ergonomics and Harbor/Terminal-Bench Docker substrate evidence. Use it for host/Docker workdir, setup argv, fixtures, services, and repo materialization. Use top-level `env` for provider/eval variables and `extensions` for lifecycle hooks. |
 | Run artifacts and inspection | Promptfoo owns its own result viewer and output formats. | AgentV writes `.agentv/results/<run_id>/` bundles with `summary.json`, `.internal/index.jsonl`, sidecars, and local Dashboard support. | Keep AgentV extension | AgentV-owned bundles are the source of truth for compare, Dashboard, CI, and adapters. Phoenix is link-out correlation only through safe external trace metadata. |
+| Grading result artifacts | Promptfoo `GradingResult` uses aggregate `pass`, `score`, `reason`, recursive `componentResults`, optional `assertion`, optional `namedScores`, and optional `metadata`. | AgentV persists the same concepts as `pass`, `score`, `reason`, recursive `component_results`, optional `assertion`, optional `named_scores`, and optional `metadata`. | Align with Promptfoo | AgentV keeps split filesystem run bundles and `snake_case` persisted fields. Promptfoo import/export adapters may translate `componentResults`/`namedScores` to and from AgentV `component_results`/`named_scores`. |
 | Compare command | Promptfoo has its own result comparison surfaces. | `agentv results compare <baseline-index.jsonl> <candidate-index.jsonl>`. | Keep AgentV extension | Compare consumes completed AgentV run indexes such as `.agentv/results/<run_id>/.internal/index.jsonl`. |
 | CLI runtime filters | Promptfoo exposes filters such as prompt/provider/test subset flags. | AgentV supports its current CLI filters and selection fields; full Promptfoo runtime-filter parity is future work. | Defer/future-scope | Prefer current AgentV CLI flags and authored selection fields until runtime-filter parity lands. |
 | Wire-format casing | Promptfoo config uses camelCase fields such as `defaultTest` and `evaluateOptions`. | AgentV YAML, JSONL, artifacts, and CLI JSON use `snake_case`; internal TypeScript uses `camelCase`. | Keep AgentV divergence | Translate only at process boundaries. New public wire fields should be `snake_case`. |
@@ -74,6 +77,9 @@ prompts:
 default_test:
   vars:
     audience: engineers
+  assert:
+    - type: llm-rubric
+      value: "Matches the reference answer: {{ expected_output }}"
 
 evaluate_options:
   max_concurrency: 2
@@ -82,7 +88,7 @@ tests:
   - id: release-notes
     vars:
       topic: the July release notes
-    expected_output: concise release-note summary
+      expected_output: concise release-note summary
     assert:
       - Identifies the most important change
       - type: assert-set
@@ -121,8 +127,10 @@ tests:
   - id: refund-policy
     vars:
       task: Update the refund policy handler.
-    expected_output: The handler supports the damaged-item exception.
+      expected_output: The handler supports the damaged-item exception.
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - type: trajectory:tool-used
         value:
           name: shell
