@@ -357,6 +357,20 @@ describe('loadConfig', () => {
     }
   });
 
+  it('allows defaults.target/defaults.grader to name a target from a separately-discovered targets.yaml (no inline targets/graders block)', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-defaults-'));
+    try {
+      const configPath = path.join(tempDir, 'config.yaml');
+      writeFileSync(configPath, ['defaults:', '  target: llm', '  grader: grader', ''].join('\n'));
+
+      const config = await loadComposableConfigGraph(configPath);
+
+      expect(config.defaults).toEqual({ target: 'llm', grader: 'grader' });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('falls back to AGENTV_HOME/config.yaml when no project-local config exists', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-global-config-'));
     try {
