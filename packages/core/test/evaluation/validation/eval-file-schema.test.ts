@@ -221,11 +221,10 @@ describe('EvalFileSchema input shorthand', () => {
           runtime: 'host',
           config: { command: ['codex', 'app-server'] },
         },
-      ],
-      graders: [
         {
           id: 'openai-grader',
           provider: 'openai',
+          runtime: 'host',
           config: { model: 'gpt-5-mini' },
         },
       ],
@@ -237,6 +236,32 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects a top-level graders block — a grader is just a target', () => {
+    const result = EvalFileSchema.safeParse({
+      targets: [
+        {
+          id: 'codex-local',
+          provider: 'codex-app-server',
+          runtime: 'host',
+          config: { command: ['codex', 'app-server'] },
+        },
+      ],
+      graders: [
+        {
+          id: 'openai-grader',
+          provider: 'openai',
+          config: { model: 'gpt-5-mini' },
+        },
+      ],
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('Expected graders to be rejected');
+    const messages = collectIssueMessages(result.error.issues);
+    expect(messages.some((message) => message.includes("'graders' has been removed"))).toBe(true);
   });
 
   it('rejects removed top-level runs and early_exit controls', () => {

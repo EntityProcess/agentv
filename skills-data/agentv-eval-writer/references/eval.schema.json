@@ -2019,34 +2019,7 @@
           "not": {}
         },
         "graders": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "provider": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "config": {
-                    "type": "object",
-                    "additionalProperties": {}
-                  }
-                },
-                "required": ["id", "provider"],
-                "additionalProperties": false
-              }
-            },
-            {
-              "type": "string",
-              "minLength": 1
-            }
-          ]
+          "not": {}
         },
         "defaults": {
           "anyOf": [

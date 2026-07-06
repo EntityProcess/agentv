@@ -1,4 +1,3 @@
 targets: file://targets.yaml
-graders: file://graders.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml

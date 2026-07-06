@@ -474,7 +474,9 @@ default.
 ### YAML config (`config.yaml` plus optional `config.local.yaml`)
 
 Project config and eval YAML share the same eval-definition graph for targets,
-graders, tests, defaults, and supported execution defaults. Small projects can keep that
+tests, defaults, and supported execution defaults. A grader is not a separate
+part of that graph — it is a target, listed under `targets` like any other,
+selected for a grading role via `defaults.grader`. Small projects can keep the
 graph inline:
 
 ```yaml
@@ -486,9 +488,9 @@ targets:
       command: ["codex", "app-server"]
       model: gpt-5-codex
 
-graders:
   - id: openai-grader
     provider: openai
+    runtime: host
     config:
       model: gpt-5-mini
 
@@ -511,7 +513,6 @@ directly:
 
 ```yaml
 targets: file://targets.yaml
-graders: file://graders.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
@@ -523,6 +524,12 @@ defaults: file://defaults.yaml
   runtime: host
   config:
     command: ["codex", "app-server"]
+
+- id: openai-grader
+  provider: openai
+  runtime: host
+  config:
+    model: gpt-5-mini
 ```
 
 ```yaml

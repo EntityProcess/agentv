@@ -15,7 +15,9 @@ settings live under `config`.
 Use `defaults.grader`, CLI `--grader` / `--grader-target`, or an
 evaluator-specific target override for LLM-based grading. Grader selection is
 separate from the coding-agent target, so target definitions do not carry a
-grader field.
+grader field. A grader is not a distinct kind of entity either — it is a
+regular target, listed under `targets` like any other, selected for a grading
+role.
 
 ```yaml
 targets:
@@ -27,9 +29,9 @@ targets:
       model: gpt-5-codex
       reasoning_effort: high
 
-graders:
   - id: openai-grader
     provider: openai
+    runtime: host
     config:
       model: gpt-5-mini
 

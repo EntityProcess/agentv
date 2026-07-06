@@ -159,9 +159,9 @@ tests:
     runtime: host
     config:
       command: ["codex", "app-server"]
-graders:
   - id: openai-grader
     provider: openai
+    runtime: host
     config:
       model: gpt-5-mini
 defaults:

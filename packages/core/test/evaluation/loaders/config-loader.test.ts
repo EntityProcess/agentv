@@ -63,9 +63,9 @@ describe('loadConfig', () => {
           '    config:',
           '      command: ["codex", "app-server"]',
           '      model: gpt-5-codex',
-          'graders:',
           '  - id: openai-grader',
           '    provider: openai',
+          '    runtime: host',
           '    config:',
           '      model: gpt-5-mini',
           'tests:',
@@ -89,9 +89,12 @@ describe('loadConfig', () => {
           runtime: { mode: 'host' },
           config: { command: ['codex', 'app-server'], model: 'gpt-5-codex' },
         },
-      ]);
-      expect(config?.graders).toEqual([
-        { id: 'openai-grader', provider: 'openai', config: { model: 'gpt-5-mini' } },
+        {
+          id: 'openai-grader',
+          provider: 'openai',
+          runtime: { mode: 'host' },
+          config: { model: 'gpt-5-mini' },
+        },
       ]);
       expect(config?.tests).toEqual([{ id: 'smoke', input: 'Fix the failing test' }]);
       expect(config?.defaults).toEqual({ target: 'codex-local', grader: 'openai-grader' });
@@ -117,9 +120,9 @@ describe('loadConfig', () => {
           '      home: .agentv/profiles/codex-local',
           '    config:',
           '      command: ["codex"]',
-          'graders:',
           '  - id: openai-grader',
           '    provider: openai',
+          '    runtime: host',
           '    config: {}',
           'tests:',
           '  - id: smoke',
@@ -136,7 +139,6 @@ describe('loadConfig', () => {
         splitPath,
         [
           'targets: file://targets.yaml',
-          'graders: file://graders.yaml',
           'tests: file://tests.yaml',
           'defaults: file://defaults.yaml',
           'execution: file://execution.yaml',
@@ -153,12 +155,12 @@ describe('loadConfig', () => {
           '    home: .agentv/profiles/codex-local',
           '  config:',
           '    command: ["codex"]',
+          '- id: openai-grader',
+          '  provider: openai',
+          '  runtime: host',
+          '  config: {}',
           '',
         ].join('\n'),
-      );
-      writeFileSync(
-        path.join(tempDir, 'graders.yaml'),
-        ['- id: openai-grader', '  provider: openai', '  config: {}', ''].join('\n'),
       );
       writeFileSync(
         path.join(tempDir, 'tests.yaml'),
@@ -366,6 +368,34 @@ describe('loadConfig', () => {
       const config = await loadComposableConfigGraph(configPath);
 
       expect(config.defaults).toEqual({ target: 'llm', grader: 'grader' });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('hard-rejects an authored graders: block — a grader is just a target', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-graders-removed-'));
+    try {
+      const configPath = path.join(tempDir, 'config.yaml');
+      writeFileSync(
+        configPath,
+        [
+          'targets:',
+          '  - id: codex-local',
+          '    provider: codex-app-server',
+          '    runtime: host',
+          '    config: {}',
+          'graders:',
+          '  - id: openai-grader',
+          '    provider: openai',
+          '    config: {}',
+          '',
+        ].join('\n'),
+      );
+
+      await expect(loadComposableConfigGraph(configPath)).rejects.toThrow(
+        /'graders' in .+ has been removed.*move each entry into 'targets'/,
+      );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

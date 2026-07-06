@@ -74,7 +74,6 @@ describe('validateConfigFile', () => {
       filePath,
       [
         'targets: file://targets.yaml',
-        'graders: file://graders.yaml',
         'tests: file://tests.yaml',
         'defaults: file://defaults.yaml',
         'execution: file://execution.yaml',
@@ -89,12 +88,12 @@ describe('validateConfigFile', () => {
         '  runtime: host',
         '  config:',
         '    command: ["codex", "app-server"]',
+        '- id: openai-grader',
+        '  provider: openai',
+        '  runtime: host',
+        '  config: {}',
         '',
       ].join('\n'),
-    );
-    await writeFile(
-      path.join(path.dirname(filePath), 'graders.yaml'),
-      ['- id: openai-grader', '  provider: openai', '  config: {}', ''].join('\n'),
     );
     await writeFile(
       path.join(path.dirname(filePath), 'tests.yaml'),
