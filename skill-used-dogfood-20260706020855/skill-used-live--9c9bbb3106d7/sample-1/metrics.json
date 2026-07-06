@@ -1,0 +1,81 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-5cbaa18e693359cc2819",
+  "generated_at": "2026-07-06T00:09:16.845Z",
+  "test_id": "skill-used-live",
+  "target": "codex-live",
+  "suite": "skill-used-live",
+  "category": "../../../../../../tmp/agentv-skill-used-dogfood/skill-used-live",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-5cbaa18e693359cc2819",
+    "trace_id": "3e03964c5bde18058a1c981b6ba4de83",
+    "root_span_id": "6ec9c7480b8988d4"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {
+      "Skill": 1
+    },
+    "tool_call_counts": {
+      "Skill": 1
+    },
+    "tool_category_counts": {
+      "agent_task": 1
+    },
+    "total_tool_calls": 1,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [
+      {
+        "position": 0,
+        "tool": "Skill",
+        "category": "agent_task",
+        "tool_call_id": "item_3",
+        "message_index": 1,
+        "tool_index": 0
+      }
+    ],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 253,
+    "transcript_chars": 2358,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 15991,
+    "total_seconds": 15.991,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 83561,
+    "input": 82747,
+    "output": 814,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "quality_failure"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 1,
+    "tool_calls": {
+      "Skill": 1
+    }
+  }
+}

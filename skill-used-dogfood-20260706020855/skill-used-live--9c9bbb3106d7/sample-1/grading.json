@@ -1,0 +1,96 @@
+{
+  "pass": false,
+  "score": 0.25,
+  "reason": "One or more grading components failed.",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "Missing required skill(s): dogfood-skill. Actual skills: (none)",
+      "component_results": [
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "Missing required skill(s): dogfood-skill. Actual skills: (none)",
+          "assertion": {
+            "name": "skill-used-dogfood-skill",
+            "type": "skill-used",
+            "weight": 1,
+            "value": "Missing required skill(s): dogfood-skill. Actual skills: (none)"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "skill-used-dogfood-skill",
+        "type": "skill-used",
+        "weight": 1
+      },
+      "metadata": {
+        "details": {
+          "assertion_type": "skill-used"
+        },
+        "duration_ms": 2,
+        "started_at": "2026-07-06T00:09:14.165Z",
+        "ended_at": "2026-07-06T00:09:14.167Z"
+      }
+    },
+    {
+      "pass": false,
+      "score": 0.5,
+      "reason": "No tool invocation shows the file being read; only a different tool call is recorded, and the assistant reports a sandbox read failure.",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The exact marker is present at the end of the sentence.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "live-grader",
+            "value": "Response is one sentence and includes DOGFOOD_SKILL_USED"
+          }
+        },
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "No tool invocation shows the file being read; only a different tool call is recorded, and the assistant reports a sandbox read failure.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "live-grader",
+            "value": "Read `.agents/skills/dogfood-skill/SKILL.md` using a tool before answering"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "live-grader"
+      },
+      "metadata": {
+        "details": {
+          "pass": false,
+          "score": 0.5,
+          "reason": "The reply contains the required `DOGFOOD_SKILL_USED` marker in one sentence, but it does not provide evidence that the required skill file was actually read with a tool before answering."
+        },
+        "token_usage": {
+          "input": 0,
+          "output": 0
+        },
+        "duration_ms": 2531,
+        "started_at": "2026-07-06T00:09:14.167Z",
+        "ended_at": "2026-07-06T00:09:16.698Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "skill-used-dogfood-skill": 0,
+    "llm-rubric": 0.5
+  },
+  "metadata": {
+    "execution_status": "quality_failure"
+  }
+}
