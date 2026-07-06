@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "ef8f54a28ee7",
+  "strategy": "manual-commit",
+  "branch": "fix/targets-id-validation",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "apps/cli/src/commands/eval/task-bundle.ts",
+    "apps/cli/src/commands/runs/rerun.ts",
+    "apps/cli/test/commands/eval/targets.test.ts",
+    "packages/core/test/evaluation/validation/eval-validator.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ef/8f54a28ee7/0/metadata.json",
+      "transcript": "/ef/8f54a28ee7/0/full.jsonl",
+      "content_hash": "/ef/8f54a28ee7/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 264663,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4801664,
+    "output_tokens": 10791,
+    "api_call_count": 48
+  }
+}

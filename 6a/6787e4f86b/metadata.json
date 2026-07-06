@@ -1,0 +1,66 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "6a6787e4f86b",
+  "strategy": "manual-commit",
+  "branch": "runtime-sdk-child-runner-deps",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/cli/package.json",
+    "apps/web/src/content/docs/docs/next/targets/coding-agents.mdx",
+    "apps/web/src/content/docs/docs/v4.42.4/targets/coding-agents.mdx",
+    "bun.lock",
+    "packages/core/package.json",
+    "packages/core/src/evaluation/providers/claude-sdk.ts",
+    "packages/core/src/evaluation/providers/codex.ts",
+    "packages/core/src/evaluation/providers/copilot-sdk.ts",
+    "packages/core/src/evaluation/providers/pi-coding-agent.ts",
+    "packages/core/src/evaluation/providers/sdk-child-provider.ts",
+    "packages/core/test/evaluation/providers/sdk-child-provider.test.ts",
+    "packages/core/test/evaluation/providers/sdk-provider-registry.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6a/6787e4f86b/0/metadata.json",
+      "transcript": "/6a/6787e4f86b/0/full.jsonl",
+      "content_hash": "/6a/6787e4f86b/0/content_hash.txt",
+      "prompt": "/6a/6787e4f86b/0/prompt.txt"
+    },
+    {
+      "metadata": "/6a/6787e4f86b/1/metadata.json",
+      "transcript": "/6a/6787e4f86b/1/full.jsonl",
+      "content_hash": "/6a/6787e4f86b/1/content_hash.txt",
+      "prompt": "/6a/6787e4f86b/1/prompt.txt"
+    },
+    {
+      "metadata": "/6a/6787e4f86b/2/metadata.json",
+      "transcript": "/6a/6787e4f86b/2/full.jsonl",
+      "content_hash": "/6a/6787e4f86b/2/content_hash.txt",
+      "prompt": "/6a/6787e4f86b/2/prompt.txt"
+    },
+    {
+      "metadata": "/6a/6787e4f86b/3/metadata.json",
+      "transcript": "/6a/6787e4f86b/3/full.jsonl",
+      "content_hash": "/6a/6787e4f86b/3/content_hash.txt",
+      "prompt": "/6a/6787e4f86b/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 62109,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 14848,
+    "output_tokens": 144,
+    "api_call_count": 4
+  },
+  "combined_attribution": {
+    "calculated_at": "2026-07-05T04:03:38.590484526Z",
+    "agent_lines": 486,
+    "agent_removed": 23,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 486,
+    "total_lines_changed": 509,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

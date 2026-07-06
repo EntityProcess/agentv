@@ -1,0 +1,4 @@
+[[ ## user_query ## ]]
+
+Reply with the exact marker AGENTV_SDK_CHILD_RUNNER_READY.
+Do not add markdown or explanation.

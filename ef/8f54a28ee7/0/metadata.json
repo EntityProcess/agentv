@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "ef8f54a28ee7",
+  "session_id": "019f280c-276e-73f3-88e4-72f6940bf971",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-04T04:31:05.961818447Z",
+  "branch": "fix/targets-id-validation",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "apps/cli/src/commands/eval/task-bundle.ts",
+    "apps/cli/src/commands/runs/rerun.ts",
+    "apps/cli/test/commands/eval/targets.test.ts",
+    "packages/core/test/evaluation/validation/eval-validator.test.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "fa76249cf7ac",
+  "checkpoint_transcript_start": 6645,
+  "transcript_lines_at_start": 6645,
+  "token_usage": {
+    "input_tokens": 264663,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4801664,
+    "output_tokens": 10791,
+    "api_call_count": 48
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-04T04:31:05.149440775Z",
+    "agent_lines": 15,
+    "agent_removed": 7,
+    "human_added": 195,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 210,
+    "total_lines_changed": 464,
+    "agent_percentage": 4.741379310344827,
+    "metric_version": 2
+  }
+}

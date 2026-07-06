@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "9de5659eb0ca",
+  "strategy": "manual-commit",
+  "branch": "dashboard-run-actions-menu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/dashboard/src/components/resume-run-helpers.test.ts",
+    "apps/dashboard/src/components/resume-run-helpers.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9d/e5659eb0ca/0/metadata.json",
+      "transcript": "/9d/e5659eb0ca/0/full.jsonl",
+      "content_hash": "/9d/e5659eb0ca/0/content_hash.txt",
+      "prompt": "/9d/e5659eb0ca/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6578619,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 161987200,
+    "output_tokens": 364720,
+    "api_call_count": 1248
+  }
+}

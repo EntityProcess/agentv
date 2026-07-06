@@ -1,0 +1,1 @@
+so did we test with codex, pi and copilot using local openao endpoint. we should also ensure targets YAML is updated to new schema
