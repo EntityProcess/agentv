@@ -192,6 +192,7 @@ function formatCircularImportChain(
 
 type RawTestSuite = JsonObject & {
   readonly tests?: JsonValue;
+  readonly scenarios?: JsonValue;
   readonly target?: JsonValue;
   readonly providers?: JsonValue;
   readonly model?: JsonValue;
@@ -256,6 +257,12 @@ type RawEvalCase = JsonObject & {
   readonly window_size?: JsonValue;
 };
 
+type RawScenario = JsonObject & {
+  readonly description?: JsonValue;
+  readonly config?: JsonValue;
+  readonly tests?: JsonValue;
+};
+
 type PromptDefinition = {
   readonly identity: EvalPromptIdentity;
   readonly input: JsonValue;
@@ -284,10 +291,158 @@ function rejectRemovedEvalCasesAliases(suite: RawTestSuite, evalFilePath: string
   }
 }
 
+function rejectRemovedScenarioRowFields(row: JsonObject, location: string): void {
+  if (row.eval_cases !== undefined) {
+    throw new Error(`${location}.eval_cases has been removed. Use ${location} fields directly.`);
+  }
+  if (row.evalcases !== undefined) {
+    throw new Error(`${location}.evalcases has been removed. Use ${location} fields directly.`);
+  }
+  if (row.input !== undefined) {
+    throw new Error(
+      `${location}.input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in ${location}.vars.`,
+    );
+  }
+  if (row.expected_output !== undefined) {
+    throw new Error(
+      `${location}.expected_output has been removed from authored eval YAML. Put the reference answer in ${location}.vars.expected_output and consume it with an explicit assertion such as { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.`,
+    );
+  }
+  rejectPostprocess(row, location);
+  rejectPreprocessors(row, location);
+  rejectPostprocess(row.options, `${location}.options`);
+  if (Array.isArray(row.assert)) {
+    row.assert.forEach((assertion, assertionIndex) => {
+      rejectPostprocess(assertion, `${location}.assert[${assertionIndex}]`);
+      rejectPreprocessors(assertion, `${location}.assert[${assertionIndex}]`);
+    });
+  }
+}
+
 function resolveTests(suite: RawTestSuite, evalFilePath: string): JsonValue | undefined {
   rejectRemovedEvalCasesAliases(suite, evalFilePath);
   if (suite.tests !== undefined) return suite.tests;
   return undefined;
+}
+
+function mergeJsonObjectFields(
+  first: JsonValue | undefined,
+  second: JsonValue | undefined,
+): JsonObject | undefined {
+  const merged = {
+    ...(isJsonObject(first) ? first : {}),
+    ...(isJsonObject(second) ? second : {}),
+  };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+function concatJsonArrayFields(
+  first: JsonValue | undefined,
+  second: JsonValue | undefined,
+): readonly JsonValue[] | undefined {
+  const merged = [
+    ...(Array.isArray(first) ? first : first !== undefined ? [first] : []),
+    ...(Array.isArray(second) ? second : second !== undefined ? [second] : []),
+  ];
+  return merged.length > 0 ? merged : undefined;
+}
+
+function mergeScenarioTestRows(
+  config: JsonObject,
+  test: JsonObject,
+  scenarioIndex: number,
+  configIndex: number,
+  testIndex: number,
+  testCount: number,
+): JsonObject {
+  const vars = mergeJsonObjectFields(config.vars, test.vars);
+  const metadata = mergeJsonObjectFields(config.metadata, test.metadata);
+  const options = mergeJsonObjectFields(config.options, test.options);
+  const run = mergeJsonObjectFields(config.run, test.run);
+  const assertions = concatJsonArrayFields(config.assert, test.assert);
+
+  const id =
+    typeof test.id === 'string' && test.id.trim().length > 0
+      ? test.id
+      : typeof config.id === 'string' && config.id.trim().length > 0
+        ? testCount > 1
+          ? `${config.id}__scenario_test_${testIndex + 1}`
+          : config.id
+        : stableScenarioTestId(scenarioIndex, configIndex, testIndex);
+
+  return {
+    ...config,
+    ...test,
+    ...(vars ? { vars } : {}),
+    ...(metadata ? { metadata } : {}),
+    ...(options ? { options } : {}),
+    ...(run ? { run } : {}),
+    ...(assertions ? { assert: assertions } : {}),
+    id,
+  };
+}
+
+function lowerScenariosIntoTests(suite: RawTestSuite, evalFilePath: string): readonly JsonValue[] {
+  const scenarios = suite.scenarios;
+  if (scenarios === undefined) {
+    return [];
+  }
+  if (!Array.isArray(scenarios)) {
+    throw new Error(`Invalid eval file ${evalFilePath}: scenarios must be an array.`);
+  }
+
+  const lowered: JsonValue[] = [];
+  for (let scenarioIndex = 0; scenarioIndex < scenarios.length; scenarioIndex++) {
+    const scenario = scenarios[scenarioIndex];
+    if (!isJsonObject(scenario)) {
+      throw new Error(
+        `Invalid eval file ${evalFilePath}: scenarios[${scenarioIndex}] must be an object.`,
+      );
+    }
+
+    const rawScenario = scenario as RawScenario;
+    if (!Array.isArray(rawScenario.config)) {
+      throw new Error(
+        `Invalid eval file ${evalFilePath}: scenarios[${scenarioIndex}].config must be an array.`,
+      );
+    }
+    if (!Array.isArray(rawScenario.tests)) {
+      throw new Error(
+        `Invalid eval file ${evalFilePath}: scenarios[${scenarioIndex}].tests must be an array.`,
+      );
+    }
+
+    for (let configIndex = 0; configIndex < rawScenario.config.length; configIndex++) {
+      const config = rawScenario.config[configIndex];
+      if (!isJsonObject(config)) {
+        throw new Error(
+          `Invalid eval file ${evalFilePath}: scenarios[${scenarioIndex}].config[${configIndex}] must be an object.`,
+        );
+      }
+      rejectRemovedScenarioRowFields(config, `scenarios[${scenarioIndex}].config[${configIndex}]`);
+      for (let testIndex = 0; testIndex < rawScenario.tests.length; testIndex++) {
+        const test = rawScenario.tests[testIndex];
+        if (!isJsonObject(test)) {
+          throw new Error(
+            `Invalid eval file ${evalFilePath}: scenarios[${scenarioIndex}].tests[${testIndex}] must be an object.`,
+          );
+        }
+        rejectRemovedScenarioRowFields(test, `scenarios[${scenarioIndex}].tests[${testIndex}]`);
+        lowered.push(
+          mergeScenarioTestRows(
+            config,
+            test,
+            scenarioIndex,
+            configIndex,
+            testIndex,
+            rawScenario.tests.length,
+          ),
+        );
+      }
+    }
+  }
+
+  return lowered;
 }
 
 function interpolateCaseField<T extends JsonValue | undefined>(
@@ -393,6 +548,14 @@ function expandArrayVarCases(raw: RawEvalCase): readonly RawEvalCase[] {
 
 function stablePromptId(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 12);
+}
+
+function stableScenarioTestId(
+  scenarioIndex: number,
+  configIndex: number,
+  testIndex: number,
+): string {
+  return `scenario-${scenarioIndex + 1}-${configIndex + 1}-${testIndex + 1}`;
 }
 
 function safePromptId(value: string): string {
@@ -1325,8 +1488,15 @@ async function loadTestsFromParsedYamlValue(
     });
     expandedTestCases = expanded.rawCases;
     importedSuiteTests.push(...expanded.importedSuiteTests);
+  } else if (suite.scenarios !== undefined) {
+    expandedTestCases = [];
   } else {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
+  }
+
+  const scenarioTestCases = lowerScenariosIntoTests(suite, evalFilePath);
+  if (scenarioTestCases.length > 0) {
+    expandedTestCases = [...expandedTestCases, ...scenarioTestCases];
   }
 
   expandedTestCases = mergeDefaultTestVarsIntoCases(expandedTestCases, suite.default_test);

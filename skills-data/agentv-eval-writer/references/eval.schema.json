@@ -2067,6 +2067,12 @@
             }
           ]
         },
+        "providerPromptMap": {
+          "not": {}
+        },
+        "provider_prompt_map": {
+          "not": {}
+        },
         "graders": {
           "anyOf": [
             {
@@ -4765,6 +4771,13 @@
                 "items": {
                   "type": "object",
                   "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string"
+                    },
                     "vars": {
                       "type": "object",
                       "properties": {},
@@ -5994,6 +6007,18 @@
                         }
                       ]
                     },
+                    "input": {
+                      "not": {}
+                    },
+                    "input_files": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "expected_output": {
+                      "not": {}
+                    },
                     "assert": {
                       "type": "array",
                       "items": {
@@ -6009,6 +6034,19 @@
                         ]
                       }
                     },
+                    "assert_scoring_function": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "object",
+                          "properties": {},
+                          "additionalProperties": {}
+                        }
+                      ]
+                    },
                     "options": {
                       "type": "object",
                       "properties": {},
@@ -6019,12 +6057,418 @@
                       "minimum": 0,
                       "maximum": 1
                     },
+                    "execution": {
+                      "type": "object",
+                      "properties": {
+                        "workers": {
+                          "not": {}
+                        },
+                        "assert": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {},
+                                "additionalProperties": {}
+                              }
+                            ]
+                          }
+                        },
+                        "skip_defaults": {
+                          "type": "boolean"
+                        },
+                        "cache": {
+                          "type": "boolean"
+                        },
+                        "trials": {
+                          "not": {}
+                        },
+                        "budget_usd": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "budgetUsd": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "fail_on_error": {
+                          "type": "boolean"
+                        },
+                        "failOnError": {
+                          "type": "boolean"
+                        },
+                        "threshold": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "run": {
+                      "type": "object",
+                      "properties": {
+                        "threshold": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "repeat": {
+                          "type": "object",
+                          "properties": {
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            "strategy": {
+                              "type": "string",
+                              "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                            },
+                            "early_exit": {
+                              "type": "boolean"
+                            },
+                            "cost_limit_usd": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          },
+                          "required": ["count"],
+                          "additionalProperties": false
+                        },
+                        "timeout_seconds": {
+                          "type": "number",
+                          "exclusiveMinimum": true,
+                          "minimum": 0
+                        },
+                        "budget_usd": {
+                          "type": "number",
+                          "exclusiveMinimum": true,
+                          "minimum": 0
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "environment": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\s*file:\\/\\/"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "workdir": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "setup": {
+                              "allOf": [
+                                {},
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "command": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "cwd": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "timeout_ms": {
+                                      "type": "number",
+                                      "exclusiveMinimum": true,
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": ["command"],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "env": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            },
+                            "type": {
+                              "type": "string",
+                              "const": "host"
+                            }
+                          },
+                          "required": ["workdir", "type"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "workdir": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "setup": {
+                              "allOf": [
+                                {},
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "command": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "cwd": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "timeout_ms": {
+                                      "type": "number",
+                                      "exclusiveMinimum": true,
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": ["command"],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "env": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            },
+                            "type": {
+                              "type": "string",
+                              "const": "docker"
+                            },
+                            "context": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "dockerfile": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "image": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "resources": {
+                              "type": "object",
+                              "properties": {
+                                "cpus": {
+                                  "type": "number",
+                                  "exclusiveMinimum": true,
+                                  "minimum": 0
+                                },
+                                "memory": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "disk": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "gpu": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  ]
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "mounts": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "target": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "access": {
+                                    "type": "string",
+                                    "enum": ["ro", "rw"]
+                                  },
+                                  "read_only": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["source", "target"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "secrets": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": ["workdir", "type"],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
                     "metadata": {
                       "type": "object",
                       "additionalProperties": {}
+                    },
+                    "conversation_id": {
+                      "type": "string"
+                    },
+                    "suite": {
+                      "type": "string"
+                    },
+                    "depends_on": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "on_dependency_failure": {
+                      "type": "string",
+                      "enum": ["skip", "fail", "run"]
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": ["conversation"]
+                    },
+                    "turns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {}
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": ["text", "file", "image"]
+                                        },
+                                        "value": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["type", "value"],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          "expected_output": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {}
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": ["text", "file", "image"]
+                                        },
+                                        "value": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": ["type", "value"],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          "assert": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {},
+                                  "additionalProperties": {}
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": ["input"],
+                        "additionalProperties": false
+                      },
+                      "minItems": 1
+                    },
+                    "aggregation": {
+                      "type": "string",
+                      "enum": ["mean", "min", "max"]
+                    },
+                    "on_turn_failure": {
+                      "type": "string",
+                      "enum": ["continue", "stop"]
+                    },
+                    "window_size": {
+                      "type": "integer",
+                      "minimum": 1
                     }
                   },
-                  "additionalProperties": true
+                  "additionalProperties": false
                 }
               },
               "tests": {
@@ -7733,6 +8177,7 @@
                 }
               }
             },
+            "required": ["config", "tests"],
             "additionalProperties": false
           }
         },

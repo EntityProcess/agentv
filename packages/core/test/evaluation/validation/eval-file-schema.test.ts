@@ -58,6 +58,64 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts scenarios-only promptfoo matrix authoring', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Classify {{ request }} at {{ severity }} severity'],
+      scenarios: [
+        {
+          config: [{ vars: { severity: 'high' } }],
+          tests: [
+            {
+              vars: { request: 'database outage' },
+              assert: [{ type: 'contains', value: 'outage' }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('requires scenario config and tests arrays', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Classify {{ request }}'],
+      scenarios: [
+        {
+          tests: [{ vars: { request: 'database outage' } }],
+        },
+        {
+          config: [{ vars: { severity: 'high' } }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects removed fields inside scenario config and tests', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Classify {{ request }}'],
+      scenarios: [
+        {
+          config: [{ input: 'removed', vars: { severity: 'high' } }],
+          tests: [{ expected_output: 'removed', vars: { request: 'database outage' } }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects providerPromptMap baggage', () => {
+    const result = EvalFileSchema.safeParse({
+      providerPromptMap: { local: ['prompt-a'] },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects removed eval_cases and evalcases aliases as test collections', () => {
     const result = EvalFileSchema.safeParse({
       eval_cases: [baseTest],

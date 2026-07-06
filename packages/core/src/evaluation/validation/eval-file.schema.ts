@@ -836,25 +836,13 @@ const ConfigDefaultsSchema = z
   })
   .strict();
 
-const ScenarioConfigSchema = z
-  .object({
-    vars: JsonObjectSchema.optional(),
-    provider: EvalTargetSchema.optional(),
-    providers: EvalTargetsSchema.optional(),
-    prompts: PromptsSchema.optional(),
-    provider_output: ExpectedOutputSchema.optional(),
-    assert: z.array(AssertionItemSchema).optional(),
-    options: JsonObjectSchema.optional(),
-    threshold: z.number().min(0).max(1).optional(),
-    metadata: z.record(z.unknown()).optional(),
-  })
-  .passthrough();
+const ScenarioConfigSchema = EvalTestSchema.partial();
 
 const ScenarioSchema = z
   .object({
     description: z.string().optional(),
-    config: z.array(ScenarioConfigSchema).optional(),
-    tests: z.array(EvalTestSchema).optional(),
+    config: z.array(ScenarioConfigSchema),
+    tests: z.array(EvalTestSchema),
   })
   .strict();
 
@@ -900,6 +888,16 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
   imports: z.never({ invalid_type_error: TOP_LEVEL_IMPORTS_MESSAGE }).optional(),
   // Tests (inline raw cases, legacy include entries, or external raw-case path)
   tests: TestsSchema.optional(),
+  providerPromptMap: z
+    .never({
+      invalid_type_error: "Top-level 'providerPromptMap' is not supported. Use 'targets'.",
+    })
+    .optional(),
+  provider_prompt_map: z
+    .never({
+      invalid_type_error: "Top-level 'provider_prompt_map' is not supported. Use 'targets'.",
+    })
+    .optional(),
   // Shared composable config graph fields
   graders: z.union([z.array(ConfigGraderSchema), z.string().min(1)]).optional(),
   defaults: z.union([ConfigDefaultsSchema, z.string().min(1)]).optional(),
