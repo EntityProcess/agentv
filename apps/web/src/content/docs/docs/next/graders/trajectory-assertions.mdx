@@ -122,12 +122,13 @@ assert:
 description: Validate research agent tool usage
 target: codex_agent
 
+prompts:
+  - "{{ task }}"
+
 tests:
   - id: comprehensive-research
-    criteria: Agent thoroughly researches the topic
-
-    input: Research machine learning frameworks
-
+    vars:
+      task: Research machine learning frameworks
     assert:
       # Check minimum tool usage
       - name: coverage
@@ -153,17 +154,26 @@ tests:
             - webSearch
             - documentRead
             - summarize
+
+      # Check final answer quality
+      - name: answer-quality
+        type: llm-rubric
+        value: The answer synthesizes the research into a useful framework comparison.
 ```
 
 ### Multi-Step Pipeline
 
 ```yaml
+description: Validate a strict data pipeline
+target: pipeline_agent
+
+prompts:
+  - "{{ task }}"
+
 tests:
   - id: data-pipeline
-    criteria: Process data through complete pipeline
-
-    input: Process the customer dataset
-
+    vars:
+      task: Process the customer dataset
     assert:
       - name: pipeline-check
         type: trajectory:tool-sequence
@@ -174,6 +184,9 @@ tests:
             - validate
             - transform
             - export
+      - name: result-quality
+        type: llm-rubric
+        value: The final response explains that the dataset was loaded, validated, transformed, and exported.
 ```
 
 ## Best Practices
