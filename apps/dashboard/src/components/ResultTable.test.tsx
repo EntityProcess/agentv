@@ -78,13 +78,10 @@ describe('ResultTable repeat-run rendering', () => {
         rows={model.filteredRows}
         visibleColumns={model.visibleColumns}
         passThreshold={0.8}
-        selectedRowKey={null}
-        selectedTrialPath={null}
         repeatGroupsByRowKey={new Map(model.repeatGroups.map((group) => [group.row.key, group]))}
         expandedRepeatRows={new Set([row.key])}
         onToggleRepeatGroup={() => undefined}
-        onOpenDetail={() => undefined}
-        onOpenTrialDetail={() => undefined}
+        onOpenCaseDetail={() => undefined}
       />,
     );
 
@@ -111,13 +108,10 @@ describe('ResultTable target error kind', () => {
         rows={model.filteredRows}
         visibleColumns={model.visibleColumns}
         passThreshold={0.8}
-        selectedRowKey={null}
-        selectedTrialPath={null}
         repeatGroupsByRowKey={new Map()}
         expandedRepeatRows={new Set()}
         onToggleRepeatGroup={() => undefined}
-        onOpenDetail={() => undefined}
-        onOpenTrialDetail={() => undefined}
+        onOpenCaseDetail={() => undefined}
       />,
     );
   }
