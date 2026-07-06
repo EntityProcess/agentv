@@ -182,6 +182,11 @@ const GRADER_KIND_VALUES = [
   'tool-trajectory',
   'skill-used',
   'not-skill-used',
+  'trajectory:tool-used',
+  'trajectory:tool-args-match',
+  'trajectory:tool-sequence',
+  'trajectory:step-count',
+  'trajectory:goal-success',
   'field-accuracy',
   'latency',
   'cost',
@@ -929,6 +934,29 @@ export type SkillUsedGraderConfig = {
   readonly negate?: boolean;
 };
 
+export type TrajectoryGraderKind =
+  | 'trajectory:tool-used'
+  | 'trajectory:tool-args-match'
+  | 'trajectory:tool-sequence'
+  | 'trajectory:step-count'
+  | 'trajectory:goal-success';
+
+/**
+ * Promptfoo-compatible trajectory assertions over AgentV's normalized trace read model.
+ */
+export type TrajectoryGraderConfig = {
+  readonly name: string;
+  readonly type: TrajectoryGraderKind;
+  readonly value?: JsonValue;
+  readonly inverse?: boolean;
+  readonly weight?: number;
+  readonly required?: boolean;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
+  /** Parsed trajectory assertions use inverse instead, but GraderConfig keeps this common field. */
+  readonly negate?: boolean;
+};
+
 /**
  * Configuration for the inline-assert evaluator.
  * Wraps an AssertFn for in-process evaluation via the evaluate() API.
@@ -956,6 +984,7 @@ export type GraderConfig = (
   | TokenUsageGraderConfig
   | ExecutionMetricsGraderConfig
   | SkillTriggerGraderConfig
+  | TrajectoryGraderConfig
   | ContainsGraderConfig
   | ContainsAnyGraderConfig
   | ContainsAllGraderConfig

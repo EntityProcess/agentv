@@ -18,6 +18,7 @@ import {
   SkillUsedGrader,
   TokenUsageGrader,
   ToolTrajectoryGrader,
+  TrajectoryGrader,
   runContainsAllAssertion,
   runContainsAnyAssertion,
   runContainsAssertion,
@@ -68,6 +69,7 @@ import type {
   SkillUsedGraderConfig,
   StartsWithGraderConfig,
   TokenUsageGraderConfig,
+  TrajectoryGraderConfig,
 } from '../types.js';
 import {
   DeterministicAssertionGrader,
@@ -220,6 +222,14 @@ export const assertSetFactory: GraderFactoryFn = (config, context) => {
 export const toolTrajectoryFactory: GraderFactoryFn = (config) => {
   return new ToolTrajectoryGrader({
     config: config as ToolTrajectoryGraderConfig,
+  });
+};
+
+/** Factory for Promptfoo-compatible `trajectory:*` assertions. */
+export const trajectoryFactory: GraderFactoryFn = (config, context) => {
+  return new TrajectoryGrader({
+    config: config as TrajectoryGraderConfig,
+    llmGrader: context.llmGrader,
   });
 };
 
@@ -426,6 +436,11 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('llm-rubric', llmRubricFactory)
     .register('script', scriptFactory)
     .register('tool-trajectory', toolTrajectoryFactory)
+    .register('trajectory:tool-used', trajectoryFactory)
+    .register('trajectory:tool-args-match', trajectoryFactory)
+    .register('trajectory:tool-sequence', trajectoryFactory)
+    .register('trajectory:step-count', trajectoryFactory)
+    .register('trajectory:goal-success', trajectoryFactory)
     .register('field-accuracy', fieldAccuracyFactory)
     .register('latency', latencyFactory)
     .register('cost', costFactory)
