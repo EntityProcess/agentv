@@ -5,19 +5,31 @@ tests:
   - id: imported-codex-config-fix
     assert:
       - metric: imported-tool-sequence
-        type: tool-trajectory
-        mode: in_order
-        args_match: superset
-        expected:
-          - tool: Read
-            args:
-              path: package.json
-          - tool: Grep
-            args:
-              pattern: timeout
-          - tool: Edit
-            args:
-              path: src/config.ts
+        type: trajectory:tool-sequence
+        value:
+          mode: in_order
+          steps:
+            - Read
+            - Grep
+            - Edit
+      - type: trajectory:tool-args-match
+        value:
+          name: Read
+          args:
+            path: package.json
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: Grep
+          args:
+            pattern: timeout
+          mode: partial
+      - type: trajectory:tool-args-match
+        value:
+          name: Edit
+          args:
+            path: src/config.ts
+          mode: partial
       - metric: imported-execution-budget
         type: execution-metrics
         max_tool_calls: 5

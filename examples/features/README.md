@@ -49,9 +49,9 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 ### Evaluate tool use and agent behavior
 | Example | Description |
 |---------|-------------|
-| [tool-trajectory-simple](tool-trajectory-simple/) | Validate expected tool call sequences |
-| [tool-trajectory-advanced](tool-trajectory-advanced/) | Tool trajectory checks with `expected_output` and per-call assertions |
-| [latency-assertions](latency-assertions/) | Assert `max_duration_ms` per tool call to catch performance regressions |
+| [trajectory-assertions-simple](trajectory-assertions-simple/) | Validate expected tool calls with Promptfoo trajectory assertions |
+| [trajectory-assertions-advanced](trajectory-assertions-advanced/) | Promptfoo trajectory assertions with `expected_output` and per-call checks |
+| [latency-assertions](latency-assertions/) | Tool sequence and argument checks for a latency-flavored mock target |
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | F1 precision/recall scoring for tool-call accuracy |
 | [trace-evaluation](trace-evaluation/) | Inspect agent internals: LLM call counts, tool executions, step durations |
 
@@ -172,8 +172,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [test-vars-templating](test-vars-templating/) | Dataset & prompt templates |
 | [threshold-grader](threshold-grader/) | LLM grading |
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool & agent evaluation |
-| [tool-trajectory-advanced](tool-trajectory-advanced/) | Tool & agent evaluation |
-| [tool-trajectory-simple](tool-trajectory-simple/) | Tool & agent evaluation |
+| [trajectory-assertions-advanced](trajectory-assertions-advanced/) | Tool & agent evaluation |
+| [trajectory-assertions-simple](trajectory-assertions-simple/) | Tool & agent evaluation |
 | [trace-analysis](trace-analysis/) | Offline evaluation |
 | [trace-evaluation](trace-evaluation/) | Tool & agent evaluation |
 | [trial-output-consistency](trial-output-consistency/) | Benchmarking |

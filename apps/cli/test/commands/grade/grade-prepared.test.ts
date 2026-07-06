@@ -254,12 +254,18 @@ describe('agentv grade prepared attempts', () => {
       tempDir,
       `
 - metric: expected-tool-sequence
-  type: tool-trajectory
-  mode: exact
-  expected:
-    - tool: Read
-      args:
-        path: app.txt
+  type: trajectory:tool-sequence
+  value:
+    mode: exact
+    steps:
+      - Read
+- metric: expected-tool-args
+  type: trajectory:tool-args-match
+  value:
+    name: Read
+    args:
+      path: app.txt
+    mode: partial
 `,
     );
     const preparedDir = path.join(tempDir, 'prepared', 'trace-tools');
@@ -287,10 +293,17 @@ describe('agentv grade prepared attempts', () => {
     expect(row.score).toBe(0);
     expect(row.scores[0]).toMatchObject({
       name: 'expected-tool-sequence',
-      type: 'tool-trajectory',
+      type: 'trajectory:tool-sequence',
       score: 0,
       pass: false,
-      reason: 'No trace available for evaluation',
+      reason: 'No trace data available for trajectory:tool-sequence assertion',
+    });
+    expect(row.scores[1]).toMatchObject({
+      name: 'expected-tool-args',
+      type: 'trajectory:tool-args-match',
+      score: 0,
+      pass: false,
+      reason: 'No trace data available for trajectory:tool-args-match assertion',
     });
   });
 
@@ -299,12 +312,18 @@ describe('agentv grade prepared attempts', () => {
       tempDir,
       `
 - metric: expected-tool-sequence
-  type: tool-trajectory
-  mode: in_order
-  expected:
-    - tool: Read
-      args:
-        path: app.txt
+  type: trajectory:tool-sequence
+  value:
+    mode: in_order
+    steps:
+      - Read
+- metric: expected-tool-args
+  type: trajectory:tool-args-match
+  value:
+    name: Read
+    args:
+      path: app.txt
+    mode: partial
 `,
     );
     const preparedDir = path.join(tempDir, 'prepared', 'trace-tools-with-trace');
@@ -397,7 +416,14 @@ describe('agentv grade prepared attempts', () => {
     expect(row.score).toBe(1);
     expect(row.scores[0]).toMatchObject({
       name: 'expected-tool-sequence',
-      type: 'tool-trajectory',
+      type: 'trajectory:tool-sequence',
+      score: 1,
+      pass: true,
+      reason: 'Grader passed.',
+    });
+    expect(row.scores[1]).toMatchObject({
+      name: 'expected-tool-args',
+      type: 'trajectory:tool-args-match',
       score: 1,
       pass: true,
       reason: 'Grader passed.',
@@ -410,10 +436,11 @@ describe('agentv grade prepared attempts', () => {
       tempDir,
       `
 - metric: expected-tool-sequence
-  type: tool-trajectory
-  mode: in_order
-  expected:
-    - tool: Read
+  type: trajectory:tool-sequence
+  value:
+    mode: in_order
+    steps:
+      - Read
 `,
     );
     const preparedDir = path.join(tempDir, 'prepared', 'wrong-transcript-target');
@@ -453,10 +480,11 @@ describe('agentv grade prepared attempts', () => {
       tempDir,
       `
 - metric: expected-tool-sequence
-  type: tool-trajectory
-  mode: in_order
-  expected:
-    - tool: Read
+  type: trajectory:tool-sequence
+  value:
+    mode: in_order
+    steps:
+      - Read
 `,
     );
     const preparedDir = path.join(tempDir, 'prepared', 'wrong-envelope-target');

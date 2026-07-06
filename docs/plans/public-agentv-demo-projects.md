@@ -276,7 +276,7 @@ Out of scope:
 - Origin requirements: `docs/brainstorms/2026-06-04-public-agentv-demo-projects-requirements.md`
 - Existing plugin-variant pattern: `examples/showcase/bug-fix-benchmark/evals/bug-fixes.eval.yaml`, `examples/showcase/bug-fix-benchmark/scripts/setup-variant.sh`
 - Existing previous-commit workspace pattern: `examples/features/repo-lifecycle/evals/suite.yaml`, `examples/showcase/cross-repo-sync/evals/suite.yaml`, `examples/showcase/cross-repo-sync/scripts/setup.ts`
-- Existing multi-provider skill eval pattern: `examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml`
+- Existing multi-provider skill eval pattern: `examples/features/agent-skills-evals/multi-provider-skill-use.EVAL.yaml`
 - Project registry and wire format: `packages/core/src/projects.ts`, `packages/core/test/projects.test.ts`
 - Existing private results-repo wiring: `agentv-deploy` repository setup scripts and result config blocks
 - Git checkout behavior: `packages/core/src/evaluation/workspace/repo-manager.ts`, `packages/core/test/evaluation/workspace/repo-manager.test.ts`

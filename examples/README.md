@@ -42,8 +42,8 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 
 - [basic](features/basic/) - Core schema features
 - [rubric](features/rubric/) - Rubric-based evaluation
-- [tool-trajectory-simple](features/tool-trajectory-simple/) - Tool trajectory validation
-- [tool-trajectory-advanced](features/tool-trajectory-advanced/) - Advanced tool trajectory with expected_output
+- [trajectory-assertions-simple](features/trajectory-assertions-simple/) - Promptfoo trajectory assertion validation
+- [trajectory-assertions-advanced](features/trajectory-assertions-advanced/) - Advanced trajectory assertions with expected_output
 - [assert-set](features/assert-set/) - Assertion grouping patterns
 - [weighted-graders](features/weighted-graders/) - Weighted graders
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)

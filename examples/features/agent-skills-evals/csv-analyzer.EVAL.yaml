@@ -1,6 +1,6 @@
 tags:
   - agent
-  - skill-trigger
+  - skill-use
 extensions:
   - agentv:agent-rules
 environment:
@@ -11,9 +11,8 @@ prompts:
 tests:
   - id: csv-top-months
     assert:
-      - type: skill-trigger
-        skill: csv-analyzer
-        should_trigger: true
+      - type: skill-used
+        value: csv-analyzer
       - type: llm-rubric
         value:
           - "Output applies seasonal weighting factors (Q1: 0.85, Q2: 1.00, Q3: 1.15, Q4: 1.25)"
@@ -35,8 +34,7 @@ tests:
                 sure to apply the seasonal weighting formula from the skill.
   - id: irrelevant-query
     assert:
-      - type: skill-trigger
-        skill: csv-analyzer
-        should_trigger: false
+      - type: not-skill-used
+        value: csv-analyzer
     vars:
       input: What time is it?

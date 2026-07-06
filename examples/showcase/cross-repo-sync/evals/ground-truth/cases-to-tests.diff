@@ -123,10 +123,10 @@ index 83ca89a..1e7f958 100644
        - Must mention product name
        - Includes call to action
  ```
-diff --git a/docs/src/content/docs/evaluators/tool-trajectory.mdx b/docs/src/content/docs/evaluators/tool-trajectory.mdx
+diff --git a/docs/src/content/docs/evaluators/trajectory-tool-sequence.mdx b/docs/src/content/docs/evaluators/trajectory-tool-sequence.mdx
 index e2b0cce..7ed6967 100644
---- a/docs/src/content/docs/evaluators/tool-trajectory.mdx
-+++ b/docs/src/content/docs/evaluators/tool-trajectory.mdx
+--- a/docs/src/content/docs/evaluators/trajectory-tool-sequence.mdx
++++ b/docs/src/content/docs/evaluators/trajectory-tool-sequence.mdx
 @@ -199,7 +199,7 @@ execution:
        max_tool_calls: 10
        max_duration_ms: 30000
@@ -412,7 +412,7 @@ index a97e66d..2fef058 100644
 +A single test within an evaluation suite. Contains input, criteria, and evaluation configuration.
  
  ### Evaluator
- A component that assesses agent output. Types include `code_judge`, `llm_judge`, `rubric`, `composite`, `tool_trajectory`, `field_accuracy`, and `execution_metrics`.
+ A component that assesses agent output. Types include `code_judge`, `llm_judge`, `rubric`, `composite`, `trajectory:tool-sequence`, `field_accuracy`, and `execution_metrics`.
 @@ -125,7 +125,7 @@ Storing all evaluations in a single `evals/` directory.
  Storing evaluations alongside skills in `skills/*/evals/`.
  

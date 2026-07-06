@@ -21,6 +21,84 @@ const UnsupportedPromptfooAssertionTypes = new Set([
   'trace-span-duration',
 ]);
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function formatJsonValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function hasToolTrajectoryLatencyCheck(value: Record<string, unknown>): boolean {
+  const expected = value.expected;
+  return (
+    Array.isArray(expected) &&
+    expected.some(
+      (item) =>
+        isRecord(item) && (item.max_duration_ms !== undefined || item.maxDurationMs !== undefined),
+    )
+  );
+}
+
+function staleSkillTriggerMessage(value: Record<string, unknown>): string {
+  const skill = typeof value.skill === 'string' && value.skill.trim() ? value.skill.trim() : '';
+  const shouldTrigger = value.should_trigger !== false;
+  if (!skill) {
+    return "Authored assertion type 'skill-trigger' has been removed. Use 'skill-used' with value: <skill> for expected skill use, or 'not-skill-used' with value: <skill> when the skill must not be used.";
+  }
+  const replacementType = shouldTrigger ? 'skill-used' : 'not-skill-used';
+  return `Authored assertion type 'skill-trigger' has been removed. Replace skill: ${skill} with type: ${replacementType}, value: ${skill}.`;
+}
+
+function staleToolTrajectoryMessage(value: Record<string, unknown>): string {
+  const mode = typeof value.mode === 'string' ? value.mode : undefined;
+  if (hasToolTrajectoryLatencyCheck(value)) {
+    return "Authored assertion type 'tool-trajectory' has been removed. Per-tool latency checks such as max_duration_ms have no Promptfoo trajectory:* equivalent in AgentV yet; use a custom script assertion or track this as unsupported future scope.";
+  }
+
+  if (mode === 'any_order' && isRecord(value.minimums)) {
+    const [toolName, min] = Object.entries(value.minimums)[0] ?? [];
+    const example =
+      typeof toolName === 'string'
+        ? ` For example: type: trajectory:tool-used, value: { name: ${toolName}, min: ${formatJsonValue(min)} }.`
+        : '';
+    return `Authored assertion type 'tool-trajectory' has been removed. Replace mode: any_order minimums with one Promptfoo trajectory:tool-used assertion per tool.${example}`;
+  }
+
+  if ((mode === 'in_order' || mode === 'exact') && Array.isArray(value.expected)) {
+    const steps = value.expected
+      .filter(isRecord)
+      .map((item) => item.tool)
+      .filter((tool): tool is string => typeof tool === 'string');
+    const hasArgs = value.expected.some(
+      (item) => isRecord(item) && item.args !== undefined && item.args !== 'any',
+    );
+    const sequenceHint =
+      steps.length > 0
+        ? ` Use type: trajectory:tool-sequence, value: { mode: ${mode}, steps: ${formatJsonValue(steps)} }.`
+        : ' Use type: trajectory:tool-sequence with value: { mode, steps }.';
+    const argsHint = hasArgs
+      ? ' Move expected args checks to trajectory:tool-args-match with Promptfoo mode: partial or exact.'
+      : '';
+    return `Authored assertion type 'tool-trajectory' has been removed.${sequenceHint}${argsHint}`;
+  }
+
+  return "Authored assertion type 'tool-trajectory' has been removed. Use Promptfoo trajectory:* assertions: trajectory:tool-used for tool presence/counts, trajectory:tool-sequence for in_order/exact steps, and trajectory:tool-args-match for argument checks. AgentV-specific latency checks are unsupported future scope.";
+}
+
+function staleAuthoredAssertionMessage(value: Record<string, unknown>): string | undefined {
+  if (typeof value.type !== 'string') return undefined;
+  const type = value.type.replace(/_/g, '-');
+  if (type === 'skill-trigger') return staleSkillTriggerMessage(value);
+  if (type === 'tool-trajectory') return staleToolTrajectoryMessage(value);
+  return undefined;
+}
+
 /** Message content: string, structured object, or structured array */
 const ContentItemSchema = z.object({
   type: z.enum(['text', 'file', 'image']),
@@ -296,6 +374,15 @@ const AssertionObjectSchema = JsonObjectSchema.superRefine((value, ctx) => {
     return;
   }
   const type = rawType.replace(/_/g, '-');
+  const staleMessage = staleAuthoredAssertionMessage(value);
+  if (staleMessage) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['type'],
+      message: staleMessage,
+    });
+    return;
+  }
   if (type === 'composite') {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

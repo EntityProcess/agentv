@@ -136,7 +136,7 @@ index e1a4bc4..22bf3e9 100644
  ## Evaluator Types
  
 @@ -16,6 +16,10 @@ Evaluators are components that assess agent outputs. AgentEvals supports seven c
- | [`tool_trajectory`](/evaluators/tool-trajectory/) | Validate tool usage | Agentic behavior validation |
+ | [`trajectory:tool-sequence`](/evaluators/trajectory-tool-sequence/) | Validate tool usage | Agentic behavior validation |
  | [`field_accuracy`](/evaluators/field-accuracy/) | Check data fields | Structured output validation |
  | [`execution_metrics`](/evaluators/execution-metrics/) | Performance bounds | Latency, cost, token limits |
 +| `contains` | Substring check | Quick output validation |

@@ -112,6 +112,80 @@ const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
   'word-count',
 ]);
 
+function formatJsonValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function hasToolTrajectoryLatencyCheck(value: JsonObject): boolean {
+  const expected = value.expected;
+  return (
+    Array.isArray(expected) &&
+    expected.some(
+      (item) =>
+        isObject(item) && (item.max_duration_ms !== undefined || item.maxDurationMs !== undefined),
+    )
+  );
+}
+
+function staleSkillTriggerMessage(value: JsonObject): string {
+  const skill = typeof value.skill === 'string' && value.skill.trim() ? value.skill.trim() : '';
+  const shouldTrigger = value.should_trigger !== false;
+  if (!skill) {
+    return "Authored assertion type 'skill-trigger' has been removed. Use 'skill-used' with value: <skill> for expected skill use, or 'not-skill-used' with value: <skill> when the skill must not be used.";
+  }
+  const replacementType = shouldTrigger ? 'skill-used' : 'not-skill-used';
+  return `Authored assertion type 'skill-trigger' has been removed. Replace skill: ${skill} with type: ${replacementType}, value: ${skill}.`;
+}
+
+function staleToolTrajectoryMessage(value: JsonObject): string {
+  const mode = typeof value.mode === 'string' ? value.mode : undefined;
+  if (hasToolTrajectoryLatencyCheck(value)) {
+    return "Authored assertion type 'tool-trajectory' has been removed. Per-tool latency checks such as max_duration_ms have no Promptfoo trajectory:* equivalent in AgentV yet; use a custom script assertion or track this as unsupported future scope.";
+  }
+
+  if (mode === 'any_order' && isObject(value.minimums)) {
+    const [toolName, min] = Object.entries(value.minimums)[0] ?? [];
+    const example =
+      typeof toolName === 'string'
+        ? ` For example: type: trajectory:tool-used, value: { name: ${toolName}, min: ${formatJsonValue(min)} }.`
+        : '';
+    return `Authored assertion type 'tool-trajectory' has been removed. Replace mode: any_order minimums with one Promptfoo trajectory:tool-used assertion per tool.${example}`;
+  }
+
+  if ((mode === 'in_order' || mode === 'exact') && Array.isArray(value.expected)) {
+    const steps = value.expected
+      .filter(isObject)
+      .map((item) => item.tool)
+      .filter((tool): tool is string => typeof tool === 'string');
+    const hasArgs = value.expected.some(
+      (item) => isObject(item) && item.args !== undefined && item.args !== 'any',
+    );
+    const sequenceHint =
+      steps.length > 0
+        ? ` Use type: trajectory:tool-sequence, value: { mode: ${mode}, steps: ${formatJsonValue(steps)} }.`
+        : ' Use type: trajectory:tool-sequence with value: { mode, steps }.';
+    const argsHint = hasArgs
+      ? ' Move expected args checks to trajectory:tool-args-match with Promptfoo mode: partial or exact.'
+      : '';
+    return `Authored assertion type 'tool-trajectory' has been removed.${sequenceHint}${argsHint}`;
+  }
+
+  return "Authored assertion type 'tool-trajectory' has been removed. Use Promptfoo trajectory:* assertions: trajectory:tool-used for tool presence/counts, trajectory:tool-sequence for in_order/exact steps, and trajectory:tool-args-match for argument checks. AgentV-specific latency checks are unsupported future scope.";
+}
+
+function staleAuthoredAssertionMessage(value: JsonObject): string | undefined {
+  if (typeof value.type !== 'string') return undefined;
+  const type = value.type.replace(/_/g, '-');
+  if (type === 'skill-trigger') return staleSkillTriggerMessage(value);
+  if (type === 'tool-trajectory') return staleToolTrajectoryMessage(value);
+  return undefined;
+}
+
 /** Valid file extensions for external test files. */
 const VALID_TEST_FILE_EXTENSIONS = new Set([
   '.csv',
@@ -2314,6 +2388,17 @@ function validateAssertArray(
 
     // Normalize snake_case to kebab-case for backward compatibility
     const typeValue = rawTypeValue.replace(/_/g, '-');
+    const staleMessage = staleAuthoredAssertionMessage(item);
+    if (staleMessage) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${itemLocation}.type`,
+        message: staleMessage,
+      });
+      continue;
+    }
+
     const replacement = REMOVED_ASSERTION_TYPE_REPLACEMENTS.get(typeValue);
     if (replacement) {
       errors.push({

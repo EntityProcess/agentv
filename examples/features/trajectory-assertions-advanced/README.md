@@ -1,11 +1,11 @@
-# Tool Trajectory - Advanced
+# Trajectory Assertions - Advanced
 
-Demonstrates tool trajectory evaluation combined with expected output validation.
+Demonstrates Promptfoo-compatible trajectory assertions combined with expected output validation.
 
 ## What This Shows
 
 - Static trace file evaluation (pre-recorded traces)
-- Tool trajectory validation with full conversation structure
+- Trajectory assertion validation with full conversation structure
 - `expected_output` for comprehensive validation
 - Production-style multi-turn agent workflows
 - Input/output validation for tool calls
@@ -15,7 +15,7 @@ Demonstrates tool trajectory evaluation combined with expected output validation
 ```bash
 # From repository root
 cd examples/features
-bun agentv eval tool-trajectory-advanced/evals/trace-file-demo.eval.yaml --target static_trace
+bun agentv eval trajectory-assertions-advanced/evals/trace-file-demo.eval.yaml --target static_trace
 ```
 
 ## Setup
@@ -23,7 +23,7 @@ bun agentv eval tool-trajectory-advanced/evals/trace-file-demo.eval.yaml --targe
 Create `.env` in `examples/features/`:
 
 ```env
-TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-advanced
+TRAJECTORY_ASSERTIONS_DIR=/absolute/path/to/examples/features/trajectory-assertions-advanced
 ```
 
 ## Key Files

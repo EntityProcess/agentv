@@ -4,7 +4,6 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { parseGraders } from '../../../src/evaluation/loaders/grader-parser.js';
-import type { ToolTrajectoryGraderConfig } from '../../../src/evaluation/trace.js';
 import type {
   AssertSetGraderConfig,
   ContainsGraderConfig,
@@ -495,7 +494,7 @@ describe('parseGraders - deterministic assertion types', () => {
   });
 });
 
-describe('parseGraders - tool-trajectory', () => {
+describe('parseGraders - stale authored graders', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -507,185 +506,97 @@ describe('parseGraders - tool-trajectory', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses tool-trajectory evaluator with any_order mode and minimums', async () => {
-    const rawEvalCase = {
-      assert: [
+  it('rejects skill-trigger with skill-used guidance', async () => {
+    await expect(
+      parseGraders(
         {
-          metric: 'tool-usage-check',
-          type: 'tool-trajectory',
-          mode: 'any_order',
-          minimums: {
-            knowledgeSearch: 3,
-            getTime: 1,
-          },
+          assert: [{ metric: 'skill-check', type: 'skill-trigger', skill: 'csv-analyzer' }],
         },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as ToolTrajectoryGraderConfig;
-    expect(config.type).toBe('tool-trajectory');
-    expect(config.name).toBe('tool-usage-check');
-    expect(config.mode).toBe('any_order');
-    expect(config.minimums).toEqual({ knowledgeSearch: 3, getTime: 1 });
-    expect(config.expected).toBeUndefined();
+        undefined,
+        [tempDir],
+        'test-case',
+      ),
+    ).rejects.toThrow('Replace skill: csv-analyzer with type: skill-used, value: csv-analyzer');
   });
 
-  it('parses tool-trajectory evaluator with in_order mode and expected', async () => {
-    const rawEvalCase = {
-      assert: [
+  it('rejects negative skill-trigger with not-skill-used guidance', async () => {
+    await expect(
+      parseGraders(
         {
-          metric: 'sequence-check',
-          type: 'tool-trajectory',
-          mode: 'in_order',
-          expected: [{ tool: 'search' }, { tool: 'analyze' }, { tool: 'report' }],
-        },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as ToolTrajectoryGraderConfig;
-    expect(config.type).toBe('tool-trajectory');
-    expect(config.mode).toBe('in_order');
-    expect(config.expected).toEqual([{ tool: 'search' }, { tool: 'analyze' }, { tool: 'report' }]);
-  });
-
-  it('parses tool-trajectory evaluator with exact mode', async () => {
-    const rawEvalCase = {
-      assert: [
-        {
-          metric: 'exact-sequence',
-          type: 'tool-trajectory',
-          mode: 'exact',
-          expected: [{ tool: 'toolA' }, { tool: 'toolB' }],
-        },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as ToolTrajectoryGraderConfig;
-    expect(config.type).toBe('tool-trajectory');
-    expect(config.mode).toBe('exact');
-    expect(config.expected).toEqual([{ tool: 'toolA' }, { tool: 'toolB' }]);
-  });
-
-  it('skips tool-trajectory with invalid mode', async () => {
-    const rawEvalCase = {
-      assert: [
-        {
-          metric: 'invalid-mode',
-          type: 'tool-trajectory',
-          mode: 'invalid_mode',
-        },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toBeUndefined();
-  });
-
-  it('skips tool-trajectory with any_order mode but no minimums', async () => {
-    const rawEvalCase = {
-      assert: [
-        {
-          metric: 'missing-minimums',
-          type: 'tool-trajectory',
-          mode: 'any_order',
-        },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toBeUndefined();
-  });
-
-  it('skips tool-trajectory with in_order mode but no expected', async () => {
-    const rawEvalCase = {
-      assert: [
-        {
-          metric: 'missing-expected',
-          type: 'tool-trajectory',
-          mode: 'in_order',
-        },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toBeUndefined();
-  });
-
-  it('skips tool-trajectory with exact mode but no expected', async () => {
-    const rawEvalCase = {
-      assert: [
-        {
-          metric: 'missing-expected',
-          type: 'tool-trajectory',
-          mode: 'exact',
-        },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toBeUndefined();
-  });
-
-  it('filters invalid minimums entries (non-numeric, negative)', async () => {
-    const rawEvalCase = {
-      assert: [
-        {
-          metric: 'filtered-minimums',
-          type: 'tool-trajectory',
-          mode: 'any_order',
-          minimums: {
-            validTool: 5,
-            invalidString: 'not-a-number',
-            negativeTool: -1,
-            zeroTool: 0,
-          },
-        },
-      ],
-    };
-
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
-
-    expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as ToolTrajectoryGraderConfig;
-    // Should keep valid numbers (including 0), filter out invalid ones
-    expect(config.minimums).toEqual({ validTool: 5, zeroTool: 0 });
-  });
-
-  it('filters invalid expected entries (missing tool)', async () => {
-    const rawEvalCase = {
-      assert: [
-        {
-          metric: 'filtered-expected',
-          type: 'tool-trajectory',
-          mode: 'in_order',
-          expected: [
-            { tool: 'validTool' },
-            { notATool: 'invalid' },
-            { tool: 123 }, // non-string tool
-            { tool: 'anotherValid' },
+          assert: [
+            {
+              metric: 'skill-check',
+              type: 'skill-trigger',
+              skill: 'web-search',
+              should_trigger: false,
+            },
           ],
         },
-      ],
-    };
+        undefined,
+        [tempDir],
+        'test-case',
+      ),
+    ).rejects.toThrow('Replace skill: web-search with type: not-skill-used, value: web-search');
+  });
 
-    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
+  it('rejects tool-trajectory any_order with trajectory:tool-used guidance', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [
+            {
+              metric: 'tool-usage-check',
+              type: 'tool-trajectory',
+              mode: 'any_order',
+              minimums: { knowledgeSearch: 3 },
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-case',
+      ),
+    ).rejects.toThrow('trajectory:tool-used');
+  });
 
-    expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as ToolTrajectoryGraderConfig;
-    expect(config.expected).toEqual([{ tool: 'validTool' }, { tool: 'anotherValid' }]);
+  it('rejects tool-trajectory ordered steps with sequence and args guidance', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [
+            {
+              metric: 'sequence-check',
+              type: 'tool-trajectory',
+              mode: 'exact',
+              expected: [{ tool: 'search', args: { q: 'agentv' } }, { tool: 'fetch' }],
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-case',
+      ),
+    ).rejects.toThrow('trajectory:tool-args-match');
+  });
+
+  it('rejects tool-trajectory latency checks as unsupported future scope', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [
+            {
+              metric: 'latency-check',
+              type: 'tool-trajectory',
+              mode: 'exact',
+              expected: [{ tool: 'Read', max_duration_ms: 500 }],
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-case',
+      ),
+    ).rejects.toThrow('unsupported future scope');
   });
 });
 

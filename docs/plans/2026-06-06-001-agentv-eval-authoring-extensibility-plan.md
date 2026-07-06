@@ -268,7 +268,7 @@ Initial reference evals to consider:
 
 - WTG.AI.Prompts PR 679 as the primary WTG example, because it represents skill/prompt QA, workspace-sensitive coding-agent behavior, regression checks, pinned workspace setup, and before/after eval-driven prompt improvement in one artifact set.
 - `financial-research-agent/evals/financial-research-agent.eval.yaml` for Dexter-derived financial research rubric/provenance/operator semantics.
-- AgentV public examples such as `examples/features/rubric/`, `examples/showcase/grader-conformance/`, `examples/features/trace-evaluation/`, and `examples/features/tool-trajectory-simple/` are secondary reference material, not the main private parity corpus.
+- AgentV public examples such as `examples/features/rubric/`, `examples/showcase/grader-conformance/`, `examples/features/trace-evaluation/`, and `examples/features/trajectory-assertions-simple/` are secondary reference material, not the main private parity corpus.
 
 Placement constraints:
 

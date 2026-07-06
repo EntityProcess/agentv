@@ -895,7 +895,9 @@ export interface TraceComputeResult {
 export type ArgsMatchMode = 'exact' | 'ignore' | 'subset' | 'superset';
 
 /**
- * Configuration for tool-trajectory evaluator.
+ * @deprecated Internal compatibility config for older runtime helpers.
+ * Authored eval YAML rejects `tool-trajectory`; use Promptfoo-compatible
+ * `trajectory:*` assertions instead.
  */
 export interface ToolTrajectoryGraderConfig {
   readonly name: string;

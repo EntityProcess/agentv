@@ -61,7 +61,7 @@ Each grader returns:
 
 | Need | Solution |
 |------|----------|
-| Exact tool sequence | Built-in `tool_trajectory` with `mode: in_order` |
-| Minimum tool counts | Built-in `tool_trajectory` with `minimums` |
+| Exact tool sequence | Built-in `trajectory:tool-sequence` with `mode: in_order` |
+| Minimum tool counts | Built-in `trajectory:tool-used` with `min` |
 | Set-based F1 scoring | **This plugin** (`tool-call-f1.ts`) |
 | F1 with argument validation | **This plugin** (`tool-args-f1.ts`) |

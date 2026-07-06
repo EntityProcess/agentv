@@ -11,9 +11,8 @@ prompts:
 tests:
   - id: should-not-trigger-csv-analyzer
     assert:
-      - type: skill-trigger
-        skill: csv-analyzer
-        should_trigger: false
+      - type: not-skill-used
+        value: csv-analyzer
       - metric: transcript-quality
         type: script
         command:

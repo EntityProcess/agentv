@@ -6,7 +6,7 @@ then `provider: replay` runs deterministic graders without invoking Copilot
 again. **No LLM API key needed for replay.**
 
 Graders used:
-- `skill-trigger` — checks whether a specific skill was invoked
+- `not-skill-used` — checks whether a specific skill was avoided
 - `script-grader` — custom TypeScript grader inspecting the full `Message[]` with tool calls
 
 ## Setup
@@ -43,7 +43,7 @@ example runs.
 ### 2. Run the replay eval
 
 ```bash
-agentv eval evals/skill-trigger.EVAL.yaml --target copilot-transcript-replay
+agentv eval evals/skill-use.EVAL.yaml --target copilot-transcript-replay
 ```
 
 The `before_all` hook syncs the agentv-dev plugin skills into the workspace.
@@ -60,13 +60,13 @@ allagents workspace init (setup hook)
 AgentV transcript JSONL (agentv.transcript.v1)
   ↓ provider: replay with transcripts: fixtures/copilot-transcript.jsonl
 Message[] with tool calls and raw source provenance
-  ├─ skill-trigger grader (deterministic) → pass/fail
+  ├─ not-skill-used grader (deterministic) → pass/fail
   └─ script-grader (graders/transcript-quality.ts) → pass/fail
 ```
 
 ## Graders
 
-### skill-trigger
+### not-skill-used
 Checks whether the `csv-analyzer` skill was (or was not) invoked.
 Inspects tool call names and skill invocation events in the transcript.
 

@@ -33,10 +33,10 @@ tests:
   - id: research-with-metrics
     assert:
       - metric: trajectory-check
-        type: tool-trajectory
-        mode: any_order
-        minimums:
-          search: 1
+        type: trajectory:tool-used
+        value:
+          name: search
+          min: 1
       - metric: metrics-check
         type: execution-metrics
         max_tool_calls: 20

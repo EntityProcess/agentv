@@ -28,7 +28,7 @@ to any platform with skill-discovery mechanisms. All listed providers support sk
 
 ## Unsupported Providers: Use a Code-Grader
 
-The built-in `skill-trigger` grader covers Claude, Copilot, Pi, Codex and VS Code out
+The built-in `skill-used` and `not-skill-used` graders cover Claude, Copilot, Pi, Codex and VS Code out
 of the box. For providers with different tool-call formats, write a script-grader that inspects
 the agent's transcript messages or tool call trace.
 
@@ -37,7 +37,7 @@ transcript `messages`, and structured `trace`. Inspect `messages` or `trace.even
 tool calls; reserve `output` for final-answer text checks.
 
 ```yaml
-# Example: script-grader for Codex skill-trigger detection
+# Example: script-grader for Codex skill-use detection
 tests:
   - id: should-trigger-codex
     input: "Analyze this CSV file"

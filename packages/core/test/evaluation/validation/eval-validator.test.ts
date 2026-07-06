@@ -1704,6 +1704,88 @@ tests:
       expect(result.errors).toEqual([]);
     });
 
+    it('rejects stale skill-trigger assertions with migration guidance', async () => {
+      const filePath = path.join(tempDir, 'assert-skill-trigger.yaml');
+      await writeFile(
+        filePath,
+        `prompts:
+  - "{{ prompt }}"
+tests:
+  - id: test-1
+    vars:
+      prompt: "Use csv tools"
+    assert:
+      - type: skill-trigger
+        skill: csv-analyzer
+        should_trigger: true
+      - type: skill-trigger
+        skill: web-search
+        should_trigger: false
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'error',
+            message:
+              "Authored assertion type 'skill-trigger' has been removed. Replace skill: csv-analyzer with type: skill-used, value: csv-analyzer.",
+          }),
+          expect.objectContaining({
+            severity: 'error',
+            message:
+              "Authored assertion type 'skill-trigger' has been removed. Replace skill: web-search with type: not-skill-used, value: web-search.",
+          }),
+        ]),
+      );
+    });
+
+    it('rejects stale tool-trajectory assertions with promptfoo trajectory guidance', async () => {
+      const filePath = path.join(tempDir, 'assert-tool-trajectory.yaml');
+      await writeFile(
+        filePath,
+        `prompts:
+  - "{{ prompt }}"
+tests:
+  - id: test-1
+    vars:
+      prompt: "Use tools"
+    assert:
+      - metric: tool-presence
+        type: tool-trajectory
+        mode: any_order
+        minimums:
+          search: 2
+      - metric: tool-flow
+        type: tool-trajectory
+        mode: exact
+        expected:
+          - tool: search
+            args:
+              q: agentv
+          - tool: fetch
+      - metric: tool-latency
+        type: tool-trajectory
+        mode: exact
+        expected:
+          - tool: Read
+            max_duration_ms: 500
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+      const messages = result.errors.map((error) => error.message);
+
+      expect(result.valid).toBe(false);
+      expect(messages.some((message) => message.includes('trajectory:tool-used'))).toBe(true);
+      expect(messages.some((message) => message.includes('trajectory:tool-sequence'))).toBe(true);
+      expect(messages.some((message) => message.includes('trajectory:tool-args-match'))).toBe(true);
+      expect(messages.some((message) => message.includes('unsupported future scope'))).toBe(true);
+    });
+
     it('validates required field accepts boolean', async () => {
       const filePath = path.join(tempDir, 'assert-required-bool.yaml');
       await writeFile(

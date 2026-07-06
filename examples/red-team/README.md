@@ -8,7 +8,7 @@ red-team baseline drawn from the corpora the field has converged on.
 
 This pack is **content, not core**. There are no changes to `packages/core` or
 `apps/cli`; the suites compose existing primitives — `llm-rubric`,
-`not-matches-regex`, `not-contains`, `tool-trajectory` (where the target supports
+`not-matches-regex`, `not-contains`, `trajectory:*` assertions (where the target supports
 tools), and `assert-set`. Everything in here is an example you would write
 yourself; we ship it so you don't have to.
 
@@ -25,7 +25,7 @@ examples/red-team/
 ├── graders/
 │   ├── refusal.md                                 # LLM rubric: refused / partial / complied
 │   ├── pii-leak.md                                # assert-set: regex PII detector + LLM judge
-│   └── tool-abuse.md                              # paired with tool-trajectory grader
+│   └── tool-abuse.md                              # paired with trajectory assertions
 └── suites/
     ├── llm01-prompt-injection.yaml                # direct + indirect-via-tool-output variants
     ├── llm02-insecure-output.yaml                 # unsanitised output handling

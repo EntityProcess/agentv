@@ -169,15 +169,137 @@ function migrateAssertionTransform(assertion: JsonObject): boolean {
   return changed;
 }
 
+function argsMatchMode(value: unknown): 'partial' | 'exact' {
+  return value === 'exact' ? 'exact' : 'partial';
+}
+
+function hasLatencyTrajectoryCheck(assertion: JsonObject): boolean {
+  return (
+    Array.isArray(assertion.expected) &&
+    assertion.expected.some(
+      (item) =>
+        isObject(item) && (item.max_duration_ms !== undefined || item.maxDurationMs !== undefined),
+    )
+  );
+}
+
+function normalizedAssertionType(assertion: JsonObject): string | undefined {
+  return typeof assertion.type === 'string' ? assertion.type.replace(/_/g, '-') : undefined;
+}
+
+function migrateSkillTriggerAssertion(assertion: JsonObject): boolean {
+  if (
+    normalizedAssertionType(assertion) !== 'skill-trigger' ||
+    typeof assertion.skill !== 'string'
+  ) {
+    return false;
+  }
+
+  assertion.type = assertion.should_trigger === false ? 'not-skill-used' : 'skill-used';
+  assertion.value = assertion.skill;
+  Reflect.deleteProperty(assertion, 'skill');
+  Reflect.deleteProperty(assertion, 'should_trigger');
+  return true;
+}
+
+function migrateAnyOrderToolTrajectory(assertion: JsonObject): JsonObject[] | undefined {
+  if (assertion.mode !== 'any_order' || !isObject(assertion.minimums)) return undefined;
+
+  return Object.entries(assertion.minimums)
+    .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] >= 0)
+    .map(([name, min], index) => ({
+      ...clone(assertion),
+      ...(index === 0 ? {} : { metric: undefined }),
+      type: 'trajectory:tool-used',
+      value: { name, min },
+      mode: undefined,
+      minimums: undefined,
+      expected: undefined,
+      args_match: undefined,
+      argsMatch: undefined,
+    }))
+    .map((entry) => {
+      for (const key of Object.keys(entry)) {
+        if (entry[key] === undefined) Reflect.deleteProperty(entry, key);
+      }
+      return entry;
+    });
+}
+
+function migrateExpectedToolTrajectory(assertion: JsonObject): JsonObject[] | undefined {
+  if (
+    assertion.mode !== 'in_order' &&
+    assertion.mode !== 'exact' &&
+    assertion.mode !== 'subset' &&
+    assertion.mode !== 'superset'
+  ) {
+    return undefined;
+  }
+  if (assertion.mode === 'subset' || assertion.mode === 'superset') return undefined;
+  if (!Array.isArray(assertion.expected)) return undefined;
+
+  const expected = assertion.expected.filter(isObject);
+  const steps = expected
+    .map((item) => item.tool)
+    .filter((tool): tool is string => typeof tool === 'string' && tool.length > 0);
+  if (steps.length === 0) return undefined;
+
+  const mode = assertion.mode;
+  const sequenceAssertion: JsonObject = {
+    ...clone(assertion),
+    type: 'trajectory:tool-sequence',
+    value: { mode, steps },
+  };
+  for (const key of ['mode', 'minimums', 'expected', 'args_match', 'argsMatch']) {
+    Reflect.deleteProperty(sequenceAssertion, key);
+  }
+
+  const argsMode = argsMatchMode(assertion.args_match ?? assertion.argsMatch);
+  const argsAssertions = expected
+    .filter(
+      (item) => typeof item.tool === 'string' && item.args !== undefined && item.args !== 'any',
+    )
+    .map((item) => ({
+      type: 'trajectory:tool-args-match',
+      value: {
+        name: item.tool,
+        args: clone(item.args),
+        mode: argsMatchMode(item.args_match ?? item.argsMatch ?? argsMode),
+      },
+    }));
+
+  return [sequenceAssertion, ...argsAssertions];
+}
+
+function migrateToolTrajectoryAssertion(assertion: JsonObject): JsonObject[] | undefined {
+  if (
+    normalizedAssertionType(assertion) !== 'tool-trajectory' ||
+    hasLatencyTrajectoryCheck(assertion)
+  ) {
+    return undefined;
+  }
+  return migrateAnyOrderToolTrajectory(assertion) ?? migrateExpectedToolTrajectory(assertion);
+}
+
 function migrateAssertions(assertions: unknown): boolean {
   if (!Array.isArray(assertions)) return false;
-  return assertions
-    .filter(isObject)
-    .map((assertion) => {
-      const nested = migrateAssertions(assertion.assert);
-      return migrateAssertionTransform(assertion) || nested;
-    })
-    .some(Boolean);
+  let changed = false;
+  for (let index = 0; index < assertions.length; index++) {
+    const assertion = assertions[index];
+    if (!isObject(assertion)) continue;
+
+    changed = migrateAssertions(assertion.assert) || changed;
+    changed = migrateAssertionTransform(assertion) || changed;
+    changed = migrateSkillTriggerAssertion(assertion) || changed;
+
+    const replacements = migrateToolTrajectoryAssertion(assertion);
+    if (replacements && replacements.length > 0) {
+      assertions.splice(index, 1, ...replacements);
+      index += replacements.length - 1;
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 function migrateSuitePreprocessors(suite: JsonObject): boolean {
@@ -628,7 +750,11 @@ function migrateYamlSnippet(source: string, filePath: string): string | undefine
     !source.includes('postprocess:') &&
     !source.includes('timing_path:') &&
     !source.includes('manifest_path:') &&
-    !source.includes('isolation:')
+    !source.includes('isolation:') &&
+    !source.includes('skill-trigger') &&
+    !source.includes('skill_trigger') &&
+    !source.includes('tool-trajectory') &&
+    !source.includes('tool_trajectory')
   ) {
     return undefined;
   }

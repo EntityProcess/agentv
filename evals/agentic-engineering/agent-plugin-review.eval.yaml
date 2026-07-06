@@ -15,8 +15,8 @@ tests:
   - id: detect-missing-eval
     criteria: Identifies that deploy-rollback skill has no corresponding eval file
     assert:
-      - type: skill-trigger
-        skill: agent-plugin-review
+      - type: skill-used
+        value: agent-plugin-review
       - type: contains
         value: deploy-rollback
       - type: rubrics
