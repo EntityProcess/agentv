@@ -31,6 +31,14 @@ scope and either inline or by `file://` reference. `workspace` and
 workspace-named code or docs that model the same testbed concept are migration
 debt unless they refer only to internal mutable directories or result storage.
 
+Status note (2026-07-06): keep authored `tests[].id` / flattened `test_id` as
+AgentV's durable test-case identity. Promptfoo-compatible `description` remains
+display metadata only. PR-679 Promptfoo parity research found Promptfoo allows
+duplicate test descriptions in the Dashboard, so `description` is not a safe
+identity key for AgentV reruns, trends, result links, or cross-run comparison.
+This deliberately diverges from Promptfoo's display-first row model while
+keeping Promptfoo config importable.
+
 ## Context
 
 AgentV's eval-authoring surface diverged from industry primitives. We are re-basing
@@ -89,9 +97,19 @@ keep AgentV's only where its semantics are genuinely better.**
    `${{ ENV }}`. Rationale beyond superset-compat: `{{ env.VAR }}` **does not collide with
    runtime shell `${VAR}`** — CLI-target commands can carry `$VAR`/`${VAR}` that must reach
    the shell at runtime untouched; a `${ENV}` config sigil would clobber them.
-8. **Optional test `id`**, layered identity: content identity = `test_id` (content hash,
-   derived when unauthored); governance/trend identity = an author `tag`/`metadata` key
-   (Dashboard keys comparison on this); display label = `description` → vars → `Test #n`.
+8. **Test identity stays `id` / `test_id`; `description` is display-only.**
+   `tests[].id` is the preferred authored stable case identifier, and the
+   flattened `test_id` is the result/API/gate identity used for reruns, result
+   links, artifact lookup, trends, and Dashboard comparison. Imported or
+   ad-hoc Promptfoo-style rows that omit `id` may receive a deterministic
+   generated fallback, but generated IDs must be marked as generated and should
+   not be taught as the preferred curated-benchmark authoring style.
+   `description` is a human label and may duplicate across tests. Dashboard
+   display may prefer `description` where present, then vars, then `test_id` or
+   `Test #n`, but Dashboard selection and comparison must key on
+   `eval_path + test_id + target + variant`, not on description text. Content
+   fingerprints belong in separate provenance/change-detection metadata, not in
+   the public test identity.
 9. **Keep AgentV where better**: first-class `expected_output` as passive gold/reference
    data (DeepEval-aligned; not moved into `vars`, and not sent to target prompts
    unless the author separately places it in `vars`). A specific grader may use

@@ -100,10 +100,14 @@ source root. Dashboard and other readers should display this value as `Eval`.
 They should also display `test_id`, `target`, and `variant` when present so
 users can distinguish rows with overlapping test IDs.
 
-`suite` and `name` are display metadata. They may help humans group or label
-results, and `suite` may participate in opaque row-id collision avoidance, but
-they must not drive visible storage hierarchy, semantic routing, Dashboard
-detail selection, rerun lookup, import identity, or artifact discovery.
+`suite`, `name`, and any authored test `description` are display metadata. They
+may help humans group, scan, or label results, and `suite` may participate in
+opaque row-id collision avoidance, but they must not drive visible storage
+hierarchy, semantic routing, Dashboard detail selection, rerun lookup, import
+identity, or artifact discovery. `description` is especially not a substitute
+for `test_id`: Promptfoo allows duplicate test descriptions, so AgentV keeps
+`test_id` as the durable result identity and treats description as a non-unique
+label.
 
 `index.jsonl` is authoritative for all bundle-relative artifact paths. Per-row
 directories are exposed with `result_dir`. Sidecar paths such as `test_dir`,

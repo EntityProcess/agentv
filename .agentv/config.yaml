@@ -11,12 +11,6 @@ eval_patterns:
   - "**/evals/**/*.eval.yml"
   - "**/evals/**/*.eval.ts"
 
-# Publish completed run bundles to the git-backed results branch.
-results:
-  path: .
-  branch: agentv/results/v1
-  auto_push: true
-
 # Execution defaults (overridden by CLI flags)
 execution:
   verbose: false
