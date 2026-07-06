@@ -959,28 +959,6 @@ describe('buildIndexArtifactEntry', () => {
           error: 'model drift',
           cost_usd: 0.25,
           execution_status: 'quality_failure',
-          transcript_summary: {
-            total_turns: 1,
-            tool_calls: {
-              file_read: 0,
-              file_write: 0,
-              file_edit: 0,
-              shell: 0,
-              web_fetch: 0,
-              web_search: 0,
-              glob: 0,
-              grep: 0,
-              list_dir: 0,
-              agent_task: 0,
-              unknown: 0,
-            },
-            files_read: [],
-            files_modified: [],
-            shell_commands: [],
-            web_fetches: [],
-            errors: [{ message: 'model drift' }],
-            thinking_blocks: 0,
-          },
         },
       ],
     });
@@ -1643,7 +1621,8 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(runOneResult).not.toHaveProperty('timing');
     expect(runOneResult).not.toHaveProperty('verdict');
-    expect(indexEntry?.samples?.[0]?.transcript_summary).toEqual(runOneResult.transcript_summary);
+    expect(runOneResult.transcript_summary).toBeDefined();
+    expect(indexEntry?.samples?.[0]).not.toHaveProperty('transcript_summary');
 
     const runTwoAnswer = await readFile(
       path.join(paths.testArtifactDir, repeatRowDir, 'sample-2', 'outputs', 'answer.md'),
@@ -1667,7 +1646,8 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(runTwoResult).not.toHaveProperty('timing');
     expect(runTwoResult).not.toHaveProperty('verdict');
-    expect(indexEntry?.samples?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
+    expect(runTwoResult.transcript_summary).toBeDefined();
+    expect(indexEntry?.samples?.[1]).not.toHaveProperty('transcript_summary');
   });
 
   it('keys prompt-expanded resume checks by authored test id plus prompt id', () => {
@@ -1898,7 +1878,8 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine).not.toHaveProperty('trace_path');
     expect(indexLine?.transcript_path).toBe(`${rowDir}/sample-1/transcript.json`);
     expect(indexLine?.transcript_raw_path).toBe(`${rowDir}/sample-1/transcript-raw.jsonl`);
-    expect(indexLine?.transcript_summary).toEqual(transcript.transcript_summary);
+    expect(transcript.transcript_summary).toBeDefined();
+    expect(indexLine).not.toHaveProperty('transcript_summary');
     expect(indexLine?.metrics_path).toBe(`${rowDir}/sample-1/metrics.json`);
     expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
 

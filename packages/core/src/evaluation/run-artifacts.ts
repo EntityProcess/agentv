@@ -426,7 +426,8 @@ export type TrialResultArtifact = {
   readonly execution_status?: string;
   readonly failure_stage?: string;
   readonly failure_reason_code?: string;
-  readonly transcript_summary?: TranscriptSummaryWire;
+  /** Compact target-runtime error classification; full detail lives in `sample_path`'s `result.json`. */
+  readonly target_error_kind?: string;
 };
 
 export type TrialAggregationArtifact =
@@ -609,7 +610,8 @@ export interface IndexArtifactEntry {
   readonly error?: string;
   readonly failure_stage?: string;
   readonly failure_reason_code?: string;
-  readonly target_execution?: TargetExecutionWire;
+  /** Compact target-runtime error classification; full envelope lives at `target_execution_path`. */
+  readonly target_error_kind?: string;
   readonly target_execution_path?: string;
   readonly stdout_path?: string;
   readonly stderr_path?: string;
@@ -621,7 +623,6 @@ export interface IndexArtifactEntry {
   readonly answer_path?: string;
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
-  readonly transcript_summary?: TranscriptSummaryWire;
   readonly metrics_path?: string;
   readonly file_changes_path?: string;
   readonly environment_path?: string;
@@ -1032,13 +1033,6 @@ function hasPersistedTrialRuns(result: EvaluationResult): boolean {
   return (result.trials ?? []).some((trial) => trial.result !== undefined);
 }
 
-function toTrialTranscriptSummary(trial: TrialResult): TranscriptSummaryWire | undefined {
-  const result = trial.result;
-  return result && resultHasExecutionTraceTranscript(result)
-    ? buildResultTranscriptSummary(result)
-    : undefined;
-}
-
 function toTrialArtifacts(
   trials: readonly TrialResult[] | undefined,
 ): readonly TrialResultArtifact[] | undefined {
@@ -1057,7 +1051,7 @@ function toTrialArtifacts(
     execution_status: trial.executionStatus,
     failure_stage: trial.failureStage,
     failure_reason_code: trial.failureReasonCode,
-    transcript_summary: toTrialTranscriptSummary(trial),
+    target_error_kind: trial.result?.targetExecution?.errorKind,
   }));
 }
 
@@ -2481,7 +2475,7 @@ export function buildIndexArtifactEntry(
     error: result.error,
     failure_stage: result.failureStage,
     failure_reason_code: result.failureReasonCode,
-    target_execution: toTargetExecutionWire(targetExecution),
+    target_error_kind: targetExecution?.errorKind,
     target_execution_path: options.targetExecutionPath
       ? toRelativeArtifactPath(options.outputDir, options.targetExecutionPath)
       : undefined,
@@ -2513,7 +2507,6 @@ export function buildIndexArtifactEntry(
     transcript_raw_path: options.transcriptRawPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptRawPath)
       : undefined,
-    transcript_summary: options.transcriptPath ? buildResultTranscriptSummary(result) : undefined,
     metrics_path: options.metricsPath
       ? toRelativeArtifactPath(options.outputDir, options.metricsPath)
       : undefined,
@@ -2622,7 +2615,7 @@ export function buildResultIndexArtifact(
     error: result.error,
     failure_stage: result.failureStage,
     failure_reason_code: result.failureReasonCode,
-    target_execution: toTargetExecutionWire(targetExecution),
+    target_error_kind: targetExecution?.errorKind,
     target_execution_path: result.targetExecution
       ? path.posix.join(singleRunDir, TARGET_EXECUTION_ARTIFACT_PATH)
       : undefined,
@@ -2655,8 +2648,6 @@ export function buildResultIndexArtifact(
       isSingleRun && hasTranscript
         ? path.posix.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined,
-    transcript_summary:
-      isSingleRun && hasTranscript ? buildResultTranscriptSummary(result) : undefined,
     artifact_pointers: options?.artifactPointers,
     sample_index: result.sampleIndex,
     retry_index: result.retryIndex,

@@ -83,14 +83,8 @@ describe('target execution artifacts', () => {
       expect(row.target_execution_path).toBeTruthy();
       expect(row.stdout_path).toBeTruthy();
       expect(row.stderr_path).toBeTruthy();
-
-      const targetExecution = row.target_execution as Record<string, unknown>;
-      expect(targetExecution.error_kind).toBe('signal_crash');
-      expect(targetExecution.provider_kind).toBe('cli');
-      expect((targetExecution.artifacts as Record<string, unknown>).stdout_path).toBe(
-        row.stdout_path,
-      );
-      expect(targetExecution.artifacts).toHaveProperty('transcript_path');
+      expect(row.target_error_kind).toBe('signal_crash');
+      expect(row).not.toHaveProperty('target_execution');
 
       const stdoutPath = path.join(outputDir, row.stdout_path as string);
       const stderrPath = path.join(outputDir, row.stderr_path as string);
@@ -100,7 +94,10 @@ describe('target execution artifacts', () => {
       await expect(readFile(stderrPath, 'utf8')).resolves.toContain('segmentation fault');
       const envelope = JSON.parse(await readFile(envelopePath, 'utf8')) as Record<string, unknown>;
       expect(envelope.error_kind).toBe('signal_crash');
+      expect(envelope.provider_kind).toBe('cli');
       expect(envelope.artifacts).toHaveProperty('stderr_path');
+      expect((envelope.artifacts as Record<string, unknown>).stdout_path).toBe('stdout.txt');
+      expect(envelope.artifacts).toHaveProperty('transcript_path');
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
