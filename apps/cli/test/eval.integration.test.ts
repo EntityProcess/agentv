@@ -456,7 +456,15 @@ describe('agentv eval CLI', () => {
       for (const row of canonicalResults) {
         expect(row.transcript_path).toMatch(/sample-1\/transcript\.json$/);
         await expectFileExists(path.join(outputDir, row.transcript_path as string));
-        expect(row.transcript_summary).toBeDefined();
+        expect(row).not.toHaveProperty('transcript_summary');
+        const resultJsonPath = (row.transcript_path as string).replace(
+          /sample-1\/transcript\.json$/,
+          'sample-1/result.json',
+        );
+        const sampleResult = JSON.parse(
+          await readFile(path.join(outputDir, resultJsonPath), 'utf8'),
+        );
+        expect(sampleResult.transcript_summary).toBeDefined();
         expect(row.transcript_raw_path).toMatch(/sample-1\/transcript-raw\.jsonl$/);
         await expectFileExists(path.join(outputDir, row.transcript_raw_path as string));
       }
