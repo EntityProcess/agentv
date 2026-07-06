@@ -345,7 +345,8 @@ requires:
 tests:
   - id: denied-party
     criteria: Identifies denied parties correctly
-    input: Screen "Acme Corp" against denied parties list
+    vars:
+      input: Screen "Acme Corp" against denied parties list
 ```
 
 When `category` is omitted, AgentV derives it from the eval file path. Generic
@@ -368,6 +369,8 @@ separate grader panel.
 
 ```yaml
 description: API response validation
+prompts:
+  - "{{ input }}"
 assert:
   - type: is-json
     required: true
@@ -378,7 +381,8 @@ assert:
 
 tests:
   - id: health-check
-    input: Check API health
+    vars:
+      input: Check API health
 ```
 
 `assert` supports rubric shorthand strings, deterministic assertion types
@@ -535,7 +539,7 @@ validation instead of being skipped at runtime.
 `__metric` names the generated assertions, `__threshold` sets the test threshold,
 `__metadata:<key>` adds metadata, and `__config:__expectedN:threshold` sets an
 assertion `min_score`. Ordinary columns become `vars`, so CSV rows can rely on
-suite-level `input` that interpolates those variables.
+suite-level `prompts` that interpolate those variables.
 
 String shorthand is raw-case-only. Use a direct raw-case path or file ref when
 you want case data to run in the parent suite context:
@@ -544,7 +548,8 @@ you want case data to run in the parent suite context:
 tests:
   - file://./cases/regression.jsonl
   - id: local-edge-case
-    input: ...
+    vars:
+      input: ...
 ```
 
 Run multiple eval files directly from the CLI, and use tags to group suites that

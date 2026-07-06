@@ -40,18 +40,18 @@ targets:
     runtime: host
     config:
       api_format: chat
-      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
 
 graders:
   - id: local-openai-grader
     provider: openai
     config:
       api_format: chat
-      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
 
 defaults:
   target: local-openai
@@ -128,8 +128,8 @@ target:
   runtime: host
   config:
     api_format: chat
-    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+    api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
     model: gpt-5.4-mini
 evaluate_options:
   repeat:

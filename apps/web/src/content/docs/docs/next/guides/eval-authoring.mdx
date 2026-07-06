@@ -77,7 +77,8 @@ Test **decision-making discipline**, not git infrastructure operations:
 ```yaml
 # BAD — requires GitHub remote
 - id: merge-check
-  input: "Merge PR #42 if it looks safe"
+  vars:
+    input: "Merge PR #42 if it looks safe"
 ```
 
 **Do** frame prompts as hypothetical with inline context:
@@ -85,16 +86,17 @@ Test **decision-making discipline**, not git infrastructure operations:
 ```yaml
 # GOOD — self-contained, no remote needed
 - id: merge-check
-  input: |
-    Here is what PR #42 changes:
+  vars:
+    input: |
+      Here is what PR #42 changes:
 
-    ```diff
-    -  timeout: 30_000
-    +  timeout: 5_000
-    ```
+      ```diff
+      -  timeout: 30_000
+      +  timeout: 5_000
+      ```
 
-    The PR description says: "Reduce timeout for faster feedback."
-    Should this be shipped? What risks do you see?
+      The PR description says: "Reduce timeout for faster feedback."
+      Should this be shipped? What risks do you see?
 ```
 
 ## Workspace State Consistency: Git Diff Verification
@@ -137,16 +139,17 @@ When you don't want to maintain actual diffs, describe the changes inline:
 
 ```yaml
 - id: ship-decision
-  input: |
-    You are reviewing a proposed change. Here is the diff:
+  vars:
+    input: |
+      You are reviewing a proposed change. Here is the diff:
 
-    ```diff
-    --- a/src/config.ts
-    +++ b/src/config.ts
-    @@ -10,3 +10,3 @@
-    -  retries: 3,
-    +  retries: 0,
-    ```
+      ```diff
+      --- a/src/config.ts
+      +++ b/src/config.ts
+      @@ -10,3 +10,3 @@
+      -  retries: 3,
+      +  retries: 0,
+      ```
 
     The author says: "Disable retries to reduce latency."
     Should this be shipped?

@@ -49,7 +49,7 @@ Before running or optimizing, understand what you're working with.
 
 2. **Identify success criteria** — what does "good" look like for this agent? What are the edge cases? What would a failure look like? Talk to the user if this isn't clear from the artifacts alone.
 
-3. **Understand the target harness** — which provider runs the agent (Claude, GPT, Copilot CLI, Gemini, custom CLI)? This affects what grader types are available and how to run tests. Targets are configured in `.agentv/targets.yaml` (canonical location, searched from the eval file directory upward). Sensitive values like `api_key` must use `${{ ENV_VAR }}` syntax — literal secrets are rejected as a security guardrail.
+3. **Understand the target harness** — which provider runs the agent (Claude, GPT, Copilot CLI, Gemini, custom CLI)? This affects what grader types are available and how to run tests. Targets are configured in `.agentv/targets.yaml` (canonical location, searched from the eval file directory upward). Sensitive values like `api_key` must use `{{ env.ENV_VAR }}` references — literal secrets are rejected as a security guardrail.
 
 4. **Challenge assumptions** — if evals already exist, review their quality before running:
    - Are the test cases testing the right things?
@@ -65,7 +65,7 @@ Before running or optimizing, understand what you're working with.
 
 AgentV supports two evaluation formats:
 
-**EVAL.yaml** (native, full features) — supports environment recipes, script graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, and multi-provider targets. Use this for agent evaluation.
+**EVAL.yaml** (native, full features) — supports prompt matrices, environment recipes, script graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, and multi-provider targets. Use this for agent evaluation.
 
 ```yaml
 # example.eval.yaml
@@ -89,7 +89,7 @@ tests:
       - Review identifies the null pointer bug and suggests a concrete fix
 ```
 
-Multi-skill evaluation is handled naturally via input messages — describe the task in the test input, and the agent uses whatever skills it needs.
+Multi-skill evaluation is handled naturally via prompt messages — describe the task in `prompts`, put row-specific data in `tests[].vars`, and the agent uses whatever skills it needs.
 
 **evals.json** (skill-creator compatible) — auto-promoted to EVAL-equivalent format:
 - `prompt` → input messages
@@ -127,7 +127,7 @@ Prefer deterministic graders over LLM graders whenever possible. If an assertion
 
 This section is one continuous sequence — don't stop partway through.
 
-Each run produces a new `.agentv/results/default/<timestamp>/` directory automatically. Use timestamps to identify iterations when comparing runs.
+Each run produces a new canonical `.agentv/results/<run_id>/` directory automatically. Use the printed run id and `.internal/index.jsonl` when comparing runs.
 
 ### Choosing a run mode
 
@@ -228,11 +228,11 @@ Each grader subagent (operating under `agents/grader.md` instructions):
 2. Reads `<test-id>/response.md` for the candidate output
 3. Grades the response against the prompt criteria
 4. **Writes its result to disk**: `<run-dir>/<evalset>/<test-id>/llm_grader_results/<name>.json`
-5. Returns score (0.0–1.0) and per-assertion evidence to the orchestrator
+5. Returns score (0.0–1.0) and per-assertion notes to the orchestrator
 
-**Writing to disk is critical.** Assertion arrays are lost if accumulated only in the orchestrator's context across multiple batches (context summarization drops detail). Writing per-test results to `llm_grader_results/<name>.json` makes grading resumable and assertion evidence durable.
+**Writing to disk is critical.** Intermediate assertion arrays are lost if accumulated only in the orchestrator's context across multiple batches (context summarization drops detail). Writing per-test results to `llm_grader_results/<name>.json` makes grading resumable. Public `grading.json` artifacts normalize these details into recursive `component_results`.
 
-The result file format is:
+The intermediate subagent result file format is:
 ```json
 { "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
 ```
@@ -246,18 +246,19 @@ agentv pipeline bench <run-dir>
 agentv results validate <run-dir>
 ```
 
-`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with script-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `summary.json`.
+`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with script-grader scores, computes aggregate scores, and writes the canonical run bundle with `.internal/index.jsonl`, `summary.json`, and per-attempt `grading.json`.
 
 > **Diagnosing `pass_rate=0`:** If `pipeline bench` reports `pass_rate=0` across the board, do **not** assume the tests genuinely failed. First verify the grading pipeline ran correctly: check that `<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each test. If these files are absent or empty, the grader subagents failed to produce output (most common cause: `agents/grader.md` was not embedded in the subagent prompts — see Phase 2). Treat `pass_rate=0` as a real signal only after confirming grader results exist.
 
 ### Artifacts
 
 All artifacts use established schemas — see `references/schemas.md` for the full definitions. Do not modify the structure. Key artifacts per run:
-- **grading.json**: per-test assertions with `{text, passed, evidence}`, plus summary
-- **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
-- **summary.json**: per-target aggregate `{pass_rate, time_seconds, tokens}`
+- **.internal/index.jsonl**: canonical row index for compare, Dashboard, rerun, and artifact discovery
+- **grading.json**: aggregate `pass`, `score`, `reason`, recursive `component_results`, and optional `assertion`, `named_scores`, and `metadata`
+- **metrics.json**: token, cost, timing, tool, and transcript metrics for the attempt
+- **summary.json**: run-level aggregate metadata and pass/score rollups
 
-Write artifacts to `.agentv/artifacts/` or the iteration directory.
+Write artifacts to `.agentv/results/<run_id>/` through the CLI unless a task explicitly needs a fixed output path.
 
 ### Environment features (EVAL.yaml only)
 
@@ -350,7 +351,7 @@ If a prompt file is referenced in both task input and grader configs, optimize f
 After improving:
 
 1. Apply your changes to the agent's prompts/skills/config
-2. Re-run all test cases (agentv creates a new `.agentv/results/default/<timestamp>/` directory automatically)
+2. Re-run all test cases (agentv creates a new `.agentv/results/<run_id>/` directory automatically)
 3. Compare against the previous iteration (Step 4). If running in automated mode, use the **automated keep/discard** logic below instead of manual judgment — it will decide whether to keep or revert the change for you.
 4. Present results to the user (or log the decision if running automated keep/discard)
 5. Stop when ANY of:

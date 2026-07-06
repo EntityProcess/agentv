@@ -21,7 +21,7 @@ for each test case, show the prompt and output. Ask for feedback inline. Skip be
 - **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution`
   and `file_change` tool calls.
 - **Custom CLI**: Needs `command` and output file pattern in target config
-- **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
+- **Target config**: Uses `{{ env.ENV_VAR }}` references for API keys
 
 **Note**: "Description Optimization" (see `references/description-optimization.md`) applies
 to any platform with skill-discovery mechanisms. All listed providers support skills.

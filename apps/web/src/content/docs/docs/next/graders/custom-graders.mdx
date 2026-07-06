@@ -37,9 +37,13 @@ tests:
 ### Per-Case Override
 
 ```yaml
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: test-1
-    input: Generate a JSON config
+    vars:
+      input: Generate a JSON config
     assert:
       - Returns valid JSON
       - name: json_check
@@ -52,9 +56,13 @@ tests:
 Use multiple graders on the same case for comprehensive scoring:
 
 ```yaml
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: code-generation
-    input: Write a sorting function
+    vars:
+      input: Write a sorting function
     assert:
       - Code is syntactically valid
       - Handles edge cases such as empty lists and single-element lists

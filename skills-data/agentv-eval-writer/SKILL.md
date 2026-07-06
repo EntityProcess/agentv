@@ -741,24 +741,24 @@ agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 agentv import claude --session-id <uuid>
 
 # Re-run only execution errors from a previous run
-agentv eval <file.yaml> --retry-errors .agentv/results/default/<timestamp>/index.jsonl
+agentv eval <file.yaml> --retry-errors .agentv/results/<run_id>/.internal/index.jsonl
 
 # Validate eval file
 agentv validate <file.yaml>
 
 # Compare completed runs
 agentv results compare \
-  .agentv/results/default/<baseline-timestamp>/index.jsonl \
-  .agentv/results/default/<candidate-timestamp>/index.jsonl
+  .agentv/results/<baseline-run-id>/.internal/index.jsonl \
+  .agentv/results/<candidate-run-id>/.internal/index.jsonl
 agentv results combine \
-  .agentv/results/default/<baseline-timestamp> \
-  .agentv/results/default/<candidate-timestamp> \
-  .agentv/results/default/<third-target-timestamp> \
-  --output .agentv/results/default/combined
-agentv results compare .agentv/results/default/combined/index.jsonl
+  .agentv/results/<baseline-run-id> \
+  .agentv/results/<candidate-run-id> \
+  .agentv/results/<third-target-run-id> \
+  --output .agentv/results/combined
+agentv results compare .agentv/results/combined/.internal/index.jsonl
 agentv results compare \
-  .agentv/results/default/<baseline-timestamp>/index.jsonl \
-  .agentv/results/default/<candidate-timestamp>/index.jsonl \
+  .agentv/results/<baseline-run-id>/.internal/index.jsonl \
+  .agentv/results/<candidate-run-id>/.internal/index.jsonl \
   --json
 
 # Author assertions directly in the eval file

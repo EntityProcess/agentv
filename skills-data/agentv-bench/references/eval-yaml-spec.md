@@ -20,7 +20,7 @@ The grader agent uses this to evaluate assertions without the CLI.
 
 - `id` (string, required) — unique test identifier
 - `vars` (object, required when prompts need row data) — prompt-template variables for this row
-- `expected_output` (string | Message[], optional) — passive reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`. It is available to declared graders, but does not add an implicit grader when `assertions` is present.
+- `vars.expected_output` (string | Message[], optional) — passive reference answer data. It is available to declared graders, but does not add an implicit grader when `assert` is present.
 - `criteria` (string, optional) — human-readable success criteria
 - `assert` (array, optional) — grader assertions
 - `environment` (object | `file://...`, optional) — per-case testbed override
@@ -31,8 +31,8 @@ If `assert` already states the grading contract, omit `criteria` instead of
 duplicating the same rubric. Prefer plain assertion strings for semantic checks
 when the default LLM rubric grader can judge them; use multiple named
 `type: llm-rubric` blocks only for custom prompts, custom grader targets, or
-intentional grader panels. Write `expected_output` as a golden/reference answer,
-not as criteria or scoring instructions.
+intentional grader panels. Write `vars.expected_output` as a golden/reference
+answer, not as criteria or scoring instructions.
 
 For historical or repo-state evals, materialize the repository through
 `environment.setup.command` and pass the repo/ref as argv inputs. A SHA in
@@ -45,11 +45,12 @@ checkout. `setup.command` is a non-empty string array. Put the executable at
 
 ### Default grader contract
 
-When a test has no `assertions`, AgentV uses the default `llm-rubric` with the case context,
-including `criteria` and `expected_output` when present.
+When a test has no `assert`, AgentV can use configured suite/default graders
+with the case context, including `criteria` and `vars.expected_output` when
+present.
 
-When `assertions` is present, the list is explicit: run only the declared
-assertions/graders. `expected_output` remains reference data for graders that consume it,
+When `assert` is present, the list is explicit: run only the declared
+assertions/graders. `vars.expected_output` remains reference data for graders that consume it,
 such as `llm-rubric`, `script`, or `field-accuracy`; it does not trigger an additional
 default `llm-rubric`.
 When the declared assertion strings fully express the semantic contract, do not
@@ -211,18 +212,20 @@ Same as contains variants but explicitly case-insensitive.
 
 ### Script-based assertions
 
-#### `script-grader`
+#### `script`
 
-- **Fields:** `path` (string, required — path to script), `command` (string[], optional — custom command)
+- **Fields:** `command` (string[], required — command to execute), optional `cwd`, `config`, and `target`
 - **Script SDK:** Use `defineScriptGrader` from `@agentv/sdk`:
   ```typescript
   import { defineScriptGrader } from '@agentv/sdk';
   export default defineScriptGrader(({ output, trace }) => ({
+    pass: (output ?? '').includes('expected'),
     score: (output ?? '').includes('expected') ? 1 : 0,
-    assert: [{ text: 'Contains expected', passed: (output ?? '').includes('expected') }],
+    reason: 'Checks for the expected token',
+    checks: [{ text: 'Contains expected', pass: (output ?? '').includes('expected'), reason: 'Substring check' }],
   }));
   ```
-- **Recipe:** The CLI runs the script, passing canonical JSON on stdin (`{output, input, expected_output, ...}`). Script returns `{"score": N, "assertions": [...]}`
+- **Recipe:** The CLI runs the script, passing canonical JSON on stdin (`{output, input, expected_output, ...}`). Script returns `{pass, score, reason, checks?}`; public artifacts normalize `checks` into recursive `component_results`.
 - **PASS:** score >= 0.5 (or as configured).
 
 ### Assertion groups
@@ -252,42 +255,22 @@ All assertion types support:
 - `negate` (boolean, optional) — invert result
 - `threshold` (number, optional) — minimum score to pass (for LLM types)
 
-## 5. AgentV JSONL Output Format
+## 5. AgentV Run Bundle Output
 
-Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, field names use snake_case (applied by `toSnakeCaseDeep()`).
+Each run writes `.agentv/results/<run_id>/`. Public persisted fields use
+snake_case. The canonical discovery file is `.internal/index.jsonl`; per-attempt
+sidecars live under each result directory.
 
-### Required fields
+Key artifacts:
 
-- `timestamp` (string, ISO-8601)
-- `test_id` (string)
-- `score` (number, 0.0-1.0, weighted average of all assertion scores)
-- `assertions` (array of `{text, passed, evidence?}`)
-- `output` (string) — final answer/scored result; transcript evidence is available through captured trace/messages when present
-- `execution_status` (string: `ok` | `quality_failure` | `execution_error`)
-
-### Optional fields
-
-- `scores` (array of EvaluatorResult) — per-grader breakdown
-- `input` (Message[]) — input messages
-- `token_usage` (object: `{prompt_tokens, completion_tokens, total_tokens}`)
-- `cost_usd` (number)
-- `duration_ms` (number)
-- `target` (string)
-- `eval_set` (string)
-- `error` (string)
-- `file_changes` (string — unified diff)
-- `mode` (string — `agent` for agent mode)
-
-### `scores[]` entries (EvaluatorResult)
-
-- `name` (string) — grader name
-- `type` (string) — grader kind (kebab-case)
-- `score` (number, 0.0-1.0)
-- `assertions` (array of `{text, passed, evidence?}`)
-- `weight` (number, optional)
-- `pass` (boolean)
-- `details` (object, optional — structured data from script graders)
-- `reasoning` (string, optional)
+- `.internal/index.jsonl` — one row per result aggregate with identity fields,
+  status, score, target metadata, and explicit paths to sidecars.
+- `summary.json` — run-level metadata and aggregate pass/score rollups.
+- `sample-N/grading.json` — aggregate `pass`, `score`, `reason`, recursive
+  `component_results`, and optional `assertion`, `named_scores`, and `metadata`.
+- `sample-N/metrics.json` — token, cost, timing, tool, and transcript metrics.
+- `sample-N/transcript.json` and `sample-N/transcript-raw.jsonl` — normalized
+  and raw transcript data when available.
 
 ## 6. Eval Set Support
 
@@ -366,9 +349,9 @@ LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.js
 ```
 
 **Output:**
-- `<test-id>/run-1/grading.json` — merged grading with `graders`, `assertions`, `summary.pass_rate`
-- `index.jsonl` — one JSON line per test: `{test_id, score, pass, graders: [...]}`
-- `summary.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
+- `.internal/index.jsonl` — canonical row index
+- `summary.json` — aggregate run summary
+- per-attempt `grading.json` — aggregate `pass`, `score`, `reason`, and recursive `component_results`
 
 ### Agent-Mode Workflow
 

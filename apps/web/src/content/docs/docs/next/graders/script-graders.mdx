@@ -454,10 +454,13 @@ environment:
   workdir: ./workspace-template
 
 target: my_agent
+prompts:
+  - "{{ input }}"
 
 tests:
   - id: implement-feature
-    input: "Implement the TODO functions in src/index.ts"
+    vars:
+      input: "Implement the TODO functions in src/index.ts"
     assert:
       - Agent implements the feature correctly
       - name: functional-check

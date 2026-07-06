@@ -36,10 +36,13 @@ environment:
   setup:
     command: ["bash", "-lc", "bun install && bun run build"]
     cwd: "."
+prompts:
+  - "{{ input }}"
 
 tests:
   - id: refund-eligibility
-    input: Can this customer get a refund?
+    vars:
+      input: Can this customer get a refund?
     criteria: Applies the refund policy correctly
 ```
 
@@ -66,11 +69,14 @@ controls:
 # experiments/refunds-codex.eval.yaml
 name: refunds-codex
 target: codex-gpt5
+prompts:
+  - "{{ input }}"
 
 tests:
   - file://../evals/cases/refund-smoke.cases.yaml
   - id: local-edge-case
-    input: Check a damaged final-sale refund.
+    vars:
+      input: Check a damaged final-sale refund.
 ```
 
 The `experiments/` folder is optional and user-owned. AgentV does not scan it
@@ -115,10 +121,13 @@ evaluate_options:
 timeout_seconds: 300
 tags:
   area: agentic
+prompts:
+  - "{{ input }}"
 
 tests:
   - id: critical-case
-    input: "..."
+    vars:
+      input: "..."
     criteria: Must pass exactly
     run:
       threshold: 1.0

@@ -39,37 +39,60 @@ tests:
 | `environment` | No | Per-case environment recipe (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to graders, setup commands, and lifecycle extensions |
 
-## Input
+## Prompt Data
 
-The simplest form is a string, which expands to a single user message:
-
-```yaml
-input: What is 15 + 27?
-```
-
-Structured object input also expands to a single user message while preserving the object for script graders and batch runners:
+In normal authored eval YAML, put prompt text in top-level `prompts` and
+per-case data in `tests[].vars`. The simplest form uses one prompt template and
+one string var:
 
 ```yaml
-input:
-  request:
-    type: classify_ticket
-  ticket:
-    title: Login button is broken
+prompts:
+  - "{{ question }}"
+
+tests:
+  - id: addition
+    vars:
+      question: What is 15 + 27?
 ```
 
-Top-level `role` is reserved for message objects. If your structured payload needs its own role field, nest it under another key.
-
-For multi-turn or system messages, use a message array:
+Structured object data can stay in vars for script graders and batch runners:
 
 ```yaml
-input:
-  - role: system
-    content: You are a helpful math tutor.
-  - role: user
-    content: What is 15 + 27?
+prompts:
+  - "{{ input }}"
+
+tests:
+  - id: classify-ticket
+    vars:
+      input:
+        request:
+          type: classify_ticket
+        ticket:
+          title: Login button is broken
 ```
 
-When suite-level `input` is defined in the eval file, those messages are prepended to the test's input. See [Suite-level Input](/docs/evaluation/eval-files/#suite-level-input).
+Top-level `role` is reserved for message objects. If your structured payload
+needs its own role field, nest it under another key.
+
+For multi-turn or system messages, put the message array in `prompts`:
+
+```yaml
+prompts:
+  - - role: system
+      content: You are a helpful math tutor.
+    - role: user
+      content: "What is {{ a }} + {{ b }}?"
+
+tests:
+  - id: addition
+    vars:
+      a: 15
+      b: 27
+```
+
+Do not author `tests[].input` or top-level `input` in normal eval YAML. Those
+legacy direct-input fields are rejected; external raw-case imports are the only
+compatibility path for old input rows.
 
 ## Criteria
 
@@ -128,7 +151,8 @@ eval suites, or tags/filters for target-specific cases.
 ```yaml
 tests:
   - id: complex-case
-    input: Explain quicksort algorithm
+    vars:
+      input: Explain quicksort algorithm
 
     assert:
       - Provides a detailed explanation
@@ -147,13 +171,15 @@ assert:
 
 tests:
   - id: normal-case
-    input: What is 2+2?
+    vars:
+      input: What is 2+2?
     assert:
       - Returns the correct answer
     # Gets latency_check from root-level assertions
 
   - id: special-case
-    input: Handle this edge case
+    vars:
+      input: Handle this edge case
     execution:
       skip_defaults: true
     assert:
@@ -178,7 +204,8 @@ environment:
 
 tests:
   - id: case-1
-    input: Do something
+    vars:
+      input: Do something
     assert:
       - Completes the requested task
     environment:
@@ -189,7 +216,8 @@ tests:
         cwd: "."
 
   - id: case-2
-    input: Do something else
+    vars:
+      input: Do something else
     assert:
       - Completes the requested task
     # Inherits suite-level environment
@@ -205,7 +233,8 @@ Pass arbitrary key-value pairs to lifecycle commands via the `metadata` field. T
 ```yaml
 tests:
   - id: sympy-20590
-    input: Fix the diophantine equation bug in repo/.
+    vars:
+      input: Fix the diophantine equation bug in repo/.
     metadata:
       source_repo: sympy/sympy
       source_commit: "abc123def"
@@ -263,7 +292,8 @@ AgentV groups the strings into a rubric grader automatically:
 ```yaml
 tests:
   - id: bug-fix-review
-    input: Review this failing parser implementation.
+    vars:
+      input: Review this failing parser implementation.
     assert:
       - Identifies the root cause of the parser failure
       - Proposes a concrete code change
@@ -300,7 +330,8 @@ Multi-word assertion types use kebab-case (`contains-all`, `is-json`, etc.).
 ```yaml
 tests:
   - id: json-api
-    input: Return the system status as JSON
+    vars:
+      input: Return the system status as JSON
     assert:
       - type: is-json
       - type: contains
@@ -314,13 +345,15 @@ Use `contains-all` or `contains-any` to check multiple values in a single assert
 ```yaml
 tests:
   - id: required-fields
-    input: "Confirm details: name is Alice, email is alice@example.com"
+    vars:
+      input: "Confirm details: name is Alice, email is alice@example.com"
     assert:
       - type: contains-all
         value: ["Alice", "alice@example.com"]
 
   - id: greeting-variant
-    input: "Greet the user warmly."
+    vars:
+      input: "Greet the user warmly."
     assert:
       - type: contains-any
         value: ["Hello", "Hi", "Hey", "Welcome", "Greetings"]
@@ -341,7 +374,8 @@ All deterministic assertions support these optional fields:
 ```yaml
 tests:
   - id: no-competitors
-    input: "Describe our product advantages."
+    vars:
+      input: "Describe our product advantages."
     assert:
       - Response must not mention any competitor
       - type: contains-any
@@ -349,7 +383,8 @@ tests:
         negate: true
 
   - id: required-inputs
-    input: "Process customs entry for country BE."
+    vars:
+      input: "Process customs entry for country BE."
     assert:
       - Agent asks for missing rule codes
       - name: asks-for-rule-codes
@@ -435,7 +470,8 @@ Plain assertion strings are the default shape for semantic checks:
 ```yaml
 tests:
   - id: simple-eval
-    input: "Debug this function..."
+    vars:
+      input: "Debug this function..."
     assert:
       - Assistant correctly explains the bug and proposes a fix
 ```
@@ -498,7 +534,8 @@ To combine deterministic checks with semantic checks, add both explicitly:
 ```yaml
 tests:
   - id: mixed-eval
-    input: "Debug this function..."
+    vars:
+      input: "Debug this function..."
     assert:
       - Explains why the bug happens
       - type: contains
@@ -536,7 +573,8 @@ tests:
     metadata:
       language: python
       difficulty: medium
-    input: Write a function to sort a list
+    vars:
+      input: Write a function to sort a list
     assert:
       - Generates valid Python
 ```

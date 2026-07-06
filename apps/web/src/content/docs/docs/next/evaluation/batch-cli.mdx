@@ -30,28 +30,30 @@ Use batch CLI evaluation when:
 description: Batch CLI demo using structured input
 target: batch_cli
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: case-001
     criteria: |-
       Batch runner returns JSON with decision=CLEAR.
     vars:
+      input:
+        - role: system
+          content: You are a batch processor.
+        - role: user
+          content:
+            request:
+              type: screening_check
+              jurisdiction: AU
+            row:
+              id: case-001
+              name: Example A
+              amount: 5000
       expected_output:
         - role: assistant
           content:
             decision: CLEAR
-
-    input:
-      - role: system
-        content: You are a batch processor.
-      - role: user
-        content:
-          request:
-            type: screening_check
-            jurisdiction: AU
-          row:
-            id: case-001
-            name: Example A
-            amount: 5000
 
     assert:
       - name: decision-check
@@ -63,23 +65,22 @@ tests:
     criteria: |-
       Batch runner returns JSON with decision=REVIEW.
     vars:
+      input:
+        - role: system
+          content: You are a batch processor.
+        - role: user
+          content:
+            request:
+              type: screening_check
+              jurisdiction: AU
+            row:
+              id: case-002
+              name: Example B
+              amount: 25000
       expected_output:
         - role: assistant
           content:
             decision: REVIEW
-
-    input:
-      - role: system
-        content: You are a batch processor.
-      - role: user
-        content:
-          request:
-            type: screening_check
-            jurisdiction: AU
-          row:
-            id: case-002
-            name: Example B
-            amount: 25000
 
     assert:
       - name: decision-check

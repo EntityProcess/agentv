@@ -23,7 +23,7 @@ For a v4.42.4-era eval:
 
 1. Move top-level `execution.target` to top-level `target`.
 2. Move top-level `execution.targets` to top-level `targets`, and rename target
-   object `name` to `label`.
+   object `name` to `id`.
 3. Rename suite/test/turn `assertions` to `assert`.
 4. If a test uses `tests[].execution.assertions` or
    `tests[].execution.evaluators`, rename that nested list to
@@ -56,7 +56,14 @@ For a v4.42.4-era eval:
     assertions where there is a direct mapping.
 18. Keep raw cases under `tests` / `tests: file://...`; run full eval suites
     directly with CLI multi-file selection and tags.
-19. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
+19. Move authored prompt input from top-level or `tests[].input` into
+    `prompts` plus `tests[].vars.input`.
+20. Move authored reference answers from sibling `expected_output` into
+    `vars.expected_output`; add or keep an explicit assertion that consumes it.
+21. Rewrite target env interpolation from `${{ NAME }}` to `{{ env.NAME }}`.
+22. Remove `use_target`, `eval_cases`, `evalcases`, `providerPromptMap`, and
+    `provider_prompt_map`; current AgentV rejects them.
+23. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
 
 ## Assertions Renamed To `assert`
 
@@ -844,42 +851,50 @@ targets:
 ### Current Shape
 
 Current eval YAML uses top-level `target` or `targets`. Target references use
-`label`; `id` is reserved for provider/backend identity when needed:
+the target `id`; `provider` names the backend or adapter kind:
 
 ```yaml
 target: azure-base
 
 targets:
-  - label: with-skills
-    use_target: default
+  - id: with-skills
+    provider: codex-cli
+    runtime: host
+    config:
+      command: ["codex", "exec", "--json"]
     hooks:
       before_each:
         command: ["setup-plugins.sh", "skills"]
 ```
 
-Current `.agentv/targets.yaml` uses `label` and nests provider settings under
+Current `.agentv/targets.yaml` uses `id` and nests provider settings under
 `config`:
 
 ```yaml
 targets:
-  - label: azure-base
+  - id: azure-base
     provider: azure
+    runtime: host
     config:
-      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
-      model: ${{ AZURE_DEPLOYMENT_NAME }}
+      endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+      api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+      model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
 ```
 
 ### Migration Steps
 
 - Eval YAML: `execution.target` -> top-level `target`.
 - Eval YAML: `execution.targets` -> top-level `targets`.
-- Eval target object `name` -> `label`.
-- If an eval-local target object has provider configuration, include a
-  `label`; use `extends` to derive from a base target.
-- Targets file: rename `name` to `label` and move provider-specific settings
-  into `config`.
-- Keep AgentV target extensions such as `grader_target`, `use_target`,
+- Eval target object `name` -> `id`.
+- If an eval-local target object has provider configuration, include a concrete
+  `provider`; `id` is AgentV's stable target identity and `provider` names the
+  backend or adapter kind.
+- Targets file: rename `name` to `id`, move provider-specific settings into
+  `config`, and rewrite environment references from `${{ NAME }}` to
+  `{{ env.NAME }}`.
+- Remove `use_target`; current authored target definitions must resolve to
+  concrete provider objects.
+- Keep supported AgentV target extensions such as `grader_target`,
   `fallback_targets`, `workers`, and `batch_requests` as top-level fields on
   target objects.
 
@@ -888,10 +903,12 @@ targets:
 ```bash
 bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
 bun apps/cli/src/cli.ts validate .agentv/targets.yaml
-rg -n "execution:|name:|endpoint:|api_key:|model:" path/to/evals .agentv/targets.yaml
+rg -n "execution:|name:|use_target:|\\$\\{\\{|endpoint:|api_key:|model:" path/to/evals .agentv/targets.yaml
 ```
 
-Inspect `name:` matches manually because grader names still exist.
+Inspect `name:`, top-level provider fields, and `${{ ... }}` matches manually
+because grader names, non-target YAML, and historical examples can still use
+similar strings legitimately.
 
 ### Compatibility Notes
 

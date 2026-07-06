@@ -138,11 +138,15 @@ Validate that an agent uses specific tools during execution:
 description: Tool usage validation
 target: mock_agent
 
+prompts:
+  - "{{ input }}"
+
 tests:
   # Validate minimum tool usage (order doesn't matter)
   - id: research-depth
     criteria: Agent researches thoroughly
-    input: Research REST vs GraphQL
+    vars:
+      input: Research REST vs GraphQL
     assert:
       - name: research-check
         type: trajectory:tool-used
@@ -157,7 +161,8 @@ tests:
   # Validate exact tool sequence
   - id: auth-flow
     criteria: Agent follows auth sequence
-    input: Authenticate user
+    vars:
+      input: Authenticate user
     assert:
       - name: auth-sequence
         type: trajectory:tool-sequence
@@ -208,10 +213,14 @@ Evaluate pre-existing trace files without running an agent:
 description: Static trace evaluation
 target: static_trace
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: validate-trace-file
     criteria: Trace contains required steps
-    input: Analyze trace
+    vars:
+      input: Analyze trace
     assert:
       - name: trace-check
         type: trajectory:tool-sequence
@@ -230,38 +239,40 @@ Test multi-turn interactions where intermediate messages set context:
 description: Multi-turn debugging session with clarifying questions
 target: default
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: debug-with-clarification
     criteria: |-
       Assistant conducts a multi-turn debugging session, asking clarification
       questions when needed, correctly diagnosing the bug, and proposing a clear
       fix with rationale.
-
-    input:
-      - role: system
-        content: You are an expert debugging assistant who reasons step by step, asks clarifying questions, and explains fixes clearly.
-      - role: user
-        content: |-
-          I'm getting an off-by-one error in this function, but I can't see why:
-
-          ```python
-          def get_items(items):
-              result = []
-              for i in range(len(items) - 1):
-                  result.append(items[i])
-              return result
-          ```
-
-          Sometimes the last element is missing. Can you help debug this?
-      - role: assistant
-        content: |-
-          I can help debug this. Before I propose a fix, could you tell me:
-          - What output you expect for an example input list
-          - What output you actually get
-      - role: user
-        content: |-
-          For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
     vars:
+      input:
+        - role: system
+          content: You are an expert debugging assistant who reasons step by step, asks clarifying questions, and explains fixes clearly.
+        - role: user
+          content: |-
+            I'm getting an off-by-one error in this function, but I can't see why:
+
+            ```python
+            def get_items(items):
+                result = []
+                for i in range(len(items) - 1):
+                    result.append(items[i])
+                return result
+            ```
+
+            Sometimes the last element is missing. Can you help debug this?
+        - role: assistant
+          content: |-
+            I can help debug this. Before I propose a fix, could you tell me:
+            - What output you expect for an example input list
+            - What output you actually get
+        - role: user
+          content: |-
+            For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
       expected_output: |-
         You have an off-by-one error in your loop bounds.
         You're iterating with `range(len(items) - 1)`, which stops before the last index.
@@ -291,33 +302,35 @@ Evaluate external batch runners that process all tests in one invocation:
 description: Batch CLI demo (AML screening)
 target: batch_cli
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: aml-001
     criteria: |-
       Batch runner returns JSON with decision=CLEAR.
     vars:
+      input:
+        - role: system
+          content: You are a deterministic AML screening batch checker.
+        - role: user
+          content:
+            request:
+              type: aml_screening_check
+              jurisdiction: AU
+              effective_date: 2025-01-01
+            row:
+              id: aml-001
+              customer_name: Example Customer A
+              origin_country: NZ
+              destination_country: AU
+              transaction_type: INTERNATIONAL_TRANSFER
+              amount: 5000
+              currency: USD
       expected_output:
         - role: assistant
           content:
             decision: CLEAR
-
-    input:
-      - role: system
-        content: You are a deterministic AML screening batch checker.
-      - role: user
-        content:
-          request:
-            type: aml_screening_check
-            jurisdiction: AU
-            effective_date: 2025-01-01
-          row:
-            id: aml-001
-            customer_name: Example Customer A
-            origin_country: NZ
-            destination_country: AU
-            transaction_type: INTERNATIONAL_TRANSFER
-            amount: 5000
-            currency: USD
 
     assert:
       - name: decision-check
@@ -329,28 +342,27 @@ tests:
     criteria: |-
       Batch runner returns JSON with decision=REVIEW.
     vars:
+      input:
+        - role: system
+          content: You are a deterministic AML screening batch checker.
+        - role: user
+          content:
+            request:
+              type: aml_screening_check
+              jurisdiction: AU
+              effective_date: 2025-01-01
+            row:
+              id: aml-002
+              customer_name: Example Customer B
+              origin_country: IR
+              destination_country: AU
+              transaction_type: INTERNATIONAL_TRANSFER
+              amount: 2000
+              currency: USD
       expected_output:
         - role: assistant
           content:
             decision: REVIEW
-
-    input:
-      - role: system
-        content: You are a deterministic AML screening batch checker.
-      - role: user
-        content:
-          request:
-            type: aml_screening_check
-            jurisdiction: AU
-            effective_date: 2025-01-01
-          row:
-            id: aml-002
-            customer_name: Example Customer B
-            origin_country: IR
-            destination_country: AU
-            transaction_type: INTERNATIONAL_TRANSFER
-            amount: 2000
-            currency: USD
 
     assert:
       - name: decision-check
@@ -364,40 +376,45 @@ tests:
 - `target: batch_cli` -- configure the CLI provider with `batch_requests: true`
 - The batch runner reads the eval YAML via `--eval` flag and outputs JSONL keyed by `id`
 - Put structured data in `user.content` as objects for the runner to extract
-- Use `expected_output` with object fields for structured expected output
+- Use `vars.expected_output` with object fields for structured expected output
 - Each test has its own grader to validate its portion of the output
 
-## Suite-level Input
+## Shared Prompt Context
 
-Share a common prompt or system instruction across all tests. Suite-level `input` messages are prepended to each test's input, like suite-level `assert` for graders:
+Share a common prompt or system instruction across all tests with top-level
+`prompts`, then keep per-case data in `tests[].vars`:
 
 ```yaml
 description: Travel assistant evaluation
-input: |
-  You are a knowledgeable travel assistant.
-  Always include a practical safety tip.
+prompts:
+  - - role: system
+      content: |
+        You are a knowledgeable travel assistant.
+        Always include a practical safety tip.
+    - role: user
+      content: "{{ question }}"
 
 tests: ./cases.yaml
 ```
 
-```yaml
-# cases.yaml — tests only need their own queries
+```yaml title="cases.yaml"
 - id: japan-spring
   criteria: Recommends spring for cherry blossoms and mentions visa requirements
-  input: When is the best time to visit Japan?
+  vars:
+    question: When is the best time to visit Japan?
 
 - id: iceland-lights
   criteria: Recommends winter for Northern Lights
-  input: I want to see the Northern Lights in Iceland. When should I go?
+  vars:
+    question: I want to see the Northern Lights in Iceland. When should I go?
 
 - id: currency-only
   criteria: Provides direct answer about currency
-  input: What currency does Thailand use?
-  execution:
-    skip_defaults: true   # no suite-level input
+  vars:
+    question: What currency does Thailand use?
 ```
 
-See the [suite-level-input example](https://github.com/EntityProcess/agentv/tree/main/examples/features/suite-level-input) for a complete working version.
+See the [suite-level input migration example](https://github.com/EntityProcess/agentv/tree/main/examples/features/suite-level-input) for a complete working version.
 
 ## File Path Conventions
 
