@@ -64,7 +64,7 @@ assert:
 
 ## Pass/Fail Pattern
 
-The simplest pattern returns `pass` (boolean) and an optional `assertions` array:
+The simplest pattern returns `pass` (boolean), `reason`, and optional `checks`:
 
 ```typescript
 // .agentv/assertions/min-words.ts
@@ -75,7 +75,8 @@ export default defineAssertion(({ output }) => {
   const pass = wordCount >= 3;
   return {
     pass,
-    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
+    reason: pass ? 'Output has enough words' : 'Output is too short',
+    checks: [{ text: `Output has ${wordCount} words`, pass, reason: `${wordCount} words observed` }],
   };
 });
 ```
@@ -95,9 +96,10 @@ export default defineAssertion(({ output, traceSummary }) => {
   const isEfficient = (traceSummary?.eventCount ?? 0) <= 5 ? 0.5 : 0;
   return {
     score: hasContent + isEfficient,
-    assertions: [
-      { text: 'Has content', passed: hasContent > 0 },
-      { text: 'Efficient', passed: isEfficient > 0 },
+    reason: 'Checks content and trace length',
+    checks: [
+      { text: 'Has content', pass: hasContent > 0, reason: hasContent > 0 ? 'Output is non-empty' : 'Output is empty' },
+      { text: 'Efficient', pass: isEfficient > 0, reason: isEfficient > 0 ? 'Trace is within limit' : 'Trace is too long' },
     ],
   };
 });
@@ -113,8 +115,9 @@ The handler must return an `AssertionScore` object:
 |-------|------|-------------|
 | `pass` | `boolean` | Explicit pass/fail. If omitted, derived from `score` (>= 0.5 = pass). |
 | `score` | `number` | Numeric score between 0 and 1. Defaults to 1 if `pass=true`, 0 if `pass=false`. |
-| `assertions` | `Array<{ text: string, passed: boolean, evidence?: string }>` | Per-aspect results. Each entry describes one check with its verdict and optional evidence. |
-| `details` | `Record<string, unknown>` | Optional structured data for domain-specific metrics. |
+| `reason` | `string` | Explanation for the aggregate decision. |
+| `checks` | `Array<{ text: string, pass: boolean, score?: number, reason: string }>` | Optional per-aspect SDK convenience results. Public artifacts normalize them to `component_results`. |
+| `metadata` | `Record<string, unknown>` | Optional structured data for domain-specific metrics. |
 
 ## Context Available to Assertions
 
@@ -145,9 +148,11 @@ Expected output:
 
 ```json
 {
+  "pass": true,
   "score": 1,
-  "assertions": [
-    { "text": "Output has 6 words", "passed": true }
+  "reason": "Output has enough words",
+  "checks": [
+    { "text": "Output has 6 words", "pass": true, "reason": "6 words observed" }
   ]
 }
 ```
@@ -208,12 +213,14 @@ export default defineAssertion(({ output }) => {
   return {
     pass,
     score: pass ? 1.0 : Math.min(wordCount / minWords, 0.9),
-    assertions: [
+    reason: pass ? 'Output meets the word-count requirement' : 'Output is below the word-count requirement',
+    checks: [
       {
         text: pass
           ? `Output has ${wordCount} words (>= ${minWords} required)`
           : `Output has only ${wordCount} words (need >= ${minWords})`,
-        passed: pass,
+        pass,
+        reason: `${wordCount} words observed`,
       },
     ],
   };
@@ -229,10 +236,14 @@ description: Demonstrates custom assertions with convention discovery
 
 target: default
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: greeting-response
-    input: "Say hello and introduce yourself"
-    expected_output: "Hello! I'm an AI assistant here to help you."
+    vars:
+      input: "Say hello and introduce yourself"
+      expected_output: "Hello! I'm an AI assistant here to help you."
     assert:
       - Agent gives a multi-word greeting
       - type: contains
@@ -240,8 +251,9 @@ tests:
       - type: min-words
 
   - id: short-answer
-    input: "What is 2+2?"
-    expected_output: "The answer is 4."
+    vars:
+      input: "What is 2+2?"
+      expected_output: "The answer is 4."
     assert:
       - Agent gives a short but valid response
       - type: contains

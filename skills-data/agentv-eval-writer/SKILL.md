@@ -40,7 +40,7 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 
 - Put grading criteria in `assert`, not in test-level `criteria`. Plain assertion strings become an `llm-rubric` grader.
 - Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or assertion-level transforms, and `type: script` when grading must execute code.
-- Write `expected_output` as a golden/reference answer the target could have produced. Do not write criteria, scoring instructions, or "the agent should..." rubric prose there.
+- Put reference answers in `tests[].vars.expected_output` or `default_test.vars.expected_output`, and consume them with an explicit assertion such as `type: llm-rubric` with `value: "Matches the reference answer: {{ expected_output }}"`. Do not write criteria, scoring instructions, or "the agent should..." rubric prose as the reference answer.
 - For historical or repo-state evals, materialize the repo through a pinned `environment` setup recipe. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
 
 ## Evaluation Types
@@ -61,7 +61,12 @@ agentv convert evals.json
 agentv eval evals.json
 ```
 
-The converter maps `prompt` → `input`, `expected_output` → `expected_output`, and Agent Skills `assertions` → AgentV `assert` (`llm-rubric` checks), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (environment setup, script graders, rubrics, required gates).
+The converter maps Agent Skills prompt text into AgentV prompt/vars data,
+promotes Agent Skills `expected_output` into explicit `llm-rubric` criteria or
+`vars.expected_output` when it is true reference data, and maps Agent Skills
+`assertions` to AgentV `assert` (`llm-rubric` checks). The generated YAML
+includes TODO comments for AgentV features to add (environment setup, script
+graders, rubrics, required gates).
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
@@ -103,12 +108,15 @@ prompts:
 
 tests:
   - id: multi-turn-context
-    expected_output: "Your name is Alice."
+    vars:
+      expected_output: "Your name is Alice."
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - Correctly recalls the user's name from earlier in the conversation
 ```
 
-**Guidelines:** preserve exact wording in `expected_output`; aim for 5–15 tests per transcript; pick exchanges that test different capabilities.
+**Guidelines:** preserve exact wording in `vars.expected_output`; aim for 5–15 tests per transcript; pick exchanges that test different capabilities.
 
 ## Quick Start
 
@@ -123,8 +131,10 @@ tests:
   - id: greeting
     vars:
       prompt: "Say hello"
-    expected_output: "Hello! How can I help you?"
+      expected_output: "Hello! How can I help you?"
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - Greeting is friendly and warm
       - Offers to help
 ```
@@ -140,7 +150,7 @@ tests:
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
 | `vars` | yes when the prompt needs row data | Prompt-template variables for this row |
-| `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
+| `vars.expected_output` | no | Conventional reference-answer var consumed by explicit graders |
 | `assert` | yes | Graders: deterministic checks, `llm-rubric` checks, script graders, or plain string rubric criteria |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `environment` | no | Per-case coding-agent testbed config (overrides suite-level) |
@@ -176,15 +186,19 @@ tests:
   - id: password-reset
     vars:
       question: How do I reset my password?
-    expected_output: Password reset guidance
+      expected_output: Password reset guidance
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - Gives correct password reset guidance
   - id: admin-access
     vars:
       audience: admins
       question: How do I revoke a user's access?
-    expected_output: Access revocation guidance
+      expected_output: Access revocation guidance
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - Gives safe access revocation guidance
 ```
 
@@ -204,7 +218,7 @@ then render those vars from the prompt template next to the input.
 **Shorthand forms:**
 - Prompt entries can be strings, message arrays, file references, or prompt objects.
 - Put chat/system/user messages in `prompts`, not in `tests[].input`.
-- `expected_output` (string/object) expands to `[{role: "assistant", content: ...}]`
+- `vars.expected_output` is a conventional reference-answer variable; explicit assertions decide how to grade it
 - Use these canonical field names on disk; keep the wire format `snake_case`
 
 **Message format:** `{role, content}` where role is `system`, `user`, `assistant`, or `tool`
@@ -356,12 +370,14 @@ tests:
         verification guidance was added.
 
         Decide what durable repo change should be made and explain why.
-    expected_output: |
-      The durable repo change is to update .agents/verification.md with the
-      reusable verification workflow lessons. AGENTS.md already routes this
-      class of work to .agents/verification.md, so no extra AGENTS.md edit is
-      needed unless that routing is missing.
+      expected_output: |
+        The durable repo change is to update .agents/verification.md with the
+        reusable verification workflow lessons. AGENTS.md already routes this
+        class of work to .agents/verification.md, so no extra AGENTS.md edit is
+        needed unless that routing is missing.
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - The answer recommends updating .agents/verification.md rather than leaving the learning only in PR comments or private evidence.
       - The answer uses the pinned ./agentv checkout to verify the AGENTS.md routing.
       - The answer preserves the historical commit SHA as context.
@@ -387,9 +403,9 @@ tests:
         value: "fix"
 ```
 
-`expected_output` is passive reference data. It is available to graders through
-`{{expected_output}}` and the script stdin payload, but it does not create an
-implicit LLM grading call by itself.
+`vars.expected_output` is passive reference data. It is available to graders
+through `{{ expected_output }}` and the script stdin payload, but it does not
+create an implicit LLM grading call by itself.
 
 **Common mistake:** putting rubric prose in `expected_output` instead of an
 assertion:
@@ -402,7 +418,7 @@ tests:
   - id: bad-example
     vars:
       prompt: "What is 2+2?"
-    expected_output: The assistant should explain why the answer is 4. # reference answer field, not a grader
+      expected_output: The assistant should explain why the answer is 4. # reference answer var, not a grader
 ```
 
 Write this as:
@@ -415,8 +431,10 @@ tests:
   - id: good-example
     vars:
       prompt: "What is 2+2?"
-    expected_output: "4"
+      expected_output: "4"
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - The answer is 4 and explains the arithmetic briefly
 ```
 
@@ -523,9 +541,10 @@ Configure via the `assert` array. Multiple graders produce a weighted average sc
   cwd: ./scripts          # optional working directory
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
-Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], reasoning}`
+Contract: stdin JSON -> stdout JSON `{pass, score, reason, checks?: [{text, pass, score?, reason}]}`
 Raw stdin uses snake_case and includes: `input`, `expected_output`, `output` (final answer string), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 SDK handlers receive the same payload in camelCase: `expectedOutput`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`, `fileChanges`, `workspacePath`.
+`checks` is an SDK/script convenience shape; public `grading.json` artifacts normalize checks into recursive `component_results`.
 When an environment prepares a workspace directory, `workspace_path` is the absolute path to that directory (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the prepared workdir).
 For deterministic workspace checks that fit normal Vitest `expect(...)` tests, prefer a plain verifier file and the built-in adapter:
 ```yaml
@@ -809,9 +828,11 @@ import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output, trace }) => {
   const finalOutput = output ?? '';
+  const pass = finalOutput.length > 0 && (trace?.eventCount ?? 0) <= 10;
   return {
-    pass: finalOutput.length > 0 && (trace?.eventCount ?? 0) <= 10,
-    reasoning: 'Checks content exists and is efficient',
+    pass,
+    score: pass ? 1 : 0,
+    reason: 'Checks content exists and is efficient',
   };
 });
 ```
@@ -827,17 +848,21 @@ import { defineScriptGrader } from '@agentv/sdk';
 
 export default defineScriptGrader(({ output, trace }) => {
   const finalOutput = output ?? '';
+  const hasOutput = finalOutput.length > 0;
+  const efficient = (trace?.eventCount ?? 0) <= 5;
   return {
-    score: finalOutput.length > 0 && (trace?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
-    assert: [
-      { text: 'Output is not empty', passed: finalOutput.length > 0 },
-      { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
+    pass: hasOutput && efficient,
+    score: hasOutput && efficient ? 1.0 : 0.5,
+    reason: 'Checks content exists and tool usage is bounded',
+    checks: [
+      { text: 'Output is not empty', pass: hasOutput, reason: hasOutput ? 'Output text is present' : 'Output is empty' },
+      { text: 'Efficient tool usage', pass: efficient, reason: efficient ? 'Trace event count is within limit' : 'Trace event count is too high' },
     ],
   };
 });
 ```
 
-Use `defineScriptGrader()` when the custom component is a command-backed grader with explicit score control, custom assertion-result arrays, workspace commands, or LLM calls through a grader target. `defineScriptGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
+Use `defineScriptGrader()` when the custom component is a command-backed grader with explicit score control, check arrays, workspace commands, or LLM calls through a grader target. `defineScriptGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
 
 ### Convention-Based Discovery
 

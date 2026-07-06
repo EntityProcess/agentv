@@ -46,15 +46,17 @@ Create `./evals/example.yaml`:
 description: Math problem solving evaluation
 target: default
 
+prompts:
+  - "{{ question }}"
+
 tests:
   - id: addition
-    criteria: Correctly calculates 15 + 27 = 42
-
-    input: What is 15 + 27?
-
-    expected_output: "42"
-
+    vars:
+      question: What is 15 + 27?
+      expected_output: "42"
     assert:
+      - type: llm-rubric
+        value: "Matches the reference answer: {{ expected_output }}"
       - name: math_check
         type: script
         command: [./validators/check_math.py]

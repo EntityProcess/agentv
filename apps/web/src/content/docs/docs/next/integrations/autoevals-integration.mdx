@@ -56,12 +56,14 @@ Use the `Factuality` scorer as an AgentV `script` grader to verify answer correc
 **EVAL.yaml:**
 
 ```yaml
+prompts:
+  - "{{ question }}"
+
 tests:
   - id: capital-city
-    input:
-      - role: user
-        content: "What is the capital of France?"
-    expected_output: "Paris is the capital of France."
+    vars:
+      question: "What is the capital of France?"
+      expected_output: "Paris is the capital of France."
     assert:
       - name: factuality
         type: script
@@ -95,9 +97,10 @@ const rationale = result.metadata?.rationale ?? "No rationale provided";
 
 console.log(
   JSON.stringify({
+    pass: score >= 0.5,
     score,
-    assertions: [{ text: rationale, passed: score >= 0.5 }],
-    reasoning: rationale,
+    reason: rationale,
+    checks: [{ text: "Factuality", pass: score >= 0.5, score, reason: rationale }],
   })
 );
 ```
@@ -111,12 +114,14 @@ Use the `Faithfulness` scorer to detect hallucination in a RAG pipeline.
 **EVAL.yaml:**
 
 ```yaml
+prompts:
+  - "{{ task }}"
+
 tests:
   - id: rag-faithfulness
-    input:
-      - role: user
-        content: "Summarize the key findings from the research paper."
-    expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
+    vars:
+      task: "Summarize the key findings from the research paper."
+      expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
     assert:
       - name: faithfulness
         type: script
@@ -154,9 +159,10 @@ score = result.score or 0
 rationale = (result.metadata or {}).get("rationale", "No rationale provided")
 
 print(json.dumps({
+    "pass": score >= 0.5,
     "score": score,
-    "assertions": [{"text": rationale, "passed": score >= 0.5}],
-    "reasoning": rationale,
+    "reason": rationale,
+    "checks": [{"text": "Faithfulness", "pass": score >= 0.5, "score": score, "reason": rationale}],
 }))
 ```
 
@@ -208,12 +214,14 @@ Combine multiple autoevals scorers in a single script grader for comprehensive R
 **EVAL.yaml:**
 
 ```yaml
+prompts:
+  - "{{ question }}"
+
 tests:
   - id: rag-pipeline
-    input:
-      - role: user
-        content: "What are the benefits of exercise?"
-    expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
+    vars:
+      question: "What are the benefits of exercise?"
+      expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
     assert:
       - name: rag-quality
         type: script
@@ -264,14 +272,16 @@ const results = [
   { name: "Context Relevancy", ...contextRelevancy },
 ];
 
-const assertions: Array<{ text: string; passed: boolean }> = [];
+const checks: Array<{ text: string; pass: boolean; score: number; reason: string }> = [];
 
 for (const r of results) {
   const score = r.score ?? 0;
   const rationale = r.metadata?.rationale ?? "No rationale";
-  assertions.push({
+  checks.push({
     text: `${r.name} (${score.toFixed(2)}): ${rationale}`,
-    passed: score >= 0.5,
+    pass: score >= 0.5,
+    score,
+    reason: rationale,
   });
 }
 
@@ -280,9 +290,10 @@ const avgScore =
 
 console.log(
   JSON.stringify({
+    pass: avgScore >= 0.5,
     score: avgScore,
-    assertions,
-    reasoning: `Average score across ${results.length} RAG metrics: ${avgScore.toFixed(2)}`,
+    reason: `Average score across ${results.length} RAG metrics: ${avgScore.toFixed(2)}`,
+    checks,
   })
 );
 ```

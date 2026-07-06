@@ -85,7 +85,7 @@ git push
 
 Use `--out docs/<name>.html` when a repository should publish multiple runs. Link those files from the result repository README so readers can browse a dashboard-like report from GitHub Pages instead of running `agentv dashboard` or opening raw JSONL.
 
-<Image src={resultsReportDetails} alt="AgentV results report showing an expanded failing test case with unified assertions, deterministic type badges, pass/fail indicators, evidence text, and collapsible input/output" />
+<Image src={resultsReportDetails} alt="AgentV results report showing an expanded failing test case with unified assertions, deterministic type badges, pass/fail indicators, grader reasons, and collapsible input/output" />
 
 | Option | Description |
 |--------|-------------|
@@ -190,7 +190,7 @@ Agent Skills eval artifacts map into AgentV like this:
 | Per-case answer | Generated target output artifact | `sample-N/outputs/answer.md` |
 | Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `sample-N/transcript.json`, `sample-N/transcript-raw.jsonl`, `sample-N/metrics.json` |
 | Per-sample `metrics.json` | Duration, token totals, cost, execution, trajectory, and usage source labels | `sample-N/metrics.json` |
-| Per-attempt `grading.json` | `assertion_results`, graders, rubric evidence, and workspace-change grading facts | `sample-N/grading.json`; summary fields can reference the same trace/result facts |
+| Per-attempt `grading.json` | Aggregate `pass`, `score`, `reason`, recursive `component_results`, and optional assertion metadata, named scores, and grader metadata | `sample-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
 | Transcript/log outlier analysis | Normalized transcript, raw evidence, metrics, and optional external trace link | `transcript.json` for portable review; `transcript-raw.jsonl` for native evidence; `metrics.json` for behavior summaries; `external_trace` for link-out correlation |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
