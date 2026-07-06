@@ -1,0 +1,121 @@
+so did we test with codex, pi and copilot using local openao endpoint. we should also ensure targets YAML is updated to new schema
+
+---
+
+so what beads are outstanding now. has the alignment with promptfoo, margin evals etc been complete. what about the output contract
+
+---
+
+also we have idle workers, are they done and can we remove their workmux session
+
+---
+
+i saw there's composite assert type, is that valid promptfoo or should we change to assert-set. i don't think the yaml alignment is complete.
+
+---
+
+also tool-trajectory assert type too, please audit that
+
+---
+
+also for custom assertion, i know promptfoo does not allow them. while agentv allows them. should we call them custom assertions or custom graders. what  does promptfoo call them. might need to look at their class names or variable names in their code base using deep wiki mcp or local clone. if there's any actions arising from your research then pleae create beads for it. https://agentv.dev/docs/graders/custom-assertions/
+
+---
+
+plesae spawn worker with /coordinator skill invokation that coorindates other works to complete the promptfoo alignment. the wokrer will also audit other incsonsitencies between agentv and promptfoo and create beads for those to complete the eval spec alignemnt. agentv is supposed to be a superset of promptfoo while not taking in the hitstorical baggage of promptfoo as we are greenfield.
+
+---
+
+another issue potentially is how we define multiple messages in the input prompt. spawn new worker to research how promptfoo does this (using deepwiki mcp).  currently agentv allows defining system and user messages as objects (e.g. system.role, system.content, system.file, user.role, system.content etc). in agentv i believe if input shorthand is used it gets expanded to input { role: user, message: xxx }. i don't think that is the same behaviour is promptfoo but please confirm. we should align our behaviour with promptfoo if it makes sense and we don't lose anything aligning with it
+
+---
+
+also do we have workers checking the dashboard displays correctly and to do a UI UX audit and neusre it works with remote sync where results are pushed to the agentv/results/v1 orphan branch in a different repo.
+
+---
+
+remind me whats the status of output artifiact restructure
+
+---
+
+are all the outstanding work being worked on atm
+
+---
+
+did you also check the transcript displays correctly and looks as good as entireio/cli seee example https://github.com/EntityProcess/agentv-private/tree/evidence/entireio-transcript-viewer-reference-2026-07-02 dogfood on entire cli
+
+---
+
+we can disclose the agentv uses a similar eval config contract as promptfoo and have a table highlighting differences. and we need to decide whether to keep the difference (because agentv is cleaner) or align with promptfoo.
+
+---
+
+also we need a better way to represent multiple runs per test case. i like how currently we can collapse/expand, so if user wants to treat multiple runs as a single run with aggregate metrics they can do that. but i think the deisgn isn't best practice. use the uI UX skill. spawn worker to handle the multiple runs UI so it's clear that the repeats are dinstuinghised from the test case when expanded, text and everything is properly aligned whether expanded or collapsed, and also meets requirements of users who want to interpret multi-run test ases as a single run test case with aggregate metrics.
+
+---
+
+the dashboard remote ux worker completed but i think its investigation is too shallow. probably didn't use enough data under different scenarios
+
+---
+
+also for the docs the version select does nto work on mobile, it's not visible. its only visible on desktop please fix
+
+---
+
+remote-ux-audit worker is dle is that finisehd and we close it
+
+---
+
+we should also align the cli surface of agentv to promptfoo where possible, how far did we go with this. especially running evals with filter on attributes of test cases
+
+---
+
+also ensure index.md in agentv-private liks to orphan branches that are pushed.
+
+---
+
+also for the runs view and runs button curretly looks disorganised (current screenshot https://github.com/EntityProcess/agentv-private/blob/evidence/av-2s7-17-dashboard-remote-ux-audit/desktop-03-run-detail.png). we should borrow layout from apify (see https://github.com/EntityProcess/agentv-beads/issues/17) where it's all under Actions drop down. Also rename run eval to Start (similar to apify). Actions include "Re-run" and "Resume". For resume it should rerun failed by default. So this is cleaner UX.  I also have rough mocksups you can use for inspiration (But don't follow blindly) - https://github.com/EntityProcess/agentv-private/blob/evidence/av-8yss-dashboard-hud-mockups-2026-07-02/screenshots/04-run-list.png. spawn worker to resolve this.
+
+---
+
+Attempted local-openai, blocked before execution because LOCAL_OPENAI_PROXY_API_KEY was not set.
+  Attempted direct openai, resolved credentials but provider execution failed with pi-ai call failed: Connection erro
+
+  This should be fixed to help with dogfooding. i'm pretty sure our proxy is working correctly
+ http://127.0.0.1:10531/v1 does not require API key. also we should ensure the main .env is setup correctly and workers just need to copy to their worktree. if its easier maybe workmux should be ocnfigured to copy .env when creating worktre
+
+---
+
+another question, i had a look at the output artifacts pushed to agentv/results/v1 branch and still looks too noisy. for example runtime_source, experiment_config, instances, theres a lot of duplicate and unnecessary information. can you spawn  agent or reuse existing one to ensure the output does not have redudnat data and aligns with best practice with margin evals, vercel agent-eval and promptfoo export.
+
+---
+
+margin evals can be found in https://github.com/Margin-Lab/evals, also mentioned in tsoyang-org/ai-research-wiki. use deepwiki mcp or cloned local repo to searhc
+
+---
+
+there's a couple of workers idle now please check status and see if any needs unblocking.
+
+---
+
+please confirm assert-set in agentv is the same syntax and structure as promptfoo's assert-set
+
+---
+
+also results-artifact-contract-cleanup  worker is done, is it reviewed? if no issues we can merge
+
+---
+
+also for internal variable naming we can also align with promptfoo unless agentv's existing naming is better
+
+---
+
+did you start working to address this
+
+---
+
+this should go to promptfoo alignment coordinator to spawn worker perhaps
+
+---
+
+also there are two idle workers, not sure if they can be cleaned up. but confirm they've merged their work otherwise unblock them

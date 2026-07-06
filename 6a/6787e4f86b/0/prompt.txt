@@ -1,0 +1,3 @@
+[[ ## user_query ## ]]
+
+Reply with AGENTV_SDK_CHILD_RUNNER_READY only.

@@ -1,0 +1,81 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "6a6787e4f86b",
+  "session_id": "487fbe81-e917-46ad-a7c6-bf31cba53339",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-05T04:03:36.723341289Z",
+  "branch": "runtime-sdk-child-runner-deps",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "apps/cli/package.json",
+    "apps/web/src/content/docs/docs/next/targets/coding-agents.mdx",
+    "apps/web/src/content/docs/docs/v4.42.4/targets/coding-agents.mdx",
+    "bun.lock",
+    "packages/core/package.json",
+    "packages/core/src/evaluation/providers/claude-sdk.ts",
+    "packages/core/src/evaluation/providers/codex.ts",
+    "packages/core/src/evaluation/providers/copilot-sdk.ts",
+    "packages/core/src/evaluation/providers/pi-coding-agent.ts",
+    "packages/core/test/evaluation/providers/sdk-child-provider.test.ts",
+    "packages/core/test/evaluation/providers/sdk-provider-registry.test.ts"
+  ],
+  "agent": "Copilot CLI",
+  "model": "",
+  "turn_id": "ada9507f9279",
+  "token_usage": {
+    "input_tokens": 15517,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 45,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-05T04:03:36.71532799Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 11,
+    "human_removed": 12,
+    "total_committed": 0,
+    "total_lines_changed": 26,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 516,
+      "user_lines_removed": 20,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".workmux/PROMPT-runtime-sdk-child-runner-deps.md": 38,
+        "apps/cli/package.json": 7,
+        "apps/web/src/content/docs/docs/next/targets/coding-agents.mdx": 23,
+        "apps/web/src/content/docs/docs/v4.42.4/targets/coding-agents.mdx": 23,
+        "bun.lock": 307,
+        "packages/core/package.json": 7,
+        "packages/core/src/evaluation/providers/claude-sdk.ts": 2,
+        "packages/core/src/evaluation/providers/codex.ts": 2,
+        "packages/core/src/evaluation/providers/copilot-sdk.ts": 2,
+        "packages/core/src/evaluation/providers/pi-coding-agent.ts": 2,
+        "packages/core/test/evaluation/providers/sdk-child-provider.test.ts": 78,
+        "packages/core/test/evaluation/providers/sdk-provider-registry.test.ts": 25
+      },
+      "user_removed_per_file": {
+        "apps/cli/package.json": 1,
+        "bun.lock": 9,
+        "packages/core/package.json": 1,
+        "packages/core/src/evaluation/providers/claude-sdk.ts": 2,
+        "packages/core/src/evaluation/providers/codex.ts": 2,
+        "packages/core/src/evaluation/providers/copilot-sdk.ts": 2,
+        "packages/core/src/evaluation/providers/pi-coding-agent.ts": 2,
+        "packages/core/test/evaluation/providers/sdk-child-provider.test.ts": 1
+      }
+    }
+  ]
+}
