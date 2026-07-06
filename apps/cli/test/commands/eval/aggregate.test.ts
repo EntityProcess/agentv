@@ -21,6 +21,7 @@ import {
   parseJsonlResults,
   writePerTestArtifacts,
 } from '../../../src/commands/eval/artifact-writer.js';
+import { collectTerminalSummaryResults } from '../../../src/commands/eval/run-eval.js';
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
   const result = {
@@ -191,6 +192,52 @@ describe('deduplicateByTestIdTarget', () => {
     expect(deduped).toHaveLength(2);
     expect(deduped[0].score).toBe(0.3);
     expect(deduped[1].score).toBe(0.4);
+  });
+});
+
+describe('collectTerminalSummaryResults', () => {
+  it('uses in-memory results for normal runs so terminal summary matches completed cases', async () => {
+    const allResults = [
+      makeResult({ testId: 'spanish__scenario_test_1' }),
+      makeResult({ testId: 'spanish__scenario_test_2' }),
+      makeResult({ testId: 'french__scenario_test_1' }),
+      makeResult({ testId: 'french__scenario_test_2' }),
+      makeResult({ testId: 'portuguese__scenario_test_1' }),
+      makeResult({ testId: 'portuguese__scenario_test_2' }),
+    ];
+
+    const summaryResults = await collectTerminalSummaryResults({
+      allResults,
+      isResumeAppend: false,
+      runDir: '/tmp/incomplete-index',
+      readExistingResults: async () => allResults.slice(0, -1),
+    });
+
+    expect(summaryResults.map((result) => result.testId)).toEqual([
+      'spanish__scenario_test_1',
+      'spanish__scenario_test_2',
+      'french__scenario_test_1',
+      'french__scenario_test_2',
+      'portuguese__scenario_test_1',
+      'portuguese__scenario_test_2',
+    ]);
+  });
+
+  it('reads persisted results for resume append runs', async () => {
+    const allResults = [makeResult({ testId: 'new-case' })];
+    const persistedResults = [
+      makeResult({ testId: 'old-case' }),
+      makeResult({ testId: 'new-case' }),
+    ];
+
+    const summaryResults = await collectTerminalSummaryResults({
+      allResults,
+      isResumeAppend: true,
+      runDir: '/tmp/resume-run',
+      readExistingResults: async () => persistedResults,
+    });
+
+    expect(summaryResults.map((result) => result.testId)).toEqual(['old-case', 'new-case']);
   });
 });
 

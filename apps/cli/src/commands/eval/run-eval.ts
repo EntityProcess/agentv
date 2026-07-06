@@ -1260,6 +1260,18 @@ async function readExistingResultsFromRunDir(runDir: string): Promise<Evaluation
   return results;
 }
 
+export async function collectTerminalSummaryResults(params: {
+  readonly allResults: readonly EvaluationResult[];
+  readonly isResumeAppend: boolean;
+  readonly runDir: string;
+  readonly readExistingResults?: (runDir: string) => Promise<readonly EvaluationResult[]>;
+}): Promise<readonly EvaluationResult[]> {
+  const rawResults = params.isResumeAppend
+    ? await (params.readExistingResults ?? readExistingResultsFromRunDir)(params.runDir)
+    : params.allResults;
+  return deduplicateByTestIdTarget(rawResults);
+}
+
 async function resolveRerunFailedRunDir(cwd: string, source: string): Promise<string> {
   const trimmed = source.trim();
   if (!trimmed) {
@@ -2568,9 +2580,14 @@ export async function runEvalCommand(
     // Flush the output writer so all results are on disk before we read back.
     await outputWriter.close().catch(() => undefined);
 
-    // Compute summary from the persisted bundle indexes so resume includes old
-    // rows and normal runs reflect the same manifests Dashboard will read.
-    const summaryResults = deduplicateByTestIdTarget(await readExistingResultsFromRunDir(runDir));
+    // Normal runs summarize the completed in-memory results; the final artifact
+    // writer rewrites the bundle from this same set. Resume/append runs read the
+    // persisted bundle so the terminal summary includes old rows too.
+    const summaryResults = await collectTerminalSummaryResults({
+      allResults,
+      isResumeAppend,
+      runDir,
+    });
 
     const thresholdOpts =
       hasScopedRunPolicies || hasPerFileRuntimeThresholds
