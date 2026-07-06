@@ -342,6 +342,7 @@ function resultsRepoOverride(
   }
   if (
     value === 'current' ||
+    value === 'current/.' ||
     value === '.' ||
     value.startsWith('./') ||
     value.startsWith('../') ||
@@ -350,7 +351,7 @@ function resultsRepoOverride(
     value.startsWith('~\\') ||
     /^[A-Za-z]:[/\\]/.test(value)
   ) {
-    return { repo_path: value === 'current' ? '.' : value };
+    return { repo_path: value === 'current' || value === 'current/.' ? '.' : value };
   }
   return { repo: value };
 }
@@ -2325,7 +2326,7 @@ export async function runEvalCommand(
   // writeArtifactsFromResults.
   // Skip on resume — we want to preserve the *original* planned count.
   if (!isResumeAppend && totalEvalCount > 0) {
-    const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
+    const evalFile = activeTestFiles.length === 1 ? path.relative(cwd, activeTestFiles[0]) : '';
     await writeInitialRunSummaryArtifact(runDir, {
       evalFile,
       plannedTestCount: totalEvalCount,
@@ -2621,7 +2622,7 @@ export async function runEvalCommand(
     // Per-result artifact directories are allocated from row identity and
     // exposed through index.jsonl fields.
     if (allResults.length > 0) {
-      const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
+      const evalFile = activeTestFiles.length === 1 ? path.relative(cwd, activeTestFiles[0]) : '';
       const sourceTests = activeSourceTests;
       const taskBundleTargets = buildTaskBundleTargetSelections(activeTestFiles, fileMetadata);
       if (isResumeAppend) {
