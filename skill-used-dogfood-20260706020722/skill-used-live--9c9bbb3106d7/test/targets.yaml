@@ -1,0 +1,21 @@
+targets:
+  - id: codex-live
+    provider: codex-sdk
+    model: "{{ env.OPENAI_MODEL }}"
+    grader_target: live-grader
+    config:
+      base_url: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "[redacted]"
+      api_format: responses
+      model_reasoning_effort: low
+      sandbox_mode: workspace-write
+      approval_policy: never
+      cwd: /tmp/agentv-skill-used-dogfood/workspace
+      timeout_seconds: 120
+      stream_log: summary
+  - id: live-grader
+    provider: openai
+    model: "{{ env.OPENAI_MODEL }}"
+    config:
+      endpoint: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "[redacted]"

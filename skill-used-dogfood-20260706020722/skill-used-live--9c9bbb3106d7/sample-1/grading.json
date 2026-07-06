@@ -1,0 +1,20 @@
+{
+  "pass": false,
+  "score": 0,
+  "reason": "codex-sdk child runner child_error: Codex SDK turn failed: stream disconnected before completion: error sending request for url (http://126.0.0.1:10531/v1/responses)",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "Error: codex-sdk child runner child_error: Codex SDK turn failed: stream disconnected before completion: error sending request for url (http://126.0.0.1:10531/v1/responses)",
+      "assertion": {
+        "value": "Error: codex-sdk child runner child_error: Codex SDK turn failed: stream disconnected before completion: error sending request for url (http://126.0.0.1:10531/v1/responses)"
+      }
+    }
+  ],
+  "metadata": {
+    "execution_status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  }
+}

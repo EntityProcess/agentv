@@ -1,0 +1,55 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "codex-live",
+  "target": "codex-live",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "codex-sdk child runner child_error: Codex SDK turn failed: stream disconnected before completion: error sending request for url (http://126.0.0.1:10531/v1/responses)"
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "codex-live",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Before answering, read .agents/skills/dogfood-skill/SKILL.md using a tool.\nThen reply in one sentence including DOGFOOD_SKILL_USED."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "codex-live",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Error occurred: codex-sdk child runner child_error: Codex SDK turn failed: stream disconnected before completion: error sending request for url (http://126.0.0.1:10531/v1/responses)"
+        }
+      ]
+    }
+  ]
+}

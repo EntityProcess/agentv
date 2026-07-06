@@ -1,0 +1,14 @@
+target: codex-live
+prompts:
+  - "{{ input }}"
+tests:
+  - id: skill-used-live
+    vars: {}
+    assert:
+      - metric: skill-used-dogfood-skill
+        type: skill-used
+        value: dogfood-skill
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: undefined
+        value: The response includes DOGFOOD_SKILL_USED and indicates the requested skill instructions were followed.
