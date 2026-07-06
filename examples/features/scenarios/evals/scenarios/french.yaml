@@ -1,0 +1,12 @@
+- description: French translation scenario
+  config:
+    - vars:
+        language: French
+  tests:
+    - id: french-hello
+      vars:
+        phrase: hello
+        expected_translation: bonjour
+      assert:
+        - type: equals
+          value: "{{ expected_translation }}"

@@ -1071,6 +1071,82 @@ scenarios:
     expect(cases.map((test) => test.question)).toEqual(['Alpha critical fix', 'Beta critical fix']);
   });
 
+  it('expands inline scenarios and scenario file glob refs before lowering', async () => {
+    const yamlPath = path.join(tempDir, 'scenario-file-refs.yaml');
+    const scenarioDir = path.join(tempDir, 'scenarios');
+    await mkdir(scenarioDir, { recursive: true });
+    await writeFile(
+      path.join(scenarioDir, 'french.yaml'),
+      `- description: French translations
+  config:
+    - vars:
+        language: French
+  tests:
+    - id: translate-french
+      vars:
+        phrase: hello
+      provider_output: bonjour
+      assert:
+        - type: equals
+          value: bonjour
+`,
+    );
+    await writeFile(
+      path.join(scenarioDir, 'spanish.yaml'),
+      `- description: Spanish translations
+  config:
+    - vars:
+        language: Spanish
+  tests:
+    - id: translate-spanish
+      vars:
+        phrase: goodbye
+      provider_output: adios
+      assert:
+        - type: equals
+          value: adios
+`,
+    );
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - "Translate {{ phrase }} to {{ language }}"
+scenarios:
+  - description: Italian translations
+    config:
+      - vars:
+          language: Italian
+    tests:
+      - id: translate-italian
+        vars:
+          phrase: hello
+        provider_output: ciao
+        assert:
+          - type: equals
+            value: ciao
+  - file://scenarios/*.yaml
+`,
+    );
+
+    const cases = await loadTests(yamlPath, tempDir);
+
+    expect(cases.map((test) => test.id)).toEqual([
+      'translate-italian',
+      'translate-french',
+      'translate-spanish',
+    ]);
+    expect(cases.map((test) => test.question)).toEqual([
+      'Translate hello to Italian',
+      'Translate hello to French',
+      'Translate goodbye to Spanish',
+    ]);
+    expect(cases.map((test) => test.vars)).toEqual([
+      { language: 'Italian', phrase: 'hello' },
+      { language: 'French', phrase: 'hello' },
+      { language: 'Spanish', phrase: 'goodbye' },
+    ]);
+  });
+
   it('rejects malformed scenarios at load time', async () => {
     const yamlPath = path.join(tempDir, 'malformed-scenario.yaml');
     await writeFile(
@@ -1089,6 +1165,25 @@ scenarios:
 
     await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
       'scenarios[0].config must be an array',
+    );
+  });
+
+  it('rejects malformed external scenario files at load time', async () => {
+    const yamlPath = path.join(tempDir, 'malformed-scenario-file-ref.yaml');
+    const scenarioDir = path.join(tempDir, 'malformed-scenarios');
+    await mkdir(scenarioDir, { recursive: true });
+    await writeFile(path.join(scenarioDir, 'broken.yaml'), 'not: a scenario array\n');
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - "Review {{ diff }}"
+scenarios:
+  - file://malformed-scenarios/broken.yaml
+`,
+    );
+
+    await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+      'External scenario file must contain a scenario array',
     );
   });
 

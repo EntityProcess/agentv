@@ -845,6 +845,12 @@ const ScenarioSchema = z
     tests: z.array(EvalTestSchema),
   })
   .strict();
+const ScenarioReferenceSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.startsWith('file://'), {
+    message: 'Scenario references must use file://...',
+  });
 
 const DerivedMetricSchema = z
   .object({
@@ -859,7 +865,7 @@ const TagsSchema = z.union([
 ]);
 
 const TOP_LEVEL_IMPORTS_MESSAGE =
-  "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.";
+  "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.";
 
 // ---------------------------------------------------------------------------
 // Top-level eval file
@@ -930,7 +936,7 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
   threshold: z.number().min(0).max(1).optional(),
   default_test: z.union([DefaultTestReferenceSchema, DefaultTestSchema]).optional(),
   environment: EnvironmentSchema.optional(),
-  scenarios: z.array(ScenarioSchema).optional(),
+  scenarios: z.array(z.union([ScenarioSchema, ScenarioReferenceSchema])).optional(),
   derived_metrics: z.array(DerivedMetricSchema).optional(),
   output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
   env: z.record(z.string()).optional(),

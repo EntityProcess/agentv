@@ -70,6 +70,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [external-datasets](external-datasets/) | Load test cases from YAML/JSONL files using `file://` references and globs |
+| [scenarios](scenarios/) | Build Promptfoo-style `scenarios[].config x scenarios[].tests` matrices with inline and file-backed scenarios |
 | [input-files-shorthand](input-files-shorthand/) | Attach files to every test using a compact shorthand |
 | [suite-level-input](suite-level-input/) | Prepend a shared system prompt to every test in the suite |
 | [suite-level-input-files](suite-level-input-files/) | Share file attachments across every test in the suite |
@@ -163,6 +164,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [prompt-template-sdk](prompt-template-sdk/) | TypeScript SDK |
 | [repo-lifecycle](repo-lifecycle/) | Workspace & targets |
 | [rubric](rubric/) | LLM grading |
+| [scenarios](scenarios/) | Dataset & prompt templates |
 | [sdk-config-file](sdk-config-file/) | TypeScript SDK |
 | [sdk-custom-assertion](sdk-custom-assertion/) | TypeScript SDK |
 | [sdk-eval-authoring](sdk-eval-authoring/) | TypeScript SDK |

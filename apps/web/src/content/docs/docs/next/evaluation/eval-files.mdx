@@ -185,6 +185,7 @@ tests:
 | `env` | Promptfoo-compatible provider/eval environment-variable overrides and load-time template inputs. |
 | `extensions` | Lifecycle hooks: `file://path/to/hooks.mjs:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, plus the built-in `agentv:agent-rules`. |
 | `tests` | Inline raw tests, a string path to an external raw-case file or directory, or a list mixing inline tests with raw-case file refs. |
+| `scenarios` | Promptfoo-style scenario matrix rows. Each inline scenario crosses `config` rows with `tests` rows; entries can also be `file://` refs or globs that load scenario arrays. |
 | `assert` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 
 `environment` is what the agent can inspect or modify through tools, not prompt
@@ -281,6 +282,36 @@ tests:
 External raw-case files referenced through `tests: file://...` may still contain
 raw internal `input` rows for compatibility. Keep that compatibility out of
 normal eval YAML authoring.
+
+### Scenarios
+
+Use `scenarios` when a small set of configuration rows should cross with a set
+of test rows. AgentV flattens inline scenario objects and `file://` scenario
+refs or globs into one scenario list, then lowers each scenario as
+`scenarios[].config x scenarios[].tests` before prompt expansion.
+
+```yaml
+prompts:
+  - "Translate '{{ phrase }}' to {{ language }}."
+
+scenarios:
+  - config:
+      - vars:
+          language: Spanish
+    tests:
+      - id: spanish-hello-world
+        vars:
+          phrase: hello world
+          expected_translation: hola mundo
+        assert:
+          - type: equals
+            value: "{{ expected_translation }}"
+  - file://scenarios/*.yaml
+```
+
+External scenario files must contain a YAML or JSON scenario array, or an
+object with a `scenarios` array. Scenario file refs are field-local to
+`scenarios`; AgentV does not expand arbitrary YAML fields as files.
 
 ### Lifecycle Extensions
 

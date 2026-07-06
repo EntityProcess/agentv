@@ -55,6 +55,7 @@ import {
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import { loadPromptMdFallback } from './loaders/prompt-md-fallback.js';
+import { expandScenarioReferences } from './loaders/scenario-file-loader.js';
 import {
   expandInputShorthand,
   resolveExpectedMessages,
@@ -807,7 +808,7 @@ function rejectAuthoredPostprocess(suite: RawTestSuite): void {
 function rejectTopLevelImports(suite: JsonObject): void {
   if (suite.imports !== undefined) {
     throw new Error(
-      "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
+      "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
     );
   }
 }
@@ -1494,7 +1495,14 @@ async function loadTestsFromParsedYamlValue(
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
 
-  const scenarioTestCases = lowerScenariosIntoTests(suite, evalFilePath);
+  const expandedScenarios = Array.isArray(suite.scenarios)
+    ? await expandScenarioReferences(suite.scenarios, evalFileDir)
+    : suite.scenarios;
+  const scenarioSuite =
+    expandedScenarios === undefined
+      ? suite
+      : ({ ...suite, scenarios: expandedScenarios } as RawTestSuite);
+  const scenarioTestCases = lowerScenariosIntoTests(scenarioSuite, evalFilePath);
   if (scenarioTestCases.length > 0) {
     expandedTestCases = [...expandedTestCases, ...scenarioTestCases];
   }

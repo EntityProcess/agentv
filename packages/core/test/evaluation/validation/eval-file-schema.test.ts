@@ -77,6 +77,21 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts scenario file references in top-level scenarios arrays', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Translate {{ phrase }} to {{ language }}'],
+      scenarios: [
+        {
+          config: [{ vars: { language: 'Spanish' } }],
+          tests: [{ vars: { phrase: 'hello' }, provider_output: 'hola' }],
+        },
+        'file://scenarios/*.yaml',
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('requires scenario config and tests arrays', () => {
     const result = EvalFileSchema.safeParse({
       prompts: ['Classify {{ request }}'],

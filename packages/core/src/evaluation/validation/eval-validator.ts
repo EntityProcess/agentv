@@ -7,6 +7,11 @@ import { loadCasesFromDirectory, loadCasesFromFile } from '../loaders/case-file-
 import { resolveEnvironmentRecipe } from '../loaders/environment-recipe.js';
 import { buildSearchRoots } from '../loaders/file-resolver.js';
 import { loadPromptMdFallback } from '../loaders/prompt-md-fallback.js';
+import {
+  isScenarioFileReference,
+  resolveScenarioFileReference,
+} from '../loaders/scenario-file-loader.js';
+import type { JsonValue as EvalJsonValue } from '../types.js';
 import { isGraderKind } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
@@ -289,7 +294,7 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   [
     'imports',
-    "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
+    "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
   ],
   [
     'expected_output',
@@ -589,10 +594,15 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
-  await validateScenarios(parsed.scenarios, parsed, absolutePath, errors, customAssertionTypes);
+  const expandedScenarios = await expandScenariosForValidation(
+    parsed.scenarios,
+    absolutePath,
+    errors,
+  );
+  await validateScenarios(expandedScenarios, parsed, absolutePath, errors, customAssertionTypes);
   const cases: JsonValue | undefined = parsed.tests;
   const hasImports = collectImportEntries(parsed).length > 0;
-  const hasScenarios = Array.isArray(parsed.scenarios);
+  const hasScenarios = Array.isArray(expandedScenarios);
 
   // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
@@ -1558,6 +1568,43 @@ async function validateScenarios(
       );
     }
   }
+}
+
+async function expandScenariosForValidation(
+  scenarios: JsonValue | undefined,
+  filePath: string,
+  errors: ValidationError[],
+): Promise<JsonValue | undefined> {
+  if (!Array.isArray(scenarios)) {
+    return scenarios;
+  }
+
+  const expanded: JsonValue[] = [];
+  for (let scenarioIndex = 0; scenarioIndex < scenarios.length; scenarioIndex++) {
+    const scenario = scenarios[scenarioIndex];
+    if (!isScenarioFileReference(scenario as EvalJsonValue)) {
+      expanded.push(scenario);
+      continue;
+    }
+
+    try {
+      const externalScenarios = await resolveScenarioFileReference(
+        scenario,
+        path.dirname(filePath),
+      );
+      expanded.push(...(externalScenarios as JsonValue[]));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `scenarios[${scenarioIndex}]`,
+        message,
+      });
+    }
+  }
+
+  return expanded;
 }
 
 async function validateScenarioTestLikeRow(

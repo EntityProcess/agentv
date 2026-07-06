@@ -1,0 +1,19 @@
+- description: Spanish translation scenario
+  config:
+    - vars:
+        language: Spanish
+  tests:
+    - id: spanish-hello-world
+      vars:
+        phrase: hello world
+        expected_translation: hola mundo
+      assert:
+        - type: equals
+          value: "{{ expected_translation }}"
+    - id: spanish-thank-you
+      vars:
+        phrase: thank you
+        expected_translation: gracias
+      assert:
+        - type: equals
+          value: "{{ expected_translation }}"

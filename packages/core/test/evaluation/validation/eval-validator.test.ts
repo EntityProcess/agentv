@@ -551,6 +551,66 @@ scenarios:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates top-level scenario file refs and globs', async () => {
+    const filePath = path.join(tempDir, 'scenario-file-refs.yaml');
+    const scenarioDir = path.join(tempDir, 'scenario-file-refs');
+    await mkdir(scenarioDir, { recursive: true });
+    await writeFile(
+      path.join(scenarioDir, 'french.yaml'),
+      `- description: French translations
+  config:
+    - vars:
+        language: French
+  tests:
+    - vars:
+        phrase: hello
+      provider_output: bonjour
+      assert:
+        - type: equals
+          value: bonjour
+`,
+    );
+    await writeFile(
+      path.join(scenarioDir, 'spanish.yaml'),
+      `- description: Spanish translations
+  config:
+    - vars:
+        language: Spanish
+  tests:
+    - vars:
+        phrase: goodbye
+      provider_output: adios
+      assert:
+        - type: equals
+          value: adios
+`,
+    );
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Translate {{ vars.phrase }} to {{ vars.language }}"
+scenarios:
+  - description: inline Italian translation
+    config:
+      - vars:
+          language: Italian
+    tests:
+      - vars:
+          phrase: hello
+        provider_output: ciao
+        assert:
+          - type: equals
+            value: ciao
+  - file://scenario-file-refs/*.yaml
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('rejects scenario tests without input when only some config rows supply prompts', async () => {
     const filePath = path.join(tempDir, 'scenario-mixed-config-prompts.yaml');
     await writeFile(
@@ -618,6 +678,32 @@ scenarios:
         severity: 'error',
         location: 'scenarios[1].tests',
         message: expect.stringContaining("Invalid 'tests' field"),
+      }),
+    );
+  });
+
+  it('rejects malformed external scenario files', async () => {
+    const filePath = path.join(tempDir, 'malformed-scenario-file-ref.yaml');
+    const scenarioDir = path.join(tempDir, 'malformed-scenario-file-ref');
+    await mkdir(scenarioDir, { recursive: true });
+    await writeFile(path.join(scenarioDir, 'broken.yaml'), '- not-an-object\n');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Review {{ vars.diff }}"
+scenarios:
+  - file://malformed-scenario-file-ref/broken.yaml
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0]',
+        message: expect.stringContaining('External scenario file contains non-object entry'),
       }),
     );
   });
