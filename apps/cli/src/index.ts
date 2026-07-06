@@ -1,5 +1,10 @@
 import path from 'node:path';
-import { loadConfig, runBeforeSessionHook } from '@agentv/core';
+import {
+  loadConfig,
+  loadEnvPathFiles,
+  runBeforeSessionHook,
+  runEnvFromEntries,
+} from '@agentv/core';
 import { binary, run, subcommands } from 'cmd-ts';
 import { findRepoRoot } from './commands/eval/shared.js';
 
@@ -170,11 +175,21 @@ export async function runCli(argv: string[] = process.argv): Promise<void> {
   }
 
   if (shouldRunBeforeSessionHook(processedArgv)) {
-    // Run before_session hook once at startup, before any command executes.
-    // Uses cwd as the search root for .agentv/config.yaml.
+    // Load env_path/env_from and run the before_session hook once at startup,
+    // before any command executes. Uses cwd as the search root for
+    // .agentv/config.yaml so validate/eval commands see the injected vars.
     const cwd = process.cwd();
     const repoRoot = await findRepoRoot(cwd);
     const sessionConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
+    const configDir = sessionConfig?.configDir ?? repoRoot;
+
+    if (sessionConfig?.env_path) {
+      await loadEnvPathFiles(sessionConfig.env_path, configDir);
+    }
+    if (sessionConfig?.env_from) {
+      await runEnvFromEntries(sessionConfig.env_from, { cwd: configDir });
+    }
+
     const beforeSessionCommand = sessionConfig?.hooks?.before_session;
     if (beforeSessionCommand) {
       runBeforeSessionHook(beforeSessionCommand);

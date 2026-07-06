@@ -552,4 +552,107 @@ describe('validateConfigFile', () => {
     const warnings = result.errors.filter((e) => e.severity === 'warning');
     expect(warnings.some((e) => e.message.includes('Unexpected fields: foo'))).toBe(true);
   });
+
+  it('accepts hooks.before_session with a deprecation warning, not an unexpected field', async () => {
+    const filePath = path.join(tempDir, 'config-hooks.yaml');
+    await writeFile(
+      filePath,
+      `hooks:
+  before_session: "bun scripts/load-secrets.ts"
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors.some((e) => e.message.includes('Unexpected fields'))).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'warning', location: 'hooks.before_session' }),
+    );
+  });
+
+  it('accepts env_path as a string or array without unexpected-field warnings', async () => {
+    const filePath = path.join(tempDir, 'config-env-path.yaml');
+    await writeFile(
+      filePath,
+      `env_path:
+  - .env
+  - .env.local
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors.some((e) => e.message.includes('Unexpected fields'))).toBe(false);
+  });
+
+  it('accepts env_from as an object or array of argv command entries', async () => {
+    const filePath = path.join(tempDir, 'config-env-from.yaml');
+    await writeFile(
+      filePath,
+      `env_from:
+  - command: ["bun", "scripts/load-secrets.ts"]
+    format: shell_exports
+  - command: ["node", "scripts/print-env-json.mjs"]
+    format: json
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects env_from.command given as a shell string', async () => {
+    const filePath = path.join(tempDir, 'config-env-from-shell-string.yaml');
+    await writeFile(
+      filePath,
+      `env_from:
+  command: "bun scripts/load-secrets.ts"
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'error', location: 'env_from.command' }),
+    );
+  });
+
+  it('rejects an invalid env_from.format value', async () => {
+    const filePath = path.join(tempDir, 'config-env-from-bad-format.yaml');
+    await writeFile(
+      filePath,
+      `env_from:
+  command: ["bun", "x.ts"]
+  format: yaml
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'error', location: 'env_from.format' }),
+    );
+  });
+
+  it('accepts empty env_path/env_from/hooks keys the same way the loader treats them as absent', async () => {
+    const filePath = path.join(tempDir, 'config-empty-env-keys.yaml');
+    await writeFile(
+      filePath,
+      `env_path:
+env_from:
+hooks:
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
 });

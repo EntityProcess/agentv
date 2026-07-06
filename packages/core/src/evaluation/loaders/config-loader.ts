@@ -62,8 +62,23 @@ export type ResultsConfig = {
 };
 
 export type HooksConfig = {
-  /** Shell command to run once at agentv startup. stdout is parsed for env var exports. */
+  /**
+   * Shell command to run once at agentv startup. stdout is parsed for env var
+   * exports.
+   *
+   * @deprecated Use `env_path` and/or `env_from` instead. `before_session`
+   * keeps running for now but will be removed in a future breaking release.
+   */
   readonly before_session?: string;
+};
+
+export type EnvFromFormat = 'shell_exports' | 'json';
+
+export type EnvFromEntry = {
+  /** Argv command array. Shell command strings are not accepted. */
+  readonly command: readonly string[];
+  /** Defaults to `shell_exports` when omitted. */
+  readonly format?: EnvFromFormat;
 };
 
 export type ReferenceMap = Readonly<Record<string, string>>;
@@ -74,6 +89,10 @@ export type AgentVConfig = {
   readonly execution?: ExecutionDefaults;
   readonly results?: ResultsConfig;
   readonly hooks?: HooksConfig;
+  /** Dotenv file(s) loaded before validation/eval, relative to `configDir` unless absolute. */
+  readonly env_path?: readonly string[];
+  /** Argv commands run before validation/eval to inject environment variables. */
+  readonly env_from?: readonly EnvFromEntry[];
   readonly refs?: ReferenceMap;
   /**
    * Promptfoo-shaped tags map applied to every run. Merged between eval `tags`
@@ -81,6 +100,8 @@ export type AgentVConfig = {
    * reserved key `experiment` participates in experiment-namespace resolution.
    */
   readonly tags?: Record<string, string>;
+  /** Project directory containing `.agentv/`, for resolving relative `env_path` entries and `env_from` cwd. */
+  readonly configDir?: string;
 } & ComposableConfigGraph;
 
 /**
@@ -112,11 +133,11 @@ export async function loadConfig(
       continue;
     }
 
-    return readConfigFilePair(configPath, repoRoot);
+    return readConfigFilePair(configPath, repoRoot, directory);
   }
 
   return (await configPairExists(globalConfigPath))
-    ? readConfigFilePair(globalConfigPath, repoRoot)
+    ? readConfigFilePair(globalConfigPath, repoRoot, getAgentvConfigDir())
     : null;
 }
 
@@ -148,6 +169,7 @@ async function readConfigObjectFile(
 async function readConfigFilePair(
   configPath: string,
   repoRoot: string,
+  projectDir: string,
 ): Promise<AgentVConfig | null> {
   const localConfigPath = getLocalConfigPath(configPath);
   const base = stripLocalOnlyExecutionDefaults(
@@ -165,7 +187,7 @@ async function readConfigFilePair(
   if (!rawMerged) {
     return null;
   }
-  return parseConfigObject(rawMerged, local ? localConfigPath : configPath, repoRoot);
+  return parseConfigObject(rawMerged, local ? localConfigPath : configPath, repoRoot, projectDir);
 }
 
 async function resolveConfigObjectFileReferences(
@@ -182,6 +204,7 @@ function parseConfigObject(
   rawConfig: Record<string, unknown>,
   configPath: string,
   repoRoot: string,
+  projectDir: string,
 ): AgentVConfig | null {
   try {
     const parsed = interpolateEnv(rawConfig, createEvalConfigEnv(repoRoot)) as unknown;
@@ -221,6 +244,8 @@ function parseConfigObject(
     const executionDefaults = parseExecutionDefaults(rawExecution, configPath);
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
+    const envPath = parseEnvPathConfig((parsed as Record<string, unknown>).env_path, configPath);
+    const envFrom = parseEnvFromConfig((parsed as Record<string, unknown>).env_from, configPath);
     const tags = parseTagsConfig((parsed as Record<string, unknown>).tags, configPath);
     const refs = parseRefsConfig((parsed as Record<string, unknown>).refs, configPath);
     const graph = normalizeComposableConfigGraph(parsed as Record<string, unknown>, configPath, {
@@ -234,12 +259,15 @@ function parseConfigObject(
       ...(execution && { execution }),
       results,
       ...(hooks && { hooks }),
+      ...(envPath && { env_path: envPath }),
+      ...(envFrom && { env_from: envFrom }),
       ...(refs && { refs }),
       ...(tags && { tags }),
       ...(graph.targets && { targets: graph.targets }),
       ...(graph.graders && { graders: graph.graders }),
       ...(graph.tests && { tests: graph.tests }),
       ...(graph.defaults && { defaults: graph.defaults }),
+      configDir: projectDir,
     };
   } catch (error) {
     const message = (error as Error).message;
@@ -929,10 +957,100 @@ export function parseHooksConfig(raw: unknown, configPath: string): HooksConfig 
       logWarning(`Invalid hooks.before_session in ${configPath}, expected non-empty string`);
       return undefined;
     }
+    logWarning(
+      `hooks.before_session in ${configPath} is deprecated; use env_path and/or env_from instead. before_session will keep running for now.`,
+    );
     return { before_session: beforeSession.trim() };
   }
 
   return undefined;
+}
+
+const ENV_FROM_FORMATS: ReadonlySet<EnvFromFormat> = new Set(['shell_exports', 'json']);
+
+/**
+ * Parse the `env_path` field from .agentv/config.yaml.
+ * Accepts a single string or an array of strings; invalid entries are dropped with a warning.
+ */
+export function parseEnvPathConfig(
+  raw: unknown,
+  configPath: string,
+): readonly string[] | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+
+  const entries = Array.isArray(raw) ? raw : [raw];
+  const paths: string[] = [];
+  for (const entry of entries) {
+    if (typeof entry !== 'string' || entry.trim().length === 0) {
+      logWarning(`Invalid env_path entry in ${configPath}, expected non-empty string`);
+      continue;
+    }
+    paths.push(entry.trim());
+  }
+
+  return paths.length > 0 ? paths : undefined;
+}
+
+/**
+ * Parse the `env_from` field from .agentv/config.yaml.
+ * Accepts a single entry object or an array of entry objects. Each entry
+ * requires a non-empty argv `command` array; shell command strings are
+ * rejected. `format` defaults to `shell_exports`. Invalid entries are dropped
+ * with a warning.
+ */
+export function parseEnvFromConfig(
+  raw: unknown,
+  configPath: string,
+): readonly EnvFromEntry[] | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+
+  const isList = Array.isArray(raw);
+  const entries = isList ? raw : [raw];
+  const result: EnvFromEntry[] = [];
+
+  entries.forEach((entry, index) => {
+    const location = isList ? `env_from[${index}]` : 'env_from';
+    if (!isJsonObject(entry)) {
+      logWarning(`Invalid ${location} in ${configPath}, expected object`);
+      return;
+    }
+
+    const rawCommand = entry.command;
+    if (typeof rawCommand === 'string') {
+      logWarning(
+        `Invalid ${location}.command in ${configPath}: shell command strings are not supported, use an argv array such as ["bun", "scripts/load-secrets.ts"]`,
+      );
+      return;
+    }
+    if (
+      !Array.isArray(rawCommand) ||
+      rawCommand.length === 0 ||
+      !rawCommand.every((part) => typeof part === 'string' && part.length > 0)
+    ) {
+      logWarning(`Invalid ${location}.command in ${configPath}, expected a non-empty string array`);
+      return;
+    }
+
+    const rawFormat = entry.format;
+    let format: EnvFromFormat = 'shell_exports';
+    if (rawFormat !== undefined) {
+      if (typeof rawFormat !== 'string' || !ENV_FROM_FORMATS.has(rawFormat as EnvFromFormat)) {
+        logWarning(
+          `Invalid ${location}.format in ${configPath}, expected "shell_exports" or "json"`,
+        );
+        return;
+      }
+      format = rawFormat as EnvFromFormat;
+    }
+
+    result.push({ command: rawCommand as readonly string[], format });
+  });
+
+  return result.length > 0 ? result : undefined;
 }
 
 /**

@@ -93,6 +93,9 @@ export async function validateConfigFile(
     validateRefsConfig(errors, filePath, config.refs);
     validateComposableGraph(errors, filePath, config);
     validateDashboardConfig(errors, filePath, config.dashboard);
+    validateHooksConfig(errors, filePath, config.hooks);
+    validateEnvPathConfig(errors, filePath, config.env_path);
+    validateEnvFromConfig(errors, filePath, config.env_from);
 
     const projects = config.projects;
     if (projects !== undefined) {
@@ -131,6 +134,9 @@ export async function validateConfigFile(
       'projects',
       'dashboard',
       'studio',
+      'hooks',
+      'env_path',
+      'env_from',
     ]);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));
 
@@ -190,6 +196,98 @@ function validateDashboardConfig(
       "Field 'dashboard.app_name' has been removed; the Dashboard app name is not user-configurable.",
     );
   }
+}
+
+const ENV_FROM_FORMATS = new Set(['shell_exports', 'json']);
+
+function validateHooksConfig(errors: ValidationError[], filePath: string, rawHooks: unknown): void {
+  if (rawHooks === undefined || rawHooks === null) {
+    return;
+  }
+  if (!isPlainObject(rawHooks)) {
+    addError(errors, filePath, 'hooks', "Field 'hooks' must be an object");
+    return;
+  }
+
+  if (rawHooks.before_session !== undefined) {
+    validateOptionalString(errors, filePath, rawHooks.before_session, 'hooks.before_session');
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: 'hooks.before_session',
+      message:
+        "'hooks.before_session' is deprecated; use 'env_path' and/or 'env_from' to load environment variables before validation and eval.",
+    });
+  }
+}
+
+function validateEnvPathConfig(
+  errors: ValidationError[],
+  filePath: string,
+  rawEnvPath: unknown,
+): void {
+  if (rawEnvPath === undefined || rawEnvPath === null) {
+    return;
+  }
+
+  const isList = Array.isArray(rawEnvPath);
+  const entries = isList ? rawEnvPath : [rawEnvPath];
+  entries.forEach((entry, index) => {
+    const location = isList ? `env_path[${index}]` : 'env_path';
+    if (typeof entry !== 'string' || entry.trim().length === 0) {
+      addError(errors, filePath, location, `Field '${location}' must be a non-empty string`);
+    }
+  });
+}
+
+function validateEnvFromConfig(
+  errors: ValidationError[],
+  filePath: string,
+  rawEnvFrom: unknown,
+): void {
+  if (rawEnvFrom === undefined || rawEnvFrom === null) {
+    return;
+  }
+
+  const isList = Array.isArray(rawEnvFrom);
+  const entries = isList ? rawEnvFrom : [rawEnvFrom];
+  entries.forEach((entry, index) => {
+    const location = isList ? `env_from[${index}]` : 'env_from';
+    if (!isPlainObject(entry)) {
+      addError(errors, filePath, location, `Field '${location}' must be an object`);
+      return;
+    }
+
+    const command = entry.command;
+    if (typeof command === 'string') {
+      addError(
+        errors,
+        filePath,
+        `${location}.command`,
+        `Field '${location}.command' must be an argv array of strings, not a shell command string. Use e.g. ["bun", "scripts/load-secrets.ts"].`,
+      );
+    } else if (
+      !Array.isArray(command) ||
+      command.length === 0 ||
+      !command.every((part) => typeof part === 'string' && part.length > 0)
+    ) {
+      addError(
+        errors,
+        filePath,
+        `${location}.command`,
+        `Field '${location}.command' must be a non-empty array of strings`,
+      );
+    }
+
+    if (entry.format !== undefined && !ENV_FROM_FORMATS.has(entry.format as string)) {
+      addError(
+        errors,
+        filePath,
+        `${location}.format`,
+        `Field '${location}.format' must be "shell_exports" or "json"`,
+      );
+    }
+  });
 }
 
 function validateRefsConfig(errors: ValidationError[], filePath: string, rawRefs: unknown): void {

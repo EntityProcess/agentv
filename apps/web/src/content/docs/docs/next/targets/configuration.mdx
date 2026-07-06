@@ -193,6 +193,53 @@ targets:
 This keeps secrets out of version-controlled files and avoids requiring a CI step that rewrites
 already-exported secrets into `.env`.
 
+### Loading Environment Variables from Config
+
+Set `env_path` and/or `env_from` in `.agentv/config.yaml` to load environment variables before
+validation and eval run, so `{{ env.* }}` references resolve for both `agentv validate` and
+`agentv eval`:
+
+```yaml
+# .agentv/config.yaml
+env_path:
+  - .env
+  - .env.local
+
+env_from:
+  - command: ["bun", "scripts/load-secrets.ts"]
+    format: shell_exports
+  - command: ["node", "scripts/print-env-json.mjs"]
+    format: json
+```
+
+- `env_path` loads one or more dotenv-style files, relative to the project directory (the parent
+  of `.agentv/`) unless the path is absolute. A missing file logs a warning and is skipped.
+- `env_from` runs one or more argv commands and injects their parsed stdout. `command` must be a
+  non-empty argv array — shell command strings are not accepted. `format` defaults to
+  `shell_exports` (lines like `export KEY=value` or `KEY=value`); `format: json` expects a flat
+  JSON object of string values. A failing command aborts the CLI invocation with an error.
+- Both singular (`env_path: .env`, `env_from: {command: [...]}`) and list forms are accepted.
+- Values already present in the process environment are never overwritten, and injected values
+  are never printed to logs.
+- An argv command that explicitly invokes a shell, such as `["sh", "-c", "..."]`, is still
+  accepted — the requirement is an argv array, not a ban on shells. Only implicit shell command
+  strings (`command: "bun scripts/load-secrets.ts"`) are rejected.
+
+`hooks.before_session` still runs for backward compatibility but is deprecated; migrate its
+command to `env_from` (or a `.env` file plus `env_path`) instead.
+
+**Known limitations:**
+
+- `env_path`/`env_from` are discovered from the current working directory at CLI startup, the
+  same as legacy `hooks.before_session`. In a multi-project workspace, a nested project's own
+  `.agentv/config.yaml` `env_from` only runs when a command is invoked from within (or below)
+  that project's directory, not when run from a parent directory that resolves to a different
+  `.agentv/config.yaml`.
+- A `.agentv/config.yaml`'s own fields (for example `results.repo`) are interpolated before that
+  same file's `env_path`/`env_from` runs, so they cannot reference values produced by its own
+  `env_path`/`env_from`. Use an already-exported process environment variable, or a value loaded
+  by an ancestor project's config, for fields inside `config.yaml` itself.
+
 ## Supported Providers
 
 | Provider | Type | Description |

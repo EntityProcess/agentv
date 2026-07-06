@@ -13,7 +13,10 @@ import {
   extractThreshold,
   extractWorkersFromSuite,
   loadConfig,
+  parseEnvFromConfig,
+  parseEnvPathConfig,
   parseExecutionDefaults,
+  parseHooksConfig,
   parseResultsConfig,
   parseTagsConfig,
   resolveResultsConfigForProject,
@@ -1200,5 +1203,134 @@ describe('parseExecutionDefaults', () => {
         '/test/config.yaml',
       ),
     ).toThrow(/execution\.otel_backend/);
+  });
+});
+
+describe('parseHooksConfig', () => {
+  it('logs a deprecation warning and still parses before_session', () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = parseHooksConfig({ before_session: 'echo hi' }, '/test/config.yaml');
+      expect(result).toEqual({ before_session: 'echo hi' });
+      expect(warnSpy.mock.calls.some(([msg]) => String(msg).includes('deprecated'))).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('returns undefined when before_session is absent', () => {
+    expect(parseHooksConfig({}, '/test/config.yaml')).toBeUndefined();
+  });
+});
+
+describe('parseEnvPathConfig', () => {
+  it('normalizes a singular string into an array', () => {
+    expect(parseEnvPathConfig('.env', '/test/config.yaml')).toEqual(['.env']);
+  });
+
+  it('accepts an array of strings', () => {
+    expect(parseEnvPathConfig(['.env', '.env.local'], '/test/config.yaml')).toEqual([
+      '.env',
+      '.env.local',
+    ]);
+  });
+
+  it('drops non-string entries with a warning and returns undefined when none remain', () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(parseEnvPathConfig(42, '/test/config.yaml')).toBeUndefined();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});
+
+describe('parseEnvFromConfig', () => {
+  it('normalizes a singular object into an array and defaults format', () => {
+    const result = parseEnvFromConfig(
+      { command: ['bun', 'scripts/load-secrets.ts'] },
+      '/test/config.yaml',
+    );
+    expect(result).toEqual([
+      { command: ['bun', 'scripts/load-secrets.ts'], format: 'shell_exports' },
+    ]);
+  });
+
+  it('accepts an array of entries with explicit formats', () => {
+    const result = parseEnvFromConfig(
+      [
+        { command: ['bun', 'scripts/load-secrets.ts'], format: 'shell_exports' },
+        { command: ['node', 'scripts/print-env-json.mjs'], format: 'json' },
+      ],
+      '/test/config.yaml',
+    );
+    expect(result).toEqual([
+      { command: ['bun', 'scripts/load-secrets.ts'], format: 'shell_exports' },
+      { command: ['node', 'scripts/print-env-json.mjs'], format: 'json' },
+    ]);
+  });
+
+  it('rejects a shell command string and drops the entry', () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = parseEnvFromConfig(
+        { command: 'bun scripts/load-secrets.ts' },
+        '/test/config.yaml',
+      );
+      expect(result).toBeUndefined();
+      expect(
+        warnSpy.mock.calls.some(([msg]) =>
+          String(msg).includes('shell command strings are not supported'),
+        ),
+      ).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('rejects an invalid format value', () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = parseEnvFromConfig(
+        { command: ['bun', 'x.ts'], format: 'yaml' },
+        '/test/config.yaml',
+      );
+      expect(result).toBeUndefined();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});
+
+describe('loadConfig env_path / env_from / configDir', () => {
+  it('parses env_path and env_from and exposes the project directory (not .agentv/) as configDir', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-env-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const dotAgentvDir = path.join(projectDir, '.agentv');
+      mkdirSync(dotAgentvDir, { recursive: true });
+      writeFileSync(
+        path.join(dotAgentvDir, 'config.yaml'),
+        [
+          'env_path:',
+          '  - .env',
+          '  - .env.local',
+          'env_from:',
+          '  - command: ["bun", "scripts/load-secrets.ts"]',
+          '',
+        ].join('\n'),
+      );
+
+      const config = await loadConfig(path.join(projectDir, 'evals', '_'), projectDir);
+
+      expect(config?.env_path).toEqual(['.env', '.env.local']);
+      expect(config?.env_from).toEqual([
+        { command: ['bun', 'scripts/load-secrets.ts'], format: 'shell_exports' },
+      ]);
+      // env_path files such as `.env` sit beside `.agentv/`, at the project root.
+      expect(config?.configDir).toBe(projectDir);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
