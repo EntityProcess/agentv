@@ -102,14 +102,21 @@ The generated `llm-rubric` assertion emits per-criterion grading rows in AgentV 
 
 ## Files
 
-`evals.json` file paths map to AgentV `input_files`:
+`evals.json` file paths map to file-backed prompt content:
 
 ```yaml
+prompts:
+  - - role: user
+      content:
+        - type: text
+          value: "{{ input }}"
+        - type: file
+          value: evals/files/sales.csv
+
 tests:
   - id: "1"
-    input_files:
-      - evals/files/sales.csv
-    input: "Analyze the sales data."
+    vars:
+      input: "Analyze the sales data."
 ```
 
 Use `environment.setup.command` when the eval should materialize a repository
@@ -149,13 +156,20 @@ tags:
 metadata:
   source_adapter: "agent-skills-evals-json"
 
+prompts:
+  - - role: user
+      content:
+        - type: text
+          value: "{{ input }}"
+        - type: file
+          value: evals/files/sales.csv
+
 tests:
   - id: "1"
     criteria: |-
       The top 3 months by revenue are November, September, and December.
-    input: "Find the top 3 months by revenue."
-    input_files:
-      - "evals/files/sales.csv"
+    vars:
+      input: "Find the top 3 months by revenue."
     # Promoted from evals.json expected_output, assertions[], and expectations[]
     # Replace with type: is-json, contains, or regex for deterministic checks
     assert:
@@ -207,10 +221,14 @@ Use AgentV YAML directly when AgentV owns the eval lifecycle.
 ### EVAL.yaml
 
 ```yaml
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: "1"
-    input: |
-      A customer says their order #12345 hasn't arrived after 2 weeks. Help them.
+    vars:
+      input: |
+        A customer says their order #12345 hasn't arrived after 2 weeks. Help them.
     criteria: |
       An empathetic response that offers to track the order and provides next steps.
     assert:

@@ -56,14 +56,14 @@ Before proceeding to the next iteration, log the decision and rationale so the u
 Iteration 2: KEEP
   wins=3, losses=1, ties=6, meanDelta=+0.05
   Rationale: candidate wins outweigh losses (3 > 1)
-  Baseline promoted: .agentv/results/default/20250101-120000/index.jsonl
+  Baseline promoted: .agentv/results/2025-01-01T12-00-00-000Z/.internal/index.jsonl
 ```
 
 ```
 Iteration 3: DISCARD
   wins=1, losses=2, ties=7, meanDelta=-0.03
   Rationale: candidate losses outweigh wins (2 > 1)
-  Reverted to baseline: .agentv/results/default/20250101-110000/index.jsonl
+  Reverted to baseline: .agentv/results/2025-01-01T11-00-00-000Z/.internal/index.jsonl
   Next: try a different mutation
 ```
 
@@ -210,20 +210,20 @@ agentv eval <eval-path> --experiment autoresearch-<name>
 
 **b. Extract scores (bash only — do NOT read result files into your context)**
 
-Find the latest timestamped directory in the experiment folder. Use bash/jq to extract small structured values:
+Find the latest run directory. Use bash/jq to extract small structured values:
 
 ```bash
 # Find latest run dir
-RUN_DIR=$(ls -td <experiment-dir>/20*/ | head -1)
+RUN_DIR=$(ls -td .agentv/results/20*/ | head -1)
 
 # Overall score (mean of all scores in index.jsonl)
-SCORE=$(jq -sr '[.[].scores[].score] | add / length' "$RUN_DIR/index.jsonl")
+SCORE=$(jq -sr '[.[].score] | add / length' "$RUN_DIR/.internal/index.jsonl")
 
-# Per-assertion pass rates as JSON object
-PASS_RATES=$(jq -sr '[.[].scores[]] | group_by(.type) | map({key: .[0].type, value: (map(.score) | add / length)}) | from_entries' "$RUN_DIR/index.jsonl")
+# Per-target mean scores as JSON object
+TARGET_SCORES=$(jq -sr 'group_by(.target) | map({key: .[0].target, value: (map(.score) | add / length)}) | from_entries' "$RUN_DIR/.internal/index.jsonl")
 
-# Cost (if timing.json exists)
-COST=$(jq -r '.cost_usd // 0' "$RUN_DIR/timing.json" 2>/dev/null || echo 0)
+# Cost (if present in summary.json)
+COST=$(jq -r '.cost_usd // .total_cost_usd // 0' "$RUN_DIR/summary.json" 2>/dev/null || echo 0)
 ```
 
 Capture only these small outputs (`SCORE`, `PASS_RATES`, `COST`) — never read the full JSONL into context.

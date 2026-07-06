@@ -47,10 +47,14 @@ assert:
 ### Example: Comprehensive Efficiency Check
 
 ```yaml
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: efficient-research
     criteria: Agent researches and summarizes efficiently
-    input: Research the topic and provide a summary
+    vars:
+      input: Research the topic and provide a summary
     assert:
       - name: efficiency
         type: execution-metrics
@@ -120,10 +124,14 @@ Fails if total token usage exceeds the threshold.
 Execution metrics work well alongside semantic graders:
 
 ```yaml
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: code-generation
     criteria: Generates correct, efficient code
-    input: Write a sorting algorithm
+    vars:
+      input: Write a sorting algorithm
     assert:
       # Semantic quality
       - name: quality

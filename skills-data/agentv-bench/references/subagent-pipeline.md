@@ -30,10 +30,12 @@ specific target, set `subagent_mode_allowed: false` in `.agentv/targets.yaml`:
 ```yaml
 # .agentv/targets.yaml
 targets:
-  - name: my-target
+  - id: my-target
     provider: openai
-    model: ${{ OPENAI_MODEL }}
-    api_key: ${{ OPENAI_API_KEY }}
+    runtime: host
+    config:
+      model: "{{ env.OPENAI_MODEL }}"
+      api_key: "{{ env.OPENAI_API_KEY }}"
     subagent_mode_allowed: false  # forces CLI invocation instead of executor subagent
 ```
 
@@ -43,8 +45,8 @@ even in subagent mode.
 ## CLI Targets: Single Command
 
 For evals with CLI targets, `pipeline run` handles input extraction, target invocation, and
-code grading in one step. When `--out` is omitted, the output directory defaults to
-`.agentv/results/default/<timestamp>` (same convention as `agentv eval`):
+code grading in one step. When `--out` is omitted, the output directory uses the
+canonical `.agentv/results/<run_id>` convention:
 
 ```bash
 # Extract inputs and invoke all CLI targets in parallel:
@@ -70,7 +72,7 @@ opted out via `subagent_mode_allowed: false` in `.agentv/targets.yaml`), fall ba
 ### Step 1: Extract inputs
 
 ```bash
-# Defaults to .agentv/results/default/<timestamp>
+# Defaults to .agentv/results/<run_id>
 agentv pipeline input evals/repro.eval.yaml
 ```
 
@@ -117,7 +119,7 @@ LLM grading → merge and validate).
 Use individual commands when you need control over each step with CLI targets:
 
 ```bash
-# Step 1: Extract inputs (defaults to .agentv/results/default/<timestamp>)
+# Step 1: Extract inputs (defaults to .agentv/results/<run_id>)
 agentv pipeline input evals/repro.eval.yaml
 
 # Step 2: run_tests.py invokes CLI targets (or use pipeline run instead)
@@ -127,7 +129,7 @@ agentv pipeline grade <run-dir>
 
 # Step 4: Subagent does LLM grading, writes results to llm_grader_results/<name>.json per test
 
-# Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
+# Step 5: Merge scores into the canonical run bundle
 agentv pipeline bench <run-dir>
 
 # Step 6: Validate
@@ -152,22 +154,22 @@ The agent reads `llm_graders/<name>.json` for each test, grades the response usi
 
 ## Pipeline Bench and Dashboard
 
-`pipeline bench` merges LLM scores into `index.jsonl` with a full `scores[]` array per entry,
-matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads this format
-directly — no separate conversion script is needed. Run `agentv results validate <run-dir>`
-to verify compatibility.
+`pipeline bench` merges LLM scores into the canonical run bundle, including
+`.internal/index.jsonl`, `summary.json`, and per-attempt `grading.json` with
+`component_results`. The web dashboard reads this format directly — no separate
+conversion script is needed. Run `agentv results validate <run-dir>` to verify
+compatibility.
 
 ## Output Structure
 
-The path hierarchy mirrors the CLI mode: `<evalset-name>` comes from the `name` field in
-the eval.yaml. The target is recorded in `manifest.json` — one run = one target.
+The path hierarchy mirrors CLI mode. The target is recorded in run metadata.
 
 ```
-.agentv/results/<experiment>/<timestamp>/
+.agentv/results/<run_id>/
 ├── manifest.json                    ← eval metadata, target, test_ids
-├── index.jsonl                      ← per-test scores
-├── summary.json                   ← aggregate statistics
-└── <evalset-name>/                  ← eval.yaml "name" field, or eval file basename if absent (same as CLI mode)
+├── summary.json                      ← aggregate statistics
+├── .internal/index.jsonl             ← canonical row index
+└── <result-dir>/sample-1/grading.json
     └── <test-id>/                   ← test case id
         ├── input.json               ← test input text + messages
         ├── invoke.json              ← target command or agent instructions

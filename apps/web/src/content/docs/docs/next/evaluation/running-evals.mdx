@@ -492,9 +492,13 @@ graders:
     config:
       model: gpt-5-mini
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: smoke
-    input: Fix the failing test
+    vars:
+      input: Fix the failing test
 
 defaults:
   target: codex-local

@@ -234,11 +234,14 @@ tags:
   skill: "code-reviewer"
 metadata:
   source_adapter: "agent-skills-evals-json"
+prompts:
+  - "{{ input }}"
 tests:
   - id: "1"
     criteria: |-
       The function should handle division by zero.
-    input: "Review this Python function for bugs:..."
+    vars:
+      input: "Review this Python function for bugs:..."
     assert:
       - metric: agent-skills-criteria
         type: llm-rubric

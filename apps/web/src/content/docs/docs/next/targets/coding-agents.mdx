@@ -333,13 +333,13 @@ prompt includes a preread block with `file://` URIs pointing to absolute paths
 on disk, then the user query references each file:
 
 ```yaml
-input:
-  - role: user
-    content:
-      - type: file
-        value: ./src/example.ts
-      - type: text
-        value: Review this code
+prompts:
+  - - role: user
+      content:
+        - type: file
+          value: ./src/example.ts
+        - type: text
+          value: Review this code
 ```
 
 The agent receives a prompt like:
