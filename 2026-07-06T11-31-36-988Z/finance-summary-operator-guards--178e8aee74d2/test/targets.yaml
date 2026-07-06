@@ -1,0 +1,8 @@
+targets:
+  - id: llm
+    provider: azure
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    config:
+      endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+      api_key: "[redacted]"
+      version: "{{ env.AZURE_OPENAI_API_VERSION }}"

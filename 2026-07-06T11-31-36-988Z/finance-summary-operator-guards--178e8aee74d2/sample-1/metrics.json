@@ -1,0 +1,56 @@
+{
+  "schema_version": "agentv.metrics.v2",
+  "artifact_id": "metrics-082602c2f0da04f8ce6f",
+  "generated_at": "2026-07-06T11:31:44.806Z",
+  "test_id": "finance-summary-operator-guards",
+  "target": "llm",
+  "suite": "rubric-operators",
+  "category": "examples/features/rubric/operators",
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "tool_calls": {},
+  "tool_call_counts": {},
+  "tool_category_counts": {},
+  "total_tool_calls": 0,
+  "total_steps": 1,
+  "total_turns": 1,
+  "tool_call_events": [],
+  "shell_commands": [],
+  "files_read": [],
+  "files_modified": [],
+  "files_created": [],
+  "files_deleted": [],
+  "web_fetches": [],
+  "errors": [],
+  "errors_encountered": 0,
+  "output_chars": 222,
+  "transcript_chars": 1461,
+  "reasoning_blocks": [],
+  "thinking_blocks": 0,
+  "duration": {
+    "total_ms": 2153,
+    "total_seconds": 2.153,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 112,
+    "input": 63,
+    "output": 49,
+    "reasoning": 0,
+    "source": "provider_reported"
+  },
+  "cost": {
+    "usd": 0.00026775,
+    "source": "provider_reported"
+  },
+  "execution": {
+    "status": "ok"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "azure",
+  "target": "llm",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "azure",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Source note:\n- Q4 revenue increased to $10M from $8M.\n- Gross margin declined to 42% from 45%.\n\nWrite a two-sentence finance summary."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "azure",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Q4 revenue increased to $10 million from $8 million, indicating stronger top-line growth year over year. However, gross margin declined to 42% from 45%, suggesting some pressure on profitability despite the higher revenue."
+        }
+      ]
+    }
+  ]
+}
