@@ -4,11 +4,13 @@ import path from 'node:path';
 import {
   type EvaluationResult,
   type ExternalTraceMetadataWire,
+  type MetricsArtifactWire,
   type ResultArtifactPointersWire,
   type RunRuntimeSourceMetadata,
   type TraceSummary,
   buildTraceFromMessages,
   fromTraceEnvelopeWire,
+  normalizeMetricsArtifactWire,
   toCamelCaseDeep,
   traceEnvelopeToTraceSummary,
   traceEnvelopeToTranscriptMessages,
@@ -86,20 +88,6 @@ export interface ResultManifestRecord {
   readonly files_path?: string;
   readonly graders_path?: string;
   readonly metadata?: Record<string, unknown>;
-}
-
-interface MetricsUsageArtifact {
-  readonly duration?: {
-    readonly total_ms?: number;
-  };
-  readonly tokens?: {
-    readonly input?: number;
-    readonly output?: number;
-    readonly reasoning?: number;
-  };
-  readonly cost?: {
-    readonly usd?: number | null;
-  };
 }
 
 interface LegacyTimingArtifact {
@@ -390,7 +378,9 @@ function hydrateManifestRecord(
   options: ManifestHydrationOptions,
 ): EvaluationResult {
   const grading = readOptionalJson<GradingArtifact>(baseDir, record.grading_path);
-  const metrics = readOptionalJson<MetricsUsageArtifact>(baseDir, record.metrics_path);
+  const metrics = normalizeMetricsArtifactWire(
+    readOptionalJson<MetricsArtifactWire | Record<string, unknown>>(baseDir, record.metrics_path),
+  );
   const timing = metrics ?? readOptionalJson<LegacyTimingArtifact>(baseDir, record.timing_path);
   const testId = record.test_id ?? 'unknown';
   const gradingAssertions = grading

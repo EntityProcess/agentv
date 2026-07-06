@@ -2294,6 +2294,80 @@ describe('serve app', () => {
         `${JSON.stringify({ transcript_summary: secondSummary })}\n`,
       );
       writeFileSync(
+        path.join(runDir, resultDir, 'attempt-1', 'metrics.json'),
+        `${JSON.stringify({
+          schema_version: 'agentv.metrics.v2',
+          artifact_id: 'metrics-repeat-case-1',
+          generated_at: '2026-03-25T10:05:00.000Z',
+          test_id: 'repeat-case',
+          target: 'gpt-4o',
+          source_artifacts: {},
+          duration: { total_ms: 1000, total_seconds: 1, source: 'provider_reported' },
+          tokens: { total: 3, input: 1, output: 2, reasoning: 0, source: 'provider_reported' },
+          cost: { usd: 0.01, source: 'provider_reported' },
+          tool_calls: { Bash: 1 },
+          tool_call_counts: { Bash: 1 },
+          tool_category_counts: { shell: 1 },
+          total_tool_calls: 1,
+          total_steps: 1,
+          total_turns: 1,
+          tool_call_events: [],
+          shell_commands: [],
+          files_read: [],
+          files_modified: [],
+          files_created: [],
+          files_deleted: [],
+          web_fetches: [],
+          errors: [],
+          errors_encountered: 0,
+          output_chars: 0,
+          transcript_chars: 0,
+          reasoning_blocks: [],
+          thinking_blocks: 0,
+        })}\n`,
+      );
+      writeFileSync(
+        path.join(runDir, resultDir, 'attempt-2', 'metrics.json'),
+        `${JSON.stringify({
+          schema_version: 'agentv.metrics.v1',
+          artifact_id: 'metrics-repeat-case-2',
+          generated_at: '2026-03-25T10:05:01.000Z',
+          test_id: 'repeat-case',
+          target: 'gpt-4o',
+          trace: {
+            schema_version: 'agentv.trace.v1',
+            artifact_id: 'execution-trace-repeat-case-2',
+            trace_id: 'trace-repeat-case-2',
+            root_span_id: 'span-repeat-case-2',
+          },
+          source_artifacts: {},
+          duration: { total_ms: 2000, total_seconds: 2, source: 'provider_reported' },
+          tokens: { total: 7, input: 3, output: 4, reasoning: 0, source: 'provider_reported' },
+          cost: { usd: 0.02, source: 'provider_reported' },
+          metrics: {
+            tool_calls: { Read: 2 },
+            tool_call_counts: { Read: 2 },
+            tool_category_counts: { file_read: 2 },
+            total_tool_calls: 2,
+            total_steps: 1,
+            total_turns: 1,
+            tool_call_events: [],
+            shell_commands: [],
+            files_read: [],
+            files_modified: [],
+            files_created: [],
+            files_deleted: [],
+            web_fetches: [],
+            errors: [],
+            errors_encountered: 0,
+            output_chars: 0,
+            transcript_chars: 0,
+            reasoning_blocks: [],
+            thinking_blocks: 0,
+          },
+        })}\n`,
+      );
+      writeFileSync(
         path.join(runDir, 'index.jsonl'),
         toJsonl({
           ...RESULT_A,
@@ -2320,6 +2394,8 @@ describe('serve app', () => {
           attempts?: Array<{
             transcript_path?: string;
             transcript_summary?: Record<string, unknown>;
+            total_tool_calls?: number;
+            tool_calls?: Record<string, number>;
           }>;
         }>;
       };
@@ -2330,6 +2406,9 @@ describe('serve app', () => {
         `${resultDir}/attempt-1/transcript.json`,
         `${resultDir}/attempt-2/transcript.json`,
       ]);
+      expect(data.results[0]?.attempts?.map((trial) => trial.total_tool_calls)).toEqual([1, 2]);
+      expect(data.results[0]?.attempts?.[0]?.tool_calls).toEqual({ Bash: 1 });
+      expect(data.results[0]?.attempts?.[1]?.tool_calls).toEqual({ Read: 2 });
     });
 
     it('loads historical runs without test bundle metadata', async () => {

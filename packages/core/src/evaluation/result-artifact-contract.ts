@@ -31,10 +31,11 @@ export const CANONICAL_METRICS_ARTIFACT_PATH = 'metrics.json' as const;
 export const CANONICAL_FILE_CHANGES_ARTIFACT_PATH = 'outputs/file_changes.diff' as const;
 
 export const TRANSCRIPT_SCHEMA_VERSION = 'agentv.normalized_transcript.v1' as const;
-export const METRICS_SCHEMA_VERSION = 'agentv.metrics.v1' as const;
+export const LEGACY_METRICS_SCHEMA_VERSION = 'agentv.metrics.v1' as const;
+export const METRICS_SCHEMA_VERSION = 'agentv.metrics.v2' as const;
 export const TRANSCRIPT_JSON_MEDIA_TYPE =
   'application/vnd.agentv.normalized-transcript.v1+json' as const;
-export const METRICS_JSON_MEDIA_TYPE = 'application/vnd.agentv.metrics.v1+json' as const;
+export const METRICS_JSON_MEDIA_TYPE = 'application/vnd.agentv.metrics.v2+json' as const;
 
 export type AgentVResultsRefName = (typeof AGENTV_RESULTS_REFS)[keyof typeof AGENTV_RESULTS_REFS];
 

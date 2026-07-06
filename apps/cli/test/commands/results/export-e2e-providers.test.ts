@@ -532,9 +532,11 @@ describe('export e2e — multi-provider metrics verification', () => {
           'utf8',
         ),
       );
-      expect(metrics.metrics.total_tool_calls).toBe(3);
-      expect(metrics.metrics.tool_call_counts.Read).toBe(2);
-      expect(metrics.metrics.tool_call_counts.Write).toBe(1);
+      expect(metrics).not.toHaveProperty('trace');
+      expect(metrics).not.toHaveProperty('metrics');
+      expect(metrics.total_tool_calls).toBe(3);
+      expect(metrics.tool_call_counts.Read).toBe(2);
+      expect(metrics.tool_call_counts.Write).toBe(1);
 
       expect(grading.component_results?.[0].component_results?.[0].assertion?.value).toBe(
         'Contains 42',
@@ -559,7 +561,9 @@ describe('export e2e — multi-provider metrics verification', () => {
       const metrics = JSON.parse(
         readFileSync(path.join(runArtifactDir(outputDir, COPILOT_RESULT), 'metrics.json'), 'utf8'),
       );
-      expect(metrics.metrics.total_tool_calls).toBe(0);
+      expect(metrics).not.toHaveProperty('trace');
+      expect(metrics).not.toHaveProperty('metrics');
+      expect(metrics.total_tool_calls).toBe(0);
     });
 
     it('should handle error result in grading', async () => {
@@ -577,7 +581,9 @@ describe('export e2e — multi-provider metrics verification', () => {
       const metrics = JSON.parse(
         readFileSync(path.join(runArtifactDir(outputDir, ERROR_RESULT), 'metrics.json'), 'utf8'),
       );
-      expect(metrics.metrics.errors_encountered).toBe(1);
+      expect(metrics).not.toHaveProperty('trace');
+      expect(metrics).not.toHaveProperty('metrics');
+      expect(metrics.errors_encountered).toBe(1);
     });
 
     it('should produce grading files for all test IDs in multi-target run', async () => {

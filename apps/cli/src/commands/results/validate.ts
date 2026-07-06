@@ -18,6 +18,11 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import {
+  LEGACY_METRICS_SCHEMA_VERSION,
+  METRICS_SCHEMA_VERSION,
+  normalizeMetricsArtifactWire,
+} from '@agentv/core';
 import { command, positional, string } from 'cmd-ts';
 
 import { RESULT_INDEX_FILENAME, resolveExistingRunPrimaryPath } from '../eval/result-layout.js';
@@ -112,6 +117,50 @@ function validateNoLegacyGradingFields(value: unknown, pathLabel: string): strin
     errors.push(...validateNoLegacyGradingFields(entry, `${pathLabel}.${key}`));
   }
   return errors;
+}
+
+function validateMetricsArtifact(value: unknown): Diagnostic[] {
+  if (!isRecord(value)) {
+    return [{ severity: 'error', message: 'metrics.json must be an object' }];
+  }
+
+  const diagnostics: Diagnostic[] = [];
+  const schemaVersion = value.schema_version;
+  const isCurrentSchema = schemaVersion === METRICS_SCHEMA_VERSION;
+  const isLegacySchema = schemaVersion === LEGACY_METRICS_SCHEMA_VERSION;
+
+  if (isCurrentSchema && Object.hasOwn(value, 'trace')) {
+    diagnostics.push({
+      severity: 'error',
+      message: 'metrics.json must not include trace in agentv.metrics.v2',
+    });
+  } else if (isLegacySchema && Object.hasOwn(value, 'trace')) {
+    diagnostics.push({
+      severity: 'warning',
+      message: 'metrics.json uses legacy trace identity; readers ignore it',
+    });
+  }
+
+  if (isCurrentSchema && Object.hasOwn(value, 'metrics')) {
+    diagnostics.push({
+      severity: 'error',
+      message: 'metrics.json must not include nested metrics in agentv.metrics.v2',
+    });
+  } else if (isLegacySchema && Object.hasOwn(value, 'metrics')) {
+    diagnostics.push({
+      severity: 'warning',
+      message: 'metrics.json uses legacy nested metrics; readers flatten it',
+    });
+  }
+
+  if (!normalizeMetricsArtifactWire(value)) {
+    diagnostics.push({
+      severity: 'error',
+      message: 'metrics.json does not match a supported metrics artifact shape',
+    });
+  }
+
+  return diagnostics;
 }
 
 // ── Checks ───────────────────────────────────────────────────────────────
@@ -372,6 +421,21 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
           severity: 'warning',
           message: `${testId}: metrics.json not found at '${entry.metrics_path}'`,
         });
+      } else {
+        try {
+          const metrics = JSON.parse(readFileSync(metricsPath, 'utf8'));
+          for (const diagnostic of validateMetricsArtifact(metrics)) {
+            diagnostics.push({
+              severity: diagnostic.severity,
+              message: `${testId}: ${diagnostic.message}`,
+            });
+          }
+        } catch {
+          diagnostics.push({
+            severity: 'error',
+            message: `${testId}: metrics.json is not valid JSON`,
+          });
+        }
       }
     }
   }

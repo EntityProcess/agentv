@@ -122,10 +122,15 @@ Duplicate policy is explicit:
 ### Metrics sidecar
 
 Each attempt directory includes `metrics.json`
-(`schema_version: "agentv.metrics.v1"`). This is an AgentV-owned derived
+(`schema_version: "agentv.metrics.v2"`). This is an AgentV-owned derived
 projection over the attempt trace/transcript, result row, and `grading.json`.
 It is the compact executor behavior summary for dashboards, comparison exports,
 and metric-style graders; it is not canonical trace storage.
+Executor counters such as `tool_calls`, `total_tool_calls`,
+`tool_category_counts`, `errors_encountered`, and file/web/shell summaries live
+at the top level next to `duration`, `tokens`, `cost`, `execution`, and
+`trajectory`; trace identity belongs in the run index, result/transcript
+artifacts, and safe `external_trace` correlation metadata.
 
 Every case uses aggregate `summary.json`, then stores execution artifact details
 under `sample-N/`. Each `sample-N/` contains a compact per-attempt manifest
