@@ -183,8 +183,17 @@ function hasLatencyTrajectoryCheck(assertion: JsonObject): boolean {
   );
 }
 
+function normalizedAssertionType(assertion: JsonObject): string | undefined {
+  return typeof assertion.type === 'string' ? assertion.type.replace(/_/g, '-') : undefined;
+}
+
 function migrateSkillTriggerAssertion(assertion: JsonObject): boolean {
-  if (assertion.type !== 'skill-trigger' || typeof assertion.skill !== 'string') return false;
+  if (
+    normalizedAssertionType(assertion) !== 'skill-trigger' ||
+    typeof assertion.skill !== 'string'
+  ) {
+    return false;
+  }
 
   assertion.type = assertion.should_trigger === false ? 'not-skill-used' : 'skill-used';
   assertion.value = assertion.skill;
@@ -263,7 +272,10 @@ function migrateExpectedToolTrajectory(assertion: JsonObject): JsonObject[] | un
 }
 
 function migrateToolTrajectoryAssertion(assertion: JsonObject): JsonObject[] | undefined {
-  if (assertion.type !== 'tool-trajectory' || hasLatencyTrajectoryCheck(assertion)) {
+  if (
+    normalizedAssertionType(assertion) !== 'tool-trajectory' ||
+    hasLatencyTrajectoryCheck(assertion)
+  ) {
     return undefined;
   }
   return migrateAnyOrderToolTrajectory(assertion) ?? migrateExpectedToolTrajectory(assertion);
@@ -740,7 +752,9 @@ function migrateYamlSnippet(source: string, filePath: string): string | undefine
     !source.includes('manifest_path:') &&
     !source.includes('isolation:') &&
     !source.includes('skill-trigger') &&
-    !source.includes('tool-trajectory')
+    !source.includes('skill_trigger') &&
+    !source.includes('tool-trajectory') &&
+    !source.includes('tool_trajectory')
   ) {
     return undefined;
   }

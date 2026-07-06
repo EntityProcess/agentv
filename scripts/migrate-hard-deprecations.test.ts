@@ -228,6 +228,28 @@ tests:
     expect(tests[1].assert).toEqual([{ type: 'not-skill-used', value: 'web-search' }]);
   });
 
+  it('migrates snake_case skill_trigger assertions to promptfoo skill assertions', () => {
+    const migrated = migrateSnippet(`prompts:
+  - "{{ input }}"
+tests:
+  - id: expected-skill
+    assert:
+      - type: skill_trigger
+        skill: csv-analyzer
+        should_trigger: true
+  - id: forbidden-skill
+    assert:
+      - type: skill_trigger
+        skill: web-search
+        should_trigger: false
+`);
+    const parsed = asRecord(parse(migrated));
+    const tests = parsed.tests as Array<Record<string, unknown>>;
+
+    expect(tests[0].assert).toEqual([{ type: 'skill-used', value: 'csv-analyzer' }]);
+    expect(tests[1].assert).toEqual([{ type: 'not-skill-used', value: 'web-search' }]);
+  });
+
   it('migrates any_order tool-trajectory minimums to trajectory:tool-used assertions', () => {
     const migrated = migrateSnippet(`prompts:
   - "{{ input }}"
@@ -256,6 +278,32 @@ tests:
       {
         type: 'trajectory:tool-used',
         value: { name: 'fetch', min: 1 },
+      },
+    ]);
+  });
+
+  it('migrates snake_case tool_trajectory minimums to trajectory:tool-used assertions', () => {
+    const migrated = migrateSnippet(`prompts:
+  - "{{ input }}"
+tests:
+  - id: tools
+    assert:
+      - metric: tool-presence
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          search: 2
+    vars:
+      input: Research the topic
+`);
+    const parsed = asRecord(parse(migrated));
+    const tests = parsed.tests as Array<Record<string, unknown>>;
+
+    expect(tests[0].assert).toEqual([
+      {
+        metric: 'tool-presence',
+        type: 'trajectory:tool-used',
+        value: { name: 'search', min: 2 },
       },
     ]);
   });
@@ -292,6 +340,41 @@ tests:
       {
         type: 'trajectory:tool-args-match',
         value: { name: 'search', args: { q: 'agentv' }, mode: 'exact' },
+      },
+    ]);
+  });
+
+  it('migrates snake_case tool_trajectory ordered steps and args to promptfoo trajectory assertions', () => {
+    const migrated = migrateSnippet(`prompts:
+  - "{{ input }}"
+tests:
+  - id: tools
+    assert:
+      - metric: tool-flow
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: search
+            args:
+              q: agentv
+          - tool: fetch
+            args: any
+    vars:
+      input: Research AgentV
+`);
+    const parsed = asRecord(parse(migrated));
+    const tests = parsed.tests as Array<Record<string, unknown>>;
+    const assertions = tests[0].assert as Array<Record<string, unknown>>;
+
+    expect(assertions).toEqual([
+      {
+        metric: 'tool-flow',
+        type: 'trajectory:tool-sequence',
+        value: { mode: 'in_order', steps: ['search', 'fetch'] },
+      },
+      {
+        type: 'trajectory:tool-args-match',
+        value: { name: 'search', args: { q: 'agentv' }, mode: 'partial' },
       },
     ]);
   });
