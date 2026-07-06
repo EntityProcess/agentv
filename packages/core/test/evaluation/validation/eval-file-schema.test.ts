@@ -58,6 +58,23 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('rejects removed eval_cases and evalcases aliases as test collections', () => {
+    const result = EvalFileSchema.safeParse({
+      eval_cases: [baseTest],
+      evalcases: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('Expected removed aliases to be rejected');
+    const messages = collectIssueMessages(result.error.issues);
+    expect(
+      messages.some((message) => message.includes("Top-level 'eval_cases' has been removed")),
+    ).toBe(true);
+    expect(
+      messages.some((message) => message.includes("Top-level 'evalcases' has been removed")),
+    ).toBe(true);
+  });
+
   it('rejects eval-level execution.max_concurrency', () => {
     const result = EvalFileSchema.safeParse({
       execution: {

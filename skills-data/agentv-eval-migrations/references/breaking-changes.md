@@ -1082,9 +1082,10 @@ rg -n "include:|tests:" path/to/evals
 
 ### Compatibility Notes
 
-`eval_cases` remains a deprecated alias in the current schema, but migrated
-YAML should use `tests`. The current convention is that runnable suites use
-`*.eval.yaml`; reusable raw case files commonly use `*.cases.yaml` or JSONL.
+`eval_cases` and `evalcases` have been removed from authored eval YAML. Migrate
+them to `tests` before validating or running the suite. The current convention is
+that runnable suites use `*.eval.yaml`; reusable raw case files commonly use
+`*.cases.yaml` or JSONL.
 
 ## Result Artifact Path Changes Are Not Eval YAML Migrations
 
