@@ -517,11 +517,11 @@ export interface RunSummaryArtifact {
     readonly skipped: { readonly count: number; readonly percentage: number };
   };
   readonly counts: {
-    readonly total_cases: number;
-    readonly total_instances: number;
-    readonly passed_cases: number;
-    readonly failed_cases: number;
-    readonly errored_instances: number;
+    readonly total_tests: number;
+    readonly passed_tests: number;
+    readonly failed_tests: number;
+    readonly total_samples: number;
+    readonly errored_samples: number;
   };
   readonly usage: {
     readonly total_tokens: number;
@@ -534,9 +534,8 @@ export interface RunSummaryArtifact {
     readonly total: number;
     readonly reasons: readonly { readonly reason: string; readonly count: number }[];
   };
-  readonly cases: readonly Record<string, unknown>[];
+  readonly tests: readonly Record<string, unknown>[];
   readonly metadata: {
-    readonly run_id?: string;
     readonly eval_file: string;
     readonly timestamp: string;
     readonly targets: readonly string[];
@@ -1977,7 +1976,7 @@ export function buildRunSummaryArtifact(
   const firstResult = results[0];
   const timestamp = firstResult?.timestamp ?? new Date().toISOString();
   const runMetrics = buildTimingArtifact(results);
-  const casesByKey = new Map<
+  const testsByKey = new Map<
     string,
     {
       test_id: string;
@@ -1991,16 +1990,16 @@ export function buildRunSummaryArtifact(
       samples: Record<string, unknown>[];
     }
   >();
-  const instances = results.flatMap((result) => {
+  const samples = results.flatMap((result) => {
     const trials = materializedRunTrials(result);
     return trials.map((trial) => {
       const sampleIndex = trial.attempt + 1;
       const status = trial.executionStatus ?? result.executionStatus;
       const verdict = trial.verdict;
-      const caseKey = buildEvaluationResultTargetKey(result);
+      const testKey = buildEvaluationResultTargetKey(result);
       const sourceTest = undefined;
       const evalPath = sourceEvalPath(result, sourceTest);
-      const caseSummary = casesByKey.get(caseKey) ?? {
+      const testSummary = testsByKey.get(testKey) ?? {
         test_id: result.testId ?? 'unknown',
         suite: result.suite,
         eval_path: evalPath,
@@ -2011,13 +2010,13 @@ export function buildRunSummaryArtifact(
         status_counts: {},
         samples: [],
       };
-      caseSummary.total_samples += 1;
+      testSummary.total_samples += 1;
       if (verdict === 'pass') {
-        caseSummary.passed_samples += 1;
+        testSummary.passed_samples += 1;
       }
-      caseSummary.status_counts[status ?? 'unknown'] =
-        (caseSummary.status_counts[status ?? 'unknown'] ?? 0) + 1;
-      const instance = dropUndefined({
+      testSummary.status_counts[status ?? 'unknown'] =
+        (testSummary.status_counts[status ?? 'unknown'] ?? 0) + 1;
+      const sample = dropUndefined({
         test_id: result.testId ?? 'unknown',
         suite: result.suite,
         eval_path: evalPath,
@@ -2033,27 +2032,27 @@ export function buildRunSummaryArtifact(
         duration_ms: trial.result ? resultDurationMs(trial.result) : resultDurationMs(result),
         cost_usd: trial.costUsd,
       });
-      caseSummary.samples.push(instance);
-      casesByKey.set(caseKey, caseSummary);
-      return instance;
+      testSummary.samples.push(sample);
+      testsByKey.set(testKey, testSummary);
+      return sample;
     });
   });
-  const caseSummaries = [...casesByKey.values()].map((entry) => ({
+  const testSummaries = [...testsByKey.values()].map((entry) => ({
     ...entry,
     pass_rate: percentage(entry.passed_samples, entry.total_samples),
     pass_any: entry.passed_samples > 0,
   }));
-  const passedCases = caseSummaries.filter((entry) => entry.passed_samples > 0).length;
-  const erroredInstances = instances.filter(
+  const passedTests = testSummaries.filter((entry) => entry.passed_samples > 0).length;
+  const erroredSamples = samples.filter(
     (entry) => entry.execution_status === 'execution_error',
   ).length;
-  const failedCases = caseSummaries.length - passedCases;
+  const failedTests = testSummaries.length - passedTests;
   const infraFailureCounts = new Map<string, number>();
-  for (const instance of instances) {
+  for (const sample of samples) {
     const reason =
-      typeof instance.failure_reason_code === 'string'
-        ? instance.failure_reason_code
-        : instance.execution_status === 'execution_error'
+      typeof sample.failure_reason_code === 'string'
+        ? sample.failure_reason_code
+        : sample.execution_status === 'execution_error'
           ? 'execution_error'
           : undefined;
     if (reason) {
@@ -2065,20 +2064,20 @@ export function buildRunSummaryArtifact(
     index_path: `${RUN_INTERNAL_DIRNAME}/${RESULT_INDEX_FILENAME}`,
     run_id: runId,
     status: {
-      passed: { count: passedCases, percentage: percentage(passedCases, caseSummaries.length) },
-      failed: { count: failedCases, percentage: percentage(failedCases, caseSummaries.length) },
+      passed: { count: passedTests, percentage: percentage(passedTests, testSummaries.length) },
+      failed: { count: failedTests, percentage: percentage(failedTests, testSummaries.length) },
       errored: {
-        count: erroredInstances,
-        percentage: percentage(erroredInstances, instances.length),
+        count: erroredSamples,
+        percentage: percentage(erroredSamples, samples.length),
       },
       skipped: { count: 0, percentage: 0 },
     },
     counts: {
-      total_cases: caseSummaries.length,
-      total_instances: instances.length,
-      passed_cases: passedCases,
-      failed_cases: failedCases,
-      errored_instances: erroredInstances,
+      total_tests: testSummaries.length,
+      passed_tests: passedTests,
+      failed_tests: failedTests,
+      total_samples: samples.length,
+      errored_samples: erroredSamples,
     },
     usage: {
       total_tokens: runMetrics.tokens.total,
@@ -2093,9 +2092,8 @@ export function buildRunSummaryArtifact(
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([reason, count]) => ({ reason, count })),
     },
-    cases: caseSummaries,
+    tests: testSummaries,
     metadata: {
-      run_id: runId,
       eval_file: evalFile,
       timestamp,
       targets,
@@ -2987,7 +2985,10 @@ function summaryRunId(summary: unknown, fallback: string): string {
   if (!isRecord(summary)) {
     return fallback;
   }
-  const runId = isRecord(summary.metadata) ? summary.metadata.run_id : undefined;
+  // `run_id` lives at the summary root; `metadata.run_id` is a pre-rename
+  // duplicate kept here only to read historical bundles written before it moved.
+  const runId =
+    summary.run_id ?? (isRecord(summary.metadata) ? summary.metadata.run_id : undefined);
   return typeof runId === 'string' && runId.trim().length > 0 ? runId : fallback;
 }
 
