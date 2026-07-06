@@ -23,6 +23,12 @@ contract below supersedes both the earlier agentskills-shaped
 `graders[]`/`checks[]` wording. Native AgentV grading artifacts now use a
 recursive Promptfoo-style grading result in `snake_case`.
 
+Amended (2026-07-06) by tracker `av-cpl5`: decision point 3 below described
+`transcript_summary` as inlined into each `index.jsonl` result row. That
+inlining is superseded — see "Summary/index/sidecar boundary is locked" below
+for the current contract and the rationale for what stays inline versus what
+moves to a sidecar.
+
 ## Context
 
 We reviewed the output formats of promptfoo, margin-lab, vercel-agent-eval, and
@@ -106,6 +112,59 @@ protocol payloads. AgentV wrappers around those payloads still use `snake_case`.
 7. **Analytics = one pure `Build()`** (margin-lab shape) producing status,
    count, usage, runtime, case, and failure summaries; add promptfoo-shaped
    `named_scores`/`derived_metrics` on rows.
+
+### Summary/index/sidecar boundary is locked (tracker `av-cpl5`)
+
+Tracker `av-cpl5` closes out the boundary point 2 and point 3 above left open:
+exactly what stays on the `summary.json` root, what stays inline on an
+`index.jsonl` row, and what must live only in a per-sample sidecar.
+
+- **`summary.json` uses `tests`/`test` terminology, not `cases`/`case`**
+  (`av-cpl5.2`). `counts.total_cases`/`passed_cases`/`failed_cases` are renamed
+  to `counts.total_tests`/`passed_tests`/`failed_tests`; the sample-level
+  `counts.total_instances`/`errored_instances` are renamed to
+  `counts.total_samples`/`errored_samples`; the `cases[]` array is renamed to
+  `tests[]`. This finishes the `case` → `test`/`sample` vocabulary migration
+  that ADR-0012's non-goals deferred.
+- **`run_id` is a single field, not two** (`av-cpl5.2`). `summary.json`'s root
+  `run_id` was previously duplicated at `metadata.run_id`. The duplicate is
+  dropped; `run_id` lives only at the summary root going forward. Readers of
+  bundles written before this change should fall back to `metadata.run_id`
+  when the root field is absent — `summaryRunId()` in `run-artifacts.ts`
+  implements exactly that fallback order.
+- **`index.jsonl` rows no longer inline `target_execution` or
+  `transcript_summary`** (`av-cpl5.3`), reversing decision point 3 above. Both
+  objects duplicated data already available from sidecars
+  (`target-execution.json` via `target_execution_path`, and each sample's
+  `result.json`) on every row and every repeat-sample rollup entry. Rows now
+  carry a compact `target_error_kind` scalar (row-level and per-`samples[]`
+  entry) so the target-error-kind table affordance still doesn't need a
+  sidecar read to know a run failed; full detail requires reading the sidecar.
+  Bundles written before this change still have the full objects inlined on
+  disk, since run bundles are immutable once written — readers that need to
+  support both eras can check for `target_error_kind` first and fall back to
+  reading the legacy `target_execution`/`transcript_summary` fields directly
+  off the row when present.
+- **`projection_identity` is the deliberate exception and stays inline.**
+  Every other detailed-looking row field moved to a sidecar, but
+  `projection_identity` does not, and this is a permanent design decision, not
+  a follow-up TODO. `writeArtifactsFromResults` reads
+  `projection_identity.id` back off previously-written rows on disk to decide
+  skip/update/error duplicate policy across separate `agentv eval` invocations
+  that append to the same run (`indexRecordReplacementKey` /
+  `existingRecordsByProjectionIdentity` in `run-artifacts.ts`). Moving
+  `projection_identity` to a sidecar would force an N-file read on every
+  append just to resolve duplicate policy, and the field is already compact
+  enough that inlining it costs nothing comparable to `target_execution` or
+  `transcript_summary`.
+
+Net effect: `summary.json` answers run-aggregate questions, `index.jsonl`
+answers dashboard-ready row-manifest questions (identity, filters, status,
+compact error classification, and sidecar paths — plus the one
+duplicate-policy-critical `projection_identity` exception), and per-sample
+sidecars answer detailed-evidence questions. See the [Result Artifact
+Contract](../../apps/web/src/content/docs/docs/next/reference/result-artifacts.mdx)
+for the current field-level shape and worked examples.
 
 ### Multi-suite runs — one run_id, categorize by suite AND tags/experiment
 Confirms ADR-0009 + ADR-0012 (not a new decision):
@@ -367,3 +426,7 @@ exploitbench (security-exploit benchmark; AgentV research `entities/exploitbench
   repo-acquisition fields where they modeled authored testbed setup.
 - `camelCase` in an AgentV-owned artifact or response is a contract bug, not a
   stylistic alternative.
+- Tracker `av-cpl5` locks the summary/index/sidecar boundary (see "Summary/index/sidecar
+  boundary is locked" above): readers written against the pre-`av-cpl5.2`/`av-cpl5.3`
+  shape must add the documented fallbacks (`metadata.run_id`, inline
+  `target_execution`/`transcript_summary`) to keep reading historical bundles.

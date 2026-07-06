@@ -15,7 +15,12 @@ Refined and superseded for current output layout by
 [ADR 0017](0017-output-artifact-and-workspace-resolver-contract.md). Keep this
 ADR as historical context for the results-root move; current run bundles place
 the per-run index at `.internal/index.jsonl`, store repeated executions under
-`sample-N/`, and merge timing data into `metrics.json`.
+`sample-N/`, and merge timing data into `metrics.json`. ADR 0017's
+"Summary/index/sidecar boundary is locked" amendment (tracker `av-cpl5`)
+further renames this ADR's `summary.json` counts/array vocabulary from
+`cases`/`case` to `tests`/`test`/`sample`, and moves `index.jsonl`'s row-level
+`target_execution`/`transcript_summary` detail into sidecars behind a compact
+`target_error_kind` field.
 
 ## Context
 
