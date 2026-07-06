@@ -1,12 +1,12 @@
 # Rubric Graders
 
-Rubrics are defined as `assert` entries with plain strings or `type: llm-rubric`. They support binary checklist grading and score-range analytic grading.
+Rubrics are defined as `assert` entries with plain strings, `type: llm-rubric`, or `type: agent-rubric`. They support binary checklist grading and score-range analytic grading. Use `agent-rubric` only when the grader target is an agent-capable provider that should inspect workspace evidence.
 
 ## Field Reference
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `type` | string | required | Use `llm-rubric` for a structured rubric; plain strings in `assert` use the same grader path |
+| `type` | string | required | Use `llm-rubric` for a structured rubric; use `agent-rubric` for Promptfoo-compatible agent-backed rubric checks; plain strings in `assert` use the same non-agent rubric path |
 | `value` | array | required | List of criterion strings or objects |
 | `required` | boolean or number | - | Gate: `true` requires score >= 0.8; a number (0–1) sets a custom threshold |
 
@@ -116,6 +116,23 @@ Array format is also accepted:
 ```
 
 Ranges must be integers 0-10, non-overlapping, covering all values 0-10.
+
+## Agent Rubric Mode
+
+`agent-rubric` accepts the same `value`, `target`, `max_steps`, `required`, and
+`min_score` fields as `llm-rubric`, but the resolved grader target must be
+agent-capable:
+
+```yaml
+assert:
+  - type: agent-rubric
+    target: codex-grader
+    value: Inspect the workspace and verify the claimed files exist.
+```
+
+AgentV asks the grader agent to write a verdict JSON file shaped like
+`{"pass": boolean, "score": number, "reason": string}`. The score must be a
+finite 0-1 value; invalid verdict files fail closed.
 
 ## Scoring
 

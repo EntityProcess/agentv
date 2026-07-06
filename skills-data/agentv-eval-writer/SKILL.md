@@ -39,7 +39,7 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 ## Authoring Checklist
 
 - Put grading criteria in `assert`, not in test-level `criteria`. Plain assertion strings become an `llm-rubric` grader.
-- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or assertion-level transforms, and `type: script` when grading must execute code.
+- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or assertion-level transforms. Use `type: agent-rubric` when the grader itself must be an agent-capable target that can inspect the workspace. Use `type: script` when grading must execute code.
 - Put reference answers in `tests[].vars.expected_output` or `default_test.vars.expected_output`, and consume them with an explicit assertion such as `type: llm-rubric` with `value: "Matches the reference answer: {{ expected_output }}"`. Do not write criteria, scoring instructions, or "the agent should..." rubric prose as the reference answer.
 - For historical or repo-state evals, materialize the repo through a pinned `environment` setup recipe. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
 
@@ -151,7 +151,7 @@ tests:
 | `id` | yes | Unique identifier |
 | `vars` | yes when the prompt needs row data | Prompt-template variables for this row |
 | `vars.expected_output` | no | Conventional reference-answer var consumed by explicit graders |
-| `assert` | yes | Graders: deterministic checks, `llm-rubric` checks, script graders, or plain string rubric criteria |
+| `assert` | yes | Graders: deterministic checks, `llm-rubric` / `agent-rubric` checks, script graders, or plain string rubric criteria |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `environment` | no | Per-case coding-agent testbed config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |

@@ -83,6 +83,10 @@ function formatRubricValue(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 }
 
+function isAgentCapableGraderProvider(provider: Provider | undefined): boolean {
+  return provider ? isAgentProvider(provider) || provider.kind === 'agentv' : false;
+}
+
 /**
  * Factory for `llm-grader` evaluators.
  * Creates a wrapper that resolves custom prompts at evaluation time and
@@ -112,7 +116,12 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
     // LLM providers use the normal resolveGraderProvider path for structured JSON mode.
     // The agentv provider drives the built-in agent loop directly, so include
     // it alongside AGENT_PROVIDER_KINDS even though it doesn't spawn a subprocess.
-    const isAgent = isAgentProvider(graderTargetProvider) || graderTargetProvider.kind === 'agentv';
+    const isAgent = isAgentCapableGraderProvider(graderTargetProvider);
+    if (c.type === 'agent-rubric' && !isAgent) {
+      throw new Error(
+        `agent-rubric evaluator '${c.name}': target '${c.target}' must resolve to an agent-capable grader provider`,
+      );
+    }
     evaluator = new LlmGrader({
       resolveGraderProvider: async (evalContext) => {
         if (graderTargetProvider) return graderTargetProvider;
@@ -161,7 +170,7 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
 
       let graderTemplateOverride: string | undefined;
       let evalCase = evalContext.evalCase;
-      if (c.type === 'llm-rubric' && c.value !== undefined) {
+      if ((c.type === 'llm-rubric' || c.type === 'agent-rubric') && c.value !== undefined) {
         evalCase = { ...evalCase, criteria: formatRubricValue(c.value) };
       }
       if (customPrompt) {
@@ -185,6 +194,9 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
 
 export const llmRubricFactory: GraderFactoryFn = (config, context) =>
   llmGraderFactory(config as LlmRubricGraderConfig, context);
+
+export const agentRubricFactory: GraderFactoryFn = (config, context) =>
+  llmGraderFactory(config as import('../types.js').AgentRubricGraderConfig, context);
 
 /** Factory for subprocess-backed script evaluators. */
 export const scriptFactory: GraderFactoryFn = (config, context) => {
@@ -427,6 +439,7 @@ export function createBuiltinRegistry(): GraderRegistry {
   registry
     .register('llm-grader', llmGraderFactory)
     .register('llm-rubric', llmRubricFactory)
+    .register('agent-rubric', agentRubricFactory)
     .register('script', scriptFactory)
     .register('tool-trajectory', toolTrajectoryFactory)
     .register('trajectory:tool-used', trajectoryFactory)

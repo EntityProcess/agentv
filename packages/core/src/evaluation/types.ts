@@ -194,6 +194,7 @@ const GRADER_KIND_VALUES = [
   'execution-metrics',
   'assert-set',
   'llm-rubric',
+  'agent-rubric',
   'contains',
   'contains-any',
   'contains-all',
@@ -490,7 +491,14 @@ export type LlmRubricGraderConfig = Omit<LlmGraderConfig, 'type'> & {
   readonly value?: JsonValue;
 };
 
-export type LlmBackedGraderConfig = LlmGraderConfig | LlmRubricGraderConfig;
+export type AgentRubricGraderConfig = Omit<LlmRubricGraderConfig, 'type'> & {
+  readonly type: 'agent-rubric';
+};
+
+export type LlmBackedGraderConfig =
+  | LlmGraderConfig
+  | LlmRubricGraderConfig
+  | AgentRubricGraderConfig;
 
 /**
  * Score range definition for analytic rubric scoring.
@@ -955,6 +963,7 @@ export type GraderConfig = (
   | CodeGraderConfig
   | LlmGraderConfig
   | LlmRubricGraderConfig
+  | AgentRubricGraderConfig
   | ToolTrajectoryGraderConfig
   | SkillUsedGraderConfig
   | FieldAccuracyGraderConfig

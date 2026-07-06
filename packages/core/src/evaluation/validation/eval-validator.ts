@@ -52,6 +52,7 @@ const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
 const PROMPTFOO_ASSERTION_TYPES = new Set([
   'assert-set',
   'llm-rubric',
+  'agent-rubric',
   'javascript',
   'python',
   'webhook',
@@ -70,7 +71,6 @@ const REMOVED_ASSERTION_TYPE_REPLACEMENTS = new Map<string, string>([
 ]);
 
 const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
-  'agent-rubric',
   'answer-relevance',
   'bleu',
   'classifier',

@@ -2025,6 +2025,27 @@ tests:
       expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
     });
 
+    it('accepts promptfoo agent-rubric assertions', async () => {
+      const filePath = path.join(tempDir, 'assert-agent-rubric-supported.yaml');
+      await writeFile(
+        filePath,
+        `prompts:
+  - "Review the answer"
+tests:
+  - id: test-1
+    assert:
+      - type: agent-rubric
+        value: "Inspect the workspace and verify the evidence"
+        target: codex-grader
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
+    });
+
     it('accepts promptfoo-compatible skill-used assertions', async () => {
       const filePath = path.join(tempDir, 'assert-skill-used.yaml');
       await writeFile(

@@ -46,6 +46,40 @@ assert:
 
 Use `provider:` when you want different `llm-rubric` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
 
+## Agent Rubrics
+
+Use `type: agent-rubric` when a Promptfoo-style rubric needs an agentic grader
+that can inspect the workspace instead of only judging the final answer text.
+AgentV routes `agent-rubric` through the same `llm-rubric` / `llm-grader`
+scoring path, so results still appear as normal `EvaluationScore` entries.
+
+```yaml
+assert:
+  - name: workspace-evidence
+    type: agent-rubric
+    target: codex-grader
+    value: The answer's claims are backed by concrete files in the workspace.
+```
+
+The resolved grader target must be agent-capable, such as a Codex, Claude,
+Copilot, Pi, VS Code, or `agentv` grader target. If `target:` resolves to a
+plain LLM grader provider, AgentV fails clearly instead of silently downgrading
+the check.
+
+For agent-backed grading, AgentV creates a temporary `verdict.json` path for
+each grading call and instructs the agent grader to write exactly one JSON
+object there:
+
+```json
+{ "pass": true, "score": 1, "reason": "Evidence found in src/logger.ts." }
+```
+
+AgentV reads that file before parsing the final assistant message. The `score`
+must be a finite number from `0` to `1`; malformed verdict files fail closed as
+grader failures. If the file is missing, AgentV may still parse the final
+assistant text using the same structured JSON fallback used by other agent
+grader modes.
+
 ## Prompt Files
 
 The prompt file defines evaluation criteria and scoring guidelines. It can be a markdown text template or a TypeScript/JavaScript dynamic template.

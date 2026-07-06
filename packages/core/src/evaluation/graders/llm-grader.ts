@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { z } from 'zod';
@@ -142,6 +143,15 @@ const promptfooGradingResultSchema = z
   })
   .passthrough();
 
+const agentVerdictFileSchema = z
+  .object({
+    pass: z.boolean(),
+    score: z.number().finite().min(0).max(1),
+    reason: z.string(),
+    checks: z.array(promptfooCheckSchema).optional(),
+  })
+  .passthrough();
+
 const rubricCheckResultSchema = z.object({
   id: z.string().describe('The ID of the rubric item being checked'),
   satisfied: z.boolean().describe('Whether this rubric requirement is met'),
@@ -216,15 +226,32 @@ function buildTemplateVariables(context: EvaluationContext): Record<string, stri
 }
 
 function getRubrics(config: GraderConfig | undefined): readonly RubricItem[] | undefined {
-  return config?.type === 'llm-grader' || config?.type === 'llm-rubric'
+  return config?.type === 'llm-grader' ||
+    config?.type === 'llm-rubric' ||
+    config?.type === 'agent-rubric'
     ? config.rubrics
     : undefined;
 }
 
 function isLlmBackedWithPreprocessors(
   config: GraderConfig | undefined,
-): config is Extract<GraderConfig, { readonly type: 'llm-grader' | 'llm-rubric' }> {
-  return config?.type === 'llm-grader' || config?.type === 'llm-rubric';
+): config is Extract<
+  GraderConfig,
+  { readonly type: 'llm-grader' | 'llm-rubric' | 'agent-rubric' }
+> {
+  return (
+    config?.type === 'llm-grader' ||
+    config?.type === 'llm-rubric' ||
+    config?.type === 'agent-rubric'
+  );
+}
+
+function isAgentRubricConfig(config: GraderConfig | undefined): boolean {
+  return config?.type === 'agent-rubric';
+}
+
+function isAgentCapableGraderProvider(provider: Provider | undefined): boolean {
+  return provider ? isAgentProvider(provider) || provider.kind === 'agentv' : false;
 }
 
 function resolveContentBasePath(context: EvaluationContext): string | undefined {
@@ -437,12 +464,28 @@ export class LlmGrader implements Grader {
 
     // Delegate mode: grader target provider is an agent provider — send prompt via invoke()
     if (this.graderTargetProvider) {
+      if (
+        isAgentRubricConfig(preparedContext.evaluator) &&
+        !isAgentCapableGraderProvider(this.graderTargetProvider)
+      ) {
+        throw new Error(
+          `agent-rubric evaluator '${preparedContext.evaluator?.name ?? 'agent-rubric'}' requires an agent-capable grader provider`,
+        );
+      }
       return this.evaluateWithGraderTarget(preparedContext);
     }
 
     const graderProvider = await this.resolveGraderProvider(preparedContext);
     if (!graderProvider) {
       throw new Error('No grader provider available for LLM grading');
+    }
+    if (
+      isAgentRubricConfig(preparedContext.evaluator) &&
+      !isAgentCapableGraderProvider(graderProvider)
+    ) {
+      throw new Error(
+        `agent-rubric evaluator '${preparedContext.evaluator?.name ?? 'agent-rubric'}' requires an agent-capable grader provider`,
+      );
     }
 
     // Built-in agent mode: agentv provider → provider.invoke() with filesystem tools
@@ -755,19 +798,20 @@ export class LlmGrader implements Grader {
       );
     }
 
-    const systemPrompt = this.buildAgentSystemPrompt(context);
-    const userPrompt = this.buildAgentUserPrompt(context);
-
     const config = context.evaluator;
     const rubrics = getRubrics(config);
 
     const fsTools = createFilesystemTools(workspacePath);
+    const verdictFile = await createAgentVerdictFile(workspacePath);
+    const systemPrompt = this.buildAgentSystemPrompt(context, verdictFile.path);
+    const userPrompt = this.buildAgentUserPrompt(context, verdictFile.path);
 
     const graderRawRequest: JsonObject = {
       mode: 'built-in',
       systemPrompt,
       userPrompt,
       maxSteps: this.maxSteps,
+      verdict_path: verdictFile.path,
     };
 
     try {
@@ -791,6 +835,19 @@ export class LlmGrader implements Grader {
         tool_calls: toolCallCount,
       };
 
+      const verdictScore = await this.parseAgentVerdictFile({
+        verdictPath: verdictFile.path,
+        rubrics,
+        graderRawRequest,
+        details,
+        graderTarget: graderProvider.targetName,
+        config: context.evaluator,
+        fallbackText: promptfooFallbackText(context.evaluator, context.evalCase.criteria),
+      });
+      if (verdictScore) {
+        return verdictScore;
+      }
+
       return this.parseAgentResult(
         text,
         rubrics,
@@ -811,6 +868,8 @@ export class LlmGrader implements Grader {
         graderTarget: graderProvider.targetName,
         details: { mode: 'built-in', error: message },
       };
+    } finally {
+      await verdictFile.cleanup();
     }
   }
 
@@ -849,12 +908,14 @@ export class LlmGrader implements Grader {
     modeLabel: string,
   ): Promise<EvaluationScore> {
     const workspacePath = context.workspacePath;
-    const prompt = this.buildDelegatedPrompt(context);
+    const verdictFile = await createAgentVerdictFile(workspacePath);
+    const prompt = this.buildDelegatedPrompt(context, verdictFile.path);
 
     const graderRawRequest: JsonObject = {
       mode: modeLabel,
       grader_target: provider.targetName,
       prompt,
+      verdict_path: verdictFile.path,
     };
 
     try {
@@ -888,6 +949,19 @@ export class LlmGrader implements Grader {
         grader_target: provider.targetName,
       };
 
+      const verdictScore = await this.parseAgentVerdictFile({
+        verdictPath: verdictFile.path,
+        rubrics,
+        graderRawRequest,
+        details,
+        graderTarget: provider.targetName,
+        config: context.evaluator,
+        fallbackText: promptfooFallbackText(context.evaluator, context.evalCase.criteria),
+      });
+      if (verdictScore) {
+        return verdictScore;
+      }
+
       return this.parseAgentResult(
         assistantContent,
         rubrics,
@@ -914,6 +988,8 @@ export class LlmGrader implements Grader {
           error: message,
         },
       };
+    } finally {
+      await verdictFile.cleanup();
     }
   }
 
@@ -925,7 +1001,7 @@ export class LlmGrader implements Grader {
    * Build system prompt for built-in agent mode.
    * Includes output format instructions.
    */
-  private buildAgentSystemPrompt(context: EvaluationContext): string {
+  private buildAgentSystemPrompt(context: EvaluationContext, verdictPath?: string): string {
     const config = context.evaluator;
     const rubrics = getRubrics(config);
 
@@ -943,6 +1019,9 @@ export class LlmGrader implements Grader {
     } else {
       parts.push(buildOutputSchema());
     }
+    if (verdictPath) {
+      parts.push('', buildAgentVerdictFileInstructions(verdictPath));
+    }
 
     return parts.join('\n');
   }
@@ -951,7 +1030,7 @@ export class LlmGrader implements Grader {
    * Build user prompt for built-in agent mode.
    * Uses custom template if provided, otherwise builds default prompt.
    */
-  private buildAgentUserPrompt(context: EvaluationContext): string {
+  private buildAgentUserPrompt(context: EvaluationContext, verdictPath?: string): string {
     const formattedQuestion =
       context.promptInputs.question && context.promptInputs.question.trim().length > 0
         ? context.promptInputs.question
@@ -1010,6 +1089,10 @@ export class LlmGrader implements Grader {
       );
     }
 
+    if (verdictPath) {
+      parts.push('', buildAgentVerdictFileInstructions(verdictPath));
+    }
+
     return parts.join('\n');
   }
 
@@ -1017,7 +1100,7 @@ export class LlmGrader implements Grader {
    * Build the full evaluation prompt for delegate mode (agent providers).
    * Combines task context, criteria, candidate info, and output format instructions.
    */
-  private buildDelegatedPrompt(context: EvaluationContext): string {
+  private buildDelegatedPrompt(context: EvaluationContext, verdictPath?: string): string {
     const formattedQuestion =
       context.promptInputs.question && context.promptInputs.question.trim().length > 0
         ? context.promptInputs.question
@@ -1039,7 +1122,9 @@ export class LlmGrader implements Grader {
             : buildRubricFormatInstructions()
           : buildOutputSchema();
 
-      return `${customPrompt}\n\n${outputSchema}`;
+      return `${customPrompt}\n\n${outputSchema}${
+        verdictPath ? `\n\n${buildAgentVerdictFileInstructions(verdictPath)}` : ''
+      }`;
     }
 
     const parts: string[] = [
@@ -1080,6 +1165,9 @@ export class LlmGrader implements Grader {
       parts.push(buildRubricOutputSchema());
     } else {
       parts.push(buildOutputSchema());
+    }
+    if (verdictPath) {
+      parts.push('', buildAgentVerdictFileInstructions(verdictPath));
     }
 
     return parts.join('\n');
@@ -1187,6 +1275,62 @@ export class LlmGrader implements Grader {
         graderTarget,
         details,
       };
+    }
+  }
+
+  private async parseAgentVerdictFile(options: {
+    readonly verdictPath: string;
+    readonly rubrics: readonly RubricItem[] | undefined;
+    readonly graderRawRequest: JsonObject;
+    readonly details: JsonObject;
+    readonly graderTarget?: string;
+    readonly config?: GraderConfig;
+    readonly fallbackText: string;
+  }): Promise<EvaluationScore | undefined> {
+    let content: string;
+    try {
+      content = await fs.readFile(options.verdictPath, 'utf8');
+    } catch (error) {
+      if (isMissingFileError(error)) {
+        return undefined;
+      }
+      return buildAgentVerdictFailure({
+        error: error instanceof Error ? error.message : String(error),
+        graderRawRequest: options.graderRawRequest,
+        details: options.details,
+        graderTarget: options.graderTarget,
+      });
+    }
+
+    try {
+      const raw = JSON.parse(content);
+      const parsed = agentVerdictFileSchema.parse(raw);
+      const normalized = normalizePromptfooGradingResult({
+        raw: parsed,
+        config: options.config,
+        fallbackText: options.fallbackText,
+        rubrics: options.rubrics,
+      });
+      return {
+        score: normalized.score,
+        verdict: normalized.verdict,
+        assertions: normalized.assertions,
+        expectedAspectCount: options.rubrics?.length ?? Math.max(normalized.assertions.length, 1),
+        graderRawRequest: options.graderRawRequest,
+        graderTarget: options.graderTarget,
+        details: {
+          ...options.details,
+          ...normalized.details,
+          verdict_source: 'file',
+        },
+      };
+    } catch (error) {
+      return buildAgentVerdictFailure({
+        error: error instanceof Error ? error.message : String(error),
+        graderRawRequest: options.graderRawRequest,
+        details: options.details,
+        graderTarget: options.graderTarget,
+      });
     }
   }
 
@@ -1472,6 +1616,69 @@ export function buildOutputSchema(): string {
     '  "details": {<optional object with domain-specific structured metrics>}',
     '}',
   ].join('\n');
+}
+
+function buildAgentVerdictFileInstructions(verdictPath: string): string {
+  return [
+    'Agent grader verdict file contract:',
+    `Write exactly one JSON object to the verdict JSON file at: ${verdictPath}`,
+    'The JSON object must match this shape: {"pass": boolean, "score": number between 0.0 and 1.0, "reason": string}.',
+    'Do not write Markdown, comments, arrays, or multiple JSON objects to the verdict file.',
+    'After writing the file, your final assistant message may be brief; AgentV reads the verdict file first.',
+  ].join('\n');
+}
+
+async function createAgentVerdictFile(
+  workspacePath: string | undefined,
+): Promise<{ readonly path: string; cleanup(): Promise<void> }> {
+  const root = workspacePath
+    ? path.join(workspacePath, '.agentv', 'tmp')
+    : path.join(tmpdir(), 'agentv-grader');
+  await fs.mkdir(root, { recursive: true });
+  const directory = await fs.mkdtemp(path.join(root, 'grader-verdict-'));
+  const verdictPath = path.join(directory, 'verdict.json');
+  return {
+    path: verdictPath,
+    async cleanup() {
+      await fs.rm(directory, { recursive: true, force: true });
+    },
+  };
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'ENOENT'
+  );
+}
+
+function buildAgentVerdictFailure(options: {
+  readonly error: string;
+  readonly graderRawRequest: JsonObject;
+  readonly details: JsonObject;
+  readonly graderTarget?: string;
+}): EvaluationScore {
+  return {
+    score: 0,
+    verdict: 'fail',
+    assertions: [
+      {
+        text: 'Failed to parse llm-grader agent verdict file as valid evaluation JSON',
+        passed: false,
+        evidence: options.error,
+      },
+    ],
+    expectedAspectCount: 1,
+    graderRawRequest: options.graderRawRequest,
+    graderTarget: options.graderTarget,
+    details: {
+      ...options.details,
+      verdict_source: 'file',
+      verdict_file_error: options.error,
+    },
+  };
 }
 
 export function buildPromptfooRubricOutputSchema(): string {
