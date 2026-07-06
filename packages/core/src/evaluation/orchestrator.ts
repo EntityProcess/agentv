@@ -185,6 +185,8 @@ interface EvaluationRuntimeOptions {
   readonly providerFactory?: (target: ResolvedTarget) => Provider;
   readonly evalFilePath?: string;
   readonly graderTarget?: string;
+  /** Config-level fallback grader target name (`.agentv/config.yaml`'s `defaults.grader`), used when a target has no `grader_target` and no CLI `--grader-target` override is given. */
+  readonly defaultGraderTarget?: string;
   readonly model?: string;
 }
 
@@ -203,6 +205,7 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
     providerFactory,
     evalFilePath,
     graderTarget: cliGraderTarget,
+    defaultGraderTarget,
     model: cliModel,
   } = options;
   const resolvedTargetsByName = new Map<string, ResolvedTarget>();
@@ -262,7 +265,7 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
     // TODO: When --model is provided without --grader-target, override the model of
     // whichever grader target is resolved. For now, --model only works with --grader-target agentv.
 
-    const graderName = targetContext.graderTarget ?? targetContext.name;
+    const graderName = targetContext.graderTarget ?? defaultGraderTarget ?? targetContext.name;
     const resolvedGrader = resolveTargetByName(graderName);
     if (!resolvedGrader) {
       // Only use the eval target as its own grader if it can return structured JSON.
@@ -542,6 +545,8 @@ export interface RunEvaluationOptions {
   readonly retainOnFailure?: 'keep' | 'cleanup';
   /** CLI override: grader target name (e.g., "agentv" or a target from targets.yaml) */
   readonly graderTarget?: string;
+  /** Config-level fallback grader target name (`.agentv/config.yaml`'s `defaults.grader`), used when a target has no `grader_target` and no CLI `--grader-target` override is given. */
+  readonly defaultGraderTarget?: string;
   /** CLI override: model for grader target (e.g., "openai:gpt-5-mini") */
   readonly model?: string;
   /** Per-test score threshold for pass/fail (default: 0.8) */
@@ -831,6 +836,7 @@ export async function runEvaluation(
     retainOnSuccess,
     retainOnFailure,
     graderTarget: cliGraderTarget,
+    defaultGraderTarget,
     model: cliModel,
     threshold: scoreThreshold,
     replayRecording,
@@ -868,6 +874,7 @@ export async function runEvaluation(
     providerFactory,
     evalFilePath,
     graderTarget: cliGraderTarget,
+    defaultGraderTarget,
     model: cliModel,
   });
   const { getOrCreateProvider, resolveGraderProvider, targetResolver, availableTargets } = runtime;
@@ -875,10 +882,16 @@ export async function runEvaluation(
   // Validate grader_target: error if an agent provider would be used as grader.
   // Agent providers can't return structured JSON for grading — they respond with
   // tool calls and markdown, causing silent score-0 failures.
-  // CLI --grader-target override also satisfies this requirement.
-  if (isAgentProvider(getOrCreateProvider(target)) && !target.graderTarget && !cliGraderTarget) {
+  // CLI --grader-target override or config-level `defaults.grader` also satisfy
+  // this requirement.
+  if (
+    isAgentProvider(getOrCreateProvider(target)) &&
+    !target.graderTarget &&
+    !cliGraderTarget &&
+    !defaultGraderTarget
+  ) {
     throw new Error(
-      `Target "${target.name}" is an agent provider ("${target.kind}") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm).`,
+      `Target "${target.name}" is an agent provider ("${target.kind}") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target on the target, pass --grader-target, or set defaults.grader in .agentv/config.yaml to an LLM provider (e.g., azure-llm).`,
     );
   }
 

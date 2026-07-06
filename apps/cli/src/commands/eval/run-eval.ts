@@ -298,6 +298,8 @@ interface NormalizedOptions {
   /** Removed: the run directory always uses index.jsonl */
   readonly outputFormat?: string;
   readonly graderTarget?: string;
+  /** Config-level fallback grader target name, from `.agentv/config.yaml`'s `defaults.grader`. */
+  readonly defaultGraderTarget?: string;
   readonly model?: string;
   readonly outputMessages: number | 'all';
   readonly threshold?: number;
@@ -1710,6 +1712,7 @@ async function runSingleEvalFile(params: {
     runBudgetTracker,
     failOnError,
     graderTarget: options.graderTarget,
+    defaultGraderTarget: options.defaultGraderTarget,
     model: options.model,
     threshold: params.threshold,
     targetHooks: resolvedTargetSelection.targetHooks,
@@ -1816,6 +1819,9 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  if (yamlConfig?.defaults?.grader) {
+    options = { ...options, defaultGraderTarget: yamlConfig.defaults.grader };
+  }
   const resolvedExperiment = resolveExperimentForRun(options.experiment);
   const evalPathInputs = input.testFiles.length > 0 ? [...input.testFiles] : [];
   if (evalPathInputs.length === 0 && process.stdin.isTTY) {

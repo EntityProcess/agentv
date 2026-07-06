@@ -2985,6 +2985,91 @@ describe('criteria with assertions runs only declared evaluators (#452)', () => 
   });
 });
 
+describe('defaultGraderTarget (config-level defaults.grader fallback)', () => {
+  it('uses defaultGraderTarget when the target has no grader_target of its own', async () => {
+    const answerProvider = new SequenceProvider('answer', {
+      responses: [
+        { output: [{ role: 'assistant', content: 'Logging improved via structured logs.' }] },
+      ],
+    });
+    const graderProvider = new CapturingGraderProvider('grader', {
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({ score: 1, assertions: [{ text: 'ok', passed: true }] }),
+        },
+      ],
+    });
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: { ...baseTarget, name: 'answer' },
+      targets: [
+        { name: 'answer', provider: 'mock' },
+        { name: 'grader', provider: 'mock' },
+      ],
+      defaultGraderTarget: 'grader',
+      providerFactory: (target) => (target.name === 'grader' ? graderProvider : answerProvider),
+      evaluators: undefined,
+      evalCases: [baseTestCase],
+    });
+
+    expect(results[0]?.score).toBe(1);
+    expect(graderProvider.lastRequest).toBeDefined();
+  });
+
+  it("prefers the target's own grader_target over defaultGraderTarget", async () => {
+    const answerProvider = new SequenceProvider('answer', {
+      responses: [
+        { output: [{ role: 'assistant', content: 'Logging improved via structured logs.' }] },
+      ],
+    });
+    const explicitGrader = new CapturingGraderProvider('explicit-grader', {
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({ score: 1, assertions: [{ text: 'ok', passed: true }] }),
+        },
+      ],
+    });
+    const fallbackGrader = new CapturingGraderProvider('fallback-grader', {
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            score: 0,
+            assertions: [{ text: 'should not run', passed: false }],
+          }),
+        },
+      ],
+    });
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: { ...baseTarget, name: 'answer', graderTarget: 'explicit-grader' },
+      targets: [
+        { name: 'answer', provider: 'mock' },
+        { name: 'explicit-grader', provider: 'mock' },
+        { name: 'fallback-grader', provider: 'mock' },
+      ],
+      defaultGraderTarget: 'fallback-grader',
+      providerFactory: (target) => {
+        if (target.name === 'explicit-grader') return explicitGrader;
+        if (target.name === 'fallback-grader') return fallbackGrader;
+        return answerProvider;
+      },
+      evaluators: undefined,
+      evalCases: [baseTestCase],
+    });
+
+    expect(results[0]?.score).toBe(1);
+    expect(explicitGrader.lastRequest).toBeDefined();
+    expect(fallbackGrader.lastRequest).toBeUndefined();
+  });
+});
+
 describe('required gates', () => {
   const assertionTestCase: EvalTest = {
     id: 'required-gate-1',

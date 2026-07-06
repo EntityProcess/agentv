@@ -315,16 +315,22 @@ function parseExecution(
 }
 
 function validateDefaultSelections(graph: ComposableConfigGraph, configPath: string): void {
-  if (graph.defaults?.target !== undefined) {
-    const targetIds = new Set((graph.targets ?? []).map((target) => target.id));
+  // Only validated against targets/graders defined inline in this same config
+  // document. `defaults.target`/`defaults.grader` may instead name a target
+  // defined in a separately-discovered `.agentv/targets.yaml`, which this
+  // graph has no visibility into — that case is resolved (and, on an unknown
+  // name, reported) lazily at eval-run time, the same way CLI
+  // `--grader-target` already is.
+  if (graph.defaults?.target !== undefined && graph.targets && graph.targets.length > 0) {
+    const targetIds = new Set(graph.targets.map((target) => target.id));
     if (!targetIds.has(graph.defaults.target)) {
       throw new Error(
         `Invalid defaults.target in ${configPath}: '${graph.defaults.target}' does not match a configured target id.`,
       );
     }
   }
-  if (graph.defaults?.grader !== undefined) {
-    const graderIds = new Set((graph.graders ?? []).map((grader) => grader.id));
+  if (graph.defaults?.grader !== undefined && graph.graders && graph.graders.length > 0) {
+    const graderIds = new Set(graph.graders.map((grader) => grader.id));
     if (!graderIds.has(graph.defaults.grader)) {
       throw new Error(
         `Invalid defaults.grader in ${configPath}: '${graph.defaults.grader}' does not match a configured grader id.`,
