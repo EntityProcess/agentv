@@ -10,12 +10,16 @@ AgentV writes each eval invocation as a portable run bundle. The bundle is the
 source of truth for Dashboard, reports, compare/trend tooling, CI gates, and
 external adapters.
 
-The contract is run-centric:
+The contract is run-centric, and each layer answers a different question:
 
-- `summary.json` owns aggregate run facts.
-- `.internal/index.jsonl` owns per-run row discovery and filtering.
-- Per-case sidecars own detailed payloads such as grading, metrics, transcripts,
-  generated files, and raw provider evidence.
+- `summary.json` answers **run aggregate** questions: status breakdown, per-test
+  and per-sample counts, token/cost usage, and rollups for the whole run.
+- `.internal/index.jsonl` answers **dashboard-ready row manifest** questions:
+  identity, filter metadata, status, scores, and explicit sidecar paths for
+  every test and sample in the run.
+- Per-sample sidecars answer **detailed evidence** questions: full grading
+  breakdowns, metrics, transcripts, generated files, and raw provider evidence
+  for one sample.
 - Dashboard, search, SQLite, HTML reports, and vendor exports are rebuildable
   projections over the bundle.
 
@@ -95,9 +99,9 @@ reserved for rebuildable local state and are skipped by run discovery.
 
 | File or field | Owns | Use it for |
 | --- | --- | --- |
-| `summary.json` | Aggregate run metadata and rollups: run id, experiment label, tags, runtime source, counts, pass rate, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
-| `.internal/index.jsonl` | Canonical per-run row index: one row per case/result aggregate, with identity fields, filter metadata, scores, status, and explicit run-relative paths to sidecars. | Filtering, compare/trend inputs, Dashboard detail routing, rerun/resume lookup, export adapters, and artifact discovery. |
-| `result.json` | Compact per-sample manifest for one `sample-N/` directory, including AgentV `execution_status` and normalized outcome `status`. | Loading one sample without scanning the whole run index. |
+| `summary.json` | Aggregate run metadata and rollups: run id, experiment label, tags, runtime source, `counts` (`total_tests`/`passed_tests`/`failed_tests`/`total_samples`/`errored_samples`), pass rate, per-test rollups in `tests[]`, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
+| `.internal/index.jsonl` | Canonical per-run row index: one dashboard-ready row per test/result, with identity fields, filter metadata, scores, status, a compact `target_error_kind`, and explicit run-relative paths to sidecars such as `target_execution_path` and `metrics_path`. | Filtering, compare/trend inputs, Dashboard detail routing, rerun/resume lookup, export adapters, and artifact discovery. |
+| `result.json` | Compact per-sample manifest for one `sample-N/` directory, including AgentV `execution_status`, normalized outcome `status`, the full target runtime envelope, and `transcript_summary`. | Loading one sample's full detail without scanning the whole run index or a separate sidecar. |
 | `environment.json` / `environment_path` | Redacted environment recipe provenance: authored inline/file reference, resolved recipe hash, host or Docker type, resolved workdir, setup argv command, setup log output/error, Docker context/image/digest fields when available, and repo provenance only when authored or emitted by setup. Index rows carry `environment_path` plus a compact `environment` summary; large setup logs stay in the sidecar. | Reproducing and reviewing the testbed without treating setup side effects as row metadata. Repository identity is opaque unless the environment recipe or setup output states it explicitly. |
 | `grading.json` | Grader outputs and scoring provenance: aggregate `pass`, `score`, `reason`, recursive `component_results`, and optional `assertion`, `named_scores`, and `metadata`. | Explaining why a row passed or failed. |
 | `metrics.json` | Duration, token usage, cost, execution status, trajectory, and derived executor behavior such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, cost/latency reporting, metric-style graders, adapter projections, and lightweight analysis. |
@@ -114,6 +118,116 @@ run list should not scan every row just to show pass rate or total duration, and
 a row reader should not parse aggregate summary structures to find one case's
 grading or transcript. Keep aggregate questions on `summary.json`; keep row and
 artifact discovery on `.internal/index.jsonl`.
+
+## Summary Contract
+
+`summary.json` answers run-aggregate questions only. It reports counts and
+rollups at both the test level (one entry per `eval_path` + `test_id` +
+`target` combination) and the sample level (one execution, including repeats),
+plus usage, infra-failure taxonomy, and writer metadata. It does not inline
+row-level identity, scores, or sidecar paths — that is `.internal/index.jsonl`'s
+job.
+
+```json
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-06-30T08-15-00-000Z",
+  "status": {
+    "passed": { "count": 1, "percentage": 50 },
+    "failed": { "count": 1, "percentage": 50 },
+    "errored": { "count": 1, "percentage": 50 },
+    "skipped": { "count": 0, "percentage": 0 }
+  },
+  "counts": {
+    "total_tests": 2,
+    "passed_tests": 1,
+    "failed_tests": 1,
+    "total_samples": 2,
+    "errored_samples": 1
+  },
+  "usage": {
+    "total_tokens": 4200,
+    "input_tokens": 3100,
+    "output_tokens": 1100,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.014
+  },
+  "infra_failures": {
+    "total": 1,
+    "reasons": [{ "reason": "execution_error", "count": 1 }]
+  },
+  "tests": [
+    {
+      "test_id": "refund-eligibility",
+      "suite": "support",
+      "eval_path": "evals/support/refunds.eval.yaml",
+      "target": "codex-gpt5",
+      "total_samples": 1,
+      "passed_samples": 1,
+      "status_counts": { "passed": 1 },
+      "pass_rate": 100,
+      "pass_any": true,
+      "samples": [
+        {
+          "test_id": "refund-eligibility",
+          "target": "codex-gpt5",
+          "sample_index": 1,
+          "status": "passed",
+          "score": 0.92,
+          "execution_status": "ok",
+          "duration_ms": 184200
+        }
+      ]
+    },
+    {
+      "test_id": "refund-timeout",
+      "suite": "support",
+      "eval_path": "evals/support/refunds.eval.yaml",
+      "target": "codex-gpt5",
+      "total_samples": 1,
+      "passed_samples": 0,
+      "status_counts": { "execution_error": 1 },
+      "pass_rate": 0,
+      "pass_any": false,
+      "samples": [
+        {
+          "test_id": "refund-timeout",
+          "target": "codex-gpt5",
+          "sample_index": 1,
+          "status": "execution_error",
+          "score": 0,
+          "execution_status": "execution_error",
+          "duration_ms": 300000
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "eval_file": "evals/support/refunds.eval.yaml",
+    "timestamp": "2026-06-30T08:15:00.000Z",
+    "targets": ["codex-gpt5"],
+    "tests_run": ["refund-eligibility", "refund-timeout"],
+    "experiment": "with_skills",
+    "tags": { "experiment": "with_skills", "team": "support" }
+  },
+  "run_summary": {
+    "codex-gpt5": {
+      "pass_rate": { "mean": 50, "stddev": 0 },
+      "time_seconds": { "mean": 184.2, "stddev": 0 },
+      "tokens": { "mean": 2100, "stddev": 0 }
+    }
+  },
+  "metrics": { "duration": {}, "tokens": {}, "cost": {} },
+  "notes": []
+}
+```
+
+`run_id` lives at the summary root, not under `metadata`. `counts` reports
+test-level totals (`total_tests`/`passed_tests`/`failed_tests`) alongside
+sample-level totals (`total_samples`/`errored_samples`), since one test can
+produce multiple samples through repeats. `tests[]` is the per-test rollup
+array; row-level identity, scores, and sidecar paths live in
+`.internal/index.jsonl`, not here.
 
 ## Grading Contract
 
@@ -194,6 +308,16 @@ adds providers and projections, but stable rows follow these rules:
 - Field names are `snake_case`.
 - Identity and filter fields live on the row, not only in directory names.
 - Sidecar references are explicit path fields, relative to the run directory.
+- Detailed payloads stay in sidecars: the row carries a compact
+  `target_error_kind` classification plus `target_execution_path`, not the full
+  target runtime envelope; transcript detail lives in `transcript_path` and
+  each sample's `result.json`, not inlined on the row.
+- `projection_identity` is the one detailed-looking field that stays inline by
+  design rather than moving to a sidecar. `writeArtifactsFromResults` reads
+  `projection_identity.id` back off previously written rows to decide
+  skip/update/error duplicate policy across separate `agentv eval` invocations
+  appending to the same run; a sidecar would force an extra file read per row
+  on every append.
 - Run-level provenance such as `runtime_source` belongs in `summary.json`, not
   repeated on every row. It records runtime config provenance and eval file
   paths; the experiment label remains on `experiment` and `tags.experiment`.
@@ -207,7 +331,6 @@ Example row:
 ```json
 {
   "timestamp": "2026-06-30T08:15:00.000Z",
-  "run_id": "2026-06-30T08-15-00-000Z",
   "experiment": "with_skills",
   "tags": { "experiment": "with_skills", "team": "support" },
   "eval_path": "evals/support/refunds.eval.yaml",
@@ -227,30 +350,40 @@ Example row:
   "target_execution_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/target-execution.json",
   "stdout_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/stdout.txt",
   "stderr_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/stderr.txt",
-  "target_execution": {
-    "schema_version": "agentv.target_execution.v1",
-    "status": "success",
-    "provider_kind": "cli",
-    "target_id": "codex-gpt5"
-  },
   "transcript_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/transcript.json",
   "transcript_raw_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/transcript-raw.jsonl",
-  "transcript_summary": {
-    "total_turns": 4,
-    "tool_calls": { "file_read": 2, "shell": 1, "unknown": 0 },
-    "files_read": ["src/refunds.ts"],
-    "files_modified": ["src/refunds.ts"],
-    "shell_commands": ["bun test refunds.test.ts"],
-    "web_fetches": [],
-    "errors": [],
-    "thinking_blocks": 1
-  },
   "output_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/outputs/answer.md",
   "answer_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/outputs/answer.md",
   "file_changes_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/outputs/file_changes.diff",
-  "test_dir": "refund-eligibility--4f9a7c2d1b6e/test"
+  "test_dir": "refund-eligibility--4f9a7c2d1b6e/test",
+  "projection_identity": {
+    "schema_version": "agentv.projection_identity.v1",
+    "id": "agentv-prj-9f1c2e7a4b6d80519f1c2e7a4b6d8051",
+    "key": "agentv.projection_identity.v1:projection_format=agentv%2Fartifacts%2Fv1|projection_version=1|run_id=2026-06-30T08-15-00-000Z|suite=~|eval_path=evals%2Fsupport%2Frefunds.eval.yaml|test_id=refund-eligibility|target=codex-gpt5|source_target=codex-gpt5|attempt=0|variant=skills-v2|envelope_id=envelope-9f1c2e7a|trace_id=trace-4b6d8051|root_span_id=span-1a2b3c4d",
+    "dimensions": {
+      "run_id": "2026-06-30T08-15-00-000Z",
+      "eval_path": "evals/support/refunds.eval.yaml",
+      "test_id": "refund-eligibility",
+      "target": "codex-gpt5",
+      "source_target": "codex-gpt5",
+      "attempt": 0,
+      "variant": "skills-v2",
+      "envelope_id": "envelope-9f1c2e7a",
+      "trace_id": "trace-4b6d8051",
+      "root_span_id": "span-1a2b3c4d",
+      "projection_format": "agentv/artifacts/v1",
+      "projection_version": "1"
+    }
+  }
 }
 ```
+
+Full target-runtime detail for this row lives at `target_execution_path`; full
+transcript detail lives at `transcript_path` and the sample's `result.json`.
+This row omits `target_error_kind` because the sample completed without a
+target-runtime error; failed target runs carry an error-kind string such as
+`signal_crash` or `timeout` on that field instead of requiring a sidecar read
+to know a run failed.
 
 Rows can represent repeated samples, multi-target runs, imported suites,
 manual `prepare`/`grade` samples, or imported provider sessions. That is why

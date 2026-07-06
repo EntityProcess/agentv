@@ -23,8 +23,12 @@ artifact-format v2 runs direct children of `.agentv/results/` and treats
 Refined and superseded for current output layout by
 [ADR 0017](0017-output-artifact-and-workspace-resolver-contract.md). Keep this
 ADR as historical context; current run bundles use `.internal/index.jsonl`,
-`sample-N/`, `metrics.json`, and `grading.json.assertion_results`, not root
-`index.jsonl`, `run-N/`, `timing_path`, or `timing.json` as the active contract.
+`sample-N/`, `metrics.json`, and `grading.json.component_results`, not root
+`index.jsonl`, `run-N/`, `timing_path`, `timing.json`, or
+`grading.json.assertion_results` as the active contract. ADR 0017's "Summary/index/sidecar
+boundary is locked" amendment (tracker `av-cpl5`) further renames this ADR's
+`summary.json` `cases`/`case` vocabulary to `tests`/`test`, and moves
+`index.jsonl`'s row-level target-execution/transcript detail into sidecars.
 
 ## Context
 
