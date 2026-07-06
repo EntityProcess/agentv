@@ -62,6 +62,7 @@ import {
   loadConfig,
   loadProjectRegistry,
   normalizeCategoryPath,
+  normalizeMetricsArtifactWire,
   normalizeTraceArtifactToTraceSessionResponse,
   omitExternalTraceMetadataKeys,
   readGitResultArtifact,
@@ -1154,7 +1155,7 @@ function buildRepeatTrialReadModels(
     const answerPath = caseTrialArtifactPath(resultDir, runPath, 'outputs/answer.md');
     const resultPath = caseTrialArtifactPath(resultDir, runPath, 'result.json');
     const runResult = readArtifactJsonObject(baseDir, resultPath);
-    const metrics = readArtifactJsonObject(baseDir, metricsPath);
+    const metrics = normalizeMetricsArtifactWire(readArtifactJsonObject(baseDir, metricsPath));
     const timing = readArtifactJsonObject(baseDir, timingPath);
     const toolCalls = objectField(metrics, 'tool_calls');
     const tokenUsage = objectField(metrics, 'tokens') ?? objectField(timing, 'token_usage');

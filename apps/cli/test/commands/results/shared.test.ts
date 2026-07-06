@@ -73,6 +73,70 @@ describe('results shared source resolution', () => {
     expect(results[0].trace.toolCalls).toEqual({ rg: 1 });
   });
 
+  it('hydrates legacy nested metrics sidecars without requiring trace identity', () => {
+    const runDir = path.join(tempDir, '.agentv', 'results', '2026-03-25T10-00-00-000Z');
+    const caseDir = path.join(runDir, 'legacy-case', 'sample-1');
+    mkdirSync(caseDir, { recursive: true });
+    const indexPath = path.join(runDir, 'index.jsonl');
+    writeFileSync(
+      indexPath,
+      `${JSON.stringify({
+        timestamp: '2026-03-25T10:00:00.000Z',
+        test_id: 'legacy-case',
+        target: 'codex',
+        score: 1,
+        metrics_path: 'legacy-case/sample-1/metrics.json',
+      })}\n`,
+    );
+    writeFileSync(
+      path.join(caseDir, 'metrics.json'),
+      `${JSON.stringify({
+        schema_version: 'agentv.metrics.v1',
+        artifact_id: 'metrics-legacy-case',
+        generated_at: '2026-03-25T10:00:00.000Z',
+        test_id: 'legacy-case',
+        target: 'codex',
+        trace: {
+          schema_version: 'agentv.trace.v1',
+          artifact_id: 'execution-trace-legacy-case',
+          trace_id: 'trace-legacy',
+          root_span_id: 'span-legacy',
+        },
+        source_artifacts: {},
+        duration: { total_ms: 1234, total_seconds: 1.234, source: 'provider_reported' },
+        tokens: { total: 11, input: 7, output: 4, reasoning: 0, source: 'provider_reported' },
+        cost: { usd: 0.02, source: 'provider_reported' },
+        metrics: {
+          tool_calls: { Read: 2 },
+          tool_call_counts: { Read: 2 },
+          tool_category_counts: { file_read: 2 },
+          total_tool_calls: 2,
+          total_steps: 1,
+          total_turns: 1,
+          tool_call_events: [],
+          shell_commands: [],
+          files_read: [],
+          files_modified: [],
+          files_created: [],
+          files_deleted: [],
+          web_fetches: [],
+          errors: [],
+          errors_encountered: 0,
+          output_chars: 0,
+          transcript_chars: 0,
+          reasoning_blocks: [],
+          thinking_blocks: 0,
+        },
+      })}\n`,
+    );
+
+    const results = loadManifestResults(indexPath);
+
+    expect(results[0].durationMs).toBe(1234);
+    expect(results[0].tokenUsage).toEqual({ input: 7, output: 4, reasoning: 0 });
+    expect(results[0].costUsd).toBe(0.02);
+  });
+
   it('ignores legacy transcript artifact pointers when hydrating traces', () => {
     const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-03-25T10-00-00-000Z');
     const transcriptRelativePath = 'pointer-case/transcript.jsonl';

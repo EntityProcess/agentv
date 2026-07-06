@@ -12,7 +12,7 @@
 import { z } from 'zod';
 import type { Message, ToolCall } from './providers/types.js';
 import { METRICS_SCHEMA_VERSION } from './result-artifact-contract.js';
-import { EXECUTION_TRACE_SCHEMA_VERSION, type TraceEnvelope } from './trace-envelope.js';
+import type { TraceEnvelope } from './trace-envelope.js';
 import type { TraceEvent } from './trace.js';
 import type { EvaluationResult } from './types.js';
 
@@ -179,7 +179,7 @@ export const MetricsWireSchema = z
   })
   .strict();
 
-export const MetricsArtifactWireSchema = z
+const MetricsArtifactBaseWireSchema = z
   .object({
     schema_version: z.literal(METRICS_SCHEMA_VERSION),
     artifact_id: z.string(),
@@ -188,14 +188,6 @@ export const MetricsArtifactWireSchema = z
     target: z.string(),
     suite: z.string().optional(),
     category: z.string().optional(),
-    trace: z
-      .object({
-        schema_version: z.literal(EXECUTION_TRACE_SCHEMA_VERSION),
-        artifact_id: z.string(),
-        trace_id: z.string(),
-        root_span_id: z.string(),
-      })
-      .strict(),
     source_artifacts: z
       .object({
         transcript_path: z.string().optional(),
@@ -208,9 +200,10 @@ export const MetricsArtifactWireSchema = z
     cost: MetricsCostWireSchema.optional(),
     execution: z.record(z.string(), z.unknown()).optional(),
     trajectory: z.record(z.string(), z.unknown()).optional(),
-    metrics: MetricsWireSchema,
   })
   .strict();
+
+export const MetricsArtifactWireSchema = MetricsArtifactBaseWireSchema.merge(MetricsWireSchema);
 
 export type MetricsArtifactWire = z.infer<typeof MetricsArtifactWireSchema>;
 
@@ -229,6 +222,23 @@ function dropUndefined<T extends Record<string, unknown>>(value: T): T {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function normalizeMetricsArtifactWire(value: unknown): MetricsArtifactWire | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const nestedMetrics = isRecord(value.metrics) ? value.metrics : {};
+  const normalized = Object.fromEntries(
+    Object.entries({
+      ...value,
+      ...nestedMetrics,
+      schema_version: METRICS_SCHEMA_VERSION,
+    }).filter(([key]) => key !== 'trace' && key !== 'metrics'),
+  );
+
+  const parsed = MetricsArtifactWireSchema.safeParse(normalized);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function normalizedKey(key: string): string {
@@ -911,18 +921,12 @@ export function buildMetricsArtifact(
       target: result.target ?? 'unknown',
       suite: result.suite,
       category: result.category,
-      trace: {
-        schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
-        artifact_id: envelope.artifactId,
-        trace_id: envelope.trace.traceId,
-        root_span_id: envelope.trace.rootSpanId,
-      },
       source_artifacts: dropUndefined({
         transcript_path: options.transcriptPath,
         grading_path: options.gradingPath,
         file_changes_path: options.fileChangesPath,
       }),
-      metrics: buildMetrics(result),
+      ...buildMetrics(result),
     }),
   );
 }

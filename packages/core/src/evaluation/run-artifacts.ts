@@ -1338,7 +1338,7 @@ function buildAgentVRunResultArtifact(params: {
   readonly environmentPath?: string;
   readonly environment?: EnvironmentSummaryWire;
 }): AgentVRunResultArtifact {
-  const metrics = params.metricsArtifact.metrics;
+  const metrics = params.metricsArtifact;
   const fileChangesPath = params.hasFileChanges
     ? `./${CANONICAL_FILE_CHANGES_ARTIFACT_PATH}`
     : undefined;

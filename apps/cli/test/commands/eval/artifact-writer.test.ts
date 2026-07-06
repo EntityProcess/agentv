@@ -2019,12 +2019,8 @@ describe('writeArtifactsFromResults', () => {
     );
 
     expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
-    expect(summary.trace).toMatchObject({
-      schema_version: 'agentv.trace.v1',
-      trace_id: expect.any(String),
-      root_span_id: expect.any(String),
-    });
-    expect(summary.trace).not.toHaveProperty('path');
+    expect(summary).not.toHaveProperty('trace');
+    expect(summary).not.toHaveProperty('metrics');
     expect(summary.source_artifacts).toMatchObject({
       transcript_path: 'transcript.json',
       grading_path: 'grading.json',
@@ -2034,29 +2030,29 @@ describe('writeArtifactsFromResults', () => {
     await expect(
       readFile(runArtifactPath(testDir, indexLine, 'sample-1', 'trace.json'), 'utf8'),
     ).rejects.toThrow();
-    expect(summary.metrics.total_turns).toBe(2);
-    expect(summary.metrics.total_tool_calls).toBe(4);
-    expect(summary.metrics.total_steps).toBe(2);
-    expect(summary.metrics.tool_calls).toMatchObject({
+    expect(summary.total_turns).toBe(2);
+    expect(summary.total_tool_calls).toBe(4);
+    expect(summary.total_steps).toBe(2);
+    expect(summary.tool_calls).toMatchObject({
       Read: 1,
       Bash: 1,
       WebFetch: 1,
       Edit: 1,
     });
-    expect(summary.metrics.tool_call_counts).toMatchObject({
+    expect(summary.tool_call_counts).toMatchObject({
       Read: 1,
       Bash: 1,
       WebFetch: 1,
       Edit: 1,
     });
-    expect(summary.metrics.tool_category_counts).toMatchObject({
+    expect(summary.tool_category_counts).toMatchObject({
       file_read: 1,
       shell: 1,
       web_fetch: 1,
       file_edit: 1,
     });
-    expect(summary.metrics.tool_call_events).toHaveLength(4);
-    expect(summary.metrics.shell_commands).toEqual([
+    expect(summary.tool_call_events).toHaveLength(4);
+    expect(summary.shell_commands).toEqual([
       {
         command: 'bun test apps/cli/test/commands/eval/artifact-writer.test.ts',
         tool_call_id: 'bash-1',
@@ -2065,25 +2061,25 @@ describe('writeArtifactsFromResults', () => {
         duration_ms: 1200,
       },
     ]);
-    expect(summary.metrics.files_read).toContainEqual({
+    expect(summary.files_read).toContainEqual({
       path: 'src/input.ts',
       tool_call_id: 'read-1',
       source: 'tool_input',
     });
-    expect(summary.metrics.files_modified).toContainEqual({
+    expect(summary.files_modified).toContainEqual({
       path: 'src/output.ts',
       operation: 'edit',
       tool_call_id: 'edit-1',
       source: 'tool_input',
     });
-    expect(summary.metrics.files_modified).toContainEqual({
+    expect(summary.files_modified).toContainEqual({
       path: 'src/output.ts',
       operation: 'workspace_diff',
       source: 'file_changes',
     });
-    expect(summary.metrics.files_created).toEqual(['src/new.ts']);
-    expect(summary.metrics.files_deleted).toEqual(['src/gone.ts']);
-    expect(summary.metrics.web_fetches).toEqual([
+    expect(summary.files_created).toEqual(['src/new.ts']);
+    expect(summary.files_deleted).toEqual(['src/gone.ts']);
+    expect(summary.web_fetches).toEqual([
       {
         url: 'https://example.com/spec',
         method: 'GET',
@@ -2092,17 +2088,14 @@ describe('writeArtifactsFromResults', () => {
         tool_call_id: 'web-1',
       },
     ]);
-    expect(summary.metrics.errors).toContainEqual({
+    expect(summary.errors).toContainEqual({
       message: 'quality gate failed',
     });
-    expect(summary.metrics.errors_encountered).toBe(1);
-    expect(summary.metrics.output_chars).toBe('Editing output.'.length);
-    expect(summary.metrics.transcript_chars).toBeGreaterThan(0);
-    expect(summary.metrics.thinking_blocks).toBe(2);
-    expect(summary.metrics.reasoning_blocks.map((block) => block.kind)).toEqual([
-      'reasoning',
-      'thinking',
-    ]);
+    expect(summary.errors_encountered).toBe(1);
+    expect(summary.output_chars).toBe('Editing output.'.length);
+    expect(summary.transcript_chars).toBeGreaterThan(0);
+    expect(summary.thinking_blocks).toBe(2);
+    expect(summary.reasoning_blocks.map((block) => block.kind)).toEqual(['reasoning', 'thinking']);
     expect(summary).not.toHaveProperty('usage_summary');
 
     expect(summary).toMatchObject({
