@@ -638,7 +638,7 @@ describe('buildRunSummaryArtifact', () => {
       '2026-06-30T12-00-00-000Z',
     );
 
-    expect(benchmark.metadata.run_id).toBe('2026-06-30T12-00-00-000Z');
+    expect(benchmark.run_id).toBe('2026-06-30T12-00-00-000Z');
     expect(benchmark.metadata.experiment).toBe('with-skills');
   });
 
@@ -1446,7 +1446,7 @@ describe('writeArtifactsFromResults', () => {
     expect(rewrittenSummary.metadata).not.toHaveProperty('run_config_path');
   });
 
-  it('omits duplicated root instances from run summary', () => {
+  it('omits duplicated root samples from run summary', () => {
     const summary = buildRunSummaryArtifact(
       [
         makeResult({ testId: 'alpha', target: 'target-a', score: 1 }),
@@ -1455,9 +1455,25 @@ describe('writeArtifactsFromResults', () => {
       'evals/smoke.eval.yaml',
     );
 
-    expect(summary.counts.total_instances).toBe(2);
-    expect(summary.cases).toHaveLength(2);
-    expect(summary).not.toHaveProperty('instances');
+    expect(summary.counts.total_samples).toBe(2);
+    expect(summary.tests).toHaveLength(2);
+    expect(summary).not.toHaveProperty('samples');
+  });
+
+  it('reports test-level counts alongside sample-level counts', () => {
+    const summary = buildRunSummaryArtifact(
+      [
+        makeResult({ testId: 'alpha', target: 'target-a', executionStatus: 'ok' }),
+        makeResult({ testId: 'beta', target: 'target-a', executionStatus: 'execution_error' }),
+      ],
+      'evals/smoke.eval.yaml',
+    );
+
+    expect(summary.counts.total_tests).toBe(2);
+    expect(summary.counts.passed_tests).toBe(1);
+    expect(summary.counts.failed_tests).toBe(1);
+    expect(summary.counts.total_samples).toBe(2);
+    expect(summary.counts.errored_samples).toBe(1);
   });
 
   it('emits the resolved tags map to summary metadata and every index row', async () => {
