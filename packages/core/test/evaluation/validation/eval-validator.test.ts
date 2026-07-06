@@ -531,6 +531,47 @@ tests:
     ).toBe(true);
   });
 
+  it('rejects removed eval_cases and evalcases aliases for tests', async () => {
+    const filePath = path.join(tempDir, 'removed-eval-cases-aliases.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "{{ prompt }}"
+tests:
+  - vars:
+      prompt: Canonical
+    assert:
+      - type: contains
+        value: Canonical
+eval_cases:
+  - vars:
+      prompt: Legacy snake case
+evalcases:
+  - vars:
+      prompt: Legacy collapsed case
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'eval_cases',
+        message: expect.stringContaining("Top-level 'eval_cases' has been removed"),
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'evalcases',
+        message: expect.stringContaining("Top-level 'evalcases' has been removed"),
+      }),
+    );
+    expect(result.errors.some((error) => error.severity === 'warning')).toBe(false);
+  });
+
   it('rejects removed top-level repeat controls with migration guidance', async () => {
     const filePath = path.join(tempDir, 'removed-repeat-fields.yaml');
     await writeFile(

@@ -312,6 +312,14 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'providers',
     "Top-level 'providers' is not a runtime alias in AgentV eval YAML. Use 'targets' for systems under test; provider names backend kind inside each target.",
   ],
+  [
+    'eval_cases',
+    "Top-level 'eval_cases' has been removed from authored eval YAML. Use 'tests' instead.",
+  ],
+  [
+    'evalcases',
+    "Top-level 'evalcases' has been removed from authored eval YAML. Use 'tests' instead.",
+  ],
   ['repeat', "Top-level 'repeat' has been removed. Use evaluate_options.repeat instead."],
   ['runs', "Top-level 'runs' has been removed. Use evaluate_options.repeat.count instead."],
   [
@@ -331,8 +339,6 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
 
 /** Deprecated top-level fields with migration hints. */
 const DEPRECATED_TOP_LEVEL_FIELDS = new Map<string, string>([
-  ['eval_cases', "'eval_cases' is deprecated. Use 'tests' instead."],
-  ['evalcases', "'evalcases' is deprecated. Use 'tests' instead."],
   ['evaluator', "'evaluator' is deprecated. Use 'assert' instead."],
 ]);
 

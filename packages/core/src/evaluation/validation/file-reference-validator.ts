@@ -50,13 +50,7 @@ export async function validateFileReferences(
     return errors;
   }
 
-  let cases: JsonValue | undefined = parsed.tests;
-  if (cases === undefined && 'eval_cases' in parsed) {
-    cases = parsed.eval_cases;
-  }
-  if (cases === undefined && 'evalcases' in parsed) {
-    cases = parsed.evalcases;
-  }
+  const cases: JsonValue | undefined = parsed.tests;
   if (!Array.isArray(cases)) {
     return errors;
   }

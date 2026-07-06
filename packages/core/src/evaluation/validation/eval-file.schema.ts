@@ -903,8 +903,19 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
   // Shared composable config graph fields
   graders: z.union([z.array(ConfigGraderSchema), z.string().min(1)]).optional(),
   defaults: z.union([ConfigDefaultsSchema, z.string().min(1)]).optional(),
-  // Deprecated aliases
-  eval_cases: TestsSchema.optional(),
+  // Removed legacy aliases
+  eval_cases: z
+    .never({
+      invalid_type_error:
+        "Top-level 'eval_cases' has been removed from authored eval YAML. Use 'tests' instead.",
+    })
+    .optional(),
+  evalcases: z
+    .never({
+      invalid_type_error:
+        "Top-level 'evalcases' has been removed from authored eval YAML. Use 'tests' instead.",
+    })
+    .optional(),
   // Target
   target: z.union([z.string().min(1), EvalLocalTargetSchema]).optional(),
   targets: EvalTargetsSchema.optional(),
@@ -936,7 +947,6 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
 });
 
 export const EvalFileSchema: z.ZodType = EvalFileSchemaInput.refine(
-  (value) =>
-    value.tests !== undefined || value.eval_cases !== undefined || value.scenarios !== undefined,
+  (value) => value.tests !== undefined || value.scenarios !== undefined,
   { message: "Eval files must define 'tests' or 'scenarios'." },
 );

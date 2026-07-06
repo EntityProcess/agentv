@@ -906,8 +906,8 @@ describe('Backward-compat aliases', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  describe('eval_cases → tests alias (YAML)', () => {
-    it('supports eval_cases as deprecated alias for tests', async () => {
+  describe('removed eval_cases/evalcases aliases (YAML)', () => {
+    it('rejects eval_cases as a removed top-level alias for tests', async () => {
       const yamlPath = path.join(tempDir, 'eval-cases-alias.yaml');
       await writeFile(
         yamlPath,
@@ -923,14 +923,12 @@ prompts:
 `,
       );
 
-      const cases = await loadTests(yamlPath, tempDir);
-
-      expect(cases).toHaveLength(1);
-      expect(cases[0].id).toBe('test-1');
-      expect(cases[0].criteria).toBe('Goal');
+      await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+        "Top-level 'eval_cases' has been removed from authored eval YAML. Use 'tests' instead.",
+      );
     });
 
-    it('supports evalcases as deprecated alias for tests', async () => {
+    it('rejects evalcases as a removed top-level alias for tests', async () => {
       const yamlPath = path.join(tempDir, 'evalcases-alias.yaml');
       await writeFile(
         yamlPath,
@@ -943,13 +941,12 @@ prompts:
 `,
       );
 
-      const cases = await loadTests(yamlPath, tempDir);
-
-      expect(cases).toHaveLength(1);
-      expect(cases[0].id).toBe('test-1');
+      await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+        "Top-level 'evalcases' has been removed from authored eval YAML. Use 'tests' instead.",
+      );
     });
 
-    it('tests takes precedence over eval_cases', async () => {
+    it('rejects eval_cases even when canonical tests is present', async () => {
       const yamlPath = path.join(tempDir, 'cases-precedence.yaml');
       await writeFile(
         yamlPath,
@@ -971,10 +968,9 @@ eval_cases:
 `,
       );
 
-      const cases = await loadTests(yamlPath, tempDir);
-
-      expect(cases).toHaveLength(1);
-      expect(cases[0].id).toBe('canonical');
+      await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+        "Top-level 'eval_cases' has been removed from authored eval YAML. Use 'tests' instead.",
+      );
     });
   });
 

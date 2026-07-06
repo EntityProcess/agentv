@@ -192,10 +192,6 @@ function formatCircularImportChain(
 
 type RawTestSuite = JsonObject & {
   readonly tests?: JsonValue;
-  /** @deprecated Use `tests` instead */
-  readonly eval_cases?: JsonValue;
-  /** @deprecated Use `tests` instead */
-  readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
   readonly providers?: JsonValue;
   readonly model?: JsonValue;
@@ -271,16 +267,26 @@ type PromptExpansionResult = {
   readonly sourceTestIdById: ReadonlyMap<string, string>;
 };
 
-function resolveTests(suite: RawTestSuite): JsonValue | undefined {
+function removedEvalCasesAliasMessage(alias: 'eval_cases' | 'evalcases'): string {
+  return `Top-level '${alias}' has been removed from authored eval YAML. Use 'tests' instead.`;
+}
+
+function rejectRemovedEvalCasesAliases(suite: RawTestSuite, evalFilePath: string): void {
+  if ('eval_cases' in suite) {
+    throw new Error(
+      `Invalid eval file ${evalFilePath}: ${removedEvalCasesAliasMessage('eval_cases')}`,
+    );
+  }
+  if ('evalcases' in suite) {
+    throw new Error(
+      `Invalid eval file ${evalFilePath}: ${removedEvalCasesAliasMessage('evalcases')}`,
+    );
+  }
+}
+
+function resolveTests(suite: RawTestSuite, evalFilePath: string): JsonValue | undefined {
+  rejectRemovedEvalCasesAliases(suite, evalFilePath);
   if (suite.tests !== undefined) return suite.tests;
-  if (suite.eval_cases !== undefined) {
-    logWarning("'eval_cases' is deprecated. Use 'tests' instead.");
-    return suite.eval_cases;
-  }
-  if (suite.evalcases !== undefined) {
-    logWarning("'evalcases' is deprecated. Use 'tests' instead.");
-    return suite.evalcases;
-  }
   return undefined;
 }
 
@@ -1283,7 +1289,7 @@ async function loadTestsFromParsedYamlValue(
   const suiteName =
     suiteNameFromFile && suiteNameFromFile.length > 0 ? suiteNameFromFile : fallbackSuiteName;
 
-  const rawTestCases = resolveTests(suite);
+  const rawTestCases = resolveTests(suite, evalFilePath);
   const suiteExperimentConfig = normalizeSuiteExperimentConfig(suite);
   // Top-level `metadata:` is inherited by cases. Suite identity tags are parsed
   // separately by parseMetadata() and are not case tags.
@@ -2275,7 +2281,7 @@ async function loadRawCasesForInclude(includePath: string): Promise<readonly Jso
     if (!isJsonObject(raw)) {
       throw new Error(`Imported eval suite must be a YAML object: ${includePath}`);
     }
-    const tests = resolveTests(raw as RawTestSuite);
+    const tests = resolveTests(raw as RawTestSuite, includePath);
     if (typeof tests === 'string') {
       const externalPath = path.resolve(path.dirname(includePath), tests);
       const pathStat = await stat(externalPath).catch(() => undefined);
@@ -2507,8 +2513,7 @@ function buildRawInlineTestSnapshots(rawParsed: unknown): Map<string, string> {
     return snapshots;
   }
 
-  const rawTests =
-    rawParsed.tests ?? rawParsed.eval_cases ?? (rawParsed as Record<string, unknown>).evalcases;
+  const rawTests = rawParsed.tests;
   if (!Array.isArray(rawTests)) {
     return snapshots;
   }
