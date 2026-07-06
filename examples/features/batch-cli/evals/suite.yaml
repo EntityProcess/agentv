@@ -15,7 +15,7 @@ tests:
           - run
           - ../graders/check-batch-cli-output.ts
         cwd: .
-      - metric: tool-trajectory-check
+      - metric: trajectory-check
         type: trajectory:tool-used
         value:
           name: aml_screening
@@ -52,7 +52,7 @@ tests:
           - run
           - ../graders/check-batch-cli-output.ts
         cwd: .
-      - metric: tool-trajectory-check
+      - metric: trajectory-check
         type: trajectory:tool-used
         value:
           name: aml_screening
@@ -89,7 +89,7 @@ tests:
           - run
           - ../graders/check-batch-cli-output.ts
         cwd: .
-      - metric: tool-trajectory-check
+      - metric: trajectory-check
         type: trajectory:tool-used
         value:
           name: aml_screening
@@ -126,7 +126,7 @@ tests:
           - run
           - ../graders/check-batch-cli-output.ts
         cwd: .
-      - metric: tool-trajectory-check
+      - metric: trajectory-check
         type: trajectory:tool-used
         value:
           name: aml_screening

@@ -1,5 +1,5 @@
-name: tool-trajectory-simple
-description: Tool trajectory grader examples for agent execution validation
+name: trajectory-assertions-simple
+description: Promptfoo trajectory assertion examples for agent execution validation
 target: mock_agent
 prompts:
   - "{{ input }}"

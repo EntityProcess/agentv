@@ -97,10 +97,10 @@ The `csv-analyzer` skill is included in this example under `.claude/skills/csv-a
 
 ## Multi-provider eval
 
-`multi-provider-skill-trigger.EVAL.yaml` tests the same skill across multiple providers:
+`multi-provider-skill-use.EVAL.yaml` tests the same skill across multiple providers:
 
 ```bash
-bun apps/cli/src/cli.ts eval multi-provider-skill-trigger.EVAL.yaml \
+bun apps/cli/src/cli.ts eval multi-provider-skill-use.EVAL.yaml \
   --target copilot-cli --targets ../.agentv/targets.yaml
 ```
 

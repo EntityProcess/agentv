@@ -72,7 +72,7 @@ try {
     ),
   );
 
-  const requiredScoreTypes = ['tool-trajectory', 'execution-metrics', 'script-grader'];
+  const requiredScoreTypes = ['trajectory:tool-sequence', 'execution-metrics', 'script-grader'];
   const requiredScoreNames = [
     'expected-tool-sequence',
     'recovery-sequence',

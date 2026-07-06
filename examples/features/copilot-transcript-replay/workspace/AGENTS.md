@@ -1,6 +1,6 @@
 # Workspace for Copilot transcript replay eval testing
 
-This workspace contains skills for skill-trigger evaluation.
+This workspace contains skills for skill-use evaluation.
 
 Bundled skills (in `.copilot/skills/`):
 - `csv-analyzer` — Analyze CSV data

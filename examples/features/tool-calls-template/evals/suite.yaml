@@ -8,12 +8,12 @@ environment:
 prompts:
   - "{{ input }}"
 tests:
-  - id: deploy-skill-triggered
+  - id: deploy-skill-use
     assert:
       - The agent invoked the acme-deploy skill
     vars:
       input: How do I deploy payments-api to production?
-  - id: rollback-skill-triggered
+  - id: rollback-skill-use
     assert:
       - The agent invoked the acme-deploy skill
     vars:

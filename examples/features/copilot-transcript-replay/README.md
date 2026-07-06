@@ -43,7 +43,7 @@ example runs.
 ### 2. Run the replay eval
 
 ```bash
-agentv eval evals/skill-trigger.EVAL.yaml --target copilot-transcript-replay
+agentv eval evals/skill-use.EVAL.yaml --target copilot-transcript-replay
 ```
 
 The `before_all` hook syncs the agentv-dev plugin skills into the workspace.

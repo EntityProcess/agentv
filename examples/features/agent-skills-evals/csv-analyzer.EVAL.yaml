@@ -1,6 +1,6 @@
 tags:
   - agent
-  - skill-trigger
+  - skill-use
 extensions:
   - agentv:agent-rules
 environment:
