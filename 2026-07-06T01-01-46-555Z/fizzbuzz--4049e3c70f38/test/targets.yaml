@@ -1,0 +1,12 @@
+targets:
+  - id: codex-sdk-openai
+    model: "{{ env.OPENAI_MODEL }}"
+    provider: codex-sdk
+    config:
+      base_url: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "[redacted]"
+      api_format: responses
+      model_reasoning_effort: low
+      stream_log: raw
+      runtime: host
+      model: "{{ env.OPENAI_MODEL }}"

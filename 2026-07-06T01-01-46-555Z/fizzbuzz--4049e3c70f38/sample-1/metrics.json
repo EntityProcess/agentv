@@ -1,0 +1,67 @@
+{
+  "schema_version": "agentv.metrics.v2",
+  "artifact_id": "metrics-7331d61da1ae326dae8c",
+  "generated_at": "2026-07-06T01:03:59.237Z",
+  "test_id": "fizzbuzz",
+  "target": "codex-sdk-openai",
+  "suite": "my-eval",
+  "category": "examples/features/readme-quickstart/my-eval",
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "tool_calls": {},
+  "tool_call_counts": {},
+  "tool_category_counts": {},
+  "total_tool_calls": 0,
+  "total_steps": 1,
+  "total_turns": 1,
+  "tool_call_events": [],
+  "shell_commands": [],
+  "files_read": [],
+  "files_modified": [],
+  "files_created": [],
+  "files_deleted": [],
+  "web_fetches": [],
+  "errors": [
+    {
+      "message": "codex-sdk child runner child_error: Codex SDK turn failed: stream disconnected before completion: error sending request for url (http://126.0.0.1:10531/v1/responses)",
+      "stage": "agent"
+    },
+    {
+      "message": "codex-sdk child runner child_error: Codex SDK turn failed: stream disconnected before completion: error sending request for url (http://126.0.0.1:10531/v1/responses)",
+      "event_id": "error"
+    }
+  ],
+  "errors_encountered": 2,
+  "output_chars": 181,
+  "transcript_chars": 1514,
+  "reasoning_blocks": [],
+  "thinking_blocks": 0,
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
