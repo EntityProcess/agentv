@@ -643,10 +643,13 @@ function formatTargetError(
 }
 
 function targetErrorKind(value: {
+  target_error_kind?: string;
   targetExecution?: { error_kind?: string; errorKind?: string };
   target_execution?: { error_kind?: string; errorKind?: string };
 }): string | undefined {
   return (
+    value.target_error_kind ??
+    // Legacy pre-v5.4 fat rows/samples nested the error kind under `target_execution`.
     value.target_execution?.error_kind ??
     value.target_execution?.errorKind ??
     value.targetExecution?.error_kind ??

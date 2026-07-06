@@ -68,6 +68,10 @@ export interface ResultManifestRecord {
   readonly aggregation?: Record<string, unknown>;
   readonly execution_status?: string;
   readonly error?: string;
+  /** Compact target-runtime error classification; full envelope lives at `target_execution_path`. */
+  readonly target_error_kind?: string;
+  /** Legacy pre-v5.4 fat index row field accepted when reading older bundles; superseded by `target_error_kind`. */
+  readonly target_execution?: { readonly error_kind?: string; readonly errorKind?: string };
   readonly cost_usd?: number;
   readonly duration_ms?: number;
   readonly token_usage?: {

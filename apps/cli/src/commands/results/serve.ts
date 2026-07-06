@@ -1203,6 +1203,19 @@ function buildRepeatTrialReadModels(
   });
 }
 
+/**
+ * Compact target-runtime error classification for a row. New bundles carry
+ * `target_error_kind` directly; legacy pre-v5.4 fat rows nested it under
+ * `target_execution` instead.
+ */
+function recordTargetErrorKind(record: ResultManifestRecord): string | undefined {
+  return (
+    record.target_error_kind ??
+    record.target_execution?.error_kind ??
+    record.target_execution?.errorKind
+  );
+}
+
 function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
   results: readonly T[],
   records: readonly ResultManifestRecord[],
@@ -1212,8 +1225,10 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
     const record = records[index];
     if (!record) return result;
     const samples = buildRepeatTrialReadModels(baseDir, record);
+    const targetErrorKind = recordTargetErrorKind(record);
     return {
       ...result,
+      ...(targetErrorKind && { target_error_kind: targetErrorKind }),
       ...(record.aggregation && { aggregation: record.aggregation }),
       ...(record.eval_path && { eval_path: record.eval_path }),
       ...(record.result_dir && { result_dir: record.result_dir }),

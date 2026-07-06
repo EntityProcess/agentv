@@ -2412,6 +2412,50 @@ describe('serve app', () => {
       expect(data.results[0]?.samples?.[1]?.tool_calls).toEqual({ Read: 2 });
     });
 
+    it('surfaces the compact target_error_kind field from slim index rows', async () => {
+      const runsDir = localResultsExperimentDir(tempDir);
+      const filename = '2026-03-25T10-10-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_EXECUTION_ERROR,
+          target_error_kind: 'timeout',
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${filename}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        results: Array<{ target_error_kind?: string }>;
+      };
+      expect(data.results[0]?.target_error_kind).toBe('timeout');
+    });
+
+    it('falls back to the legacy nested target_execution shape on older fat index rows', async () => {
+      const runsDir = localResultsExperimentDir(tempDir);
+      const filename = '2026-03-25T10-11-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_EXECUTION_ERROR,
+          target_execution: { error_kind: 'timeout' },
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${filename}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        results: Array<{ target_error_kind?: string }>;
+      };
+      expect(data.results[0]?.target_error_kind).toBe('timeout');
+    });
+
     it('loads historical runs without test bundle metadata', async () => {
       const runId = writeLocalRunArtifact(
         tempDir,

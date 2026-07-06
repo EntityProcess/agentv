@@ -98,3 +98,53 @@ describe('ResultTable repeat-run rendering', () => {
     expect(html).toContain('target timed out');
   });
 });
+
+describe('ResultTable target error kind', () => {
+  function renderErrorColumn(result: EvalResult): string {
+    const model = buildResultTableModel({
+      results: [result],
+      passThreshold: 0.8,
+      state: { visibleColumnIds: ['status', 'test', 'target', 'score', 'error'] },
+    });
+    return renderToStaticMarkup(
+      <ResultRowsTable
+        rows={model.filteredRows}
+        visibleColumns={model.visibleColumns}
+        passThreshold={0.8}
+        selectedRowKey={null}
+        selectedTrialPath={null}
+        repeatGroupsByRowKey={new Map()}
+        expandedRepeatRows={new Set()}
+        onToggleRepeatGroup={() => undefined}
+        onOpenDetail={() => undefined}
+        onOpenTrialDetail={() => undefined}
+      />,
+    );
+  }
+
+  it('reads the compact target_error_kind field on new slim rows', () => {
+    const html = renderErrorColumn({
+      testId: 'billing-lookup',
+      target: 'codex',
+      score: 0,
+      executionStatus: 'execution_error',
+      error: 'target timed out',
+      target_error_kind: 'timeout',
+    });
+
+    expect(html).toContain('[target:timeout] target timed out');
+  });
+
+  it('falls back to the legacy nested target_execution shape on older bundles', () => {
+    const html = renderErrorColumn({
+      testId: 'billing-lookup',
+      target: 'codex',
+      score: 0,
+      executionStatus: 'execution_error',
+      error: 'target timed out',
+      target_execution: { error_kind: 'timeout' },
+    });
+
+    expect(html).toContain('[target:timeout] target timed out');
+  });
+});
