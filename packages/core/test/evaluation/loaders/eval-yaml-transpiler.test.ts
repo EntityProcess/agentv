@@ -28,7 +28,7 @@ const SINGLE_SKILL_SUITE = {
       expected_output:
         'The top 3 months by revenue are November ($22,500), September ($20,100), and December ($19,400).',
       assert: [
-        { type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: true },
+        { type: 'skill-used', value: 'csv-analyzer' },
         { type: 'llm-rubric', value: 'Agent finds the top 3 months by revenue' },
         { type: 'llm-rubric', value: 'Output identifies November as the highest revenue month' },
         { type: 'contains', value: '$22,500' },
@@ -37,7 +37,7 @@ const SINGLE_SKILL_SUITE = {
     {
       id: 'irrelevant-query',
       input: 'What time is it?',
-      assert: [{ type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: false }],
+      assert: [{ type: 'not-skill-used', value: 'csv-analyzer' }],
     },
   ],
 };
@@ -107,20 +107,20 @@ describe('transpileEvalYaml — input extraction', () => {
 // Trigger-grader handling
 // ---------------------------------------------------------------------------
 
-describe('transpileEvalYaml — skill-trigger', () => {
-  it('sets should_trigger: true for skill-trigger with should_trigger true', () => {
+describe('transpileEvalYaml — skill-used', () => {
+  it('sets should_trigger: true for skill-used', () => {
     const { files } = transpileEvalYaml(SINGLE_SKILL_SUITE);
     const evals = files.get('csv-analyzer')?.evals;
     expect(evals[0].should_trigger).toBe(true);
   });
 
-  it('sets should_trigger: false for skill-trigger with should_trigger false', () => {
+  it('sets should_trigger: false for not-skill-used', () => {
     const { files } = transpileEvalYaml(SINGLE_SKILL_SUITE);
     const evals = files.get('csv-analyzer')?.evals;
     expect(evals[1].should_trigger).toBe(false);
   });
 
-  it('omits should_trigger when no skill-trigger in test', () => {
+  it('omits should_trigger when no skill-use assertion is present', () => {
     const suite = {
       tests: [
         {
@@ -137,13 +137,27 @@ describe('transpileEvalYaml — skill-trigger', () => {
     expect(allFiles[0].evals[0].should_trigger).toBeUndefined();
   });
 
-  it('skill-trigger is NOT included in assertions array', () => {
+  it('skill-used is NOT included in assertions array', () => {
     const { files } = transpileEvalYaml(SINGLE_SKILL_SUITE);
     const evals = files.get('csv-analyzer')?.evals;
-    // assertions should contain NL items, not 'skill-trigger' literal
+    // assertions should contain NL items, not deterministic skill-use literals.
     for (const a of evals[0].assertions) {
-      expect(a).not.toContain('skill-trigger');
+      expect(a).not.toContain('skill-used');
     }
+  });
+
+  it('rejects stale skill-trigger assertions with migration guidance', () => {
+    expect(() =>
+      transpileEvalYaml({
+        tests: [
+          {
+            id: 'stale',
+            input: 'Use this skill',
+            assert: [{ type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: true }],
+          },
+        ],
+      }),
+    ).toThrow('Replace skill: csv-analyzer with type: skill-used, value: csv-analyzer');
   });
 });
 
@@ -225,7 +239,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             { type: 'regex', value: '\\d{4}-\\d{2}-\\d{2}' },
           ],
         },
@@ -243,7 +257,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             { type: 'equals', value: 'exact answer' },
           ],
         },
@@ -260,10 +274,7 @@ describe('transpileEvalYaml — NL assertions', () => {
         {
           id: 't1',
           input: 'test',
-          assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
-            { type: 'is-json' },
-          ],
+          assert: [{ type: 'skill-used', value: 's' }, { type: 'is-json' }],
         },
       ],
     };
@@ -279,7 +290,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             { type: 'llm-grader', prompt: 'The answer is clear and concise' },
           ],
         },
@@ -297,7 +308,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'llm-grader',
               rubrics: [
@@ -322,7 +333,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'llm-grader',
               rubrics: [
@@ -347,7 +358,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'tool-trajectory',
               expected: [{ tool: 'read_file' }, { tool: 'write_file' }],
@@ -368,11 +379,11 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'script',
-              metric: 'skill-trigger',
-              description: 'Checks skill was triggered',
+              metric: 'skill-use-check',
+              description: 'Checks skill was used',
             },
           ],
         },
@@ -380,7 +391,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     };
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions[0]).toContain('agentv eval assert skill-trigger');
+    expect(evals[0].assertions[0]).toContain('agentv eval assert skill-use-check');
   });
 
   it('converts script grader to agentv assert instruction with description', () => {
@@ -390,7 +401,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'script',
               metric: 'format-checker',
@@ -416,7 +427,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'script',
               command: ['bun', 'run', '.agentv/graders/output-validator.ts'],
@@ -437,7 +448,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'custom-validator',
               command: ['bun', 'run', '.agentv/graders/custom-validator.ts'],
@@ -458,7 +469,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             {
               type: 'field-accuracy',
               fields: [{ path: 'invoice.total' }, { path: 'invoice.date' }],
@@ -481,7 +492,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             { type: 'latency', threshold: 5000 },
           ],
         },
@@ -499,7 +510,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             { type: 'cost', budget: 0.1 },
           ],
         },
@@ -517,7 +528,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             { type: 'token-usage', max_total: 1000 },
           ],
         },
@@ -535,7 +546,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assert: [
-            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            { type: 'skill-used', value: 's' },
             { type: 'execution-metrics', max_tool_calls: 10 },
           ],
         },
@@ -573,7 +584,7 @@ describe('transpileEvalYaml — expected_output', () => {
           id: 't1',
           input: 'Hello',
           expected_output: [{ role: 'assistant', content: 'World' }],
-          assert: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 's' }],
         },
       ],
     };
@@ -594,7 +605,7 @@ describe('transpileEvalYaml — input_files shorthand', () => {
           id: 't1',
           input: 'Analyze this file',
           input_files: ['data/file.csv', 'data/schema.json'],
-          assert: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 's' }],
         },
       ],
     };
@@ -616,12 +627,12 @@ describe('transpileEvalYaml — suite-level assertions', () => {
         {
           id: 't1',
           input: 'first',
-          assert: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 's' }],
         },
         {
           id: 't2',
           input: 'second',
-          assert: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 's' }],
         },
       ],
       assert: [{ type: 'contains', value: 'global-check' }],
@@ -644,12 +655,12 @@ describe('transpileEvalYaml — multi-skill', () => {
         {
           id: 't1',
           input: 'Hello',
-          assert: [{ type: 'skill-trigger', skill: 'skill-a', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 'skill-a' }],
         },
         {
           id: 't2',
           input: 'World',
-          assert: [{ type: 'skill-trigger', skill: 'skill-b', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 'skill-b' }],
         },
       ],
     };
@@ -659,15 +670,15 @@ describe('transpileEvalYaml — multi-skill', () => {
     expect(files.has('skill-b')).toBe(true);
   });
 
-  it('places test in both files when it has skill-triggers for two skills', () => {
+  it('places test in both files when it has skill-use assertions for two skills', () => {
     const suite = {
       tests: [
         {
           id: 'shared',
           input: 'Do something',
           assert: [
-            { type: 'skill-trigger', skill: 'skill-a', should_trigger: true },
-            { type: 'skill-trigger', skill: 'skill-b', should_trigger: false },
+            { type: 'skill-used', value: 'skill-a' },
+            { type: 'not-skill-used', value: 'skill-b' },
           ],
         },
       ],
@@ -678,14 +689,14 @@ describe('transpileEvalYaml — multi-skill', () => {
     expect(files.get('skill-b')?.evals[0].should_trigger).toBe(false);
   });
 
-  it('assigns tests with no skill-trigger to dominant skill', () => {
+  it('assigns tests with no skill-use assertion to dominant skill', () => {
     const suite = {
       tests: [
         {
           id: 't1',
           input: 'Hello',
           assert: [
-            { type: 'skill-trigger', skill: 'skill-a', should_trigger: true },
+            { type: 'skill-used', value: 'skill-a' },
             { type: 'contains', value: 'hi' },
           ],
         },
@@ -752,12 +763,12 @@ describe('getOutputFilenames', () => {
         {
           id: 't1',
           input: 'Hello',
-          assert: [{ type: 'skill-trigger', skill: 'skill-a', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 'skill-a' }],
         },
         {
           id: 't2',
           input: 'World',
-          assert: [{ type: 'skill-trigger', skill: 'skill-b', should_trigger: true }],
+          assert: [{ type: 'skill-used', value: 'skill-b' }],
         },
       ],
     };

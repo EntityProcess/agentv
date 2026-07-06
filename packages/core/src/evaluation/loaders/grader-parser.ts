@@ -1390,34 +1390,6 @@ async function parseGraderList(
       continue;
     }
 
-    if (typeValue === 'skill-trigger') {
-      const skillName = asString(rawEvaluator.skill);
-      if (!skillName) {
-        logWarning(`Skipping skill-trigger evaluator '${name}' in '${evalId}': missing skill`);
-        continue;
-      }
-      const rawShouldTrigger = rawEvaluator.should_trigger;
-      const shouldTrigger = typeof rawShouldTrigger === 'boolean' ? rawShouldTrigger : undefined;
-      const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(
-        rawEvaluator.required,
-        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
-        name,
-        evalId,
-      );
-      pushEvaluator({
-        name,
-        type: 'skill-trigger',
-        skill: skillName,
-        ...(shouldTrigger !== undefined ? { should_trigger: shouldTrigger } : {}),
-        ...(weight !== undefined ? { weight } : {}),
-        ...(required !== undefined ? { required } : {}),
-        ...(min_score !== undefined ? { min_score } : {}),
-        ...(negate !== undefined ? { negate } : {}),
-      });
-      continue;
-    }
-
     if (typeValue === 'javascript' || typeValue === 'python' || typeValue === 'webhook') {
       const value = asString(rawEvaluator.value);
       if (!value || value.trim().length === 0) {
@@ -2072,10 +2044,6 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
         return `${typeValue}-${rawValue.length}`;
       }
       return typeValue;
-    }
-    case 'skill-trigger': {
-      const skillValue = asString(rawEvaluator.skill);
-      return skillValue ? `skill-trigger-${skillValue}` : 'skill-trigger';
     }
     case 'contains':
       return value ? `contains-${value}` : 'contains';

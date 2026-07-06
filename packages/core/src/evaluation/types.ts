@@ -192,7 +192,6 @@ const GRADER_KIND_VALUES = [
   'cost',
   'token-usage',
   'execution-metrics',
-  'skill-trigger',
   'assert-set',
   'llm-rubric',
   'contains',
@@ -893,25 +892,6 @@ export type AssertSetGraderConfig = {
   readonly negate?: boolean;
 };
 
-/**
- * @deprecated Internal compatibility config for older runtime helpers.
- * Authored eval YAML rejects `skill-trigger`; use `skill-used` or
- * `not-skill-used` instead.
- */
-export type SkillTriggerGraderConfig = {
-  readonly name: string;
-  readonly type: 'skill-trigger';
-  /** The skill name to check for (case-sensitive substring match) */
-  readonly skill: string;
-  /** Whether the skill is expected to trigger (default: true) */
-  readonly should_trigger?: boolean;
-  readonly weight?: number;
-  readonly required?: boolean;
-  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
-  readonly min_score?: number;
-  readonly negate?: boolean;
-};
-
 export type SkillUsedValue =
   | string
   | readonly string[]
@@ -982,7 +962,6 @@ export type GraderConfig = (
   | CostGraderConfig
   | TokenUsageGraderConfig
   | ExecutionMetricsGraderConfig
-  | SkillTriggerGraderConfig
   | TrajectoryGraderConfig
   | ContainsGraderConfig
   | ContainsAnyGraderConfig

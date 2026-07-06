@@ -54,7 +54,6 @@ export type { LlmGraderOptions } from './llm-grader.js';
 
 export { formatToolCalls } from './format-tool-calls.js';
 
-export { SkillTriggerGrader } from './skill-trigger.js';
 export { SkillUsedGrader } from './skill-used.js';
 
 export { assembleLlmGraderPrompt } from './llm-grader-prompt.js';

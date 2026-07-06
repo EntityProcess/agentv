@@ -455,7 +455,11 @@ describe('CopilotSdkProvider', () => {
       events: [
         {
           type: 'tool.execution_start',
-          data: { toolCallId: 'tc-1', toolName: 'Read', input: { path: '/foo.ts' } },
+          data: {
+            toolCallId: 'tc-1',
+            toolName: 'Read',
+            input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+          },
         },
         {
           type: 'tool.execution_end',
@@ -480,10 +484,24 @@ describe('CopilotSdkProvider', () => {
     expect(msg?.toolCalls).toBeDefined();
     expect(msg?.toolCalls?.length).toBe(1);
     expect(msg?.toolCalls?.[0]?.tool).toBe('Read');
-    expect(msg?.toolCalls?.[0]?.input).toEqual({ path: '/foo.ts', file_path: '/foo.ts' });
+    expect(msg?.toolCalls?.[0]?.input).toEqual({
+      path: '.agents/skills/csv-analyzer/SKILL.md',
+      file_path: '.agents/skills/csv-analyzer/SKILL.md',
+    });
     expect(msg?.toolCalls?.[0]?.output).toBe('file content');
     expect(msg?.toolCalls?.[0]?.id).toBe('tc-1');
     expect(msg?.toolCalls?.[0]?.durationMs).toBeDefined();
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'csv-analyzer',
+        input: {
+          path: '.agents/skills/csv-analyzer/SKILL.md',
+          file_path: '.agents/skills/csv-analyzer/SKILL.md',
+        },
+        path: '.agents/skills/csv-analyzer/SKILL.md',
+        source: 'heuristic',
+      },
+    ]);
   });
 
   it('auto-approves permission requests', async () => {

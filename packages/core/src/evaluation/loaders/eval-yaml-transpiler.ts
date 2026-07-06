@@ -114,7 +114,11 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
 
   switch (type) {
     case 'skill-trigger':
-      // Handled separately — not an NL assertion
+      throw new Error(staleSkillTriggerMessage(entry));
+
+    case 'skill-used':
+    case 'not-skill-used':
+      // Handled separately as Agent Skills trigger labels.
       return null;
 
     case 'llm-rubric':
@@ -249,12 +253,46 @@ function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
   return nl !== null ? [nl] : [];
 }
 
-/**
- * Extract skill-trigger entries from an assertion list.
- * Returns entries with type === 'skill-trigger'.
- */
-function extractTriggerAssertions(assertions: RawAssertEntry[]): RawAssertEntry[] {
-  return assertions.filter((a) => a.type === 'skill-trigger');
+function staleSkillTriggerMessage(entry: RawAssertEntry): string {
+  const skill = typeof entry.skill === 'string' ? entry.skill.trim() : '';
+  const shouldTrigger = entry.should_trigger !== false;
+  if (!skill) {
+    return "Authored assertion type 'skill-trigger' has been removed. Use 'skill-used' with value: <skill> for expected skill use, or 'not-skill-used' with value: <skill> when the skill must not be used.";
+  }
+  const replacementType = shouldTrigger ? 'skill-used' : 'not-skill-used';
+  return `Authored assertion type 'skill-trigger' has been removed. Replace skill: ${skill} with type: ${replacementType}, value: ${skill}.`;
+}
+
+interface SkillUseAssertion {
+  readonly skill: string;
+  readonly shouldTrigger: boolean;
+}
+
+function skillNameFromValue(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const name = (value as Record<string, unknown>).name;
+    return typeof name === 'string' && name.trim() ? name.trim() : undefined;
+  }
+  return undefined;
+}
+
+function extractSkillUseAssertions(assertions: RawAssertEntry[]): SkillUseAssertion[] {
+  return assertions.flatMap((entry) => {
+    if (entry.type === 'skill-trigger') {
+      throw new Error(staleSkillTriggerMessage(entry));
+    }
+    if (entry.type !== 'skill-used' && entry.type !== 'not-skill-used') {
+      return [];
+    }
+    const skill = skillNameFromValue(entry.value);
+    if (!skill) {
+      return [];
+    }
+    return [{ skill, shouldTrigger: entry.type === 'skill-used' }];
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -363,9 +401,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
   const suiteAssertions = rawSuite.assert ?? [];
 
   // Suite-level NL assertions (appended to every test)
-  const suiteNlAssertions: string[] = suiteAssertions
-    .filter((a) => a.type !== 'skill-trigger')
-    .flatMap(assertionToNaturalLanguageList);
+  const suiteNlAssertions: string[] = suiteAssertions.flatMap(assertionToNaturalLanguageList);
 
   /**
    * Helper: get or create the EvalsJsonFile for a skill.
@@ -394,7 +430,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
       );
     }
 
-    // Collect NL assertions (not skill-trigger)
+    // Collect NL assertions (not skill-use assertions)
     const nlAssertions: string[] = [];
 
     // Prepend test-level criteria as NL assertion
@@ -403,7 +439,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     }
 
     for (const entry of caseAssertions) {
-      if (entry.type !== 'skill-trigger') {
+      if (entry.type !== 'skill-used' && entry.type !== 'not-skill-used') {
         nlAssertions.push(...assertionToNaturalLanguageList(entry));
       }
     }
@@ -411,7 +447,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     // Append suite-level NL assertions
     nlAssertions.push(...suiteNlAssertions);
 
-    const triggerJudges = extractTriggerAssertions(caseAssertions);
+    const triggerJudges = extractSkillUseAssertions(caseAssertions);
     const { prompt, files: inputFiles } = extractInput(rawCase);
     const expectedOutput = extractExpectedOutput(rawCase.expected_output);
 
@@ -428,7 +464,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     };
 
     if (triggerJudges.length === 0) {
-      // No skill-trigger: place in dominant skill (or _no-skill)
+      // No skill-use assertion: place in dominant skill (or _no-skill)
       // Determine dominant skill by scanning all tests (first occurrence wins)
       // We defer this: record with a sentinel and resolve after all tests are processed.
       // For now, push to _no-skill; we'll re-assign at the end.
@@ -437,10 +473,8 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     } else {
       // Place in each skill with the correct should_trigger value
       for (const tj of triggerJudges) {
-        const skillName = typeof tj.skill === 'string' ? tj.skill : '_no-skill';
-        const shouldTrigger = tj.should_trigger !== false; // default true
-        const skillFile = getSkillFile(skillName);
-        skillFile.evals.push({ ...baseCase, should_trigger: shouldTrigger });
+        const skillFile = getSkillFile(tj.skill);
+        skillFile.evals.push({ ...baseCase, should_trigger: tj.shouldTrigger });
       }
     }
   }

@@ -35,6 +35,7 @@ import {
 } from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
+import { deriveSkillCallMetadataFromMessages } from './skill-calls.js';
 import type { PiCliResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -155,6 +156,7 @@ export class PiCliProvider implements Provider {
           logFile: logger?.filePath,
         },
         output,
+        metadata: deriveSkillCallMetadataFromMessages(output),
         tokenUsage,
         durationMs,
         startTime,
@@ -771,7 +773,7 @@ function extractMessages(events: unknown[]): readonly Message[] {
 
   // Pi CLI may emit tool_execution_start/tool_execution_end events whose tool
   // calls are absent from the final agent_end messages. Reconstruct them and
-  // inject into the last assistant message so evaluators (e.g. skill-trigger)
+  // inject into the last assistant message so trajectory and skill-use graders
   // can detect them.
   const eventToolCalls = extractToolCallsFromEvents(events);
   if (eventToolCalls.length > 0) {

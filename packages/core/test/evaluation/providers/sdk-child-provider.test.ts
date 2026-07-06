@@ -68,6 +68,29 @@ describe('SdkChildProvider', () => {
     });
   });
 
+  it('derives skillCalls when child output has tool calls but no metadata', async () => {
+    const provider = fakeProvider('derive-skill-metadata');
+
+    const response = await provider.invoke({ question: 'use skill' });
+
+    expect(response.metadata?.skillCalls).toEqual([
+      {
+        name: 'csv-analyzer',
+        input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+        path: '.agents/skills/csv-analyzer/SKILL.md',
+        source: 'heuristic',
+      },
+    ]);
+  });
+
+  it('keeps explicit child metadata ahead of derived metadata', async () => {
+    const provider = fakeProvider('success');
+
+    const response = await provider.invoke({ question: 'hello' });
+
+    expect(response.metadata?.skillCalls?.[0]?.name).toBe('codex/list_mcp_resources');
+  });
+
   it('keeps missing SDK dependency errors scoped to the child runner', async () => {
     const provider = fakeProvider('dependency-error');
 
@@ -186,6 +209,27 @@ if (mode === 'request-plumbing') {
         received_max_output_tokens: requestEnvelope.request.max_output_tokens,
       },
       output: [{ role: 'assistant', content: 'request received' }],
+    },
+  });
+  process.exit(0);
+}
+
+if (mode === 'derive-skill-metadata') {
+  write({
+    type: 'result',
+    response: {
+      output: [
+        {
+          role: 'assistant',
+          content: 'child ok',
+          toolCalls: [
+            {
+              tool: 'Read',
+              input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+            },
+          ],
+        },
+      ],
     },
   });
   process.exit(0);

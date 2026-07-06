@@ -23,6 +23,7 @@ import {
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { deriveSkillCallMetadataFromMessages } from './skill-calls.js';
 import { buildTargetExecutionEnvelope } from './target-execution.js';
 import type { CopilotCliResolvedConfig, CopilotCustomProviderConfig } from './targets.js';
 import type {
@@ -369,6 +370,7 @@ export class CopilotCliProvider implements Provider {
           logFile: logger?.filePath,
         },
         output: outputMessages,
+        metadata: deriveSkillCallMetadataFromMessages(outputMessages),
         tokenUsage,
         costUsd,
         durationMs,
