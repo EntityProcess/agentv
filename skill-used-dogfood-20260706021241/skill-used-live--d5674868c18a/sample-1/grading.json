@@ -1,0 +1,91 @@
+{
+  "pass": false,
+  "score": 0.5,
+  "reason": "One or more grading components failed.",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "Missing required skill(s): codex/list_mcp_resources. Actual skills: (none)",
+      "component_results": [
+        {
+          "pass": false,
+          "score": 0,
+          "reason": "Missing required skill(s): codex/list_mcp_resources. Actual skills: (none)",
+          "assertion": {
+            "name": "skill-used-codex/list_mcp_resources",
+            "type": "skill-used",
+            "weight": 1,
+            "value": "Missing required skill(s): codex/list_mcp_resources. Actual skills: (none)"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "skill-used-codex/list_mcp_resources",
+        "type": "skill-used",
+        "weight": 1
+      },
+      "metadata": {
+        "details": {
+          "assertion_type": "skill-used"
+        },
+        "duration_ms": 1,
+        "started_at": "2026-07-06T00:12:54.962Z",
+        "ended_at": "2026-07-06T00:12:54.963Z"
+      }
+    },
+    {
+      "pass": true,
+      "score": 1,
+      "reason": "Grader passed.",
+      "component_results": [
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The assistant’s reply is a single sentence: \"I checked MCP resources via discovery and confirmed the resource list is currently empty ...\" and it explicitly includes `MCP_RESOURCES_CHECKED` with a value.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "live-grader",
+            "value": "[rubric-1] Response is one sentence and includes MCP_RESOURCES_CHECKED"
+          }
+        },
+        {
+          "pass": true,
+          "score": 1,
+          "reason": "The tool-call log shows `codex/list_mcp_resources` was invoked, and the response states MCP resources were checked before concluding the list is empty.",
+          "assertion": {
+            "name": "llm-rubric",
+            "type": "llm-rubric",
+            "weight": 1,
+            "target": "live-grader",
+            "value": "[rubric-2] The assistant attempted or completed an MCP resource inspection before answering"
+          }
+        }
+      ],
+      "assertion": {
+        "name": "llm-rubric",
+        "type": "llm-rubric",
+        "weight": 1,
+        "target": "live-grader"
+      },
+      "metadata": {
+        "token_usage": {
+          "input": 0,
+          "output": 0
+        },
+        "duration_ms": 2235,
+        "started_at": "2026-07-06T00:12:54.963Z",
+        "ended_at": "2026-07-06T00:12:57.198Z"
+      }
+    }
+  ],
+  "named_scores": {
+    "skill-used-codex/list_mcp_resources": 0,
+    "llm-rubric": 1
+  },
+  "metadata": {
+    "execution_status": "quality_failure"
+  }
+}

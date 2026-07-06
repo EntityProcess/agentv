@@ -1,0 +1,10 @@
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":0},"content":"# Codex SDK stream log"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":1},"content":"# target: codex-live"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":2},"content":"# eval: skill-used-live"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":3},"content":"# attempt: 1"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":4},"content":"# started: 2026-07-06T00:12:44.444Z"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":5},"content":"[+00:05] [item.completed] agent_message: I’ll quickly query the MCP catalog for available resource-related tools via the required discovery path and then report back with the required `MCP_RESOURCES_CHECKED` marker."}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":6},"content":"[+00:08] [item.started] mcp_tool_call: codex/list_mcp_resources"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":7},"content":"[+00:08] [item.completed] mcp_tool_call: codex/list_mcp_resources"}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":8},"content":"[+00:10] [item.completed] agent_message: I checked MCP resources via discovery and confirmed the resource list is currently empty (`MCP_RESOURCES_CHECKED: no resources available`)."}
+{"schema_version":"agentv.raw_provider_log_line.v1","source":{"kind":"provider_log","format":"text","line_index":9},"content":"[+00:10] [turn.completed] input=41107 output=715"}

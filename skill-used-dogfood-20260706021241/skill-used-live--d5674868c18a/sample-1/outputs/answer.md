@@ -1,0 +1,1 @@
+I checked MCP resources via discovery and confirmed the resource list is currently empty (`MCP_RESOURCES_CHECKED: no resources available`).
