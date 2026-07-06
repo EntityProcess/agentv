@@ -1,0 +1,20 @@
+{
+  "pass": false,
+  "score": 0,
+  "reason": "local-openai-grader api key env template {{ env.LOCAL_OPENAI_PROXY_API_KEY }} resolved to an empty value; LOCAL_OPENAI_PROXY_API_KEY is not set",
+  "component_results": [
+    {
+      "pass": false,
+      "score": 0,
+      "reason": "Error: local-openai-grader api key env template {{ env.LOCAL_OPENAI_PROXY_API_KEY }} resolved to an empty value; LOCAL_OPENAI_PROXY_API_KEY is not set",
+      "assertion": {
+        "value": "Error: local-openai-grader api key env template {{ env.LOCAL_OPENAI_PROXY_API_KEY }} resolved to an empty value; LOCAL_OPENAI_PROXY_API_KEY is not set"
+      }
+    }
+  ],
+  "metadata": {
+    "execution_status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  }
+}

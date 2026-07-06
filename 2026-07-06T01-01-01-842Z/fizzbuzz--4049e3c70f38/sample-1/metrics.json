@@ -1,0 +1,67 @@
+{
+  "schema_version": "agentv.metrics.v2",
+  "artifact_id": "metrics-74c4386bd503823fb35b",
+  "generated_at": "2026-07-06T01:01:05.614Z",
+  "test_id": "fizzbuzz",
+  "target": "codex-sdk-openai",
+  "suite": "my-eval",
+  "category": "examples/features/readme-quickstart/my-eval",
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "tool_calls": {},
+  "tool_call_counts": {},
+  "tool_category_counts": {},
+  "total_tool_calls": 0,
+  "total_steps": 1,
+  "total_turns": 1,
+  "tool_call_events": [],
+  "shell_commands": [],
+  "files_read": [],
+  "files_modified": [],
+  "files_created": [],
+  "files_deleted": [],
+  "web_fetches": [],
+  "errors": [
+    {
+      "message": "local-openai-grader api key env template {{ env.LOCAL_OPENAI_PROXY_API_KEY }} resolved to an empty value; LOCAL_OPENAI_PROXY_API_KEY is not set",
+      "stage": "agent"
+    },
+    {
+      "message": "local-openai-grader api key env template {{ env.LOCAL_OPENAI_PROXY_API_KEY }} resolved to an empty value; LOCAL_OPENAI_PROXY_API_KEY is not set",
+      "event_id": "error"
+    }
+  ],
+  "errors_encountered": 2,
+  "output_chars": 159,
+  "transcript_chars": 1426,
+  "reasoning_blocks": [],
+  "thinking_blocks": 0,
+  "duration": {
+    "total_ms": 0,
+    "total_seconds": 0,
+    "source": "unavailable"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "provider_error"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
