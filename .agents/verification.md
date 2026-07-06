@@ -139,7 +139,7 @@ bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --
 
 - the correct grader type ran by checking `scores[].type`
 - scores are calculated as expected
-- `grading.json.assertion_results` reflects the evaluation logic, score, verdict, and evidence
+- `grading.json.assertion_results` reflects the evaluation logic, pass boolean, score, and evidence
 
 4. Update baseline files if output format changes. Baselines live next to eval YAML files as `*.baseline.jsonl`.
 5. `agentv validate` is the cheap schema/config check. For no-live-provider quality validation, run graders against a real reference/oracle target or frozen transcript/replay fixture.

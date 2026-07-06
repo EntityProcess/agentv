@@ -18,7 +18,7 @@ Rubrics are defined as `assert` entries with plain strings or `type: llm-rubric`
 | `outcome` | string | required* | Criterion being evaluated (*optional if `score_ranges` used) |
 | `operator` | string | - | Optional intent: `correctness` or `contradiction` |
 | `weight` | number | 1.0 | Relative importance |
-| `required` | boolean | true | Failing forces verdict to 'fail' (checklist mode) |
+| `required` | boolean | true | Failing forces the case status to `fail` (checklist mode) |
 | `min_score` | number | - | Minimum score (0–1) to pass this criterion |
 | `score_ranges` | map or array | - | Score range definitions for analytic scoring |
 

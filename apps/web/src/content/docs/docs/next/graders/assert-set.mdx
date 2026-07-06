@@ -26,7 +26,7 @@ assert:
 
 Child assertions run independently. The parent score is the weighted average of child scores.
 
-When `threshold` is omitted, the assert set passes only when every nonzero-weight child assertion passes. When `threshold` is present, the aggregate score determines the parent pass/fail verdict, so a partially failing set can pass if its weighted score meets the threshold.
+When `threshold` is omitted, the assert set passes only when every nonzero-weight child assertion passes. When `threshold` is present, the aggregate score determines the parent pass/fail result, so a partially failing set can pass if its weighted score meets the threshold.
 
 ## Patterns
 
@@ -112,7 +112,7 @@ An assert set returns nested child scores:
   "name": "release_gate",
   "type": "assert-set",
   "score": 0.85,
-  "verdict": "pass",
+  "pass": true,
   "scores": [
     { "name": "safety", "type": "llm-rubric", "score": 1 },
     { "name": "correctness", "type": "contains", "score": 0.75 }

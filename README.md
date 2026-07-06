@@ -193,13 +193,13 @@ Run bundle layout:
 ├── 2026-06-30T08-30-00-000Z/     # <run_id> — one committed run bundle
 │   ├── summary.json              # run rollup: metadata, pass rate, counts, cost
 │   ├── fizzbuzz--a1b2c3d4/       # <result_dir> for one test/target row
-│   │   ├── summary.json          # optional per-case rollup across attempts
+│   │   ├── summary.json          # optional per-case rollup across samples
 │   │   ├── test/                 # generated test bundle: frozen inputs for reproducibility
 │   │   │   ├── EVAL.yaml         #   resolved eval spec
 │   │   │   ├── targets.yaml      #   resolved target config
 │   │   │   └── graders/          #   grader files used
 │   │   └── sample-1/             # one materialized sample
-│   │       ├── result.json       # compact attempt manifest
+│   │       ├── result.json       # compact sample manifest
 │   │       ├── grading.json      # pass, score, reason, component_results
 │   │       ├── metrics.json      # tool calls, transcript stats, behavior metrics
 │   │       ├── transcript.json        # normalized agent transcript

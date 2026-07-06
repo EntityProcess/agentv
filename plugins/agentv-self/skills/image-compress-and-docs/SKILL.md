@@ -50,7 +50,7 @@ kill $(lsof -ti:14800) 2>/dev/null
 
 Synthetic JSONL record format:
 ```json
-{"test_id": "my-test", "score": 0.95, "target": "claude-sonnet", "experiment": "default", "timestamp": "2026-04-08T09:15:44.003Z", "execution_status": "success", "suite": "my-suite", "duration_ms": 3500, "token_usage": {"input_tokens": 1200, "output_tokens": 400}, "scores": [{"type": "llm-rubric", "score": 0.95, "verdict": "pass"}], "grading_path": "my-test--demo/sample-1/grading.json", "metrics_path": "my-test--demo/sample-1/metrics.json", "error": null}
+{"test_id": "my-test", "score": 0.95, "target": "claude-sonnet", "experiment": "default", "timestamp": "2026-04-08T09:15:44.003Z", "status": "pass", "suite": "my-suite", "duration_ms": 3500, "token_usage": {"input_tokens": 1200, "output_tokens": 400}, "scores": [{"type": "llm-rubric", "score": 0.95, "pass": true}], "grading_path": "my-test--demo/sample-1/grading.json", "metrics_path": "my-test--demo/sample-1/metrics.json", "error": null}
 ```
 
 ## Step 2 — Optimize

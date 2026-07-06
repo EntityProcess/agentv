@@ -163,7 +163,7 @@ Use top-level `prompts` plus `tests[].vars` for the Promptfoo-compatible canonic
 input shape. Shared data defaults belong in `default_test.vars`; per-test
 `vars` override those defaults by key. AgentV renders every prompt with each
 test's merged vars, then expands the run across prompts, targets, tests, and
-repeat attempts.
+repeat samples.
 
 ```yaml
 description: Prompt matrix example
@@ -456,7 +456,7 @@ assert:
         weight: 5.0
 ```
 
-If a required grader scores below its threshold, the overall verdict is forced to `fail`.
+If a required grader scores below its threshold, the overall case status is forced to `fail`.
 
 ## Environment Setup/Teardown
 
@@ -586,7 +586,7 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
       type: llm-rubric
       weight: 0.7
 ```
-Use `assert-set` for Promptfoo-aligned assertion grouping. Without `threshold`, the set passes only when every nonzero-weight child assertion passes. With `threshold`, the weighted aggregate score determines the set verdict. Parent `config` is inherited by children, and child `config` keys override parent keys. Do not use `type: composite`; AgentV rejects it.
+Use `assert-set` for Promptfoo-aligned assertion grouping. Without `threshold`, the set passes only when every nonzero-weight child assertion passes. With `threshold`, the weighted aggregate score determines the set pass/fail result. Parent `config` is inherited by children, and child `config` keys override parent keys. Do not use `type: composite`; AgentV rejects it.
 
 ### Skill And Trajectory Assertions
 ```yaml

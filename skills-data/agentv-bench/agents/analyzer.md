@@ -22,7 +22,7 @@ You are an eval-quality analyst for AgentV. Your job is to read JSONL evaluation
 
 Read every line of the JSONL results file. Each line is a JSON object with:
 - `test_id`, `suite`, `score`, `assertions`, `reasoning`, `target`
-- `scores` (optional): Array of per-grader breakdowns with `name`, `type`, `score`, `weight`, `verdict`, `assertions`, `reasoning`
+- `scores` (optional): Array of per-grader breakdowns with `name`, `type`, `score`, `weight`, `pass`, `assertions`, `reasoning`
 
 If `eval-path` is provided, also read the EVAL.yaml to understand grader configurations.
 

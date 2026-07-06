@@ -391,7 +391,7 @@ tests:
 
 ### Required Gates
 
-Any grader in `assert` can be marked as `required`. When a required grader fails, the overall test verdict is `fail` regardless of the aggregate score.
+Any grader in `assert` can be marked as `required`. When a required grader fails, the overall case status is `fail` regardless of the aggregate score.
 
 | Value | Behavior |
 |-------|----------|
@@ -412,7 +412,7 @@ assert:
         weight: 1.0
 ```
 
-Required gates are evaluated after all graders run. If any required grader falls below its threshold, the verdict is forced to `fail`.
+Required gates are evaluated after all graders run. If any required grader falls below its threshold, the case status is forced to `fail`.
 
 ### Assert Merge Behavior
 

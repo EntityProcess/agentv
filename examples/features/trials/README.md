@@ -2,7 +2,7 @@
 
 This example keeps the runnable contract in one eval file. Top-level `target`
 selects the system under test and `evaluate_options.repeat` configures repeated
-attempts.
+samples.
 
 ## Files
 
@@ -14,7 +14,7 @@ attempts.
 bun agentv eval examples/features/trials/evals/suite.yaml
 ```
 
-Edit `evaluate_options.repeat.count` to change how many attempts AgentV makes
+Edit `evaluate_options.repeat.count` to change how many samples AgentV records
 for each case:
 
 ```yaml

@@ -78,7 +78,7 @@ assert:
 Use `min_score` for analytic rubric gating. The only 0–10 values in authored llm-rubric are `score_ranges` bands and grader outputs.
 :::
 
-`weight` controls score contribution. `required` controls the verdict: a required checklist criterion can fail the eval even when the weighted score would otherwise pass.
+`weight` controls score contribution. `required` controls the pass gate: a required checklist criterion can fail the eval even when the weighted score would otherwise pass.
 
 `llm-rubric.value` can also be free-form text or an arbitrary JSON/YAML object. AgentV uses structured scoring when `value` is an array of rubric strings or rubric objects with fields such as `outcome` and `score_ranges`; other objects are passed to the rubric prompt as rubric data.
 
