@@ -200,6 +200,7 @@ grader dogfood is unavailable.
 - Red: run the scenario on `main` or the pre-change state and confirm the bug or missing feature is observable.
 - Green: run the identical scenario on your branch and confirm the fix or feature works from the end user's perspective.
 - Document both red and green evidence in the PR description or comments.
+- For feature examples, the green path must prove the intended use case, not just a smoke path. The example should make the feature's advantage visible compared with the simpler existing authoring pattern; if it only proves that syntax parses or a deterministic target returns output, improve the example before claiming dogfood evidence.
 
 5. Verify no regressions in adjacent areas.
 6. For scoring, threshold, or grader changes, run at least one real eval with a live provider and verify the output JSONL.

@@ -295,17 +295,31 @@ prompts:
   - "Translate '{{ phrase }}' to {{ language }}."
 
 scenarios:
-  - config:
-      - vars:
-          language: Spanish
-    tests:
-      - id: spanish-hello-world
+  - description: Translation matrix
+    config:
+      - id: spanish
         vars:
-          phrase: hello world
-          expected_translation: hola mundo
+          language: Spanish
+          expected_hello: hola
+          expected_thank_you: gracias
+      - id: french
+        vars:
+          language: French
+          expected_hello: bonjour
+          expected_thank_you: merci
+    tests:
+      - description: translates a greeting
+        vars:
+          phrase: hello
         assert:
           - type: equals
-            value: "{{ expected_translation }}"
+            value: "{{ expected_hello }}"
+      - description: translates a courtesy phrase
+        vars:
+          phrase: thank you
+        assert:
+          - type: equals
+            value: "{{ expected_thank_you }}"
   - file://scenarios/*.yaml
 ```
 
