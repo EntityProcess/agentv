@@ -894,6 +894,230 @@ tests:
   });
 });
 
+describe('Promptfoo scenarios (YAML)', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-scenarios-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('loads scenarios-only files as ordinary tests', async () => {
+    const yamlPath = path.join(tempDir, 'scenarios-only.yaml');
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - "Review {{ severity }} {{ diff }}"
+scenarios:
+  - config:
+      - vars:
+          severity: high
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+`,
+    );
+
+    const cases = await loadTests(yamlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('scenario-1-1-1');
+    expect(cases[0].question).toBe('Review high critical fix');
+    expect(cases[0].vars).toEqual({ severity: 'high', diff: 'critical fix' });
+    expect(cases[0].assertions?.[0]).toMatchObject({ type: 'contains', value: 'critical' });
+  });
+
+  it('appends lowered scenarios after normal tests', async () => {
+    const yamlPath = path.join(tempDir, 'tests-and-scenarios.yaml');
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - "Review {{ diff }}"
+tests:
+  - id: canonical
+    vars:
+      diff: ordinary change
+    assert:
+      - type: contains
+        value: ordinary
+scenarios:
+  - config:
+      - vars:
+          severity: high
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+`,
+    );
+
+    const cases = await loadTests(yamlPath, tempDir);
+
+    expect(cases.map((test) => test.id)).toEqual(['canonical', 'scenario-1-1-1']);
+  });
+
+  it('merges default_test, scenario config, and scenario test fields in precedence order', async () => {
+    const yamlPath = path.join(tempDir, 'scenario-merge.yaml');
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - "Review {{ shared }} {{ default_only }} {{ config_only }} {{ test_only }}"
+default_test:
+  vars:
+    shared: default
+    default_only: base
+  options:
+    repeat:
+      count: 2
+  assert:
+    - type: contains
+      value: default assertion
+scenarios:
+  - config:
+      - vars:
+          shared: config
+          config_only: config value
+        metadata:
+          owner: config
+          source: scenario-config
+        options:
+          repeat:
+            count: 3
+        run:
+          timeout_seconds: 10
+        assert:
+          - type: contains
+            value: config assertion
+    tests:
+      - vars:
+          shared: test
+          test_only: test value
+        metadata:
+          owner: test
+        options:
+          repeat:
+            count: 4
+        run:
+          threshold: 0.8
+        assert:
+          - type: contains
+            value: test assertion
+`,
+    );
+
+    const cases = await loadTests(yamlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].vars).toEqual({
+      shared: 'test',
+      default_only: 'base',
+      config_only: 'config value',
+      test_only: 'test value',
+    });
+    expect(cases[0].metadata).toMatchObject({
+      owner: 'test',
+      source: 'scenario-config',
+    });
+    expect(cases[0].run).toMatchObject({
+      repeat: { count: 4, strategy: 'pass_any' },
+      timeoutSeconds: 10,
+      threshold: 0.8,
+    });
+    expect(cases[0].assertions?.map((assertion) => assertion.value)).toEqual([
+      'config assertion',
+      'test assertion',
+      'default assertion',
+    ]);
+  });
+
+  it('expands top-level prompt matrices through lowered scenarios', async () => {
+    const yamlPath = path.join(tempDir, 'scenario-prompts.yaml');
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - id: alpha
+    raw: "Alpha {{ diff }}"
+  - id: beta
+    raw: "Beta {{ diff }}"
+scenarios:
+  - config:
+      - vars:
+          severity: high
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: fix
+`,
+    );
+
+    const cases = await loadTests(yamlPath, tempDir);
+
+    expect(cases.map((test) => test.id)).toEqual([
+      'scenario-1-1-1__prompt_alpha',
+      'scenario-1-1-1__prompt_beta',
+    ]);
+    expect(cases.map((test) => test.testId)).toEqual(['scenario-1-1-1', 'scenario-1-1-1']);
+    expect(cases.map((test) => test.question)).toEqual(['Alpha critical fix', 'Beta critical fix']);
+  });
+
+  it('rejects malformed scenarios at load time', async () => {
+    const yamlPath = path.join(tempDir, 'malformed-scenario.yaml');
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - "Review {{ diff }}"
+scenarios:
+  - tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+`,
+    );
+
+    await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+      'scenarios[0].config must be an array',
+    );
+  });
+
+  it('hard-errors removed fields inside scenarios at load time', async () => {
+    const yamlPath = path.join(tempDir, 'scenario-removed-field.yaml');
+    await writeFile(
+      yamlPath,
+      `prompts:
+  - "Review {{ diff }}"
+scenarios:
+  - config:
+      - vars:
+          severity: high
+    tests:
+      - input: removed
+        vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+`,
+    );
+
+    await expect(loadTests(yamlPath, tempDir)).rejects.toThrow(
+      'scenarios[0].tests[0].input has been removed',
+    );
+  });
+});
+
 describe('Backward-compat aliases', () => {
   let tempDir: string;
 

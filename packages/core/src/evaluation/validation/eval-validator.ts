@@ -335,6 +335,8 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'preprocessors',
     "Top-level 'preprocessors' has been removed from authored eval YAML. Use default_test.options.transform or assertion-level transform instead.",
   ],
+  ['providerPromptMap', "Top-level 'providerPromptMap' is not supported. Use 'targets'."],
+  ['provider_prompt_map', "Top-level 'provider_prompt_map' is not supported. Use 'targets'."],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
@@ -374,6 +376,7 @@ const KNOWN_TEST_FIELDS = new Set([
   'window_size',
 ]);
 
+const KNOWN_SCENARIO_FIELDS = new Set(['description', 'config', 'tests']);
 const SUPPORTED_WORKSPACE_REPO_FIELDS = new Set(['path', 'repo', 'commit', 'ancestor', 'sparse']);
 const KNOWN_REMOVED_WORKSPACE_FIELDS = new Set([
   'template',
@@ -392,6 +395,22 @@ const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 REMOVED_TEST_FIELDS.set(
   'input',
   "tests[].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.",
+);
+REMOVED_TEST_FIELDS.set(
+  'preprocessors',
+  'tests[].preprocessors has been removed from authored eval YAML. Use tests[].options.transform or assertion-level transform instead.',
+);
+REMOVED_TEST_FIELDS.set(
+  'postprocess',
+  'tests[].postprocess has been removed from authored eval YAML. Use tests[].options.transform instead.',
+);
+REMOVED_TEST_FIELDS.set(
+  'eval_cases',
+  "tests[].eval_cases has been removed from authored eval YAML. Use 'tests' rows directly.",
+);
+REMOVED_TEST_FIELDS.set(
+  'evalcases',
+  "tests[].evalcases has been removed from authored eval YAML. Use 'tests' rows directly.",
 );
 
 /** Deprecated test-level fields with migration hints. */
@@ -570,6 +589,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
+  await validateScenarios(parsed.scenarios, parsed, absolutePath, errors, customAssertionTypes);
   const cases: JsonValue | undefined = parsed.tests;
   const hasImports = collectImportEntries(parsed).length > 0;
   const hasScenarios = Array.isArray(parsed.scenarios);
@@ -1434,6 +1454,222 @@ function validateDefaultTest(
       location: 'default_test.options',
       message: "Invalid 'default_test.options' field (must be an object)",
     });
+  }
+}
+
+async function validateScenarios(
+  scenarios: JsonValue | undefined,
+  parsed: JsonObject,
+  filePath: string,
+  errors: ValidationError[],
+  customAssertionTypes: ReadonlySet<string>,
+): Promise<void> {
+  if (scenarios === undefined) {
+    return;
+  }
+  if (!Array.isArray(scenarios)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'scenarios',
+      message: "Invalid 'scenarios' field (must be an array)",
+    });
+    return;
+  }
+
+  for (let scenarioIndex = 0; scenarioIndex < scenarios.length; scenarioIndex++) {
+    const scenario = scenarios[scenarioIndex];
+    const scenarioLocation = `scenarios[${scenarioIndex}]`;
+    if (!isObject(scenario)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: scenarioLocation,
+        message: 'Scenario must be an object',
+      });
+      continue;
+    }
+
+    for (const key of Object.keys(scenario)) {
+      if (!KNOWN_SCENARIO_FIELDS.has(key)) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${scenarioLocation}.${key}`,
+          message: `Unknown scenario field '${key}'.`,
+        });
+      }
+    }
+
+    if (!Array.isArray(scenario.config)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${scenarioLocation}.config`,
+        message: "Invalid 'config' field (must be an array)",
+      });
+    } else {
+      for (let configIndex = 0; configIndex < scenario.config.length; configIndex++) {
+        await validateScenarioTestLikeRow(
+          scenario.config[configIndex],
+          `${scenarioLocation}.config[${configIndex}]`,
+          filePath,
+          errors,
+          customAssertionTypes,
+          { requireInput: false },
+        );
+      }
+    }
+
+    const scenarioConfigs = Array.isArray(scenario.config) ? scenario.config : [];
+
+    if (!Array.isArray(scenario.tests)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${scenarioLocation}.tests`,
+        message: "Invalid 'tests' field (must be an array)",
+      });
+      continue;
+    }
+
+    for (let testIndex = 0; testIndex < scenario.tests.length; testIndex++) {
+      const test = scenario.tests[testIndex];
+      const everyConfigProvidesInput =
+        scenarioConfigs.length > 0 &&
+        scenarioConfigs.every(
+          (config) =>
+            isObject(config) &&
+            (config.prompts !== undefined || config.provider_output !== undefined),
+        );
+      const requireInput =
+        isObject(test) &&
+        parsed.prompts === undefined &&
+        test.prompts === undefined &&
+        test.provider_output === undefined &&
+        !everyConfigProvidesInput;
+      await validateScenarioTestLikeRow(
+        test,
+        `${scenarioLocation}.tests[${testIndex}]`,
+        filePath,
+        errors,
+        customAssertionTypes,
+        { requireInput },
+      );
+    }
+  }
+}
+
+async function validateScenarioTestLikeRow(
+  row: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+  customAssertionTypes: ReadonlySet<string>,
+  options: { readonly requireInput: boolean },
+): Promise<void> {
+  if (!isObject(row)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: 'Scenario row must be an object',
+    });
+    return;
+  }
+
+  for (const key of Object.keys(row)) {
+    const removedMessage = REMOVED_TEST_FIELDS.get(key);
+    if (removedMessage) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${key}`,
+        message: removedMessage.replaceAll('tests[]', location),
+      });
+      continue;
+    }
+    const deprecationMessage = DEPRECATED_TEST_FIELDS.get(key);
+    if (deprecationMessage) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.${key}`,
+        message: deprecationMessage,
+      });
+    } else if (!KNOWN_TEST_FIELDS.has(key)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${key}`,
+        message: `Unknown test field '${key}'.`,
+      });
+    }
+  }
+
+  const id = row.id;
+  if (id !== undefined && (typeof id !== 'string' || id.trim().length === 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.id`,
+      message: "Invalid 'id' field (must be a non-empty string when provided)",
+    });
+  }
+
+  const criteria = row.criteria;
+  if (criteria !== undefined && (typeof criteria !== 'string' || criteria.trim().length === 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.criteria`,
+      message: "Invalid 'criteria' field (must be a non-empty string if provided)",
+    });
+  } else if (criteria !== undefined && row.assert !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.criteria`,
+      message:
+        "Do not combine test-level 'criteria' with 'assert'. Put human-readable case descriptions in tests[].description, or express grading text as an explicit assertion such as { type: 'llm-rubric', value: ... }.",
+    });
+  }
+
+  validateInputField(row.input, `${location}.input`, filePath, errors, {
+    required: options.requireInput,
+  });
+
+  if (row.expected_output !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.expected_output`,
+      message:
+        "tests[].expected_output has been removed from authored eval YAML. Put the reference answer in tests[].vars.expected_output and consume it with an explicit assertion, for example { type: 'llm-rubric', value: 'Matches the reference answer: {{ expected_output }}' }.",
+    });
+  }
+
+  validateAssertArray(row.assert, `${location}.assert`, filePath, errors, customAssertionTypes);
+  validateRunOverride(row.run, `${location}.run`, filePath, errors);
+  validateTestOptions(row.options, `${location}.options`, filePath, errors);
+  await validateEnvironmentConfig(row.environment, filePath, errors, `${location}.environment`);
+  validateConversationMode(row, location, filePath, errors);
+  await validateWorkspaceConfig(row.workspace, filePath, errors, `${location}.workspace`);
+
+  const caseExecution = isObject(row.execution) ? row.execution : undefined;
+  if (caseExecution) {
+    validateTestExecutionFields(caseExecution, filePath, errors, location);
+    rejectRuntimeWorkspaceConfig(
+      caseExecution.workspace,
+      filePath,
+      errors,
+      `${location}.execution.workspace`,
+    );
+  }
+
+  const targets = row.providers !== undefined ? row.providers : row.provider;
+  if (targets !== undefined) {
+    validateTargetTestbedFields(targets, `${location}.providers`, filePath, errors);
   }
 }
 

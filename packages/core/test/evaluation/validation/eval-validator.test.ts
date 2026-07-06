@@ -501,6 +501,209 @@ extensions:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates scenarios-only files', async () => {
+    const filePath = path.join(tempDir, 'scenarios-only.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Review {{ vars.diff }} with {{ vars.severity }} severity"
+scenarios:
+  - description: severity variants
+    config:
+      - vars:
+          severity: high
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates scenario tests when scenario config supplies prompts', async () => {
+    const filePath = path.join(tempDir, 'scenario-config-prompts.yaml');
+    await writeFile(
+      filePath,
+      `scenarios:
+  - description: prompt variants
+    config:
+      - prompts:
+          - "Review {{ vars.diff }}"
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects scenario tests without input when only some config rows supply prompts', async () => {
+    const filePath = path.join(tempDir, 'scenario-mixed-config-prompts.yaml');
+    await writeFile(
+      filePath,
+      `scenarios:
+  - description: prompt variants
+    config:
+      - prompts:
+          - "Review {{ vars.diff }}"
+      - vars:
+          severity: high
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0].tests[0].input',
+      }),
+    );
+  });
+
+  it('rejects malformed scenarios', async () => {
+    const filePath = path.join(tempDir, 'malformed-scenarios.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Review {{ vars.diff }}"
+scenarios:
+  - description: missing config
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+  - description: missing tests
+    config:
+      - vars:
+          severity: high
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0].config',
+        message: expect.stringContaining("Invalid 'config' field"),
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[1].tests',
+        message: expect.stringContaining("Invalid 'tests' field"),
+      }),
+    );
+  });
+
+  it('rejects removed fields inside scenarios', async () => {
+    const filePath = path.join(tempDir, 'scenario-removed-fields.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - "Review {{ vars.diff }}"
+scenarios:
+  - config:
+      - input: removed
+        options:
+          postprocess: output.trim()
+    tests:
+      - expected_output: removed
+        preprocessors:
+          - type: xlsx
+        vars:
+          diff: critical fix
+        assert:
+          - type: contains
+            value: critical
+            postprocess: output.trim()
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'error', location: 'scenarios[0].config[0].input' }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0].config[0].options.postprocess',
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0].tests[0].preprocessors',
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0].tests[0].expected_output',
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'scenarios[0].tests[0].assert[0].postprocess',
+      }),
+    );
+  });
+
+  it('rejects providerPromptMap baggage', async () => {
+    const filePath = path.join(tempDir, 'provider-prompt-map.yaml');
+    await writeFile(
+      filePath,
+      `providerPromptMap:
+  local: [prompt-a]
+tests:
+  - id: test-1
+    criteria: Goal
+    vars:
+      input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'providerPromptMap',
+        message: expect.stringContaining('providerPromptMap'),
+      }),
+    );
+  });
+
   it('rejects top-level providers as a live alias for targets', async () => {
     const filePath = path.join(tempDir, 'top-level-providers.yaml');
     await writeFile(
