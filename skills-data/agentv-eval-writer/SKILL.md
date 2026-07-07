@@ -39,7 +39,7 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 ## Authoring Checklist
 
 - Put grading criteria in `assert`, not in test-level `criteria`. Plain assertion strings become an `llm-rubric` grader.
-- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or assertion-level transforms, and `type: script` when grading must execute code.
+- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader providers, or assertion-level transforms. Use `type: agent-rubric` when the grader itself must be an agent-capable provider that can inspect the workspace. Use `type: script` when grading must execute code.
 - Put reference answers in `tests[].vars.expected_output` or `default_test.vars.expected_output`, and consume them with an explicit assertion such as `type: llm-rubric` with `value: "Matches the reference answer: {{ expected_output }}"`. Do not write criteria, scoring instructions, or "the agent should..." rubric prose as the reference answer.
 - For historical or repo-state evals, materialize the repo through a pinned `environment` setup recipe. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
 
@@ -151,7 +151,7 @@ tests:
 | `id` | yes | Unique identifier |
 | `vars` | yes when the prompt needs row data | Prompt-template variables for this row |
 | `vars.expected_output` | no | Conventional reference-answer var consumed by explicit graders |
-| `assert` | yes | Graders: deterministic checks, `llm-rubric` checks, script graders, or plain string rubric criteria |
+| `assert` | yes | Graders: deterministic checks, `llm-rubric` / `agent-rubric` checks, script graders, or plain string rubric criteria |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `environment` | no | Per-case coding-agent testbed config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
@@ -387,7 +387,7 @@ tests:
 
 When `assert` is defined, **only the declared graders run**. For
 semantic checks, add plain rubric strings. If you need a custom LLM prompt or
-grader target, declare `llm-rubric` explicitly:
+grader provider, declare `llm-rubric` explicitly:
 
 ```yaml
 prompts:
@@ -560,7 +560,7 @@ See the Script Graders docs for the full stdin/stdout contract.
 - name: quality
   type: llm-rubric
   prompt: ./prompts/eval.md     # markdown template or command config
-  target: grader_gpt_5_mini     # optional: override the grader target for this grader
+  provider: grader_gpt_5_mini   # optional: override the grader provider for this grader
   model: gpt-5-chat            # optional model override
   config:                       # passed to prompt templates as context.config
     strictness: high
@@ -568,7 +568,7 @@ See the Script Graders docs for the full stdin/stdout contract.
 Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{metadata}}`, `{{metadata_json}}`, `{{rubrics}}`, `{{rubrics_json}}`, `{{file_changes}}`, `{{tool_calls}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/sdk`, receives context object with all variables + `config`
-- Use `target:` to run different `llm-rubric` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
+- Use `provider:` to run different `llm-rubric` graders against different named LLM providers in the same eval (useful for grader panels / ensembles)
 
 ### assert-set
 ```yaml
@@ -862,7 +862,7 @@ export default defineScriptGrader(({ output, trace }) => {
 });
 ```
 
-Use `defineScriptGrader()` when the custom component is a command-backed grader with explicit score control, check arrays, workspace commands, or LLM calls through a grader target. `defineScriptGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
+Use `defineScriptGrader()` when the custom component is a command-backed grader with explicit score control, check arrays, workspace commands, or LLM calls through a grader provider. `defineScriptGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
 
 ### Convention-Based Discovery
 

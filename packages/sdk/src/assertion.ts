@@ -39,6 +39,7 @@ export type AssertionType =
   // kebab-case (canonical internal form)
   | 'llm-grader'
   | 'llm-rubric'
+  | 'agent-rubric'
   | 'script'
   | 'assert-set'
   /** @deprecated Authored eval YAML rejects this compatibility-only runtime type. */

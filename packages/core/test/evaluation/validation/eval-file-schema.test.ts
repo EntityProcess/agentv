@@ -577,6 +577,25 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts promptfoo agent-rubric assertions in schema validation', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [
+            {
+              type: 'agent-rubric',
+              value: 'Inspect the workspace and verify the evidence',
+              provider: 'codex-grader',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('rejects stale skill-trigger assertions with migration guidance', () => {
     const positive = EvalFileSchema.safeParse({
       tests: [

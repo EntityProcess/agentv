@@ -194,6 +194,7 @@ const GRADER_KIND_VALUES = [
   'execution-metrics',
   'assert-set',
   'llm-rubric',
+  'agent-rubric',
   'contains',
   'contains-any',
   'contains-all',
@@ -472,7 +473,7 @@ export type LlmGraderConfig = {
   readonly min_score?: number;
   /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
-  /** Optional target override for this grader (uses a named LLM target from targets.yaml). */
+  /** Internal normalized provider override for this grader (authored as assertion `provider`). */
   readonly target?: string;
   /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;
@@ -490,7 +491,14 @@ export type LlmRubricGraderConfig = Omit<LlmGraderConfig, 'type'> & {
   readonly value?: JsonValue;
 };
 
-export type LlmBackedGraderConfig = LlmGraderConfig | LlmRubricGraderConfig;
+export type AgentRubricGraderConfig = Omit<LlmRubricGraderConfig, 'type'> & {
+  readonly type: 'agent-rubric';
+};
+
+export type LlmBackedGraderConfig =
+  | LlmGraderConfig
+  | LlmRubricGraderConfig
+  | AgentRubricGraderConfig;
 
 /**
  * Score range definition for analytic rubric scoring.
@@ -955,6 +963,7 @@ export type GraderConfig = (
   | CodeGraderConfig
   | LlmGraderConfig
   | LlmRubricGraderConfig
+  | AgentRubricGraderConfig
   | ToolTrajectoryGraderConfig
   | SkillUsedGraderConfig
   | FieldAccuracyGraderConfig

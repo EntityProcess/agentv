@@ -67,7 +67,6 @@ function removedGraderReplacement(type: string): string | undefined {
 }
 
 const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
-  'agent-rubric',
   'answer-relevance',
   'bleu',
   'classifier',
@@ -1684,7 +1683,10 @@ async function parseGraderList(
 
     // Parse prompt field - can be string (text template) or object (executable script)
     const rawPrompt =
-      rawEvaluator.prompt ?? (typeValue === 'llm-rubric' ? defaultRubricPrompt : undefined);
+      rawEvaluator.prompt ??
+      (typeValue === 'llm-rubric' || typeValue === 'agent-rubric'
+        ? defaultRubricPrompt
+        : undefined);
     const parsedPrompt = await parsePromptField(rawPrompt, name, evalId, searchRoots);
     const { prompt, promptPath, resolvedPromptPath, resolvedPromptScript, promptScriptConfig } =
       parsedPrompt;
@@ -1758,11 +1760,11 @@ async function parseGraderList(
     const llmTemperature =
       typeof rawTempLlm === 'number' && rawTempLlm >= 0 && rawTempLlm <= 2 ? rawTempLlm : undefined;
 
-    if (typeValue === 'llm-rubric') {
+    if (typeValue === 'llm-rubric' || typeValue === 'agent-rubric') {
       for (const removedField of ['criteria', 'rubric_item', 'rubricItem', 'rubrics'] as const) {
         if (rawEvaluator[removedField] !== undefined) {
           throw new Error(
-            `Unsupported llm-rubric field '${removedField}' in '${evalId}' for evaluator '${name}'. Use 'value' instead.`,
+            `Unsupported ${typeValue} field '${removedField}' in '${evalId}' for evaluator '${name}'. Use 'value' instead.`,
           );
         }
       }
@@ -1783,14 +1785,14 @@ async function parseGraderList(
 
       if (!value && (!structuredRubrics || structuredRubrics.length === 0) && !prompt) {
         logWarning(
-          `Skipping llm-rubric evaluator '${name}' in '${evalId}': expected value or prompt`,
+          `Skipping ${typeValue} evaluator '${name}' in '${evalId}': expected value or prompt`,
         );
         continue;
       }
 
       pushEvaluator({
         name,
-        type: 'llm-rubric',
+        type: typeValue,
         prompt,
         promptPath,
         ...(resolvedPromptPath ? { resolvedPromptPath } : {}),

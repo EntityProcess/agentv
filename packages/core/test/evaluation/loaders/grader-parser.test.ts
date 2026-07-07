@@ -380,6 +380,33 @@ describe('parseGraders - deterministic assertion types', () => {
     });
   });
 
+  it('parses promptfoo-compatible agent-rubric as an agent-backed rubric grader', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            metric: 'agent-check',
+            type: 'agent-rubric',
+            value: 'Inspect the workspace and verify the claimed file exists',
+            provider: 'codex-grader',
+            max_steps: 4,
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    expect(evaluators?.[0]).toMatchObject({
+      name: 'agent-check',
+      type: 'agent-rubric',
+      value: 'Inspect the workspace and verify the claimed file exists',
+      target: 'codex-grader',
+      max_steps: 4,
+    });
+  });
+
   it('inherits default rubric prompt for llm-rubric assertions only', async () => {
     const evaluators = await parseGraders(
       {

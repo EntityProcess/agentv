@@ -309,6 +309,7 @@ const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
   type: z.enum([
     'assert-set',
     'llm-rubric',
+    'agent-rubric',
     'javascript',
     'python',
     'webhook',
