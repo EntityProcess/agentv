@@ -6,15 +6,15 @@ It includes a composable `.agentv/config.yaml` that decomposes the base config
 graph into direct field refs:
 
 ```yaml
-targets: file://providers.yaml
+providers: file://providers.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
 
-Each referenced file contains that field's value directly, such as a bare target
+Each referenced file contains that field's value directly, such as a bare provider
 array in `.agentv/providers.yaml` and a bare defaults object in
 `.agentv/defaults.yaml`. A grader is not a separate kind of entity — it is a
-target listed under `targets` like any other, selected for the grading role
+provider listed under `providers` like any other, selected for the grading role
 via `defaults.grader`.
 
 Run it against a local OpenAI-compatible endpoint:

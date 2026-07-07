@@ -37,6 +37,8 @@ describe('validateConfigFile', () => {
       filePath,
       `execution:
   max_concurrency: 3
+  verbose: true
+  keep_workspaces: false
 `,
     );
 

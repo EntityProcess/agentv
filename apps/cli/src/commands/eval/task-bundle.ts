@@ -24,6 +24,8 @@ const INPUT_PROMPT = '{{ input }}';
 const BUNDLE_EVALS_DIRNAME = 'evals';
 const BUNDLE_MANIFEST_FILENAME = 'agentv_bundle.json';
 const BUNDLE_PROVIDERS_FILENAME = 'providers.yaml';
+const BUNDLE_CONFIG_DIRNAME = '.agentv';
+const BUNDLE_CONFIG_FILENAME = 'config.yaml';
 const BUNDLE_WORKSPACES_DIRNAME = 'workspaces';
 const BUNDLE_SCRIPTS_DIRNAME = 'scripts';
 const REDACTED_SOURCE_VALUE = '[redacted]';
@@ -1214,6 +1216,7 @@ export async function materializeEvalBundle(
   const targetNames = uniqueTargetNames(options.targetSelections);
   const evalPath = path.join(evalsDir, bundledEvalFileName(options.evalFilePath));
   const providersPath = path.join(outputDir, BUNDLE_PROVIDERS_FILENAME);
+  const configPath = path.join(outputDir, BUNDLE_CONFIG_DIRNAME, BUNDLE_CONFIG_FILENAME);
   const manifestPath = path.join(outputDir, BUNDLE_MANIFEST_FILENAME);
   const runtime =
     options.runtime ?? (targetNames.length > 0 ? { providers: targetNames } : undefined);
@@ -1223,9 +1226,12 @@ export async function materializeEvalBundle(
     prompts: [INPUT_PROMPT],
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
-  await writeYamlFile(providersPath, {
-    providers: serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections)),
-  });
+  await writeYamlFile(
+    providersPath,
+    serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections)),
+  );
+  await mkdir(path.dirname(configPath), { recursive: true });
+  await writeYamlFile(configPath, { providers: `file://../${BUNDLE_PROVIDERS_FILENAME}` });
 
   const manifest = bundleManifest({
     outputDir,

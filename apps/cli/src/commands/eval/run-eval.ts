@@ -20,6 +20,7 @@ import {
   ResponseCache,
   RunBudgetTracker,
   type RunRuntimeSourceMetadata,
+  type TargetDefinition,
   type TrialsConfig,
   buildExperimentArtifactMetadata,
   buildTraceFromMessages,
@@ -274,6 +275,8 @@ interface NormalizedOptions {
   readonly targetsPath?: string;
   /** Internal rerun-only carveout for generated test bundle targets.yaml artifacts. */
   readonly allowLegacyTargetFiles?: boolean;
+  /** Internal rerun-only provider catalog paths keyed by captured eval file. */
+  readonly providerCatalogPathByEvalFile?: ReadonlyMap<string, string>;
   readonly filter?: string | readonly string[];
   readonly workers?: number;
   /** --output <dir>: canonical artifact directory */
@@ -415,6 +418,36 @@ function normalizeSourceMetadataByEvalFile(
     );
     return entries.length > 0
       ? new Map(entries.map(([key, metadata]) => [path.resolve(key), metadata]))
+      : undefined;
+  }
+
+  return undefined;
+}
+
+function normalizeProviderCatalogPathByEvalFile(
+  value: unknown,
+): ReadonlyMap<string, string> | undefined {
+  if (value instanceof Map) {
+    const entries = [...value.entries()].filter(
+      (entry): entry is [string, string] =>
+        typeof entry[0] === 'string' && typeof entry[1] === 'string' && entry[1].trim().length > 0,
+    );
+    return entries.length > 0
+      ? new Map(
+          entries.map(([key, providerPath]) => [path.resolve(key), path.resolve(providerPath)]),
+        )
+      : undefined;
+  }
+
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const entries = Object.entries(value).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === 'string' && entry[1].trim().length > 0,
+    );
+    return entries.length > 0
+      ? new Map(
+          entries.map(([key, providerPath]) => [path.resolve(key), path.resolve(providerPath)]),
+        )
       : undefined;
   }
 
@@ -702,6 +735,9 @@ function normalizeOptions(
     cliTargets,
     targetsPath: normalizeString(rawOptions.targets),
     allowLegacyTargetFiles: normalizeBoolean(rawOptions.allowLegacyTargetFiles),
+    providerCatalogPathByEvalFile: normalizeProviderCatalogPathByEvalFile(
+      rawOptions.providerCatalogPathByEvalFile,
+    ),
     filter: normalizeFilter(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
     outputDir: cliOutputDir ?? configOutputDir,
@@ -1308,6 +1344,9 @@ async function prepareFileMetadata(params: {
   readonly repoRoot: string;
   readonly cwd: string;
   readonly options: NormalizedOptions;
+  readonly providerCatalogPath?: string;
+  readonly providerDefinitions?: readonly TargetDefinition[];
+  readonly providerDefinitionsSource?: string;
   readonly suiteFilter?: string | readonly string[];
 }): Promise<{
   readonly options: NormalizedOptions;
@@ -1326,7 +1365,16 @@ async function prepareFileMetadata(params: {
     target: import('@agentv/core').ResolvedTarget,
   ) => import('@agentv/core').Provider;
 }> {
-  const { testFilePath, repoRoot, cwd, options, suiteFilter } = params;
+  const {
+    testFilePath,
+    repoRoot,
+    cwd,
+    options,
+    providerCatalogPath,
+    providerDefinitions,
+    providerDefinitionsSource,
+    suiteFilter,
+  } = params;
 
   await ensureFileExists(testFilePath, 'Test file');
   await loadEnvFromHierarchy({
@@ -1348,6 +1396,7 @@ async function prepareFileMetadata(params: {
     experimentOptions.workers === undefined && suite.workers !== undefined
       ? { ...experimentOptions, workers: suite.workers }
       : experimentOptions;
+  const effectiveProviderCatalogPath = effectiveOptions.targetsPath ?? providerCatalogPath;
   const testCases =
     suiteFilter && effectiveOptions.filter
       ? suite.tests.filter((testCase) =>
@@ -1473,7 +1522,10 @@ async function prepareFileMetadata(params: {
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: effectiveOptions.targetsPath,
+        explicitTargetsPath: effectiveProviderCatalogPath,
+        providerDefinitions,
+        providerDefinitionsSource,
+        requireExplicitProviderCatalog: true,
         allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
         env: process.env,
         targetNames,
@@ -1493,7 +1545,10 @@ async function prepareFileMetadata(params: {
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: effectiveOptions.targetsPath,
+        explicitTargetsPath: effectiveProviderCatalogPath,
+        providerDefinitions,
+        providerDefinitionsSource,
+        requireExplicitProviderCatalog: true,
         allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
         cliTargetName:
           targetSource === 'cli'
@@ -1830,6 +1885,11 @@ export async function runEvalCommand(
   if (yamlConfig?.defaults?.grader) {
     options = { ...options, defaultGraderTarget: yamlConfig.defaults.grader };
   }
+  const providerCatalogPath = yamlConfig?.providerCatalogPath;
+  const providerDefinitions = yamlConfig?.providerDefinitions;
+  const providerDefinitionsSource = providerDefinitions
+    ? (providerCatalogPath ?? '.agentv/config.yaml:providers')
+    : undefined;
   const resolvedExperiment = resolveExperimentForRun(options.experiment);
   const evalPathInputs = input.testFiles.length > 0 ? [...input.testFiles] : [];
   if (evalPathInputs.length === 0 && process.stdin.isTTY) {
@@ -2101,11 +2161,20 @@ export async function runEvalCommand(
     }
   >();
   for (const testFilePath of resolvedTestFiles) {
+    const fileProviderCatalogPath =
+      options.providerCatalogPathByEvalFile?.get(path.resolve(testFilePath)) ?? providerCatalogPath;
     const meta = await prepareFileMetadata({
       testFilePath,
       repoRoot,
       cwd,
       options,
+      providerCatalogPath: fileProviderCatalogPath,
+      providerDefinitions,
+      providerDefinitionsSource: fileProviderCatalogPath
+        ? fileProviderCatalogPath === providerCatalogPath
+          ? providerDefinitionsSource
+          : undefined
+        : providerDefinitionsSource,
       suiteFilter: undefined,
     });
     fileMetadata.set(testFilePath, meta);

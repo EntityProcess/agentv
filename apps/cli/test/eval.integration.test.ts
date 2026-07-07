@@ -34,6 +34,27 @@ function runDirFromIndexPath(indexPath: string): string {
   return path.dirname(path.dirname(indexPath));
 }
 
+function projectProviderConfigLines(extraLines: readonly string[] = []): string {
+  return [
+    ...extraLines,
+    'providers:',
+    '  - id: mock',
+    '    label: default',
+    '  - id: mock',
+    '    label: file-target',
+    '  - id: mock',
+    '    label: cli-target',
+    '  - id: openai:codex-sdk',
+    '    label: codex-target',
+    '    model: gpt-5-default',
+    '',
+  ].join('\n');
+}
+
+function nestedProviderConfigLines(): string {
+  return ['providers:', '  - id: mock', '    label: default', ''].join('\n');
+}
+
 function rebuildProjectionIdentityWire(
   wireIdentity: unknown,
   dimensions: Record<string, unknown>,
@@ -82,6 +103,7 @@ providers:
     model: gpt-5-default
 `;
   await writeFile(providersPath, providersContent, 'utf8');
+  await writeFile(path.join(agentvDir, 'config.yaml'), projectProviderConfigLines(), 'utf8');
 
   const testFilePath = path.join(suiteDir, 'sample.test.yaml');
   const testFileContent = `description: CLI integration test
@@ -137,6 +159,7 @@ providers:
     label: default
 `;
   await writeFile(providersPath, providersContent, 'utf8');
+  await writeFile(path.join(agentvDir, 'config.yaml'), nestedProviderConfigLines(), 'utf8');
 
   const testFilePath = path.join(evalDir, 'sample.test.yaml');
   const testFileContent = `description: CLI nested env integration test
@@ -271,7 +294,7 @@ async function writeRequiredVersionConfig(
 ): Promise<void> {
   await writeFile(
     path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
-    `required_version: "${requiredVersion}"\n`,
+    projectProviderConfigLines([`required_version: "${requiredVersion}"`]),
     'utf8',
   );
 }
@@ -667,7 +690,11 @@ describe('agentv eval CLI', () => {
     try {
       await writeFile(
         path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
-        'eval_patterns:\n  - sample.test.yaml\n  - unused.test.yaml\n',
+        projectProviderConfigLines([
+          'eval_patterns:',
+          '  - sample.test.yaml',
+          '  - unused.test.yaml',
+        ]),
         'utf8',
       );
       await writeFile(

@@ -48,6 +48,24 @@ describe('readTargetDefinitions', () => {
     ]);
   });
 
+  it('accepts bare provider arrays for config file references', async () => {
+    const filePath = await writeProvidersYaml(`- id: openai:gpt-4.1-mini
+  label: mini
+`);
+
+    const definitions = await readTargetDefinitions(filePath);
+
+    expect(definitions).toEqual([
+      expect.objectContaining({
+        id: 'mini',
+        name: 'mini',
+        label: 'mini',
+        provider: 'openai',
+        model: 'gpt-4.1-mini',
+      }),
+    ]);
+  });
+
   it('accepts colon provider specs and preserves unlabeled specs as stable identity', async () => {
     const filePath = await writeProvidersYaml(`providers:
   - id: openai:gpt-4.1-mini

@@ -97,6 +97,9 @@ export interface TargetSelectionOptions {
   readonly repoRoot: string;
   readonly cwd: string;
   readonly explicitTargetsPath?: string;
+  readonly providerDefinitions?: readonly TargetDefinition[];
+  readonly providerDefinitionsSource?: string;
+  readonly requireExplicitProviderCatalog?: boolean;
   readonly allowLegacyTargetFiles?: boolean;
   readonly cliTargetName?: string;
   readonly cliTargetNames?: readonly string[];
@@ -104,6 +107,70 @@ export interface TargetSelectionOptions {
   readonly fileTargetSpec?: EvalTargetSpec;
   readonly modelOverride?: string;
   readonly env: NodeJS.ProcessEnv;
+}
+
+async function readProviderCatalog(options: {
+  readonly explicitTargetsPath?: string;
+  readonly providerDefinitions?: readonly TargetDefinition[];
+  readonly providerDefinitionsSource?: string;
+  readonly requireExplicitProviderCatalog?: boolean;
+  readonly testFilePath: string;
+  readonly repoRoot: string;
+  readonly cwd: string;
+  readonly allowLegacyTargetFiles?: boolean;
+}): Promise<{ readonly definitions: readonly TargetDefinition[]; readonly sourcePath: string }> {
+  if (!options.explicitTargetsPath && options.providerDefinitions) {
+    return {
+      definitions: options.providerDefinitions,
+      sourcePath: options.providerDefinitionsSource ?? '.agentv/config.yaml:providers',
+    };
+  }
+  if (!options.explicitTargetsPath && options.requireExplicitProviderCatalog) {
+    throw new Error(
+      'No provider catalog configured. Add `providers:` to .agentv/config.yaml, use `providers: file://providers.yaml`, or pass --providers <path>.',
+    );
+  }
+  const targetsFilePath = await discoverTargetsFile({
+    explicitPath: options.explicitTargetsPath,
+    testFilePath: options.testFilePath,
+    repoRoot: options.repoRoot,
+    cwd: options.cwd,
+    allowLegacyTargetFiles: options.allowLegacyTargetFiles,
+  });
+  await validateProviderCatalogFile(targetsFilePath);
+  return {
+    definitions: await readTargetDefinitions(targetsFilePath),
+    sourcePath: targetsFilePath,
+  };
+}
+
+async function validateProviderCatalogFile(targetsFilePath: string): Promise<void> {
+  const validationResult = await validateTargetsFile(targetsFilePath);
+  const warnings = validationResult.errors.filter((e) => e.severity === 'warning');
+  const useColors = isTTY();
+
+  if (warnings.length > 0) {
+    console.warn(`\nWarnings in ${targetsFilePath}:`);
+    for (const warning of warnings) {
+      const location = warning.location ? ` [${warning.location}]` : '';
+      const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : '  ⚠';
+      const message = useColors ? `${ANSI_YELLOW}${warning.message}${ANSI_RESET}` : warning.message;
+      console.warn(`${prefix}${location} ${message}`);
+    }
+    console.warn('');
+  }
+
+  const errors = validationResult.errors.filter((e) => e.severity === 'error');
+  if (errors.length > 0) {
+    console.error(`\nErrors in ${targetsFilePath}:`);
+    for (const error of errors) {
+      const location = error.location ? ` [${error.location}]` : '';
+      const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : '  ✗';
+      const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
+      console.error(`${prefix}${location} ${message}`);
+    }
+    throw new Error(`Providers file validation failed with ${errors.length} error(s)`);
+  }
 }
 
 function pickTargetName(options: {
@@ -165,50 +232,27 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     repoRoot,
     cwd,
     explicitTargetsPath,
+    providerDefinitions,
+    providerDefinitionsSource,
+    requireExplicitProviderCatalog,
     allowLegacyTargetFiles,
     cliTargetName,
     modelOverride,
     env,
   } = options;
 
-  const targetsFilePath = await discoverTargetsFile({
-    explicitPath: explicitTargetsPath,
+  const providerCatalog = await readProviderCatalog({
+    explicitTargetsPath,
+    providerDefinitions,
+    providerDefinitionsSource,
+    requireExplicitProviderCatalog,
     testFilePath,
     repoRoot,
     cwd,
     allowLegacyTargetFiles,
   });
-
-  // Validate the targets file and show warnings
-  const validationResult = await validateTargetsFile(targetsFilePath);
-  const warnings = validationResult.errors.filter((e) => e.severity === 'warning');
-  const useColors = isTTY();
-
-  if (warnings.length > 0) {
-    console.warn(`\nWarnings in ${targetsFilePath}:`);
-    for (const warning of warnings) {
-      const location = warning.location ? ` [${warning.location}]` : '';
-      const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : '  ⚠';
-      const message = useColors ? `${ANSI_YELLOW}${warning.message}${ANSI_RESET}` : warning.message;
-      console.warn(`${prefix}${location} ${message}`);
-    }
-    console.warn('');
-  }
-
-  // Check for errors (should fail if invalid)
-  const errors = validationResult.errors.filter((e) => e.severity === 'error');
-  if (errors.length > 0) {
-    console.error(`\nErrors in ${targetsFilePath}:`);
-    for (const error of errors) {
-      const location = error.location ? ` [${error.location}]` : '';
-      const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : '  ✗';
-      const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
-      console.error(`${prefix}${location} ${message}`);
-    }
-    throw new Error(`Providers file validation failed with ${errors.length} error(s)`);
-  }
-
-  const definitions = await readTargetDefinitions(targetsFilePath);
+  const definitions = providerCatalog.definitions;
+  const targetsFilePath = providerCatalog.sourcePath;
   const fileTargetSpec = options.fileTargetSpec;
   const fileTargetName =
     options.fileTargetName ?? fileTargetSpec?.name ?? (await readTestSuiteTarget(testFilePath));
@@ -263,6 +307,9 @@ export async function selectMultipleTargets(
     repoRoot,
     cwd,
     explicitTargetsPath,
+    providerDefinitions,
+    providerDefinitionsSource,
+    requireExplicitProviderCatalog,
     allowLegacyTargetFiles,
     env,
     targetNames,
@@ -284,41 +331,18 @@ export async function selectMultipleTargets(
     }
   }
 
-  const targetsFilePath = await discoverTargetsFile({
-    explicitPath: explicitTargetsPath,
+  const providerCatalog = await readProviderCatalog({
+    explicitTargetsPath,
+    providerDefinitions,
+    providerDefinitionsSource,
+    requireExplicitProviderCatalog,
     testFilePath,
     repoRoot,
     cwd,
     allowLegacyTargetFiles,
   });
-
-  // Validate targets file once
-  const validationResult = await validateTargetsFile(targetsFilePath);
-  const warnings = validationResult.errors.filter((e) => e.severity === 'warning');
-  const useColors = isTTY();
-  if (warnings.length > 0) {
-    console.warn(`\nWarnings in ${targetsFilePath}:`);
-    for (const warning of warnings) {
-      const location = warning.location ? ` [${warning.location}]` : '';
-      const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : '  ⚠';
-      const message = useColors ? `${ANSI_YELLOW}${warning.message}${ANSI_RESET}` : warning.message;
-      console.warn(`${prefix}${location} ${message}`);
-    }
-    console.warn('');
-  }
-  const errors = validationResult.errors.filter((e) => e.severity === 'error');
-  if (errors.length > 0) {
-    console.error(`\nErrors in ${targetsFilePath}:`);
-    for (const error of errors) {
-      const location = error.location ? ` [${error.location}]` : '';
-      const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : '  ✗';
-      const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
-      console.error(`${prefix}${location} ${message}`);
-    }
-    throw new Error(`Providers file validation failed with ${errors.length} error(s)`);
-  }
-
-  const fileDefinitions = await readTargetDefinitions(targetsFilePath);
+  const targetsFilePath = providerCatalog.sourcePath;
+  const fileDefinitions = providerCatalog.definitions;
 
   // Inject synthetic definitions from eval target refs (for use_target delegation)
   const definitions = [...fileDefinitions];

@@ -25,8 +25,13 @@ export async function detectFileType(filePath: string): Promise<FileType> {
     const content = await readFile(filePath, 'utf8');
     const parsed = parseYamlValue(content);
 
-    // YAML array root → cases file (array of test case objects)
+    // YAML array root is usually a cases file, except providers.yaml may be a
+    // bare array when referenced from .agentv/config.yaml.
     if (Array.isArray(parsed)) {
+      const inferred = inferFileTypeFromPath(filePath);
+      if (inferred === 'targets') {
+        return inferred;
+      }
       return 'cases';
     }
 
