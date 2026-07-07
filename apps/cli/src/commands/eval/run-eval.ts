@@ -1049,10 +1049,6 @@ function buildExperimentTrialsConfig(experiment: ExperimentConfig): TrialsConfig
     return {
       count: experiment.repeat.count,
       strategy: experiment.repeat.strategy,
-      ...(experiment.repeat.costLimitUsd !== undefined && {
-        costLimitUsd: experiment.repeat.costLimitUsd,
-      }),
-      ...(experiment.repeat.earlyExit !== undefined && { earlyExit: experiment.repeat.earlyExit }),
     };
   }
   return undefined;
@@ -1074,8 +1070,6 @@ function buildRunOverrideTrialsConfig(run: EvalRunOverride | undefined): TrialsC
   return {
     count: repeat.count,
     strategy: repeat.strategy,
-    ...(repeat.costLimitUsd !== undefined && { costLimitUsd: repeat.costLimitUsd }),
-    ...(repeat.earlyExit !== undefined && { earlyExit: repeat.earlyExit }),
   };
 }
 

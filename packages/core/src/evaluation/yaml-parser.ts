@@ -2663,12 +2663,12 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.runs !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'runs' has been removed. Use evaluate_options.repeat.count instead.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'runs' has been removed. Use a positive integer evaluate_options.repeat instead.`,
     );
   }
   if (suite.early_exit !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'early_exit' has been removed. Use a positive integer evaluate_options.repeat instead.`,
     );
   }
   if (suite.repeat !== undefined) {

@@ -18,20 +18,11 @@ export type ExperimentTargetRef =
       readonly hooks?: Record<string, unknown>;
     };
 
-export type ExperimentRepeatWire = {
-  readonly count?: number;
-  readonly strategy?: TrialStrategy;
-  readonly early_exit?: boolean;
-  readonly cost_limit_usd?: number;
-};
-
-export type ExperimentRepeatInput = number | ExperimentRepeatWire;
+export type ExperimentRepeatInput = number;
 
 export type ExperimentRepeat = {
   readonly count: number;
   readonly strategy: TrialStrategy;
-  readonly earlyExit?: boolean;
-  readonly costLimitUsd?: number;
 };
 
 export type ExperimentConfigWire = {
@@ -72,20 +63,11 @@ export type ExperimentArtifactMetadata = {
   readonly repeat?: {
     readonly count: number;
     readonly strategy: TrialStrategy;
-    readonly early_exit?: boolean;
-    readonly cost_limit_usd?: number;
   };
   readonly timeout_seconds?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
 };
-
-const VALID_REPEAT_STRATEGIES: ReadonlySet<string> = new Set([
-  'pass_any',
-  'pass_all',
-  'mean',
-  'confidence_interval',
-]);
 
 const RUN_OVERRIDE_FIELDS: ReadonlySet<string> = new Set([
   'threshold',
@@ -94,13 +76,6 @@ const RUN_OVERRIDE_FIELDS: ReadonlySet<string> = new Set([
   'timeoutSeconds',
   'budget_usd',
   'budgetUsd',
-]);
-
-const REPEAT_FIELDS: ReadonlySet<string> = new Set([
-  'count',
-  'strategy',
-  'early_exit',
-  'cost_limit_usd',
 ]);
 
 export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig {
@@ -204,12 +179,6 @@ export function buildExperimentArtifactMetadata(
       repeat: {
         count: config.repeat.count,
         strategy: config.repeat.strategy,
-        ...(config.repeat.earlyExit !== undefined && {
-          early_exit: config.repeat.earlyExit,
-        }),
-        ...(config.repeat.costLimitUsd !== undefined && {
-          cost_limit_usd: config.repeat.costLimitUsd,
-        }),
       },
     }),
     ...(config.timeoutSeconds !== undefined && { timeout_seconds: config.timeoutSeconds }),
@@ -228,27 +197,9 @@ function readRepeat(raw: unknown): ExperimentRepeat | undefined {
       strategy: 'pass_any',
     };
   }
-  if (!isRecord(raw)) {
-    throw new Error('Experiment repeat must be a positive integer or object.');
-  }
-  for (const key of Object.keys(raw)) {
-    if (!REPEAT_FIELDS.has(key)) {
-      throw new Error(
-        `Experiment repeat.${key} is not supported. Use count, strategy, early_exit, and cost_limit_usd.`,
-      );
-    }
-  }
-  const count = readRequiredPositiveInteger(raw.count, 'repeat.count');
-  const strategy = readOptionalRepeatStrategy(raw.strategy);
-  const earlyExit = readOptionalBoolean(raw.early_exit, 'repeat.early_exit');
-  const costLimitUsd = readOptionalNonNegativeNumber(raw.cost_limit_usd, 'repeat.cost_limit_usd');
-
-  return {
-    count,
-    strategy: strategy ?? 'pass_any',
-    ...(earlyExit !== undefined && { earlyExit }),
-    ...(costLimitUsd !== undefined && { costLimitUsd }),
-  };
+  throw new Error(
+    'Experiment repeat must be a positive integer. The repeat object shape has been removed; use evaluate_options.repeat: 2.',
+  );
 }
 
 function readTargets(raw: unknown): readonly ExperimentTargetRef[] | undefined {
@@ -305,37 +256,15 @@ function readRequiredPositiveInteger(raw: unknown, location: string): number {
   return value;
 }
 
-function readOptionalBoolean(raw: unknown, location: string): boolean | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw !== 'boolean') {
-    throw new Error(`Experiment ${location} must be a boolean.`);
-  }
-  return raw;
-}
-
-function readOptionalRepeatStrategy(raw: unknown): TrialStrategy | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw !== 'string' || !VALID_REPEAT_STRATEGIES.has(raw)) {
-    throw new Error(
-      "Experiment repeat.strategy must be one of 'pass_any', 'pass_all', 'mean', or 'confidence_interval'. 'pass_at_k' has been removed; use 'pass_any' instead.",
-    );
-  }
-  return raw as TrialStrategy;
-}
-
 function rejectLegacyTopLevelRepeatFields(rawConfig: Record<string, unknown>): void {
   if (rawConfig.runs !== undefined) {
     throw new Error(
-      "Experiment top-level 'runs' has been removed. Use evaluate_options.repeat.count and evaluate_options.repeat.strategy instead.",
+      "Experiment top-level 'runs' has been removed. Use a positive integer evaluate_options.repeat instead.",
     );
   }
   if (rawConfig.early_exit !== undefined || rawConfig.earlyExit !== undefined) {
     throw new Error(
-      "Experiment top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.",
+      "Experiment top-level 'early_exit' has been removed. Use a positive integer evaluate_options.repeat instead.",
     );
   }
 }
@@ -346,16 +275,6 @@ function readOptionalPositiveInteger(raw: unknown, location: string): number | u
   }
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1) {
     throw new Error(`Experiment ${location} must be a positive integer.`);
-  }
-  return raw;
-}
-
-function readOptionalNonNegativeNumber(raw: unknown, location: string): number | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
-    throw new Error(`Experiment ${location} must be a non-negative number.`);
   }
   return raw;
 }

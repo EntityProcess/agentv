@@ -34,11 +34,7 @@ describe('YAML-aligned eval authoring helpers', () => {
           provider: 'grader-gpt5-mini',
         },
       },
-      repeat: {
-        count: 3,
-        strategy: 'pass_any',
-        earlyExit: false,
-      },
+      repeat: 3,
       timeoutSeconds: 600,
       threshold: 0.8,
       budgetUsd: 1.5,
@@ -132,11 +128,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       threshold: 0.8,
       prompts: ['{{ input }}'],
       evaluate_options: {
-        repeat: {
-          count: 3,
-          strategy: 'pass_any',
-          early_exit: false,
-        },
+        repeat: 3,
         budget_usd: 1.5,
       },
       assert: [
@@ -403,6 +395,23 @@ describe('YAML-aligned eval authoring helpers', () => {
         ],
       } as never),
     ).toThrow(/top-level 'runs'/);
+  });
+
+  it('rejects object-shaped repeat authoring', () => {
+    expect(() =>
+      defineEval({
+        name: 'removed-repeat-object',
+        repeat: { count: 3, strategy: 'pass_any' },
+        prompts: ['{{ input }}'],
+        tests: [
+          {
+            id: 'hello',
+            vars: { input: 'Say hello' },
+            assert: [{ type: 'contains', value: 'hello' }],
+          },
+        ],
+      } as never),
+    ).toThrow(/repeat.*positive integer/);
   });
 
   it('rejects removed target-shaped authoring', () => {

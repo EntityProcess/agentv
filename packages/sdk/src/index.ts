@@ -160,10 +160,10 @@ export {
   type EvalProviderEntry,
   type EvalProviderMap,
   type EvalProviderRef,
+  type EvalRepeat,
   type EvalRequires,
   type EvalTest,
   type EvalTestOptions,
-  type EvalTrials,
   type EvalTurn,
   type LowerEvalYamlValue,
 } from './eval.js';
