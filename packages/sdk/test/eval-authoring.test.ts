@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { defineEval, serializeEvalYaml, toEvalYamlObject } from '../src/eval.js';
+import { type EvalConfig, defineEval, serializeEvalYaml, toEvalYamlObject } from '../src/eval.js';
 
 describe('YAML-aligned eval authoring helpers', () => {
   it('lowers known AgentV fields to canonical snake_case without broad key rewriting', () => {
@@ -230,6 +230,97 @@ describe('YAML-aligned eval authoring helpers', () => {
     expect(lowered.tags).toEqual({ experiment: 'sdk-baseline', team: 'compliance' });
   });
 
+  it('authors the Promptfoo-shaped provider and grader-provider surface', () => {
+    const config = {
+      name: 'sdk-provider-surface',
+      providers: [
+        'openai:gpt-4.1-mini',
+        {
+          id: 'agentv:codex-cli',
+          label: 'codex-host',
+          config: { model: 'gpt-5-codex' },
+          env: { AGENTV_MODE: 'test' },
+          inputs: { cwd: './workspace' },
+        },
+        {
+          'openai:gpt-5-mini': {
+            label: 'grader-provider',
+            config: { temperature: 0 },
+          },
+        },
+      ],
+      defaults: {
+        provider: 'codex-host',
+        grader: 'grader-provider',
+      },
+      defaultTest: {
+        vars: { tone: 'brief' },
+        options: {
+          provider: 'grader-provider',
+          transform: 'output.trim()',
+        },
+      },
+      prompts: ['{{ task }}'],
+      tests: [
+        {
+          id: 'provider-options',
+          vars: { task: 'Say hello' },
+          options: {
+            provider: 'case-grader',
+          },
+          assert: [
+            { type: 'llm-rubric', value: 'Greets the user' },
+            { type: 'llm-rubric', value: 'Uses concise language', provider: 'assertion-grader' },
+          ],
+        },
+      ],
+    } satisfies EvalConfig;
+
+    const lowered = toEvalYamlObject(defineEval(config));
+
+    expect(lowered).toMatchObject({
+      providers: [
+        'openai:gpt-4.1-mini',
+        {
+          id: 'agentv:codex-cli',
+          label: 'codex-host',
+          config: { model: 'gpt-5-codex' },
+          env: { AGENTV_MODE: 'test' },
+          inputs: { cwd: './workspace' },
+        },
+        {
+          'openai:gpt-5-mini': {
+            label: 'grader-provider',
+            config: { temperature: 0 },
+          },
+        },
+      ],
+      defaults: {
+        provider: 'codex-host',
+        grader: 'grader-provider',
+      },
+      default_test: {
+        vars: { tone: 'brief' },
+        options: {
+          provider: 'grader-provider',
+          transform: 'output.trim()',
+        },
+      },
+      tests: [
+        {
+          id: 'provider-options',
+          options: {
+            provider: 'case-grader',
+          },
+          assert: [
+            { type: 'llm-rubric', value: 'Greets the user' },
+            { type: 'llm-rubric', value: 'Uses concise language', provider: 'assertion-grader' },
+          ],
+        },
+      ],
+    });
+  });
+
   it('keeps the list form of tags for selection', () => {
     const suite = defineEval({
       name: 'sdk-tags-list',
@@ -338,5 +429,17 @@ describe('YAML-aligned eval authoring helpers', () => {
         ],
       } as never),
     ).toThrow(/target.*provider/);
+  });
+
+  it('rejects removed top-level graders authoring', () => {
+    expect(() =>
+      defineEval({
+        name: 'removed-graders',
+        providers: ['mock-provider'],
+        graders: [{ id: 'openai:gpt-5-mini', label: 'grader-provider' }],
+        prompts: ['{{ input }}'],
+        tests: [{ id: 'hello', vars: { input: 'Say hello' } }],
+      } as never),
+    ).toThrow(/top-level 'graders'.*providers/);
   });
 });

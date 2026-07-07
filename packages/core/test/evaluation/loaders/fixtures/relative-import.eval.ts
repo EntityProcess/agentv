@@ -2,7 +2,7 @@ import { relativePrompt } from './relative-prompt.ts';
 
 const config = {
   name: 'relative-import-ts-config',
-  target: 'mock-target',
+  providers: ['mock-provider'],
   tags: { experiment: 'ts-config', group: 'loader' },
   prompts: [relativePrompt],
   budgetUsd: 1,

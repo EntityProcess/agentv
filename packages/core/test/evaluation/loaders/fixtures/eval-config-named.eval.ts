@@ -1,7 +1,6 @@
-import type { EvalConfig } from '../../../../src/evaluation/evaluate.js';
-
-export const evalConfig: EvalConfig = {
+export const evalConfig = {
   prompts: ['{{ input }}'],
+  providers: ['mock-provider'],
   tests: [
     {
       id: 'eval-config-named',
@@ -9,5 +8,4 @@ export const evalConfig: EvalConfig = {
       assert: [{ type: 'contains', value: 'hello' }],
     },
   ],
-  target: { provider: 'mock_agent' },
 };

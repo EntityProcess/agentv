@@ -5,7 +5,27 @@ const suite = {
   name: 'sdk-define-eval-suite',
   description: 'YAML-aligned TypeScript suite authored with @agentv/sdk',
   tags: ['sdk', 'typescript', 'yaml'],
-  target: 'mock-target',
+  providers: [
+    {
+      id: 'mock',
+      label: 'sdk-provider',
+      config: { response: 'hello there' },
+    },
+    {
+      id: 'openai:gpt-5-mini',
+      label: 'grader-provider',
+      config: { api_key: '{{ env.OPENAI_API_KEY }}' },
+    },
+  ],
+  defaults: {
+    provider: 'sdk-provider',
+    grader: 'grader-provider',
+  },
+  defaultTest: {
+    options: {
+      provider: 'grader-provider',
+    },
+  },
   budgetUsd: 2,
   threshold: 0.75,
   prompts: ['{{ input }}'],
@@ -21,7 +41,14 @@ const suite = {
       id: 'sdk-define-eval',
       vars: { input: 'Say hello' },
       expectedOutput: 'hello there',
-      assert: [{ type: 'contains', value: 'hello' }],
+      options: {
+        provider: 'test-grader',
+      },
+      assert: [
+        { type: 'contains', value: 'hello' },
+        { type: 'llm-rubric', value: 'Greets the user' },
+        { type: 'llm-rubric', value: 'Uses concise language', provider: 'assertion-grader' },
+      ],
       workspace: {
         hooks: {
           beforeEach: {
@@ -30,6 +57,11 @@ const suite = {
           },
         },
       },
+    },
+    {
+      id: 'sdk-default-test-provider',
+      vars: { input: 'Say hello again' },
+      assert: [{ type: 'llm-rubric', value: 'Greets the user' }],
     },
   ],
 };
@@ -44,7 +76,13 @@ export default Object.defineProperties(suite, {
       name: suite.name,
       description: suite.description,
       tags: suite.tags,
-      target: suite.target,
+      providers: suite.providers,
+      defaults: suite.defaults,
+      default_test: {
+        options: {
+          provider: suite.defaultTest.options.provider,
+        },
+      },
       evaluate_options: {
         budget_usd: suite.budgetUsd,
       },
@@ -62,7 +100,14 @@ export default Object.defineProperties(suite, {
           id: 'sdk-define-eval',
           vars: { input: 'Say hello' },
           expected_output: 'hello there',
-          assert: [{ type: 'contains', value: 'hello' }],
+          options: {
+            provider: 'test-grader',
+          },
+          assert: [
+            { type: 'contains', value: 'hello' },
+            { type: 'llm-rubric', value: 'Greets the user' },
+            { type: 'llm-rubric', value: 'Uses concise language', provider: 'assertion-grader' },
+          ],
           workspace: {
             hooks: {
               before_each: {
@@ -71,6 +116,11 @@ export default Object.defineProperties(suite, {
               },
             },
           },
+        },
+        {
+          id: 'sdk-default-test-provider',
+          vars: { input: 'Say hello again' },
+          assert: [{ type: 'llm-rubric', value: 'Greets the user' }],
         },
       ],
     }),

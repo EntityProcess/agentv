@@ -1,5 +1,11 @@
 /**
- * Client for invoking configured targets from script-grader scripts.
+ * Runtime-only client for invoking configured providers from script-grader scripts
+ * through AgentV's target proxy.
+ *
+ * This module keeps the historical target-proxy vocabulary because it talks to
+ * runtime internals. It is not TypeScript eval authoring syntax; eval configs
+ * should select systems under test and grader providers through `providers`,
+ * `defaults.provider`, `defaults.grader`, and assertion `provider`.
  *
  * Environment variables (set automatically by AgentV when `target` config is present):
  * - AGENTV_TARGET_PROXY_URL: The URL of the local proxy server

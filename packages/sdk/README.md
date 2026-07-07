@@ -167,13 +167,28 @@ import { graders, type EvalConfig } from '@agentv/sdk';
 
 const config: EvalConfig = {
   name: 'hello-suite',
-  target: 'mock-sdk',
+  providers: [
+    { id: 'mock', label: 'mock-sdk', config: { response: 'Hello from the mock provider' } },
+    { id: 'openai:gpt-5-mini', label: 'grader-provider' },
+  ],
+  defaults: {
+    provider: 'mock-sdk',
+    grader: 'grader-provider',
+  },
+  defaultTest: {
+    options: {
+      provider: 'grader-provider',
+    },
+  },
   prompts: ['{{ input }}'],
   tests: [
     {
       id: 'hello',
       vars: { input: 'Say hello' },
-      expectedOutput: 'Hello from the mock target',
+      expectedOutput: 'Hello from the mock provider',
+      options: {
+        provider: 'grader-provider',
+      },
       assert: [graders.contains('Hello')],
     },
   ],
@@ -183,6 +198,8 @@ export default config;
 ```
 
 AgentV loads explicit `*.eval.ts` and `*.eval.mts` files through the same core loader used for YAML evals. The supported TypeScript contract is a default-exported `EvalConfig`. `defineEval(config)` is available as a thin optional helper over the same shape; plain typed default exports are the recommended path.
+
+TypeScript eval configs use the same provider surface as YAML: author systems under test and reusable grader providers in top-level `providers`, use `id` for the backend/spec, use `label` as the stable AgentV identity, and select defaults with `defaults.provider` and `defaults.grader`. Per-test grader provider selection belongs in `defaultTest.options.provider`, `tests[].options.provider`, or assertion-level `provider`.
 
 ### Grader helpers
 
@@ -266,7 +283,7 @@ Python workflows should emit canonical YAML/JSONL or implement script graders ov
 - `AssertionContext`, `AssertionScore` - Assertion types
 - `ScriptGraderInput`, `ScriptGraderResult`, `Workspace`, `WorkspaceAssertion` - Grader types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types
-- `createTargetClient()` - LLM target proxy for graders
+- `createTargetClient()` - Runtime target proxy for script graders that explicitly opt into target access; this is not eval authoring syntax.
 - `z` - Re-exported Zod for custom config schemas
 
 ## Documentation

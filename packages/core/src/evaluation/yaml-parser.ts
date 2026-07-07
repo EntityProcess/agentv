@@ -2653,7 +2653,12 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.model !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'model' is not part of eval YAML. Put model inside the target object.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'model' is not part of eval YAML. Put model inside the relevant providers[].config object.`,
+    );
+  }
+  if ((suite as Record<string, unknown>).graders !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'graders' has been removed. Put grader providers in 'providers' and select them with defaults.grader, default_test.options.provider, tests[].options.provider, or assertion provider.`,
     );
   }
   if (suite.runs !== undefined) {
