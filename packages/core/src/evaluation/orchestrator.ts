@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
+import { composeProviderEnvironment } from './environment/compose.js';
 import { buildEnvironmentRecipeProvenance } from './environment/provenance.js';
 import { runExtensionsForHook } from './extensions/runner.js';
 import { readJsonFile } from './file-utils.js';
@@ -245,6 +246,13 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
     }
     const factory = providerFactory ?? createProvider;
     const instance = factory(resolved);
+    if (resolved.environment) {
+      Object.defineProperty(instance, 'environment', {
+        configurable: true,
+        enumerable: false,
+        value: resolved.environment,
+      });
+    }
     providerCache.set(resolved.name, instance);
     return instance;
   };
@@ -961,6 +969,7 @@ export async function runEvaluation(
   const requiresWorkspaceDispatch =
     workspacePath !== undefined ||
     legacyWorkspacePath !== undefined ||
+    target.environment !== undefined ||
     filteredEvalCases.some(
       (evalCase) => evalCase.workspace !== undefined || evalCase.environment !== undefined,
     );
@@ -1030,9 +1039,12 @@ export async function runEvaluation(
   const resolvedRetainOnFailure = retainOnFailure ?? (cleanupWorkspaces ? 'cleanup' : 'keep');
   const workers = options.maxConcurrency ?? target.workers ?? 1;
   const limit = pLimit(workers);
+  const sharedSetupEvalCases = target.environment
+    ? filteredEvalCases.map((evalCase) => ({ ...evalCase, environment: undefined }))
+    : filteredEvalCases;
   const sharedSetup = await prepareSharedWorkspaceSetup({
     evalRunId,
-    evalCases: filteredEvalCases,
+    evalCases: sharedSetupEvalCases,
     targetHooks: options.targetHooks,
     evalDir,
     verbose,
@@ -1298,7 +1310,8 @@ export async function runEvaluation(
 
       // Attempt-scoped cases and raw/no-workspace cases outside the selected
       // suite owner prepare without inheriting a child suite's workspace.
-      const usesSharedWorkspace = caseUsesSharedWorkspaceSetup(evalCase, sharedSetup);
+      const usesSharedWorkspace =
+        target.environment === undefined && caseUsesSharedWorkspaceSetup(evalCase, sharedSetup);
       const testWorkspacePath = usesSharedWorkspace ? sharedWorkspacePath : undefined;
       const testBaselineCommit = usesSharedWorkspace ? sharedBaselineCommit : undefined;
       const testExtensionState = usesSharedWorkspace ? sharedExtensionState : undefined;
@@ -1935,11 +1948,21 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const nowFn = now ?? (() => new Date());
 
   let afterEachOutput: string | undefined;
+  let effectiveEvalCase = evalCase;
   const caseHooksEnabled = hooksEnabled(evalCase.workspace);
   let workspaceSetup: EvalCaseWorkspaceSetup;
   try {
+    const effectiveEnvironment = composeProviderEnvironment({
+      base: evalCase.environment,
+      provider: target.environment,
+      providerName: target.name,
+      role: 'candidate',
+    });
+    if (effectiveEnvironment !== evalCase.environment) {
+      effectiveEvalCase = { ...evalCase, environment: effectiveEnvironment };
+    }
     workspaceSetup = await prepareEvalCaseWorkspace({
-      evalCase,
+      evalCase: effectiveEvalCase,
       targetName: target.name,
       evalRunId,
       sharedWorkspacePath,
@@ -1967,7 +1990,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       { sampleIndex },
     );
     const environmentProvenance = buildEnvironmentRecipeProvenance({
-      environment: evalCase.environment,
+      environment: effectiveEvalCase.environment,
       setupExecutions: setupError?.environmentSetupExecutions,
     });
     return environmentProvenance ? { ...errorResultBase, environmentProvenance } : errorResultBase;
@@ -1998,7 +2021,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     cachedResponse = await cache.get(cacheKey);
   }
   const environmentProvenance = buildEnvironmentRecipeProvenance({
-    environment: evalCase.environment,
+    environment: effectiveEvalCase.environment,
     setupExecutions: [
       ...(options.sharedEnvironmentSetupExecutions ?? []),
       ...environmentSetupExecutions,
@@ -2325,10 +2348,43 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const toolCalls = formatToolCalls(output);
 
   const providerError = extractProviderError(providerResponse);
+  const graderEnvironment = composeProviderEnvironment({
+    base: undefined,
+    provider: graderProvider?.environment,
+    providerName: graderProvider?.targetName ?? 'default',
+    role: 'grader',
+  });
+  let graderWorkspaceSetup: EvalCaseWorkspaceSetup | undefined;
+  const cleanupGraderWorkspace = async () => {
+    const graderWorkspacePath = graderWorkspaceSetup?.workspacePath;
+    if (
+      graderWorkspacePath &&
+      graderWorkspacePath !== workspacePath &&
+      (forceCleanup || !keepWorkspaces)
+    ) {
+      await cleanupWorkspace(graderWorkspacePath).catch(() => {});
+    }
+  };
 
   try {
+    if (graderEnvironment) {
+      graderWorkspaceSetup = await prepareEvalCaseWorkspace({
+        evalCase: {
+          ...effectiveEvalCase,
+          environment: graderEnvironment,
+          extensions: undefined,
+          workspace: undefined,
+        },
+        targetName: graderProvider?.targetName ?? 'grader',
+        evalRunId,
+        evalDir,
+        cleanupWorkspaces: forceCleanup,
+        setupDebug,
+      });
+    }
+
     const result = await evaluateCandidate({
-      evalCase,
+      evalCase: effectiveEvalCase,
       candidate,
       target: effectiveTarget,
       provider: effectiveProvider,
@@ -2338,6 +2394,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       nowFn,
       attempt,
       graderProvider,
+      graderWorkspacePath: graderWorkspaceSetup?.targetCwd ?? graderWorkspaceSetup?.workspacePath,
       agentTimeoutMs,
       output,
       trace,
@@ -2457,6 +2514,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
+    await cleanupGraderWorkspace();
 
     // Cleanup workspace based on result and flags (only for per-attempt workspaces)
     if (workspacePath && !isSharedWorkspace) {
@@ -2477,6 +2535,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     return finalResult;
   } catch (error) {
+    await cleanupGraderWorkspace();
     await runAfterEachHooks().catch(() => {});
     const evalRun = { durationMs: Date.now() - caseStartMs };
     const errorResultBase = buildErrorResult(
@@ -2770,6 +2829,7 @@ async function evaluateCandidate(options: {
   readonly attempt: number;
   readonly sampleIndex: number;
   readonly graderProvider?: Provider;
+  readonly graderWorkspacePath?: string;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: TraceSummary;
@@ -2802,6 +2862,7 @@ async function evaluateCandidate(options: {
     attempt,
     sampleIndex,
     graderProvider,
+    graderWorkspacePath,
     agentTimeoutMs,
     output,
     trace,
@@ -2867,6 +2928,7 @@ async function evaluateCandidate(options: {
     promptInputs,
     now: gradeTimestamp,
     graderProvider,
+    graderWorkspacePath,
     agentTimeoutMs,
     output: gradingOutput,
     trace: evaluationTrace,
@@ -2962,6 +3024,7 @@ async function runEvaluatorsForCase(options: {
   readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly graderProvider?: Provider;
+  readonly graderWorkspacePath?: string;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: Trace;
@@ -2992,6 +3055,7 @@ async function runEvaluatorsForCase(options: {
     promptInputs,
     now,
     graderProvider,
+    graderWorkspacePath,
     agentTimeoutMs,
     output,
     trace,
@@ -3028,6 +3092,7 @@ async function runEvaluatorsForCase(options: {
       promptInputs,
       now,
       graderProvider,
+      graderWorkspacePath,
       agentTimeoutMs,
       output,
       trace,
@@ -3084,6 +3149,7 @@ async function runEvaluatorsForCase(options: {
     promptInputs,
     now,
     graderProvider,
+    graderWorkspacePath,
     output,
     trace,
     tokenUsage,
@@ -3172,6 +3238,7 @@ async function runEvaluatorList(options: {
   readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly graderProvider?: Provider;
+  readonly graderWorkspacePath?: string;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: Trace;
@@ -3203,6 +3270,7 @@ async function runEvaluatorList(options: {
     promptInputs,
     now,
     graderProvider,
+    graderWorkspacePath,
     agentTimeoutMs,
     output,
     trace,
@@ -3242,6 +3310,7 @@ async function runEvaluatorList(options: {
     promptInputs,
     now,
     graderProvider,
+    graderWorkspacePath,
     output,
     trace,
     tokenUsage,

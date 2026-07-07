@@ -59,6 +59,17 @@ export type DockerEnvironmentRecipe = {
 
 export type EnvironmentRecipe = HostEnvironmentRecipe | DockerEnvironmentRecipe;
 
+export function isResolvedEnvironmentRecipe(value: unknown): value is EnvironmentRecipe {
+  if (!isJsonObject(value)) {
+    return false;
+  }
+  return (
+    (value.type === 'host' || value.type === 'docker') &&
+    typeof value.workdir === 'string' &&
+    typeof value.sourceDir === 'string'
+  );
+}
+
 export async function resolveEnvironmentRecipe(
   raw: unknown,
   evalFileDir: string,

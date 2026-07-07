@@ -24,10 +24,11 @@ export function buildEnvironmentRecipeProvenance(params: {
     return undefined;
   }
   const secretValues = collectSecretValues(environment);
-  const setupExecutions = params.setupExecutions
-    ?.filter((execution) => execution.workdir === environment.workdir)
-    .map((execution) => redactSetupExecution(execution, secretValues));
+  const setupExecutions = setupExecutionsForEnvironment(environment, params.setupExecutions).map(
+    (execution) => redactSetupExecution(execution, secretValues),
+  );
   const repoProvenance = setupExecutions ? extractRepoProvenance(setupExecutions) : undefined;
+  const composition = buildCompositionProvenance(environment, params.setupExecutions);
   return {
     schemaVersion: 'agentv.environment_provenance.v1',
     authoredKind: environment.authoredReference ? 'file' : 'inline',
@@ -39,9 +40,68 @@ export function buildEnvironmentRecipeProvenance(params: {
     sourceDir: environment.sourceDir,
     workdir: environment.workdir,
     ...(environment.setup ? { setup: redactSetupConfig(environment.setup, secretValues) } : {}),
-    ...(setupExecutions && setupExecutions.length > 0 ? { setupExecutions } : {}),
+    ...(setupExecutions.length > 0 ? { setupExecutions } : {}),
     ...(environment.type === 'docker' ? { docker: dockerProvenance(environment) } : {}),
     ...(repoProvenance !== undefined ? { repoProvenance } : {}),
+    ...(composition !== undefined ? { composition } : {}),
+  };
+}
+
+function setupExecutionsForEnvironment(
+  environment: EnvironmentRecipe,
+  setupExecutions: readonly EnvironmentSetupExecution[] | undefined,
+): readonly EnvironmentSetupExecution[] {
+  if (!setupExecutions || setupExecutions.length === 0) {
+    return [];
+  }
+  return setupExecutions.filter((execution) => {
+    if (execution.workdir !== environment.workdir) {
+      return false;
+    }
+    if (!environment.setup) {
+      return execution.command === undefined;
+    }
+    return commandsEqual(execution.command, environment.setup.command);
+  });
+}
+
+function commandsEqual(
+  left: readonly string[] | undefined,
+  right: readonly string[] | undefined,
+): boolean {
+  if (!left || !right || left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
+}
+
+function buildCompositionProvenance(
+  environment: EnvironmentRecipe,
+  setupExecutions: readonly EnvironmentSetupExecution[] | undefined,
+): EnvironmentRecipeProvenance['composition'] {
+  const composition = (
+    environment as EnvironmentRecipe & {
+      readonly composition?: {
+        readonly layers: readonly {
+          readonly scope: 'base' | 'provider';
+          readonly providerName?: string;
+          readonly environment: EnvironmentRecipe;
+        }[];
+      };
+    }
+  ).composition;
+  if (!composition || composition.layers.length === 0) {
+    return undefined;
+  }
+  return {
+    layers: composition.layers.map((layer) => ({
+      scope: layer.scope,
+      ...(layer.providerName ? { providerName: layer.providerName } : {}),
+      environment: buildEnvironmentRecipeProvenance({
+        environment: layer.environment,
+        setupExecutions,
+      }) as EnvironmentRecipeProvenance,
+    })),
   };
 }
 

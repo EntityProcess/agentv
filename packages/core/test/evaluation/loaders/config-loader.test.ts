@@ -389,20 +389,6 @@ describe('loadConfig', () => {
           ].join('\n'),
           message: /workers/,
         },
-        {
-          name: 'target-environment',
-          yaml: [
-            'providers:',
-            '  - id: agentv:codex-cli',
-            '    label: codex-local',
-            '    runtime: host',
-            '    environment:',
-            '      type: host',
-            '      workdir: ./workspace',
-            '',
-          ].join('\n'),
-          message: /provider-local environments are future scope/,
-        },
       ];
 
       for (const testCase of invalidCases) {
@@ -410,6 +396,35 @@ describe('loadConfig', () => {
         writeFileSync(configPath, testCase.yaml);
         await expect(loadComposableConfigGraph(configPath)).rejects.toThrow(testCase.message);
       }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts provider-local environment in config providers', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-provider-env-'));
+    try {
+      const configPath = path.join(tempDir, '.agentv', 'config.yaml');
+      mkdirSync(path.dirname(configPath), { recursive: true });
+      writeFileSync(
+        configPath,
+        [
+          'providers:',
+          '  - id: mock',
+          '    label: local-mock',
+          '    environment:',
+          '      type: host',
+          '      workdir: ./workspace',
+          '',
+        ].join('\n'),
+      );
+
+      const config = await loadConfig(path.join(tempDir, 'suite.eval.yaml'), tempDir);
+
+      expect(config?.providerDefinitions?.[0]?.environment).toMatchObject({
+        type: 'host',
+        workdir: path.join(tempDir, '.agentv', 'workspace'),
+      });
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

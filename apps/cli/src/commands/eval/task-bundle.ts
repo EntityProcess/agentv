@@ -51,6 +51,7 @@ const AUTHORING_TOP_LEVEL_TARGET_FIELDS = new Set([
   'label',
   'provider',
   'provider_spec',
+  'environment',
   'prompts',
   'transform',
   'delay',
@@ -722,7 +723,10 @@ function selectTaskBundleTargetDefinitions(
   return selected;
 }
 
-function serializeTargetDefinition(definition: ProviderDefinition): Record<string, unknown> {
+function serializeTargetDefinition(
+  definition: ProviderDefinition,
+  rewrites: ReadonlyMap<string, string>,
+): Record<string, unknown> {
   const providerSpec =
     typeof definition.provider_spec === 'string' && definition.provider_spec.trim().length > 0
       ? definition.provider_spec.trim()
@@ -749,7 +753,12 @@ function serializeTargetDefinition(definition: ProviderDefinition): Record<strin
     ) {
       continue;
     }
-    if (AUTHORING_TOP_LEVEL_TARGET_FIELDS.has(key)) {
+    if (key === 'environment' && definition.environment) {
+      provider.environment = serializeEnvironment(
+        definition.environment as EnvironmentRecipe,
+        rewrites,
+      );
+    } else if (AUTHORING_TOP_LEVEL_TARGET_FIELDS.has(key)) {
       provider[key] = value;
     } else {
       config[key] = value;
@@ -772,8 +781,9 @@ function serializeTargetDefinition(definition: ProviderDefinition): Record<strin
 
 function serializeTargetDefinitions(
   definitions: readonly ProviderDefinition[],
+  rewrites: ReadonlyMap<string, string> = new Map(),
 ): readonly Record<string, unknown>[] {
-  return definitions.map((definition) => serializeTargetDefinition(definition));
+  return definitions.map((definition) => serializeTargetDefinition(definition, rewrites));
 }
 
 function uniqueTargetNames(selections: readonly TaskBundleTargetSelection[]): readonly string[] {
@@ -1057,6 +1067,52 @@ async function collectEnvironmentReferences(
   return references;
 }
 
+async function collectProviderEnvironmentReferences(
+  definitions: readonly ProviderDefinition[],
+  evalFileDir: string,
+): Promise<readonly BundleSourceReference[]> {
+  const references: BundleSourceReference[] = [];
+
+  for (const definition of definitions) {
+    const environment = definition.environment as EnvironmentRecipe | undefined;
+    if (!environment) {
+      continue;
+    }
+    const label = `provider "${definition.name}"`;
+    if (environment.type === 'host') {
+      references.push({
+        kind: 'environment_workdir',
+        displayPath: environment.workdir,
+        resolvedPath: environment.workdir,
+        location: `${label}.environment.workdir`,
+      });
+    }
+
+    const command = environment.setup?.command;
+    if (!command) {
+      continue;
+    }
+    const baseDir = environmentBaseDir(environment, evalFileDir);
+    for (const arg of command) {
+      const reference = await maybeWorkspaceHookCommandReference({
+        arg,
+        baseDir,
+        testId: definition.name,
+        hookName: 'setup',
+      });
+      if (reference) {
+        references.push({
+          ...reference,
+          kind: 'environment_setup_command',
+          location: `${label}.environment.setup.command`,
+        });
+      }
+    }
+  }
+
+  return references;
+}
+
 async function collectWorkspaceReferences(
   tests: readonly EvalTest[],
   evalFileDir: string,
@@ -1214,7 +1270,15 @@ export async function materializeTaskBundle(
   const testDir = path.join(options.outputDir, TEST_BUNDLE_DIRNAME);
   await mkdir(testDir, { recursive: true });
 
-  const copiedReferences = await copyReferences(options.test.source.references, testDir, options);
+  const providerEnvironmentReferences = await collectProviderEnvironmentReferences(
+    targetDefinitions,
+    path.dirname(options.test.source.evalFileAbsolutePath ?? options.test.source.evalFilePath),
+  );
+  const copiedReferences = await copyReferences(
+    [...options.test.source.references, ...providerEnvironmentReferences],
+    testDir,
+    options,
+  );
   const rewrites = buildPathRewrites(copiedReferences);
   const evalCase = buildEvalCase(options.test, rewrites);
   const evalPath = path.join(testDir, TASK_EVAL_FILENAME);
@@ -1225,7 +1289,9 @@ export async function materializeTaskBundle(
     prompts: [INPUT_PROMPT],
     tests: [evalCase],
   });
-  await writeYamlFile(providersPath, { providers: serializeTargetDefinitions(targetDefinitions) });
+  await writeYamlFile(providersPath, {
+    providers: serializeTargetDefinitions(targetDefinitions, rewrites),
+  });
 
   return {
     testDir,
@@ -1270,12 +1336,18 @@ export async function materializeEvalBundle(
   await mkdir(evalsDir, { recursive: true });
 
   const evalFileDir = path.dirname(path.resolve(options.evalFilePath));
+  const targetDefinitions = uniqueTargetDefinitions(options.targetSelections, options.tests);
   const workspaceReferences = await collectWorkspaceReferences(options.tests, evalFileDir);
   const environmentReferences = await collectEnvironmentReferences(options.tests, evalFileDir);
+  const providerEnvironmentReferences = await collectProviderEnvironmentReferences(
+    targetDefinitions,
+    evalFileDir,
+  );
   const references: BundleSourceReference[] = [
     ...options.tests.flatMap((test) => test.source?.references ?? []),
     ...collectExpectedOutputReferences(options.tests),
     ...environmentReferences,
+    ...providerEnvironmentReferences,
     ...workspaceReferences.references,
   ];
 
@@ -1299,10 +1371,7 @@ export async function materializeEvalBundle(
     prompts: [INPUT_PROMPT],
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
-  await writeYamlFile(
-    providersPath,
-    serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections, options.tests)),
-  );
+  await writeYamlFile(providersPath, serializeTargetDefinitions(targetDefinitions, rewrites));
   await mkdir(path.dirname(configPath), { recursive: true });
   await writeYamlFile(configPath, { providers: `file://../${BUNDLE_PROVIDERS_FILENAME}` });
 

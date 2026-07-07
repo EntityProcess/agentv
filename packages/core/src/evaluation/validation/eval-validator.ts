@@ -590,6 +590,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   }
 
   await validateEnvironmentConfig(parsed.environment, absolutePath, errors, 'environment');
+  await validateProviderEnvironmentFields(parsed.providers, 'providers', absolutePath, errors);
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
   validateTargetTestbedFields(parsed.target, 'target', absolutePath, errors);
   validateTargetsTestbedFields(parsed.targets, 'targets', absolutePath, errors);
@@ -902,6 +903,37 @@ function validateTargetTestbedFields(
           ? 'Target definitions cannot include environment; author environment at suite/test/case scope.'
           : `Target definitions cannot include ${field}; use an environment recipe for testbed setup.`,
     });
+  }
+}
+
+async function validateProviderEnvironmentFields(
+  providers: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): Promise<void> {
+  const entries = Array.isArray(providers) ? providers : providers === undefined ? [] : [providers];
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index];
+    if (!isObject(entry)) {
+      continue;
+    }
+    await validateEnvironmentConfig(
+      entry.environment,
+      filePath,
+      errors,
+      `${location}[${index}].environment`,
+    );
+    for (const field of ['container', 'install'] as const) {
+      if (entry[field] !== undefined) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}[${index}].${field}`,
+          message: `Provider definitions cannot include ${field}; use an environment recipe for testbed setup.`,
+        });
+      }
+    }
   }
 }
 
@@ -1724,7 +1756,7 @@ async function validateScenarioTestLikeRow(
 
   const targets = row.providers !== undefined ? row.providers : row.provider;
   if (targets !== undefined) {
-    validateTargetTestbedFields(targets, `${location}.providers`, filePath, errors);
+    await validateProviderEnvironmentFields(targets, `${location}.providers`, filePath, errors);
   }
 }
 

@@ -139,8 +139,9 @@ behavior from the path; files run because they are eval YAML with tests or
 scenarios. Runtime workspace path overrides belong in CLI flags or
 `.agentv/config.local.yaml`; coding-agent testbeds, workdirs, Docker config,
 repository setup, and reset policy belong in top-level or case-level
-`environment`. Provider environment overrides belong in `env`; lifecycle hooks
-belong in `extensions`.
+`environment`. Provider environment variables belong in `env`; provider-specific
+testbed setup can use `providers[].environment` as an overlay on the authored
+environment recipe. Lifecycle hooks belong in `extensions`.
 
 ## YAML Format
 

@@ -11,7 +11,10 @@ import {
 } from '../../config-overlays.js';
 import { getAgentvConfigDir } from '../../paths.js';
 import { createEvalConfigEnv, interpolateEnv } from '../interpolation.js';
-import { normalizeProviderDefinition } from '../providers/targets.js';
+import {
+  normalizeProviderDefinition,
+  resolveProviderDefinitionEnvironments,
+} from '../providers/targets.js';
 import type { ProviderDefinition } from '../providers/types.js';
 import type {
   EvalTargetRef,
@@ -226,13 +229,13 @@ async function resolveConfigObjectFileReferences(
   return resolveConfigFieldReferences(rawConfig, configPath);
 }
 
-function parseConfigObject(
+async function parseConfigObject(
   rawConfig: Record<string, unknown>,
   configPath: string,
   repoRoot: string,
   projectDir: string,
   providerCatalogPath?: string,
-): AgentVConfig | null {
+): Promise<AgentVConfig | null> {
   try {
     const parsed = interpolateEnv(rawConfig, createEvalConfigEnv(repoRoot)) as unknown;
 
@@ -279,9 +282,10 @@ function parseConfigObject(
       allowExecutionDefaultFields: true,
     });
     const execution = mergeExecutionConfig(executionDefaults, graph.execution);
-    const providerDefinitions = parseProviderDefinitions(
+    const providerDefinitions = await parseProviderDefinitions(
       (parsed as Record<string, unknown>).providers,
       configPath,
+      providerCatalogPath ? path.dirname(providerCatalogPath) : path.dirname(configPath),
     );
 
     return {
@@ -314,16 +318,20 @@ function parseConfigObject(
 function parseProviderDefinitions(
   rawProviders: unknown,
   configPath: string,
-): readonly ProviderDefinition[] | undefined {
+  baseDir: string,
+): Promise<readonly ProviderDefinition[] | undefined> {
   if (rawProviders === undefined) {
-    return undefined;
+    return Promise.resolve(undefined);
   }
   if (!Array.isArray(rawProviders)) {
-    return undefined;
+    return Promise.resolve(undefined);
   }
-  return rawProviders.map((entry, index) =>
+  const definitions = rawProviders.map((entry, index) =>
     normalizeProviderDefinition(entry, { location: `${configPath}:providers[${index}]` }),
   );
+  return resolveProviderDefinitionEnvironments(definitions, baseDir, {
+    location: `${configPath}:providers`,
+  });
 }
 
 function mergeExecutionConfig(

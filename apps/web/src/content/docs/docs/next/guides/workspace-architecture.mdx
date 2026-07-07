@@ -51,6 +51,7 @@ environment:
 | `environment.setup.command` | A non-empty argv array. Use `["bash", "-lc", "..."]` when shell behavior is required. |
 | Top-level `env` | Promptfoo-compatible provider/eval variables and template inputs, such as `OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"`. |
 | `environment.env` | Recipe-scoped process environment for the host or container testbed when a recipe needs it. It is distinct from top-level `env`. |
+| `providers[].environment` | Optional provider-local overlay, inline or `file://`, that composes with the suite/test/case environment for that provider only. Use it for provider-specific setup while keeping the main testbed in `environment`. |
 | `extensions` | Promptfoo-style lifecycle callbacks and instrumentation. They can customize flow, but they are not the canonical testbed materialization contract. |
 
 ## Providers Stay Separate
@@ -90,6 +91,23 @@ tests:
 
 Target `runtime` describes how the provider is invoked. It does not replace the
 authored `environment` recipe.
+
+When one provider needs extra local setup, add `environment` to that provider
+entry. AgentV treats it as sugar over the same environment recipe model, composes
+it after the suite/test/case environment for candidate runs, records both layers
+in result provenance, and fails clearly when setup, cwd, or Docker fields cannot
+compose safely. Grader providers use their own provider-local environment only
+for grader invocation.
+
+```yaml
+environment: file://.agentv/environments/local-python.yaml
+
+providers:
+  - id: codex-cli
+    label: codex-with-fixture
+    runtime: host
+    environment: file://.agentv/environments/codex-fixture.yaml
+```
 
 ## Eval Setup Lifecycle
 

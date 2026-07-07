@@ -820,6 +820,7 @@ export class LlmGrader implements Grader {
         systemPrompt,
         evalCaseId: context.evalCase.id,
         attempt: context.attempt,
+        cwd: context.graderWorkspacePath,
         temperature: this.temperature ?? 0,
         tools: fsTools,
         maxSteps: this.maxSteps,
@@ -908,6 +909,7 @@ export class LlmGrader implements Grader {
     modeLabel: string,
   ): Promise<EvaluationScore> {
     const workspacePath = context.workspacePath ?? resolveContentBasePath(context) ?? process.cwd();
+    const graderCwd = context.graderWorkspacePath ?? workspacePath;
     const verdictFile = await createAgentVerdictFile(workspacePath);
     const prompt = this.buildDelegatedPrompt(context, verdictFile.path);
 
@@ -921,7 +923,7 @@ export class LlmGrader implements Grader {
     try {
       const response = await provider.invoke({
         question: prompt,
-        cwd: workspacePath,
+        cwd: graderCwd,
         evalCaseId: context.evalCase.id,
         attempt: context.attempt,
       });
@@ -1579,6 +1581,7 @@ export class LlmGrader implements Grader {
       systemPrompt,
       evalCaseId: context.evalCase.id,
       attempt: context.attempt,
+      cwd: context.graderWorkspacePath,
       maxOutputTokens: this.maxOutputTokens,
       temperature: this.temperature,
       ...(images && images.length > 0 ? { images } : {}),
