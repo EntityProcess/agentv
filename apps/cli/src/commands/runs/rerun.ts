@@ -25,7 +25,7 @@ import { runEvalCommand } from '../eval/run-eval.js';
 import { type ResultManifestRecord, parseResultManifest } from '../results/manifest.js';
 
 const TASK_EVAL_FILENAME = 'EVAL.yaml';
-const TASK_TARGETS_FILENAME = 'targets.yaml';
+const TASK_PROVIDERS_FILENAME = 'providers.yaml';
 const ENV_REF_PATTERN = /\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
 
 interface SelectedTaskBundle {
@@ -35,7 +35,7 @@ interface SelectedTaskBundle {
   readonly resultDir: string;
   readonly testDir: string;
   readonly evalPath: string;
-  readonly targetsPath: string;
+  readonly providersPath: string;
   readonly taskTarget: string;
 }
 
@@ -112,9 +112,9 @@ async function readTaskTarget(evalPath: string, fallback: string): Promise<strin
 }
 
 async function readRerunTargetDefinitions(
-  targetsPath: string,
+  providersPath: string,
 ): Promise<readonly Record<string, unknown>[]> {
-  const definitions = await readCoreTargetDefinitions(targetsPath);
+  const definitions = await readCoreTargetDefinitions(providersPath);
   return definitions.map((definition) => definition as unknown as Record<string, unknown>);
 }
 
@@ -191,11 +191,11 @@ function collectEnvRefs(value: unknown, names = new Set<string>()): Set<string> 
 }
 
 async function validateTargetFile(
-  targetsPath: string,
+  providersPath: string,
   targetNames: readonly string[],
   label: string,
 ): Promise<void> {
-  const definitions = await readRerunTargetDefinitions(targetsPath);
+  const definitions = await readRerunTargetDefinitions(providersPath);
   const byName = new Map<string, Record<string, unknown>>();
   for (const definition of definitions) {
     const name = targetName(definition);
@@ -207,7 +207,7 @@ async function validateTargetFile(
   const missingTargets = [...new Set(targetNames)].filter((name) => !byName.has(name));
   if (missingTargets.length > 0) {
     throw new Error(
-      `${label} is incompatible: ${targetsPath} does not define target(s): ${missingTargets.join(
+      `${label} is incompatible: ${providersPath} does not define provider(s): ${missingTargets.join(
         ', ',
       )}`,
     );
@@ -239,7 +239,7 @@ async function validateTargetFile(
   });
   if (missingEnv.length > 0) {
     throw new Error(
-      `Missing environment variable(s) required by ${targetsPath}: ${missingEnv.join(
+      `Missing environment variable(s) required by ${providersPath}: ${missingEnv.join(
         ', ',
       )}. Provide --env-file <path> or export them before rerun.`,
     );
@@ -332,11 +332,11 @@ async function loadSelectedTaskBundles(options: {
         options.sourceRunDir,
         bundleDir && `${bundleDir}/${TASK_EVAL_FILENAME}`,
       );
-    const targetsPath =
-      resolveRelativeRunPath(options.sourceRunDir, record.targets_path) ??
+    const providersPath =
+      resolveRelativeRunPath(options.sourceRunDir, record.providers_path) ??
       resolveRelativeRunPath(
         options.sourceRunDir,
-        bundleDir && `${bundleDir}/${TASK_TARGETS_FILENAME}`,
+        bundleDir && `${bundleDir}/${TASK_PROVIDERS_FILENAME}`,
       );
     const testDir =
       resolveRelativeRunPath(options.sourceRunDir, bundleDir) ??
@@ -345,14 +345,14 @@ async function loadSelectedTaskBundles(options: {
       resolveRelativeRunPath(options.sourceRunDir, record.result_dir) ??
       (testDir ? path.dirname(testDir) : undefined);
 
-    if (!evalPath || !targetsPath || !testDir || !resultDir) {
+    if (!evalPath || !providersPath || !testDir || !resultDir) {
       throw new Error(
-        `Selected result ${recordLabel} is missing test bundle paths. Re-run requires test/EVAL.yaml and test/targets.yaml.`,
+        `Selected result ${recordLabel} is missing test bundle paths. Re-run requires test/EVAL.yaml and test/providers.yaml.`,
       );
     }
 
     await ensureFile(evalPath, `Test eval for ${recordLabel}`);
-    await ensureFile(targetsPath, `Test targets for ${recordLabel}`);
+    await ensureFile(providersPath, `Test providers for ${recordLabel}`);
     const taskTarget = await readTaskTarget(evalPath, sourceTarget);
     selected.push({
       record,
@@ -361,7 +361,7 @@ async function loadSelectedTaskBundles(options: {
       resultDir,
       testDir,
       evalPath,
-      targetsPath,
+      providersPath,
       taskTarget,
     });
   }
@@ -425,7 +425,7 @@ export const runsRerunCommand = command({
     targets: option({
       type: optional(string),
       long: 'targets',
-      description: 'Path to replacement targets.yaml for the new eval run',
+      description: 'Path to replacement providers.yaml for the new eval run',
     }),
     envFile: option({
       type: optional(string),
@@ -478,23 +478,23 @@ export const runsRerunCommand = command({
     assertOutputIsSeparate(outputDir, forbiddenOutputRoots(sourceRunDir, selected));
 
     if (args.targets) {
-      const overrideTargetsPath = path.resolve(cwd, args.targets);
-      await ensureFile(overrideTargetsPath, 'Target override');
+      const overrideProvidersPath = path.resolve(cwd, args.targets);
+      await ensureFile(overrideProvidersPath, 'Provider override');
       const targetNames =
         targetOverrides.length > 0 ? targetOverrides : selected.map((bundle) => bundle.taskTarget);
-      await validateTargetFile(overrideTargetsPath, targetNames, 'Target override');
+      await validateTargetFile(overrideProvidersPath, targetNames, 'Provider override');
     } else {
       const targetNamesByFile = new Map<string, Set<string>>();
       for (const bundle of selected) {
         const targetNames = targetOverrides.length > 0 ? targetOverrides : [bundle.taskTarget];
-        const names = targetNamesByFile.get(bundle.targetsPath) ?? new Set<string>();
+        const names = targetNamesByFile.get(bundle.providersPath) ?? new Set<string>();
         for (const targetName of targetNames) {
           names.add(targetName);
         }
-        targetNamesByFile.set(bundle.targetsPath, names);
+        targetNamesByFile.set(bundle.providersPath, names);
       }
-      for (const [targetsPath, names] of targetNamesByFile.entries()) {
-        await validateTargetFile(targetsPath, [...names], 'Test bundle targets');
+      for (const [providersPath, names] of targetNamesByFile.entries()) {
+        await validateTargetFile(providersPath, [...names], 'Test bundle providers');
       }
     }
 

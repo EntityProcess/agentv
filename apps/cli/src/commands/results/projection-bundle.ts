@@ -98,7 +98,7 @@ export type ProjectionBundleArtifactRefs = Partial<
     | 'test_dir'
     | 'task_dir'
     | 'eval_path'
-    | 'targets_path'
+    | 'providers_path'
     | 'files_path'
     | 'graders_path'
   >
@@ -177,7 +177,7 @@ function artifactRefs(
     test_dir: indexEntry.test_dir,
     task_dir: indexEntry.task_dir,
     eval_path: indexEntry.eval_path,
-    targets_path: indexEntry.targets_path,
+    providers_path: indexEntry.providers_path,
     files_path: indexEntry.files_path,
     graders_path: indexEntry.graders_path,
   });

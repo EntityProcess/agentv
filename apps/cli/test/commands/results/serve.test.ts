@@ -2481,7 +2481,7 @@ describe('serve app', () => {
         result_dir: 'demo/test-greeting',
         test_dir: 'demo/test-greeting/test',
         eval_path: 'demo/test-greeting/test/EVAL.yaml',
-        targets_path: 'demo/test-greeting/test/targets.yaml',
+        providers_path: 'demo/test-greeting/test/providers.yaml',
       });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });

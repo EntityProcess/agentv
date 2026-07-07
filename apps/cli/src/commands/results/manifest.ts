@@ -99,7 +99,7 @@ export interface ResultManifestRecord {
   readonly test_dir?: string;
   readonly task_dir?: string;
   readonly eval_path?: string;
-  readonly targets_path?: string;
+  readonly providers_path?: string;
   readonly files_path?: string;
   readonly graders_path?: string;
   readonly metadata?: Record<string, unknown>;

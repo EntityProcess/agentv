@@ -201,11 +201,11 @@ async function promptEvalSelection(
 async function promptTargetSelection(cwd: string, firstEvalPath: string): Promise<string> {
   const repoRoot = await findRepoRoot(cwd);
 
-  // Try to find targets.yaml — search near the eval file first, then cwd/repoRoot
+  // Try to find providers.yaml near the eval file first, then cwd/repoRoot.
   const targetsPath = await findTargetsFile(cwd, repoRoot, firstEvalPath);
 
   if (!targetsPath) {
-    console.log(`${ANSI_DIM}No targets.yaml found. Using default target.${ANSI_RESET}`);
+    console.log(`${ANSI_DIM}No providers.yaml found. Using default provider.${ANSI_RESET}`);
     return 'default';
   }
 

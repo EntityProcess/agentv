@@ -17,7 +17,7 @@ const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
  * Detect file type by reading $schema field from YAML file.
  * If $schema is missing, infers type from filename/path:
  * - config.yaml/config.local.yaml under .agentv folder → 'config'
- * - targets.yaml under .agentv folder → 'targets'
+ * - providers.yaml under .agentv folder → 'targets'
  * - suite.yaml/suite.yml → 'eval'
  */
 export async function detectFileType(filePath: string): Promise<FileType> {
@@ -77,7 +77,7 @@ function inferFileTypeFromPath(filePath: string): FileType {
     if (isAgentVConfigFileName(basename)) {
       return 'config';
     }
-    if (basename === 'targets.yaml' || basename === 'targets.yml') {
+    if (basename === 'providers.yaml' || basename === 'providers.yml') {
       return 'targets';
     }
   }

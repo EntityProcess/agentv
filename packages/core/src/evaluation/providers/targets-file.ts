@@ -56,7 +56,7 @@ export async function readTargetDefinitions(
 ): Promise<readonly TargetDefinition[]> {
   const absolutePath = path.resolve(filePath);
   if (!(await fileExists(absolutePath))) {
-    throw new Error(`targets.yaml not found at ${absolutePath}`);
+    throw new Error(`providers.yaml not found at ${absolutePath}`);
   }
 
   const raw = await readFile(absolutePath, 'utf8');

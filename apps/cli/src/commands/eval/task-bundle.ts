@@ -17,13 +17,13 @@ import { stringify as stringifyYaml } from 'yaml';
 
 const TEST_BUNDLE_DIRNAME = 'test';
 const TASK_EVAL_FILENAME = 'EVAL.yaml';
-const TASK_TARGETS_FILENAME = 'targets.yaml';
+const TASK_PROVIDERS_FILENAME = 'providers.yaml';
 const TASK_FILES_DIRNAME = 'files';
 const TASK_GRADERS_DIRNAME = 'graders';
 const INPUT_PROMPT = '{{ input }}';
 const BUNDLE_EVALS_DIRNAME = 'evals';
 const BUNDLE_MANIFEST_FILENAME = 'agentv_bundle.json';
-const BUNDLE_TARGETS_FILENAME = 'targets.yaml';
+const BUNDLE_PROVIDERS_FILENAME = 'providers.yaml';
 const BUNDLE_WORKSPACES_DIRNAME = 'workspaces';
 const BUNDLE_SCRIPTS_DIRNAME = 'scripts';
 const REDACTED_SOURCE_VALUE = '[redacted]';
@@ -89,7 +89,7 @@ export interface MaterializeTaskBundleOptions {
 export interface MaterializedTaskBundlePaths {
   readonly testDir: string;
   readonly evalPath: string;
-  readonly targetsPath: string;
+  readonly providersPath: string;
   readonly filesPath?: string;
   readonly gradersPath?: string;
 }
@@ -109,7 +109,7 @@ export interface MaterializedEvalBundlePaths {
   readonly bundleDir: string;
   readonly evalsDir: string;
   readonly evalPath: string;
-  readonly targetsPath: string;
+  readonly providersPath: string;
   readonly manifestPath: string;
   readonly filesPath?: string;
   readonly gradersPath?: string;
@@ -1088,7 +1088,7 @@ function bundleManifest(options: {
   readonly outputDir: string;
   readonly evalFilePath: string;
   readonly evalPath: string;
-  readonly targetsPath: string;
+  readonly providersPath: string;
   readonly copiedReferences: readonly CopiedReference[];
   readonly tests: readonly EvalTest[];
   readonly targetNames: readonly string[];
@@ -1101,7 +1101,7 @@ function bundleManifest(options: {
     created_at: options.createdAt,
     source_eval: options.evalFilePath,
     eval_path: relative(options.evalPath),
-    targets_path: relative(options.targetsPath),
+    providers_path: relative(options.providersPath),
     test_count: options.tests.length,
     targets: options.targetNames,
     ...(hasCopiedBucket(options.copiedReferences, 'files') ? { files_path: 'evals/files' } : {}),
@@ -1120,7 +1120,7 @@ function bundleManifest(options: {
 /**
  * Materialize the native AgentV task source for one completed result row.
  *
- * The bundle is intentionally just an eval file, a selected targets file, and
+ * The bundle is intentionally just an eval file, a selected providers file, and
  * copied referenced assets. It does not create `.agentv/` under the result
  * artifact directory, so future reruns can choose their output root explicitly.
  */
@@ -1143,19 +1143,19 @@ export async function materializeTaskBundle(
   const rewrites = buildPathRewrites(copiedReferences);
   const evalCase = buildEvalCase(options.test, rewrites);
   const evalPath = path.join(testDir, TASK_EVAL_FILENAME);
-  const targetsPath = path.join(testDir, TASK_TARGETS_FILENAME);
+  const providersPath = path.join(testDir, TASK_PROVIDERS_FILENAME);
 
   await writeYamlFile(evalPath, {
     providers: [options.targetName],
     prompts: [INPUT_PROMPT],
     tests: [evalCase],
   });
-  await writeYamlFile(targetsPath, { providers: serializeTargetDefinitions(targetDefinitions) });
+  await writeYamlFile(providersPath, { providers: serializeTargetDefinitions(targetDefinitions) });
 
   return {
     testDir,
     evalPath,
-    targetsPath,
+    providersPath,
     ...(hasCopiedBucket(copiedReferences, 'files')
       ? { filesPath: path.join(testDir, TASK_FILES_DIRNAME) }
       : {}),
@@ -1213,7 +1213,7 @@ export async function materializeEvalBundle(
   const rewrites = buildPathRewrites(copied);
   const targetNames = uniqueTargetNames(options.targetSelections);
   const evalPath = path.join(evalsDir, bundledEvalFileName(options.evalFilePath));
-  const targetsPath = path.join(outputDir, BUNDLE_TARGETS_FILENAME);
+  const providersPath = path.join(outputDir, BUNDLE_PROVIDERS_FILENAME);
   const manifestPath = path.join(outputDir, BUNDLE_MANIFEST_FILENAME);
   const runtime =
     options.runtime ?? (targetNames.length > 0 ? { providers: targetNames } : undefined);
@@ -1223,7 +1223,7 @@ export async function materializeEvalBundle(
     prompts: [INPUT_PROMPT],
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
-  await writeYamlFile(targetsPath, {
+  await writeYamlFile(providersPath, {
     providers: serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections)),
   });
 
@@ -1231,7 +1231,7 @@ export async function materializeEvalBundle(
     outputDir,
     evalFilePath: path.resolve(options.evalFilePath),
     evalPath,
-    targetsPath,
+    providersPath,
     copiedReferences: copied,
     tests: options.tests,
     targetNames,
@@ -1243,7 +1243,7 @@ export async function materializeEvalBundle(
     bundleDir: outputDir,
     evalsDir,
     evalPath,
-    targetsPath,
+    providersPath,
     manifestPath,
     ...(hasCopiedBucket(copied, 'files')
       ? { filesPath: path.join(evalsDir, TASK_FILES_DIRNAME) }

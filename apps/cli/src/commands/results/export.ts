@@ -200,9 +200,9 @@ function createExportBundleArtifactsWriter(options: {
     return {
       test_dir: toRelativeArtifactPath(options.outputDir, testBundlePath),
       eval_path: toRelativeArtifactPath(options.outputDir, path.join(testBundlePath, 'EVAL.yaml')),
-      targets_path: toRelativeArtifactPath(
+      providers_path: toRelativeArtifactPath(
         options.outputDir,
-        path.join(testBundlePath, 'targets.yaml'),
+        path.join(testBundlePath, 'providers.yaml'),
       ),
       ...(sourceRecord?.files_path || hasCopiedSubdir(testBundlePath, 'files')
         ? {

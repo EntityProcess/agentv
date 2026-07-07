@@ -52,7 +52,7 @@ describe('agentv eval bundle', () => {
     await mkdir(path.join(sourceDir, 'workspace-template'), { recursive: true });
 
     await writeFile(
-      path.join(sourceDir, '.agentv', 'targets.yaml'),
+      path.join(sourceDir, '.agentv', 'providers.yaml'),
       `providers:
   - id: mock
     label: inherited
@@ -127,11 +127,11 @@ tests: ../data/cases.yaml
     ) as Record<string, unknown>;
     expect(manifest.schema_version).toBe(1);
     expect(manifest.eval_path).toBe('evals/demo.eval.yaml');
-    expect(manifest.targets_path).toBe('targets.yaml');
+    expect(manifest.providers_path).toBe('providers.yaml');
     expect(manifest.test_count).toBe(1);
     expect(manifest).not.toHaveProperty('schemaVersion');
 
-    await expectFileExists(path.join(bundleDir, 'targets.yaml'));
+    await expectFileExists(path.join(bundleDir, 'providers.yaml'));
     await expectFileExists(path.join(bundleDir, 'evals', 'demo.eval.yaml'));
     await expectFileExists(path.join(bundleDir, 'evals', 'files', 'data', 'input.txt'));
     await expectFileExists(
@@ -158,9 +158,9 @@ tests: ../data/cases.yaml
     }>;
     expect(input[0]?.content[0]).toEqual({ type: 'file', value: 'files/data/input.txt' });
 
-    const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
-    expect(bundledTargets).toContain('label: inherited');
-    expect(bundledTargets).toContain('label: backup');
+    const bundledProviders = await readFile(path.join(bundleDir, 'providers.yaml'), 'utf8');
+    expect(bundledProviders).toContain('label: inherited');
+    expect(bundledProviders).toContain('label: backup');
 
     await rm(sourceDir, { recursive: true, force: true });
     const run = await runCli(bundleDir, [
@@ -180,7 +180,7 @@ tests: ../data/cases.yaml
     const bundleDir = path.join(tempDir, 'inline-bundle');
     await mkdir(path.join(sourceDir, '.agentv'), { recursive: true });
     await mkdir(path.join(sourceDir, 'evals'), { recursive: true });
-    await writeFile(path.join(sourceDir, '.agentv', 'targets.yaml'), 'providers: []\n', 'utf8');
+    await writeFile(path.join(sourceDir, '.agentv', 'providers.yaml'), 'providers: []\n', 'utf8');
     await writeFile(
       path.join(sourceDir, 'evals', 'inline.eval.yaml'),
       `providers:
@@ -209,10 +209,10 @@ tests:
     ]);
 
     expect(bundle.exitCode).toBe(0);
-    const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
-    expect(bundledTargets).toContain('id: mock');
-    expect(bundledTargets).toContain('label: candidate');
-    expect(bundledTargets).toContain('inline bundled response');
+    const bundledProviders = await readFile(path.join(bundleDir, 'providers.yaml'), 'utf8');
+    expect(bundledProviders).toContain('id: mock');
+    expect(bundledProviders).toContain('label: candidate');
+    expect(bundledProviders).toContain('inline bundled response');
   }, 30_000);
 
   it('reports unbundleable environment references with their eval location', async () => {
@@ -221,7 +221,7 @@ tests:
     await mkdir(path.join(sourceDir, '.agentv'), { recursive: true });
     await mkdir(path.join(sourceDir, 'evals'), { recursive: true });
     await writeFile(
-      path.join(sourceDir, '.agentv', 'targets.yaml'),
+      path.join(sourceDir, '.agentv', 'providers.yaml'),
       `providers:
   - id: mock
     label: default
