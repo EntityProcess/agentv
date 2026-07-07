@@ -2068,6 +2068,34 @@ tests:
       expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
     });
 
+    it('rejects public llm-grader assertions with migration guidance', async () => {
+      const filePath = path.join(tempDir, 'assert-llm-grader-removed.yaml');
+      await writeFile(
+        filePath,
+        `prompts:
+  - "Review the answer"
+tests:
+  - id: test-1
+    assert:
+      - type: llm-grader
+        prompt: "Judge whether the answer is helpful"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          location: 'tests[0].assert[0].type',
+          message: expect.stringContaining("Authored assertion type 'llm-grader' has been removed"),
+        }),
+      );
+      expect(result.errors[0].message).toContain('llm-rubric');
+      expect(result.errors[0].message).toContain('agent-rubric');
+    });
+
     it('accepts promptfoo-compatible skill-used assertions', async () => {
       const filePath = path.join(tempDir, 'assert-skill-used.yaml');
       await writeFile(

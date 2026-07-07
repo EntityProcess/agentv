@@ -79,25 +79,6 @@ export interface GraderPromptScriptConfig {
   readonly config?: Readonly<Record<string, unknown>>;
 }
 
-export interface LlmGraderOptions extends GraderHelperOptions {
-  readonly prompt?: string | GraderPromptScriptConfig;
-  readonly rubrics?: readonly GraderRubric[];
-  readonly provider?: string;
-  readonly config?: Readonly<Record<string, unknown>>;
-  readonly maxSteps?: number;
-  readonly temperature?: number;
-}
-
-export interface LlmGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
-  readonly type: 'llm-grader';
-  readonly prompt?: string | GraderPromptScriptConfig;
-  readonly rubrics?: readonly GraderRubric[];
-  readonly provider?: string;
-  readonly config?: Readonly<Record<string, unknown>>;
-  readonly maxSteps?: number;
-  readonly temperature?: number;
-}
-
 export interface ScriptGraderProviderOptions {
   readonly maxCalls?: number;
 }
@@ -134,7 +115,6 @@ export type GraderHelperConfig =
   | RegexGraderConfig
   | IsJsonGraderConfig
   | LlmRubricGraderConfig
-  | LlmGraderConfig
   | ScriptGraderConfig;
 
 function withCommon<T extends { readonly type: string }>(
@@ -213,21 +193,6 @@ export function llmRubricGrader(
   );
 }
 
-export function llmGrader(options: LlmGraderOptions = {}): LlmGraderConfig {
-  return withCommon(
-    {
-      type: 'llm-grader',
-      ...(options.prompt !== undefined ? { prompt: options.prompt } : {}),
-      ...(options.rubrics !== undefined ? { rubrics: options.rubrics } : {}),
-      ...(options.provider !== undefined ? { provider: options.provider } : {}),
-      ...(options.config !== undefined ? { config: options.config } : {}),
-      ...(options.maxSteps !== undefined ? { maxSteps: options.maxSteps } : {}),
-      ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
-    },
-    options,
-  );
-}
-
 /** @deprecated Use scriptGrader. */
 export function codeGrader(
   command: GraderCommand,
@@ -260,7 +225,6 @@ export const graders = Object.freeze({
   isJson: isJsonGrader,
   json: jsonGrader,
   llmRubric: llmRubricGrader,
-  llmGrader,
   codeGrader,
   script: scriptGrader,
   scriptGrader,

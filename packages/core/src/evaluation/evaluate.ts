@@ -136,7 +136,7 @@ export interface ConversationTurnInput {
  * Matches the YAML `assert` block structure.
  */
 export interface EvalAssertionInput {
-  /** Assertion type (e.g., 'contains', 'llm-grader', 'script') */
+  /** Assertion type (e.g., 'contains', 'llm-rubric', 'script') */
   readonly type: string;
   /** Score/check metric name */
   readonly metric?: string;
@@ -148,7 +148,7 @@ export interface EvalAssertionInput {
   readonly required?: boolean;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** Prompt file for llm-grader */
+  /** Prompt file for LLM rubric assertions */
   readonly prompt?: string;
   /** Command for script grader */
   readonly command?: string | readonly string[];

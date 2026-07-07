@@ -196,7 +196,7 @@ describe('loadTestsFromJsonl', () => {
     );
 
     await expect(loadTestsFromJsonl(jsonlPath, tempDir)).rejects.toThrow(
-      "Unsupported grader 'llm_judge' in sidecar. Use 'llm-grader' instead.",
+      "Unsupported grader 'llm_judge' in sidecar. Use 'llm-rubric' instead.",
     );
   });
 
@@ -217,7 +217,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-assert.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"metric": "rubric-check", "type": "llm-grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"metric": "rubric-check", "type": "llm-rubric", "value": [{"id": "r1", "outcome": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);

@@ -59,7 +59,7 @@ When AgentV loads `evals.json`, it promotes fields to its internal representatio
 |---|---|---|
 | `prompt` | `input` | Wrapped as `[{role: "user", content: prompt}]` |
 | `expected_output` | `expected_output` + `criteria` | Used as reference answer and evaluation criteria |
-| `assertions[]` | `assertions[]` | Each string becomes `{type: llm-grader, prompt: text}` |
+| `assertions[]` | `assertions[]` | Each string becomes `{type: llm-rubric, value: text}` |
 | `files[]` | `file_paths` | Resolved relative to evals.json, copied into workspace |
 | `skill_name` | `metadata.skill_name` | Carried as metadata |
 | `id` (number) | `id` (string) | Converted via `String(id)` |
@@ -171,7 +171,7 @@ tests:
     # Replace with type: is_json, contains, or regex for deterministic checks
     assertions:
       - name: assertion-1
-        type: llm-grader
+        type: llm-rubric
         prompt: "Output identifies November as the highest revenue month"
 ```
 
@@ -236,17 +236,17 @@ tests:
       An empathetic response that offers to track the order and provides next steps.
     assertions:
       - name: acknowledges-frustration
-        type: llm-grader
+        type: llm-rubric
         prompt: Response acknowledges the customer's frustration
       - name: looks-up-order
         type: contains
         value: "12345"
       - name: has-next-steps
-        type: llm-grader
+        type: llm-rubric
         prompt: Response provides clear next steps
 ```
 
-Notice how the EVAL.yaml version can mix `llm-grader` (for subjective checks) with `contains` (for deterministic checks) — the order number check is now instant and free.
+Notice how the EVAL.yaml version can mix `llm-rubric` (for subjective checks) with `contains` (for deterministic checks) — the order number check is now instant and free.
 
 ## References
 

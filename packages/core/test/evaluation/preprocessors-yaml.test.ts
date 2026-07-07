@@ -53,7 +53,7 @@ tests:
     criteria: works
     assert:
       - name: grade
-        type: llm-grader
+        type: llm-rubric
         prompt: Evaluate {{ output }}
         preprocessors:
           - type: xlsx

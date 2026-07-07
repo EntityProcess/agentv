@@ -96,7 +96,7 @@ The `feedback.json` file is a structured annotation of a single eval run. It rec
       "notes": "Missing coverage of multi-document queries.",
       "evaluator_overrides": {
         "code-grader:format-check": "Too strict — penalized valid output with trailing newline",
-        "llm-grader:quality": "Score 0.6 seems fair, answer was incomplete"
+        "llm-rubric:quality": "Score 0.6 seems fair, answer was incomplete"
       },
       "workspace_notes": "Workspace had stale cached files from previous run — may have affected retrieval results."
     },
@@ -148,7 +148,7 @@ For workspace evaluations with multiple graders (code graders, LLM graders, tool
   "verdict": "needs_improvement",
   "evaluator_overrides": {
     "code-grader:test-pass": "Tests pass but the refactored code has a subtle race condition the tests don't cover",
-    "llm-grader:quality": "Score 0.9 is too high — the agent left dead code behind",
+    "llm-rubric:quality": "Score 0.9 is too high — the agent left dead code behind",
     "tool-trajectory:efficiency": "Used 12 tool calls where 5 would suffice, but the result is correct"
   },
   "workspace_notes": "Agent cloned the repo correctly but didn't clean up temp files."

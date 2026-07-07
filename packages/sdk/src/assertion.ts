@@ -37,7 +37,6 @@ export type AssertionContext = ScriptGraderInput;
  */
 export type AssertionType =
   // kebab-case (canonical internal form)
-  | 'llm-grader'
   | 'llm-rubric'
   | 'agent-rubric'
   | 'script'

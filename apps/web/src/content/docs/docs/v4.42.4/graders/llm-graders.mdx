@@ -12,14 +12,14 @@ LLM graders use a language model to evaluate agent responses against custom crit
 
 ## Default Grader
 
-When a test defines `criteria` but has **no `assertions` field**, a default `llm-grader` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
+When a test defines `criteria` but has **no `assertions` field**, a default `llm-rubric` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assertions needed — default llm-grader evaluates against criteria
+    # No assertions needed — default llm-rubric evaluates against criteria
 ```
 
 When `assertions` **is** present, no default grader is added. To use an LLM grader alongside other graders, declare it explicitly. See [How criteria and assertions interact](/docs/v4.42.4/evaluation/eval-cases/#how-criteria-and-assertions-interact).
@@ -31,12 +31,12 @@ Reference an LLM grader in your eval file:
 ```yaml
 assertions:
   - name: semantic_check
-    type: llm-grader
+    type: llm-rubric
     prompt: file://graders/correctness.md
     target: grader_gpt_5_mini   # optional: route this grader to a named LLM target
 ```
 
-Use `target:` when you want different `llm-grader` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
+Use `target:` when you want different `llm-rubric` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
 
 ## Prompt Files
 
@@ -100,26 +100,26 @@ tests:
       row: 1
     assertions:
       - name: dexter_semantic
-        type: llm-grader
+        type: llm-rubric
         prompt: file://prompts/dexter-grader.md
-        rubrics:
+        value:
           - operator: correctness
-            criteria: Uses the provided ticker and company.
+            outcome: Uses the provided ticker and company.
 ```
 
 ## Per-Grader Target
 
-By default, an `llm-grader` uses `defaults.grader` from the resolved config graph.
+By default, an `llm-rubric` uses `defaults.grader` from the resolved config graph.
 Override it per grader when you need multiple grader models in one run:
 
 ```yaml
 assertions:
   - name: grader-gpt
-    type: llm-grader
+    type: llm-rubric
     target: grader_gpt_5_mini
     prompt: ./prompts/pass-fail.md
   - name: grader-haiku
-    type: llm-grader
+    type: llm-rubric
     target: grader_claude_haiku
     prompt: ./prompts/pass-fail.md
 ```
@@ -178,7 +178,7 @@ When using TypeScript templates, configure them in YAML with optional `config` d
 ```yaml
 assertions:
   - name: custom-eval
-    type: llm-grader
+    type: llm-rubric
     prompt:
       command: [bun, run, ../prompts/custom-grader.ts]
       config:
@@ -190,7 +190,7 @@ The `config` object is available as `ctx.config` inside the template function.
 
 ## Preprocessing File Outputs
 
-If an agent returns a `ContentFile` block instead of plain text, you can preprocess that file into text before `llm-grader` builds the candidate prompt.
+If an agent returns a `ContentFile` block instead of plain text, you can preprocess that file into text before `llm-rubric` builds the candidate prompt.
 
 AgentV always tries a default UTF-8 text read first. That is enough for text-based formats such as CSV, JSON, SQL, Markdown, YAML, HTML, XML, and plain text. For binary formats such as `.xlsx`, `.pdf`, or `.docx`, add a preprocessor command:
 
@@ -205,7 +205,7 @@ tests:
     input: Generate the spreadsheet report
     assertions:
       - name: spreadsheet-check
-        type: llm-grader
+        type: llm-rubric
         prompt: |
           Check whether the transformed spreadsheet text contains the revenue rows:
 
@@ -220,7 +220,7 @@ Resolution order:
 - if no preprocessor matches, AgentV falls back to a UTF-8 text read
 - if the fallback read looks binary or invalid, the grader receives a warning note instead of failing the test run
 
-The implicit default `llm-grader` also inherits suite-level `preprocessors`, so you can omit `assertions` and still preprocess file outputs before grading.
+The implicit default `llm-rubric` also inherits suite-level `preprocessors`, so you can omit `assertions` and still preprocess file outputs before grading.
 
 See [`examples/features/preprocessors/`](../../../../../examples/features/preprocessors/) for a runnable example with a file-producing target and a custom preprocessor script.
 

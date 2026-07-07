@@ -50,8 +50,8 @@ Use `provider:` when you want different `llm-rubric` entries in the same eval to
 
 Use `type: agent-rubric` when a Promptfoo-style rubric needs an agentic grader
 that can inspect the workspace instead of only judging the final answer text.
-AgentV routes `agent-rubric` through the same `llm-rubric` / `llm-grader`
-scoring path, so results still appear as normal `EvaluationScore` entries.
+AgentV routes `agent-rubric` through the same shared LLM rubric scoring path,
+so results still appear as normal `EvaluationScore` entries.
 
 ```yaml
 assert:

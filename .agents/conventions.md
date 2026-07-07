@@ -141,6 +141,7 @@ Grader types use kebab-case everywhere.
 - Internal TypeScript may keep shared LLM grader implementation names, but new authored evals should not use `llm-grader` as a public type.
 - Output `scores[].type`: use the authored grader type when available, such as `"llm-rubric"`, `"g-eval"`, or `"is-json"`.
 - Registry keys: `registry.register('llm-rubric', ...)` for the authored rubric surface, with `llm-grader` retained as internal/shared implementation plumbing.
+- Public SDK assertion helpers and authored YAML schemas must not expose `llm-grader`; use `llmRubricGrader()` / `type: llm-rubric` or `type: agent-rubric`.
 
 Source of truth: `GRADER_KIND_VALUES` in `packages/core/src/evaluation/types.ts`.
 
@@ -149,10 +150,10 @@ Backward compatibility:
 - Snake_case is accepted in YAML by `normalizeGraderType()` in `grader-parser.ts`, for example `llm_rubric` -> `llm-rubric`.
 - Single-word types such as `contains`, `equals`, `regex`, `latency`, and `cost` are unchanged.
 
-Two type definitions exist and must stay in sync:
+Public and internal type definitions intentionally differ for internal-only grader plumbing:
 
-- `EvaluatorKind` in `packages/core/src/evaluation/types.ts`
-- `AssertionType` in `packages/sdk/src/assertion.ts`
+- `GraderKind` in `packages/core/src/evaluation/types.ts` includes internal/runtime keys such as `llm-grader`.
+- `AssertionType` in `packages/sdk/src/assertion.ts` includes public authored assertion types only.
 
 ## Python Scripts
 

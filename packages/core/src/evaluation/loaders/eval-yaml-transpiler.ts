@@ -160,12 +160,9 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
       return `Output ends with '${entry.value}'`;
 
     case 'llm-grader':
-      // Expand each rubric item to its own assertion string
-      // Return the first one — callers handle arrays via assertionToNaturalLanguageList
-      if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
-        return null; // handled by list expansion below
-      }
-      return typeof entry.prompt === 'string' ? entry.prompt : null;
+      throw new Error(
+        "Authored assertion type 'llm-grader' has been removed. Use 'llm-rubric' for free-form rubric checks or 'agent-rubric' for agentic rubric checks.",
+      );
 
     case 'tool-trajectory': {
       const expectedArr = Array.isArray(entry.expected) ? entry.expected : [];
@@ -227,7 +224,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
 
 /**
  * Expand a single assertion entry into zero or more NL strings.
- * Most assertions produce exactly one string; llm-grader with rubrics expands to many.
+ * Most assertions produce exactly one string; llm-rubric with structured values expands to many.
  */
 function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
   if (entry.type === 'llm-rubric') {
@@ -240,13 +237,6 @@ function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
           return item.outcome ?? item.criteria ?? item.id;
         })
         .filter((value): value is string => typeof value === 'string');
-    }
-  }
-  if (entry.type === 'llm-grader') {
-    if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
-      return (entry.rubrics as Array<{ outcome?: string; criteria?: string; id?: string }>)
-        .map((r) => r.outcome ?? r.criteria ?? r.id)
-        .filter((s): s is string => typeof s === 'string');
     }
   }
   const nl = assertionToNaturalLanguage(entry);
