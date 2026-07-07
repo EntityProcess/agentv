@@ -56,15 +56,15 @@ describe('loadConfig', () => {
       writeFileSync(
         path.join(localConfigDir, 'config.yaml'),
         [
-          'targets:',
-          '  - id: codex-local',
-          '    provider: codex-app-server',
+          'providers:',
+          '  - id: openai:codex-app-server',
+          '    label: codex-local',
           '    runtime: host',
           '    config:',
           '      command: ["codex", "app-server"]',
           '      model: gpt-5-codex',
-          '  - id: openai-grader',
-          '    provider: openai',
+          '  - id: openai',
+          '    label: openai-grader',
           '    runtime: host',
           '    config:',
           '      model: gpt-5-mini',
@@ -72,7 +72,7 @@ describe('loadConfig', () => {
           '  - id: smoke',
           '    input: Fix the failing test',
           'defaults:',
-          '  target: codex-local',
+          '  provider: codex-local',
           '  grader: openai-grader',
           'execution:',
           '  max_concurrency: 3',
@@ -97,7 +97,7 @@ describe('loadConfig', () => {
         },
       ]);
       expect(config?.tests).toEqual([{ id: 'smoke', input: 'Fix the failing test' }]);
-      expect(config?.defaults).toEqual({ target: 'codex-local', grader: 'openai-grader' });
+      expect(config?.defaults).toEqual({ provider: 'codex-local', grader: 'openai-grader' });
       expect(config?.execution?.max_concurrency).toBe(3);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
@@ -112,23 +112,23 @@ describe('loadConfig', () => {
       writeFileSync(
         inlinePath,
         [
-          'targets:',
-          '  - id: codex-local',
-          '    provider: codex-app-server',
+          'providers:',
+          '  - id: openai:codex-app-server',
+          '    label: codex-local',
           '    runtime:',
           '      mode: profile',
           '      home: .agentv/profiles/codex-local',
           '    config:',
           '      command: ["codex"]',
-          '  - id: openai-grader',
-          '    provider: openai',
+          '  - id: openai',
+          '    label: openai-grader',
           '    runtime: host',
           '    config: {}',
           'tests:',
           '  - id: smoke',
           '    input: Fix the failing test',
           'defaults:',
-          '  target: codex-local',
+          '  provider: codex-local',
           '  grader: openai-grader',
           'execution:',
           '  max_concurrency: 2',
@@ -138,7 +138,7 @@ describe('loadConfig', () => {
       writeFileSync(
         splitPath,
         [
-          'targets: file://targets.yaml',
+          'providers: file://providers.yaml',
           'tests: file://tests.yaml',
           'defaults: file://defaults.yaml',
           'execution: file://execution.yaml',
@@ -146,17 +146,17 @@ describe('loadConfig', () => {
         ].join('\n'),
       );
       writeFileSync(
-        path.join(tempDir, 'targets.yaml'),
+        path.join(tempDir, 'providers.yaml'),
         [
-          '- id: codex-local',
-          '  provider: codex-app-server',
+          '- id: openai:codex-app-server',
+          '  label: codex-local',
           '  runtime:',
           '    mode: profile',
           '    home: .agentv/profiles/codex-local',
           '  config:',
           '    command: ["codex"]',
-          '- id: openai-grader',
-          '  provider: openai',
+          '- id: openai',
+          '  label: openai-grader',
           '  runtime: host',
           '  config: {}',
           '',
@@ -168,7 +168,7 @@ describe('loadConfig', () => {
       );
       writeFileSync(
         path.join(tempDir, 'defaults.yaml'),
-        ['target: codex-local', 'grader: openai-grader', ''].join('\n'),
+        ['provider: codex-local', 'grader: openai-grader', ''].join('\n'),
       );
       writeFileSync(path.join(tempDir, 'execution.yaml'), 'max_concurrency: 2\n');
 
@@ -187,9 +187,9 @@ describe('loadConfig', () => {
       writeFileSync(
         configPath,
         [
-          'targets:',
-          '  - id: agent-sandbox',
-          '    provider: cli',
+          'providers:',
+          '  - id: cli',
+          '    label: agent-sandbox',
           '    runtime:',
           '      mode: sandbox',
           '      engine: docker',
@@ -243,13 +243,13 @@ describe('loadConfig', () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-wrapped-'));
     try {
       const configPath = path.join(tempDir, 'config.yaml');
-      writeFileSync(configPath, 'targets: file://targets.yaml\n');
+      writeFileSync(configPath, 'providers: file://providers.yaml\n');
       writeFileSync(
-        path.join(tempDir, 'targets.yaml'),
-        ['targets:', '  - id: codex-local', '    provider: codex-app-server', ''].join('\n'),
+        path.join(tempDir, 'providers.yaml'),
+        ['providers:', '  - id: openai:codex-app-server', '    label: codex-local', ''].join('\n'),
       );
 
-      await expect(loadComposableConfigGraph(configPath)).rejects.toThrow(/wrapped in 'targets'/);
+      await expect(loadComposableConfigGraph(configPath)).rejects.toThrow(/wrapped in 'providers'/);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -262,9 +262,9 @@ describe('loadConfig', () => {
         {
           name: 'command',
           yaml: [
-            'targets:',
-            '  - id: codex-local',
-            '    provider: codex-app-server',
+            'providers:',
+            '  - id: openai:codex-app-server',
+            '    label: codex-local',
             '    runtime: host',
             '    config:',
             '      command: codex',
@@ -275,16 +275,16 @@ describe('loadConfig', () => {
         {
           name: 'default-target',
           yaml: [
-            'targets:',
-            '  - id: codex-local',
-            '    provider: codex-app-server',
+            'providers:',
+            '  - id: openai:codex-app-server',
+            '    label: codex-local',
             '    runtime: host',
             '    config: {}',
             'defaults:',
-            '  target: missing',
+            '  provider: missing',
             '',
           ].join('\n'),
-          message: /defaults\.target/,
+          message: /defaults\.provider/,
         },
         {
           name: 'concurrency',
@@ -299,9 +299,9 @@ describe('loadConfig', () => {
         {
           name: 'legacy-label',
           yaml: [
-            'targets:',
-            '  - label: codex-local',
-            '    provider: codex-app-server',
+            'providers:',
+            '  - name: codex-local',
+            '    id: openai:codex-app-server',
             '    runtime: host',
             '    config: {}',
             '',
@@ -311,9 +311,9 @@ describe('loadConfig', () => {
         {
           name: 'bare-provider',
           yaml: [
-            'targets:',
-            '  - id: codex-local',
-            '    provider: codex',
+            'providers:',
+            '  - id: codex',
+            '    label: codex-local',
             '    runtime: host',
             '    config: {}',
             '',
@@ -323,9 +323,9 @@ describe('loadConfig', () => {
         {
           name: 'target-workers',
           yaml: [
-            'targets:',
-            '  - id: codex-local',
-            '    provider: codex-app-server',
+            'providers:',
+            '  - id: openai:codex-app-server',
+            '    label: codex-local',
             '    runtime: host',
             '    workers: 3',
             '    config: {}',
@@ -336,16 +336,16 @@ describe('loadConfig', () => {
         {
           name: 'target-environment',
           yaml: [
-            'targets:',
-            '  - id: codex-local',
-            '    provider: codex-cli',
+            'providers:',
+            '  - id: agentv:codex-cli',
+            '    label: codex-local',
             '    runtime: host',
             '    environment:',
             '      type: host',
             '      workdir: ./workspace',
             '',
           ].join('\n'),
-          message: /environment recipes belong at suite\/test\/case scope/,
+          message: /provider-local environments are future scope/,
         },
       ];
 
@@ -359,42 +359,45 @@ describe('loadConfig', () => {
     }
   });
 
-  it('allows defaults.target/defaults.grader to name a target from a separately-discovered targets.yaml (no inline targets/graders block)', async () => {
+  it('allows defaults.provider/defaults.grader to name a provider from a separately-discovered catalog', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-defaults-'));
     try {
       const configPath = path.join(tempDir, 'config.yaml');
-      writeFileSync(configPath, ['defaults:', '  target: llm', '  grader: grader', ''].join('\n'));
+      writeFileSync(
+        configPath,
+        ['defaults:', '  provider: llm', '  grader: grader', ''].join('\n'),
+      );
 
       const config = await loadComposableConfigGraph(configPath);
 
-      expect(config.defaults).toEqual({ target: 'llm', grader: 'grader' });
+      expect(config.defaults).toEqual({ provider: 'llm', grader: 'grader' });
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  it('hard-rejects an authored graders: block — a grader is just a target', async () => {
+  it('hard-rejects an authored graders: block — a grader is just a provider', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-graders-removed-'));
     try {
       const configPath = path.join(tempDir, 'config.yaml');
       writeFileSync(
         configPath,
         [
-          'targets:',
-          '  - id: codex-local',
-          '    provider: codex-app-server',
+          'providers:',
+          '  - id: openai:codex-app-server',
+          '    label: codex-local',
           '    runtime: host',
           '    config: {}',
           'graders:',
-          '  - id: openai-grader',
-          '    provider: openai',
+          '  - id: openai',
+          '    label: openai-grader',
           '    config: {}',
           '',
         ].join('\n'),
       );
 
       await expect(loadComposableConfigGraph(configPath)).rejects.toThrow(
-        /'graders' in .+ has been removed.*move each entry into 'targets'/,
+        /'graders' in .+ has been removed.*move each entry into 'providers'/,
       );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
@@ -912,12 +915,12 @@ describe('resolveResultsConfigForProject', () => {
 });
 
 describe('extractTargetFromSuite', () => {
-  it('extracts string target from the top level', () => {
+  it('rejects string target at the top level', () => {
     const suite: JsonObject = { target: 'codex-gpt5' };
-    expect(extractTargetFromSuite(suite)).toBe('codex-gpt5');
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Use top-level 'providers'/);
   });
 
-  it('extracts target object identity from id or extends', () => {
+  it('rejects target objects at the top level', () => {
     const suite: JsonObject = {
       target: {
         id: 'codex-local',
@@ -925,21 +928,21 @@ describe('extractTargetFromSuite', () => {
         config: { model: 'gpt-5.1' },
       },
     };
-    expect(extractTargetFromSuite(suite)).toBe('codex-local');
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Use top-level 'providers'/);
   });
 
-  it('rejects target object name in favor of id', () => {
+  it('rejects target object name with provider migration guidance', () => {
     const suite: JsonObject = {
       target: { name: 'legacy-target', provider: 'mock' },
     };
-    expect(() => extractTargetFromSuite(suite)).toThrow(/Use 'id'/);
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Use top-level 'providers'/);
   });
 
-  it('rejects target object label in favor of id', () => {
+  it('rejects target object label with provider migration guidance', () => {
     const suite: JsonObject = {
       target: { label: 'legacy-target', provider: 'mock' },
     };
-    expect(() => extractTargetFromSuite(suite)).toThrow(/Use 'id'/);
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Use top-level 'providers'/);
   });
 
   it('returns undefined when no target specified', () => {
@@ -954,21 +957,20 @@ describe('extractTargetFromSuite', () => {
 });
 
 describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
-  it('return undefined when no targets are authored', () => {
+  it('return undefined when no providers are authored', () => {
     const suite: JsonObject = { tests: [] };
     expect(extractTargetsFromSuite(suite)).toBeUndefined();
     expect(extractTargetRefsFromSuite(suite)).toBeUndefined();
   });
 
-  it('extracts live targets strings and promptfoo-shaped target objects', () => {
+  it('extracts provider strings and inline provider objects as internal target refs', () => {
     const suite: JsonObject = {
-      targets: [
+      providers: [
         'registry-agent',
         {
-          id: 'inline-agent',
-          provider: 'mock',
+          id: 'mock',
+          label: 'inline-agent',
           config: { response: 'ok' },
-          fallback_targets: ['registry-agent'],
         },
       ],
     };
@@ -978,17 +980,152 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       { name: 'registry-agent' },
       {
         name: 'inline-agent',
-        id: 'inline-agent',
+        id: 'mock',
+        label: 'inline-agent',
         definition: expect.objectContaining({
           id: 'inline-agent',
           name: 'inline-agent',
           label: 'inline-agent',
           provider: 'mock',
           response: 'ok',
-          fallback_targets: ['registry-agent'],
         }),
       },
     ]);
+  });
+
+  it('preserves colon provider specs as selection identity and lowers backend config', () => {
+    const suite: JsonObject = {
+      providers: [
+        'openai:gpt-4.1-mini',
+        {
+          id: 'openai:responses:gpt-5.4',
+          label: 'gpt5-responses',
+        },
+        {
+          id: 'anthropic:messages:claude-sonnet-4-6',
+        },
+        {
+          id: 'exec:node ./provider.js',
+        },
+        {
+          id: 'gateway:openai:responses:gpt-5.4',
+        },
+        {
+          id: 'openai:codex-sdk:gpt-5.4-codex',
+          label: 'codex-sdk',
+        },
+        {
+          id: 'openai:codex-app-server:gpt-5.4-codex',
+          label: 'codex-local',
+        },
+        {
+          id: 'openai:codex-desktop',
+        },
+      ],
+    };
+
+    expect(extractTargetsFromSuite(suite)).toEqual([
+      'openai:gpt-4.1-mini',
+      'gpt5-responses',
+      'anthropic:messages:claude-sonnet-4-6',
+      'exec:node ./provider.js',
+      'gateway:openai:responses:gpt-5.4',
+      'codex-sdk',
+      'codex-local',
+      'openai:codex-desktop',
+    ]);
+    expect(extractTargetRefsFromSuite(suite)).toEqual([
+      { name: 'openai:gpt-4.1-mini' },
+      {
+        name: 'gpt5-responses',
+        id: 'openai:responses:gpt-5.4',
+        label: 'gpt5-responses',
+        definition: expect.objectContaining({
+          id: 'gpt5-responses',
+          name: 'gpt5-responses',
+          label: 'gpt5-responses',
+          provider: 'openai',
+          model: 'gpt-5.4',
+          api_format: 'responses',
+        }),
+      },
+      {
+        name: 'anthropic:messages:claude-sonnet-4-6',
+        id: 'anthropic:messages:claude-sonnet-4-6',
+        label: 'anthropic:messages:claude-sonnet-4-6',
+        definition: expect.objectContaining({
+          id: 'anthropic:messages:claude-sonnet-4-6',
+          name: 'anthropic:messages:claude-sonnet-4-6',
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+        }),
+      },
+      {
+        name: 'exec:node ./provider.js',
+        id: 'exec:node ./provider.js',
+        label: 'exec:node ./provider.js',
+        definition: expect.objectContaining({
+          id: 'exec:node ./provider.js',
+          name: 'exec:node ./provider.js',
+          provider: 'cli',
+          command: 'node ./provider.js',
+        }),
+      },
+      {
+        name: 'gateway:openai:responses:gpt-5.4',
+        id: 'gateway:openai:responses:gpt-5.4',
+        label: 'gateway:openai:responses:gpt-5.4',
+        definition: expect.objectContaining({
+          id: 'gateway:openai:responses:gpt-5.4',
+          name: 'gateway:openai:responses:gpt-5.4',
+          provider: 'gateway',
+          model: 'openai:responses:gpt-5.4',
+        }),
+      },
+      {
+        name: 'codex-sdk',
+        id: 'openai:codex-sdk:gpt-5.4-codex',
+        label: 'codex-sdk',
+        definition: expect.objectContaining({
+          id: 'codex-sdk',
+          name: 'codex-sdk',
+          provider: 'codex-sdk',
+          model: 'gpt-5.4-codex',
+        }),
+      },
+      {
+        name: 'codex-local',
+        id: 'openai:codex-app-server:gpt-5.4-codex',
+        label: 'codex-local',
+        definition: expect.objectContaining({
+          id: 'codex-local',
+          name: 'codex-local',
+          provider: 'codex-app-server',
+          model: 'gpt-5.4-codex',
+        }),
+      },
+      {
+        name: 'openai:codex-desktop',
+        id: 'openai:codex-desktop',
+        label: 'openai:codex-desktop',
+        definition: expect.objectContaining({
+          id: 'openai:codex-desktop',
+          name: 'openai:codex-desktop',
+          provider: 'codex-app-server',
+        }),
+      },
+    ]);
+  });
+
+  it('rejects duplicate provider result identities', () => {
+    const suite: JsonObject = {
+      providers: [
+        { id: 'mock', label: 'candidate' },
+        { id: 'openai', label: 'candidate' },
+      ],
+    };
+
+    expect(() => extractTargetRefsFromSuite(suite)).toThrow(/Duplicate provider identity/);
   });
 
   it('reject top-level target arrays through execution', () => {

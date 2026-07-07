@@ -5,7 +5,7 @@ import {
   CLI_PLACEHOLDERS,
   COMMON_TARGET_SETTINGS,
   findDeprecatedCamelCaseTargetWarnings,
-  normalizeTargetDefinition,
+  normalizeProviderDefinition,
 } from '../providers/targets.js';
 import { KNOWN_PROVIDERS } from '../providers/types.js';
 import { parseYamlValue } from '../yaml-loader.js';
@@ -340,6 +340,7 @@ function validateUnknownSettings(
     'name',
     'label',
     'provider',
+    'provider_spec',
     'config',
     'prompts',
     'transform',
@@ -589,26 +590,26 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     };
   }
 
-  if (Array.isArray(parsed.providers)) {
-    errors.push({
-      severity: 'error',
-      filePath: absolutePath,
-      location: 'providers',
-      message:
-        "Top-level 'providers' is not a runtime alias in targets.yaml. Use 'targets' for systems under test; provider names backend kind inside each target.",
-    });
-  }
-
-  // Validate targets array
-  const targets = parsed.targets;
-  const rawTargets =
-    isObject(rawParsed) && Array.isArray(rawParsed.targets) ? rawParsed.targets : [];
-  if (!Array.isArray(targets)) {
+  if (Array.isArray(parsed.targets)) {
     errors.push({
       severity: 'error',
       filePath: absolutePath,
       location: 'targets',
-      message: "Missing or invalid 'targets' field (must be an array)",
+      message:
+        "Top-level 'targets' has been removed. Use 'providers'; map targets[].id to providers[].label and targets[].provider to providers[].id.",
+    });
+  }
+
+  // Validate providers array after lowering each provider to the internal target shape.
+  const providers = parsed.providers;
+  const rawTargets =
+    isObject(rawParsed) && Array.isArray(rawParsed.providers) ? rawParsed.providers : [];
+  if (!Array.isArray(providers)) {
+    errors.push({
+      severity: 'error',
+      filePath: absolutePath,
+      location: 'providers',
+      message: "Missing or invalid 'providers' field (must be an array)",
     });
     return {
       valid: errors.length === 0,
@@ -618,27 +619,29 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     };
   }
 
-  // Validate each target definition
+  // Validate each provider definition
   const knownProviders: readonly string[] = [...KNOWN_PROVIDERS];
 
-  for (let i = 0; i < targets.length; i++) {
-    const target = targets[i];
-    const location = `targets[${i}]`;
+  for (let i = 0; i < providers.length; i++) {
+    const providerEntry = providers[i];
+    const location = `providers[${i}]`;
 
-    if (!isObject(target)) {
+    if (!isObject(providerEntry)) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location,
-        message: 'Target must be an object',
+        message: 'Provider must be an object',
       });
       continue;
     }
-    validateLegacyEnvTemplates(rawTargets[i] ?? target, absolutePath, location, errors);
+    validateLegacyEnvTemplates(rawTargets[i] ?? providerEntry, absolutePath, location, errors);
 
     let normalizedTarget: JsonObject | undefined;
     try {
-      normalizedTarget = normalizeTargetDefinition(target) as unknown as JsonObject;
+      normalizedTarget = normalizeProviderDefinition(providerEntry, {
+        location,
+      }) as unknown as JsonObject;
     } catch (error) {
       errors.push({
         severity: 'error',
@@ -649,7 +652,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     for (const warning of findDeprecatedCamelCaseTargetWarnings(
-      normalizedTarget ?? target,
+      normalizedTarget ?? providerEntry,
       location,
     )) {
       const fieldMatch = warning.message.match(/field '([^']+)'/);
@@ -660,12 +663,12 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         severity: 'error',
         filePath: absolutePath,
         location: warning.location,
-        message: `camelCase field '${field}' is no longer supported in targets.yaml. Use '${replacement}' instead.`,
+        message: `camelCase field '${field}' is no longer supported in providers.yaml. Use '${replacement}' instead.`,
       });
     }
 
-    // Required field: id. AgentV target identity is separate from provider.
-    const id = target.id;
+    // Required field: id. Public provider id is the backend/provider spec.
+    const id = providerEntry.id;
     if (typeof id !== 'string' || id.trim().length === 0) {
       errors.push({
         severity: 'error',
@@ -674,25 +677,17 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         message: "Missing or invalid 'id' field (must be a non-empty string)",
       });
     }
-    if (typeof target.label === 'string' && target.label.trim().length > 0) {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.label`,
-        message: "The target 'label' field has been removed. Use 'id' instead.",
-      });
-    }
-    if (typeof target.name === 'string' && target.name.trim().length > 0) {
+    if (typeof providerEntry.name === 'string' && providerEntry.name.trim().length > 0) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.name`,
-        message: "The target 'name' field has been removed. Use 'id' instead.",
+        message: "The provider 'name' field has been removed. Use 'label' instead.",
       });
     }
 
     // Required field: provider
-    const effectiveTarget = normalizedTarget ?? target;
+    const effectiveTarget = normalizedTarget ?? providerEntry;
     const provider = effectiveTarget.provider;
     const rawTarget = rawTargets[i];
     const rawUseTarget = isObject(rawTarget) ? rawTarget.use_target : undefined;
@@ -702,7 +697,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         filePath: absolutePath,
         location: `${location}.use_target`,
         message:
-          "The 'use_target' field has been removed from authored targets.yaml target definitions. Define a concrete target with 'provider' instead.",
+          "The 'use_target' field has been removed from authored providers.yaml definitions. Define a concrete provider entry instead.",
       });
     }
     const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
@@ -711,14 +706,14 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       errors.push({
         severity: 'error',
         filePath: absolutePath,
-        location: `${location}.provider`,
-        message: "Missing or invalid 'provider' field (must be a non-empty string)",
+        location: `${location}.id`,
+        message: "Missing or invalid 'id' field (must be a non-empty provider backend string)",
       });
     } else if (!isTemplated && (providerValue === 'claude' || providerValue === 'copilot')) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
-        location: `${location}.provider`,
+        location: `${location}.id`,
         message: `Ambiguous provider '${providerValue}' is not supported. Choose an explicit provider such as '${providerValue}-cli' or '${providerValue}-sdk'.`,
       });
     } else if (typeof provider === 'string' && !isTemplated && !knownProviders.includes(provider)) {
@@ -726,7 +721,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       errors.push({
         severity: 'warning',
         filePath: absolutePath,
-        location: `${location}.provider`,
+        location: `${location}.id`,
         message: `Unknown provider '${provider}'. Known providers: ${knownProviders.join(', ')}`,
       });
     }

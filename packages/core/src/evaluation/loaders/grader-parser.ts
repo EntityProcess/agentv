@@ -1663,14 +1663,21 @@ async function parseGraderList(
       continue;
     }
 
-    const graderTarget = rawEvaluator.target;
+    const removedTarget = rawEvaluator.target;
+    if (typeof removedTarget === 'string') {
+      throw new Error(
+        `Assertion field 'target' has been removed in '${evalId}' for evaluator '${name}'. Use assertion 'provider' instead.`,
+      );
+    }
+
+    const graderTarget = rawEvaluator.provider;
     let graderTargetName: string | undefined;
     if (graderTarget !== undefined) {
       if (typeof graderTarget === 'string' && graderTarget.trim().length > 0) {
         graderTargetName = graderTarget;
       } else {
         logWarning(
-          `Skipping target override for llm-grader evaluator '${name}' in '${evalId}': target must be a non-empty string`,
+          `Skipping provider override for llm-grader evaluator '${name}' in '${evalId}': provider must be a non-empty string`,
         );
       }
     }
@@ -1708,6 +1715,7 @@ async function parseGraderList(
       'criteria',
       'score_ranges',
       'target',
+      'provider',
       'weight',
       'config',
       'required',

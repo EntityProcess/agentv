@@ -3,7 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { parseYamlValue } from '../yaml-loader.js';
-import { normalizeTargetDefinition } from './targets.js';
+import { normalizeProviderDefinition } from './targets.js';
 import { TARGETS_SCHEMA_V2 } from './types.js';
 import type { TargetDefinition } from './types.js';
 
@@ -11,46 +11,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function extractTargetsArray(parsed: Record<string, unknown>, absolutePath: string): unknown[] {
-  const targets = parsed.targets;
-  if (!Array.isArray(targets)) {
-    throw new Error(`targets.yaml at ${absolutePath} must have a 'targets' array`);
+function extractProvidersArray(parsed: Record<string, unknown>, absolutePath: string): unknown[] {
+  if (parsed.targets !== undefined) {
+    throw new Error(
+      `Provider catalog at ${absolutePath} uses removed 'targets'. Use 'providers'; map targets[].id to providers[].label and targets[].provider to providers[].id.`,
+    );
   }
-  return targets;
+  const providers = parsed.providers;
+  if (!Array.isArray(providers)) {
+    throw new Error(`providers catalog at ${absolutePath} must have a 'providers' array`);
+  }
+  return providers;
 }
 
-function assertTargetDefinition(value: unknown, index: number, filePath: string): TargetDefinition {
+function assertProviderDefinition(
+  value: unknown,
+  index: number,
+  filePath: string,
+): TargetDefinition {
   if (!isRecord(value)) {
-    throw new Error(`targets.yaml entry at index ${index} in ${filePath} must be an object`);
+    throw new Error(`providers entry at index ${index} in ${filePath} must be an object`);
   }
 
   const id = value.id;
-  const provider = value.provider;
 
   if (typeof id !== 'string' || id.trim().length === 0) {
-    throw new Error(`targets.yaml entry at index ${index} in ${filePath} is missing a valid 'id'`);
+    throw new Error(`providers entry at index ${index} in ${filePath} is missing a valid 'id'`);
   }
 
-  if (typeof value.name === 'string' && value.name.trim().length > 0) {
-    throw new Error(
-      `targets.yaml entry '${id}' in ${filePath} uses removed field 'name'. Use 'id' for the AgentV target name.`,
-    );
-  }
-
-  if (typeof value.label === 'string' && value.label.trim().length > 0) {
-    throw new Error(
-      `targets.yaml entry '${id}' in ${filePath} uses removed field 'label'. Use 'id' for the AgentV target name.`,
-    );
-  }
-
-  const hasUseTarget = typeof value.use_target === 'string' && value.use_target.trim().length > 0;
-  if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
-    throw new Error(
-      `targets.yaml entry '${id}' in ${filePath} is missing a valid 'provider' (or use use_target for delegation)`,
-    );
-  }
-
-  return normalizeTargetDefinition(value);
+  return normalizeProviderDefinition(value, { location: `providers[${index}]` });
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -74,12 +63,14 @@ export async function readTargetDefinitions(
   const parsed = parseYamlValue(raw);
 
   if (!isRecord(parsed)) {
-    throw new Error(`targets.yaml at ${absolutePath} must be a YAML object with a 'targets' field`);
+    throw new Error(
+      `providers catalog at ${absolutePath} must be a YAML object with a 'providers' field`,
+    );
   }
 
-  const targets = extractTargetsArray(parsed, absolutePath);
-  const definitions = targets.map((entry, index) =>
-    assertTargetDefinition(entry, index, absolutePath),
+  const providers = extractProvidersArray(parsed, absolutePath);
+  const definitions = providers.map((entry, index) =>
+    assertProviderDefinition(entry, index, absolutePath),
   );
   return definitions;
 }

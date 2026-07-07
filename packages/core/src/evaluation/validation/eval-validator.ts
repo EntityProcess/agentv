@@ -220,6 +220,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'input_files',
   'prompts',
   'tests',
+  'providers',
   'graders',
   'defaults',
   'environment',
@@ -307,14 +308,15 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'workers',
     "'workers' has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.",
   ],
-  ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
+  ['model', "Top-level 'model' is not part of eval YAML. Put model inside providers[].config."],
   [
     'policy',
     "Top-level 'policy' is not part of eval YAML. Put repeat under evaluate_options.repeat, timeout_seconds and threshold at the top level, and budget_usd under evaluate_options.",
   ],
+  ['target', "Top-level 'target' has been removed. Use top-level 'providers' instead."],
   [
-    'providers',
-    "Top-level 'providers' is not a runtime alias in AgentV eval YAML. Use 'targets' for systems under test; provider names backend kind inside each target.",
+    'targets',
+    "Top-level 'targets' has been removed. Use 'providers'; map targets[].id to providers[].label and targets[].provider to providers[].id.",
   ],
   [
     'eval_cases',
@@ -339,8 +341,8 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'preprocessors',
     "Top-level 'preprocessors' has been removed from authored eval YAML. Use default_test.options.transform or assertion-level transform instead.",
   ],
-  ['providerPromptMap', "Top-level 'providerPromptMap' is not supported. Use 'targets'."],
-  ['provider_prompt_map', "Top-level 'provider_prompt_map' is not supported. Use 'targets'."],
+  ['providerPromptMap', "Top-level 'providerPromptMap' is not supported. Use 'providers'."],
+  ['provider_prompt_map', "Top-level 'provider_prompt_map' is not supported. Use 'providers'."],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
@@ -1150,8 +1152,8 @@ async function validateCompositionDiagnostics(
           filePath,
           location: entry.location,
           message: parentHasRuntime
-            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored by legacy tests[].include suite imports. Prefer running eval files directly with CLI multi-file selection and tags.`
-            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored by legacy tests[].include suite imports. Prefer running eval files directly with CLI multi-file selection and tags.`,
+            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child providers and run controls are ignored by legacy tests[].include suite imports. Prefer running eval files directly with CLI multi-file selection and tags.`
+            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child providers and run controls are ignored by legacy tests[].include suite imports. Prefer running eval files directly with CLI multi-file selection and tags.`,
         });
       }
       continue;
@@ -1175,7 +1177,9 @@ async function validateCompositionDiagnostics(
 
 const WRAPPER_RUNTIME_CONTROL_FIELDS = [
   'experiment',
+  'providers',
   'target',
+  'targets',
   'repeat',
   'timeout_seconds',
   'evaluate_options',

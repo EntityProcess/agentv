@@ -95,14 +95,15 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
-  it('validates top-level target and run controls with field-local tests', async () => {
+  it('validates top-level providers and run controls with field-local tests', async () => {
     const filePath = path.join(tempDir, 'run-controls-field-local-tests.yaml');
     await writeFile(
       filePath,
       `name: direct-suite
 prompts:
   - "{{ prompt }}"
-target: codex
+providers:
+  - codex
 threshold: 0.8
 evaluate_options:
   budget_usd: 2
@@ -434,9 +435,9 @@ tags:
   suite: smoke
 prompts:
   - raw: "Review {{ vars.diff }}"
-targets:
-  - id: local-agent
-    provider: codex-cli
+providers:
+  - id: agentv:codex-cli
+    label: local-agent
     command: ["codex"]
 default_test:
   vars:
@@ -814,7 +815,7 @@ tests:
     );
   });
 
-  it('rejects top-level providers as a live alias for targets', async () => {
+  it('accepts top-level providers as the public candidate surface', async () => {
     const filePath = path.join(tempDir, 'top-level-providers.yaml');
     await writeFile(
       filePath,
@@ -833,15 +834,7 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(false);
-    expect(
-      result.errors.some(
-        (error) =>
-          error.severity === 'error' &&
-          error.location === 'providers' &&
-          error.message.includes("Top-level 'providers' is not a runtime alias"),
-      ),
-    ).toBe(true);
+    expect(result.valid).toBe(true);
   });
 
   it('rejects removed eval_cases and evalcases aliases for tests', async () => {
@@ -1244,7 +1237,7 @@ tests:
     ).toBe(true);
   });
 
-  it('warns that imported child target and run controls are ignored by wrapper composition', async () => {
+  it('warns that imported child providers and run controls are ignored by wrapper composition', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment.eval.yaml'),
       `target: child-target
@@ -1272,7 +1265,7 @@ tests:
         (error) =>
           error.severity === 'warning' &&
           error.location === 'tests[0].include' &&
-          error.message.includes('child target and run controls are ignored') &&
+          error.message.includes('child providers and run controls are ignored') &&
           error.message.includes('legacy tests[].include suite imports') &&
           error.message.includes('CLI multi-file selection') &&
           error.message.includes('tags'),

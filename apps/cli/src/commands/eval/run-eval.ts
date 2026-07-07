@@ -1819,6 +1819,9 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  if (yamlConfig?.defaults?.provider && options.cliTargets.length === 0 && !options.target) {
+    options = { ...options, target: yamlConfig.defaults.provider };
+  }
   if (yamlConfig?.defaults?.grader) {
     options = { ...options, defaultGraderTarget: yamlConfig.defaults.grader };
   }

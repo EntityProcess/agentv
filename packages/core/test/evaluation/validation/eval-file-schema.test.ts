@@ -214,22 +214,22 @@ describe('EvalFileSchema input shorthand', () => {
 
   it('accepts shared composable graph fields in eval YAML', () => {
     const result = EvalFileSchema.safeParse({
-      targets: [
+      providers: [
         {
-          id: 'codex-local',
-          provider: 'codex-app-server',
+          id: 'openai:codex-app-server',
+          label: 'codex-local',
           runtime: 'host',
           config: { command: ['codex', 'app-server'] },
         },
         {
-          id: 'openai-grader',
-          provider: 'openai',
+          id: 'openai',
+          label: 'openai-grader',
           runtime: 'host',
           config: { model: 'gpt-5-mini' },
         },
       ],
       defaults: {
-        target: 'codex-local',
+        provider: 'codex-local',
         grader: 'openai-grader',
       },
       tests: [baseTest],
@@ -238,12 +238,12 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects a top-level graders block — a grader is just a target', () => {
+  it('rejects a top-level graders block — a grader is just a provider', () => {
     const result = EvalFileSchema.safeParse({
-      targets: [
+      providers: [
         {
-          id: 'codex-local',
-          provider: 'codex-app-server',
+          id: 'openai:codex-app-server',
+          label: 'codex-local',
           runtime: 'host',
           config: { command: ['codex', 'app-server'] },
         },
@@ -289,16 +289,12 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts top-level target object and evaluate_options repeat controls with include selection entries', () => {
+  it('accepts top-level providers and evaluate_options repeat controls with include selection entries', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       description: 'Wrapper eval',
       experiment: 'release-gate',
-      target: {
-        extends: 'codex',
-        model: 'gpt-5.1',
-        reasoning_effort: 'high',
-      },
+      providers: [{ id: 'agentv:codex-cli', label: 'codex' }],
       threshold: 0.8,
       timeout_seconds: 300,
       evaluate_options: {
@@ -345,9 +341,26 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts Promptfoo-style colon provider specs', () => {
+    const result = EvalFileSchema.safeParse({
+      name: 'colon-providers',
+      prompts: ['{{ prompt }}'],
+      providers: [
+        'openai:gpt-4.1-mini',
+        { id: 'openai:responses:gpt-5.4', label: 'gpt5-responses' },
+        { id: 'anthropic:messages:claude-sonnet-4-6' },
+        { id: 'exec:node ./provider.js' },
+        { id: 'gateway:openai:responses:gpt-5.4' },
+      ],
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('rejects invalid evaluate_options.max_concurrency', () => {
     const result = EvalFileSchema.safeParse({
-      target: 'codex',
+      providers: ['openai:codex'],
       evaluate_options: {
         max_concurrency: 0,
       },
@@ -415,10 +428,10 @@ describe('EvalFileSchema input shorthand', () => {
           raw: 'Review {{ vars.diff }}',
         },
       ],
-      targets: [
+      providers: [
         {
-          id: 'local-agent',
-          provider: 'codex-cli',
+          id: 'agentv:codex-cli',
+          label: 'local-agent',
           config: {
             command: ['codex'],
             model: 'gpt-5.4-mini',
@@ -677,7 +690,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects top-level model because model belongs in target object', () => {
+  it('rejects top-level model because model belongs in provider config', () => {
     const result = EvalFileSchema.safeParse({
       target: 'codex',
       model: 'gpt-5.1',

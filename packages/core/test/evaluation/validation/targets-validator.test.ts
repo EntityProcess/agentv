@@ -21,9 +21,9 @@ describe('validateTargetsFile', () => {
     const filePath = path.join(tempDir, 'openrouter-target.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: openrouter-target
-    provider: openrouter
+      `providers:
+  - id: openrouter
+    label: openrouter-target
     api_key: "{{ env.OPENROUTER_API_KEY }}"
     model: openai/gpt-5-mini
 `,
@@ -34,19 +34,57 @@ describe('validateTargetsFile', () => {
     expect(
       result.errors.some(
         (error) =>
-          error.location === 'targets[0].provider' &&
+          error.location === 'providers[0].id' &&
           error.message.includes("Unknown provider 'openrouter'"),
       ),
     ).toBe(false);
   });
 
-  it('accepts id identity and config fields', async () => {
+  it('accepts Promptfoo-style colon provider specs', async () => {
+    const filePath = path.join(tempDir, 'colon-provider-specs.yaml');
+    await writeFile(
+      filePath,
+      `providers:
+  - id: openai:gpt-4.1-mini
+    api_key: "{{ env.OPENAI_API_KEY }}"
+  - id: openai:responses:gpt-5.4
+    label: gpt5-responses
+    api_key: "{{ env.OPENAI_API_KEY }}"
+  - id: anthropic:messages:claude-sonnet-4-6
+    api_key: "{{ env.ANTHROPIC_API_KEY }}"
+  - id: exec:node ./provider.js
+  - id: gateway:openai:responses:gpt-5.4
+  - id: openai:codex
+  - id: openai:codex-sdk:gpt-5.4-codex
+    label: codex-sdk
+  - id: openai:codex-app-server:gpt-5.4-codex
+    label: codex-local
+  - id: openai:codex-desktop
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          (error.message.includes("Unknown provider 'openai:gpt") ||
+            error.message.includes("Unknown provider 'anthropic:messages") ||
+            error.message.includes("Unknown provider 'exec:node") ||
+            error.message.includes("Unknown provider 'openai:codex")),
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts label identity and config fields', async () => {
     const filePath = path.join(tempDir, 'promptfoo-shaped-target.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: candidate-agent
-    provider: codex-cli
+      `providers:
+  - id: agentv:codex-cli
+    label: candidate-agent
     config:
       command: ["codex"]
       model: "{{ env.CODEX_MODEL }}"
@@ -57,13 +95,13 @@ describe('validateTargetsFile', () => {
     grader_target: grader
     fallback_targets: [backup-agent]
     batch_requests: true
-  - id: grader
-    provider: openai
+  - id: openai
+    label: grader
     config:
       api_key: "{{ env.OPENAI_API_KEY }}"
       model: gpt-5-mini
-  - id: backup-agent
-    provider: mock
+  - id: mock
+    label: backup-agent
     config:
       response: backup
 `,
@@ -79,9 +117,9 @@ describe('validateTargetsFile', () => {
     const filePath = path.join(tempDir, 'removed-provider-batching.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - label: batch-cli
-    provider: mock
+      `providers:
+  - id: mock
+    label: batch-cli
     provider_batching: true
 `,
     );
@@ -93,19 +131,19 @@ describe('validateTargetsFile', () => {
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].provider_batching' &&
+          error.location === 'providers[0].provider_batching' &&
           error.message.includes("Use 'batch_requests' instead"),
       ),
     ).toBe(true);
   });
 
-  it('rejects authored target name in favor of id', async () => {
+  it('rejects authored provider name in favor of id', async () => {
     const filePath = path.join(tempDir, 'legacy-name-target.yaml');
     await writeFile(
       filePath,
-      `targets:
+      `providers:
   - name: legacy-agent
-    provider: mock
+    id: mock
 `,
     );
 
@@ -116,7 +154,7 @@ describe('validateTargetsFile', () => {
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].id' &&
+          error.location === 'providers[0].id' &&
           error.message.includes("Missing or invalid 'id' field"),
       ),
     ).toBe(true);
@@ -124,21 +162,21 @@ describe('validateTargetsFile', () => {
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].name' &&
-          error.message.includes("Use 'id'"),
+          error.location === 'providers[0].name' &&
+          error.message.includes("Use 'label'"),
       ),
     ).toBe(true);
   });
 
-  it('rejects top-level providers as a targets.yaml runtime alias', async () => {
+  it('rejects removed top-level targets in provider catalogs', async () => {
     const filePath = path.join(tempDir, 'top-level-providers.yaml');
     await writeFile(
       filePath,
       `providers:
-  - label: candidate-agent
-    provider: mock
+  - id: mock
+    label: candidate-agent
 targets:
-  - label: candidate-agent
+  - id: candidate-agent
     provider: mock
 `,
     );
@@ -150,8 +188,8 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'providers' &&
-          error.message.includes("Top-level 'providers' is not a runtime alias"),
+          error.location === 'targets' &&
+          error.message.includes("Top-level 'targets' has been removed"),
       ),
     ).toBe(true);
   });
@@ -160,27 +198,27 @@ targets:
     const filePath = path.join(tempDir, 'removed-provider-aliases.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - label: azure-alias
-    provider: azure-openai
-  - label: google-alias
-    provider: google
-  - label: google-gemini-alias
-    provider: google-gemini
-  - label: copilot-alias
-    provider: copilot
-  - label: claude-alias
-    provider: claude
-  - label: copilot-sdk-alias
-    provider: copilot_sdk
-  - label: pi-alias
-    provider: pi
-  - label: claude-code-alias
-    provider: claude-code
-  - label: bedrock-future
-    provider: bedrock
-  - label: vertex-future
-    provider: vertex
+      `providers:
+  - id: azure-openai
+    label: azure-alias
+  - id: google
+    label: google-alias
+  - id: google-gemini
+    label: google-gemini-alias
+  - id: copilot
+    label: copilot-alias
+  - id: claude
+    label: claude-alias
+  - id: copilot_sdk
+    label: copilot-sdk-alias
+  - id: pi
+    label: pi-alias
+  - id: claude-code
+    label: claude-code-alias
+  - id: bedrock
+    label: bedrock-future
+  - id: vertex
+    label: vertex-future
 `,
     );
 
@@ -200,7 +238,7 @@ targets:
         result.errors.some(
           (error) =>
             error.severity === 'warning' &&
-            error.location.endsWith('.provider') &&
+            error.location.endsWith('.id') &&
             error.message.includes(`Unknown provider '${provider}'`),
         ),
       ).toBe(true);
@@ -210,7 +248,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[3].provider' &&
+          error.location === 'providers[3].id' &&
           error.message.includes("Ambiguous provider 'copilot'") &&
           error.message.includes('copilot-cli') &&
           error.message.includes('copilot-sdk'),
@@ -220,7 +258,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[4].provider' &&
+          error.location === 'providers[4].id' &&
           error.message.includes("Ambiguous provider 'claude'") &&
           error.message.includes('claude-cli') &&
           error.message.includes('claude-sdk'),
@@ -232,16 +270,16 @@ targets:
     const filePath = path.join(tempDir, 'camel-case-aliases.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: codex-target
-    provider: codex-cli
+      `providers:
+  - id: agentv:codex-cli
+    label: codex-target
     command: ["codex"]
     timeoutSeconds: 30
     logDir: ./logs
     systemPrompt: Be precise.
     modelReasoningEffort: low
-  - label: cli-target
-    provider: cli
+  - id: cli
+    label: cli-target
     command: echo {PROMPT}
     healthcheck:
       command: echo ok
@@ -256,7 +294,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].timeoutSeconds' &&
+          error.location === 'providers[0].timeoutSeconds' &&
           error.message.includes("Use 'timeout_seconds' instead"),
       ),
     ).toBe(true);
@@ -264,7 +302,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].logDir' &&
+          error.location === 'providers[0].logDir' &&
           error.message.includes("Use 'log_dir' instead"),
       ),
     ).toBe(true);
@@ -272,7 +310,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].systemPrompt' &&
+          error.location === 'providers[0].systemPrompt' &&
           error.message.includes("Use 'system_prompt' instead"),
       ),
     ).toBe(true);
@@ -280,7 +318,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].modelReasoningEffort' &&
+          error.location === 'providers[0].modelReasoningEffort' &&
           error.message.includes("Use 'reasoning_effort' instead"),
       ),
     ).toBe(true);
@@ -288,7 +326,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[1].healthcheck.timeoutSeconds' &&
+          error.location === 'providers[1].healthcheck.timeoutSeconds' &&
           error.message.includes("Use 'timeout_seconds' instead"),
       ),
     ).toBe(true);
@@ -298,9 +336,9 @@ targets:
     const filePath = path.join(tempDir, 'codex-reasoning-effort.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: codex-target
-    provider: codex-cli
+      `providers:
+  - id: agentv:codex-cli
+    label: codex-target
     command: ["codex"]
     model: "{{ env.CODEX_MODEL }}"
     reasoning_effort: "{{ env.CODEX_REASONING_EFFORT }}"
@@ -316,9 +354,9 @@ targets:
     const filePath = path.join(tempDir, 'copilot-flat-provider.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: copilot-sdk-custom-provider
-    provider: copilot-sdk
+      `providers:
+  - id: copilot-sdk
+    label: copilot-sdk-custom-provider
     model: gpt-5
     subprovider: openai
     base_url: "{{ env.OPENAI_ENDPOINT }}"
@@ -326,8 +364,8 @@ targets:
     api_format: responses
     model_id: gpt-5
     wire_model: "{{ env.OPENAI_MODEL }}"
-  - id: copilot-cli-custom-provider
-    provider: copilot-cli
+  - id: copilot-cli
+    label: copilot-cli-custom-provider
     subprovider: openai
     base_url: "{{ env.OPENAI_ENDPOINT }}"
     api_key: "{{ env.OPENAI_API_KEY }}"
@@ -345,9 +383,9 @@ targets:
     const filePath = path.join(tempDir, 'codex-openai-provider.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: codex-local-openai
-    provider: codex-cli
+      `providers:
+  - id: agentv:codex-cli
+    label: codex-local-openai
     command: ["codex"]
     model: "{{ env.CODEX_MODEL }}"
     reasoning_effort: medium
@@ -370,21 +408,21 @@ targets:
     const filePath = path.join(tempDir, 'copilot-removed-provider-fields.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - label: copilot-sdk-custom
-    provider: copilot-sdk
+      `providers:
+  - id: copilot-sdk
+    label: copilot-sdk-custom
     custom_provider:
       type: openai
       base_url: "{{ env.OPENAI_ENDPOINT }}"
       api_key: "{{ env.OPENAI_API_KEY }}"
-  - label: copilot-sdk-byok
-    provider: copilot-sdk
+  - id: copilot-sdk
+    label: copilot-sdk-byok
     byok:
       type: openai
       base_url: "{{ env.OPENAI_ENDPOINT }}"
       api_key: "{{ env.OPENAI_API_KEY }}"
-  - label: copilot-cli-custom
-    provider: copilot-cli
+  - id: copilot-cli
+    label: copilot-cli-custom
     custom_provider:
       type: openai
       base_url: "{{ env.OPENAI_ENDPOINT }}"
@@ -408,18 +446,19 @@ targets:
     ).toBe(true);
   });
 
-  it('rejects use_target on authored target definitions', async () => {
+  it('rejects use_target on authored provider definitions', async () => {
     const filePath = path.join(tempDir, 'templated-use-target.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: default
-    provider: mock
+      `providers:
+  - id: mock
+    label: default
     use_target: "{{ env.AGENT_TARGET }}"
-  - id: grader
+  - id: mock
+    label: grader
     use_target: "{{ env.GRADER_TARGET }}"
-  - id: codex-agent
-    provider: codex-cli
+  - id: agentv:codex-cli
+    label: codex-agent
     command: ["codex"]
     grader_target: grader
 `,
@@ -431,26 +470,26 @@ targets:
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         severity: 'error',
-        location: 'targets[0].use_target',
+        location: 'providers[0].use_target',
         message: expect.stringContaining("'use_target' field has been removed"),
       }),
     );
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         severity: 'error',
-        location: 'targets[1].use_target',
+        location: 'providers[1].use_target',
         message: expect.stringContaining("'use_target' field has been removed"),
       }),
     );
   });
 
-  it('rejects legacy env interpolation in target YAML', async () => {
+  it('rejects legacy env interpolation in provider YAML', async () => {
     const filePath = path.join(tempDir, 'legacy-env-target.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: openai-target
-    provider: openai
+      `providers:
+  - id: openai
+    label: openai-target
     api_key: \${{ OPENAI_API_KEY }}
     model: gpt-5-mini
 `,
@@ -462,7 +501,7 @@ targets:
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         severity: 'error',
-        location: 'targets[0].api_key',
+        location: 'providers[0].api_key',
         message: expect.stringContaining('Use {{ env.OPENAI_API_KEY }} instead'),
       }),
     );
@@ -472,14 +511,14 @@ targets:
     const filePath = path.join(tempDir, 'judge-target-alias.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - label: codex-agent
-    provider: codex-cli
+      `providers:
+  - id: agentv:codex-cli
+    label: codex-agent
     command: ["codex"]
     model: gpt-5
     judge_target: grader
-  - label: grader
-    provider: openai
+  - id: openai
+    label: grader
     model: gpt-5-mini
 `,
     );
@@ -491,7 +530,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].judge_target' &&
+          error.location === 'providers[0].judge_target' &&
           error.message.includes("'judge_target' field has been removed"),
       ),
     ).toBe(true);
@@ -501,12 +540,12 @@ targets:
     const filePath = path.join(tempDir, 'log-format-aliases.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - label: copilot-agent
-    provider: copilot-cli
+      `providers:
+  - id: copilot-cli
+    label: copilot-agent
     log_format: json
-  - label: claude-agent
-    provider: claude-cli
+  - id: claude-cli
+    label: claude-agent
     log_output_format: summary
 `,
     );
@@ -518,7 +557,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].log_format' &&
+          error.location === 'providers[0].log_format' &&
           error.message.includes("Use 'stream_log: raw'"),
       ),
     ).toBe(true);
@@ -526,7 +565,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[1].log_output_format' &&
+          error.location === 'providers[1].log_output_format' &&
           error.message.includes("Use 'stream_log: raw'"),
       ),
     ).toBe(true);
@@ -536,9 +575,9 @@ targets:
     const filePath = path.join(tempDir, 'azure-api-format.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - label: azure-responses
-    provider: azure
+      `providers:
+  - id: azure
+    label: azure-responses
     endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
     api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
     model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
@@ -552,7 +591,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0].api_format' &&
+          error.location === 'providers[0].api_format' &&
           /'api_format' field has been removed/i.test(error.message),
       ),
     ).toBe(true);
@@ -562,9 +601,9 @@ targets:
     const filePath = path.join(tempDir, 'replay-execution-traces.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: replay-execution-trace
-    provider: replay
+      `providers:
+  - id: replay
+    label: replay-execution-trace
     execution_traces: ./fixtures/execution-traces.jsonl
     source_target: live-agent
 `,
@@ -582,9 +621,9 @@ targets:
     const filePath = path.join(tempDir, 'replay-transcripts.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - id: replay-transcript
-    provider: replay
+      `providers:
+  - id: replay
+    label: replay-transcript
     transcripts: ./fixtures/transcript.jsonl
     source_target: live-agent
 `,
@@ -602,9 +641,9 @@ targets:
     const filePath = path.join(tempDir, 'replay-ambiguous-source.yaml');
     await writeFile(
       filePath,
-      `targets:
-  - label: replay-ambiguous
-    provider: replay
+      `providers:
+  - id: replay
+    label: replay-ambiguous
     fixtures: ./fixtures/target-output.jsonl
     execution_traces: ./fixtures/execution-traces.jsonl
     source_target: live-agent
@@ -618,7 +657,7 @@ targets:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'targets[0]' &&
+          error.location === 'providers[0]' &&
           /exactly one replay source/i.test(error.message),
       ),
     ).toBe(true);
