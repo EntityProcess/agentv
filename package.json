@@ -8,7 +8,7 @@
   "scripts": {
     "build": "bun --filter @agentv/core build && bun --filter @agentv/sdk build && bun --filter @agentv/dashboard build && bun --filter agentv build",
     "verify": "bun run build && bun run typecheck && bun run lint && bun run test",
-    "typecheck": "bun --filter @agentv/core typecheck && bun --filter @agentv/sdk typecheck && bun --filter agentv typecheck",
+    "typecheck": "bun --filter @agentv/core build && bun --filter @agentv/sdk build && bun --filter @agentv/core typecheck && bun --filter @agentv/sdk typecheck && bun --filter agentv typecheck",
     "typecheck:workspace": "tsc -b tsconfig.build.json",
     "typecheck:watch": "bun --filter @agentv/core typecheck -- --watch & bun --filter agentv typecheck -- --watch",
     "lint": "biome check .",
