@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import YAML from 'yaml';
@@ -7,6 +7,8 @@ import { PromptfooExportDiagnostic, exportPromptfooConfig } from './export-promp
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const FIXTURE_DIR = path.join(ROOT, 'scripts', 'fixtures', 'promptfoo-export');
+const PROMPTFOO_ORACLE_VERSION = '0.121.15';
+const PROMPTFOO_REFERENCE_CLONE_COMMIT = '6bfc5a0c7f16f9c4717ac731d276b578e63d0769';
 
 function outputPath(name: string): string {
   return path.join(mkdtempSync(path.join(tmpdir(), 'agentv-promptfoo-export-')), name);
@@ -14,6 +16,65 @@ function outputPath(name: string): string {
 
 function parseYamlFile(filePath: string): Record<string, unknown> {
   return YAML.parse(readFileSync(filePath, 'utf8')) as Record<string, unknown>;
+}
+
+function readJsonlFile(filePath: string): Array<Record<string, unknown>> {
+  return readFileSync(filePath, 'utf8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+function copyOraclePromptfooFiles(output: string): void {
+  for (const name of ['oracle-target-provider.cjs', 'oracle-grader-provider.cjs']) {
+    copyFileSync(path.join(FIXTURE_DIR, name), path.join(path.dirname(output), name));
+  }
+}
+
+function runPromptfooOracle(configPath: string, outputPath: string): void {
+  const result = Bun.spawnSync({
+    cmd: [
+      'bunx',
+      `promptfoo@${PROMPTFOO_ORACLE_VERSION}`,
+      'eval',
+      '-c',
+      configPath,
+      '--no-cache',
+      '--no-table',
+      '--no-write',
+      '-o',
+      outputPath,
+    ],
+    stdout: 'pipe',
+    stderr: 'pipe',
+    env: {
+      ...process.env,
+      CI: 'true',
+      NO_COLOR: '1',
+      PROMPTFOO_DISABLE_UPDATE: 'true',
+    },
+  });
+
+  if (!result.success) {
+    throw new Error(
+      [
+        `promptfoo@${PROMPTFOO_ORACLE_VERSION} eval failed with exit code ${result.exitCode}`,
+        result.stdout.toString(),
+        result.stderr.toString(),
+      ].join('\n'),
+    );
+  }
+}
+
+function getPath(value: unknown, keys: string[]): unknown {
+  return keys.reduce<unknown>(
+    (current, key) =>
+      current && typeof current === 'object' && !Array.isArray(current)
+        ? (current as Record<string, unknown>)[key]
+        : undefined,
+    value,
+  );
 }
 
 describe('exportPromptfooConfig', () => {
@@ -81,6 +142,22 @@ describe('exportPromptfooConfig', () => {
     expect(exported).not.toHaveProperty('evaluate_options');
   });
 
+  it('lowers AgentV defaults to Promptfoo defaultTest provider selectors', () => {
+    const output = outputPath('promptfooconfig.yaml');
+    exportPromptfooConfig({
+      inputPath: path.join(FIXTURE_DIR, 'oracle-matrix.agentv.yaml'),
+      outputPath: output,
+    });
+
+    const exported = parseYamlFile(output);
+    const defaultTest = exported.defaultTest as Record<string, unknown>;
+    const options = defaultTest.options as Record<string, unknown>;
+
+    expect(exported).not.toHaveProperty('defaults');
+    expect(defaultTest.providers).toEqual(['target-default']);
+    expect(options.provider).toBe('grader-default');
+  });
+
   it('lowers host environment setup to a generated Promptfoo extension and workdir metadata', () => {
     const output = outputPath('promptfooconfig.yaml');
     exportPromptfooConfig({
@@ -142,4 +219,58 @@ describe('exportPromptfooConfig', () => {
       expect((error as Error).message).toContain('isolation, image/context, mounts, services');
     }
   });
+
+  it('executes exported Promptfoo config with deterministic matrix and grader outcomes', () => {
+    const output = outputPath('promptfooconfig.yaml');
+    const resultOutput = path.join(path.dirname(output), 'promptfoo-results.jsonl');
+    exportPromptfooConfig({
+      inputPath: path.join(FIXTURE_DIR, 'oracle-matrix.agentv.yaml'),
+      outputPath: output,
+    });
+    copyOraclePromptfooFiles(output);
+
+    const exported = parseYamlFile(output);
+    expect(getPath(exported, ['metadata', 'agentv_promptfoo_oracle'])).toEqual({
+      promptfoo_version: PROMPTFOO_ORACLE_VERSION,
+      promptfoo_reference_clone_commit: PROMPTFOO_REFERENCE_CLONE_COMMIT,
+    });
+
+    runPromptfooOracle(output, resultOutput);
+    const rows = readJsonlFile(resultOutput);
+
+    expect(rows).toHaveLength(3);
+    expect(
+      rows.map((row) => ({
+        caseId: getPath(row, ['vars', 'case_id']),
+        provider: getPath(row, ['provider', 'label']),
+        success: row.success,
+        output: getPath(row, ['response', 'output']),
+        reasons: (
+          getPath(row, ['gradingResult', 'componentResults']) as Array<Record<string, unknown>>
+        ).map((result) => result.reason),
+      })),
+    ).toEqual([
+      {
+        caseId: 'default-case',
+        provider: 'target-default',
+        success: true,
+        output: 'DEFAULT:default-case',
+        reasons: ['graded-by:default', 'Assertion passed'],
+      },
+      {
+        caseId: 'test-options-case',
+        provider: 'target-default',
+        success: true,
+        output: 'DEFAULT:test-options-case',
+        reasons: ['graded-by:test-options', 'Assertion passed'],
+      },
+      {
+        caseId: 'assertion-override-case',
+        provider: 'target-override',
+        success: true,
+        output: 'OVERRIDE:assertion-override-case',
+        reasons: ['graded-by:default', 'Assertion passed', 'graded-by:assertion'],
+      },
+    ]);
+  }, 20000);
 });

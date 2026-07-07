@@ -345,13 +345,48 @@ function defaultTestWithEnvironment(value: unknown, environment: HostEnvironment
   };
 }
 
+function defaultTestWithAgentVDefaults(value: unknown, defaults: unknown): JsonMap {
+  if (typeof value === 'string') {
+    throw new PromptfooExportDiagnostic(
+      'unsupported_defaults_default_test_ref',
+      'defaults.provider/defaults.grader export cannot merge into a default_test file reference yet. Inline default_test before exporting to Promptfoo.',
+    );
+  }
+  const defaultTest =
+    value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonMap) : {};
+  const defaultOptions =
+    defaultTest.options &&
+    typeof defaultTest.options === 'object' &&
+    !Array.isArray(defaultTest.options)
+      ? (defaultTest.options as JsonMap)
+      : {};
+  const defaultValues = assertRecord(defaults, 'defaults');
+  const provider = defaultValues.provider;
+  const grader = defaultValues.grader;
+
+  return {
+    ...defaultTest,
+    ...(typeof provider === 'string' && defaultTest.providers === undefined
+      ? { providers: [lowerProviderId(provider)] }
+      : {}),
+    ...(typeof grader === 'string' && defaultOptions.provider === undefined
+      ? { options: { ...defaultOptions, provider: lowerProviderId(grader) } }
+      : {}),
+  };
+}
+
 function promptfooConfigFromAgentVConfig(
   config: JsonMap,
   environment?: HostEnvironmentExport,
 ): JsonMap {
   const promptfooConfig: JsonMap = {};
+  let defaults: unknown;
   for (const [key, value] of Object.entries(config)) {
     if (key === 'environment') {
+      continue;
+    }
+    if (key === 'defaults') {
+      defaults = value;
       continue;
     }
     const outputKey = TOP_LEVEL_KEY_RENAMES[key] ?? key;
@@ -360,9 +395,7 @@ function promptfooConfigFromAgentVConfig(
       continue;
     }
     if (key === 'default_test') {
-      promptfooConfig[outputKey] = environment
-        ? defaultTestWithEnvironment(value, environment)
-        : value;
+      promptfooConfig[outputKey] = value;
       continue;
     }
     if (key === 'evaluate_options') {
@@ -371,8 +404,17 @@ function promptfooConfigFromAgentVConfig(
     }
     promptfooConfig[outputKey] = value;
   }
-  if (environment && !('defaultTest' in promptfooConfig)) {
-    promptfooConfig.defaultTest = defaultTestWithEnvironment(undefined, environment);
+  if (defaults !== undefined) {
+    promptfooConfig.defaultTest = defaultTestWithAgentVDefaults(
+      promptfooConfig.defaultTest,
+      defaults,
+    );
+  }
+  if (environment) {
+    promptfooConfig.defaultTest = defaultTestWithEnvironment(
+      promptfooConfig.defaultTest,
+      environment,
+    );
   }
   if (environment) {
     promptfooConfig.metadata = mergeJsonObject(promptfooConfig.metadata, {
