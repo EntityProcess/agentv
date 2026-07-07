@@ -907,7 +907,7 @@ export class LlmGrader implements Grader {
     provider: Provider,
     modeLabel: string,
   ): Promise<EvaluationScore> {
-    const workspacePath = context.workspacePath;
+    const workspacePath = context.workspacePath ?? resolveContentBasePath(context) ?? process.cwd();
     const verdictFile = await createAgentVerdictFile(workspacePath);
     const prompt = this.buildDelegatedPrompt(context, verdictFile.path);
 

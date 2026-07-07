@@ -473,7 +473,7 @@ export type LlmGraderConfig = {
   readonly min_score?: number;
   /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
-  /** Optional target override for this grader (uses a named LLM target from targets.yaml). */
+  /** Internal normalized provider override for this grader (authored as assertion `provider`). */
   readonly target?: string;
   /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;

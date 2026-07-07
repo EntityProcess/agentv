@@ -1,6 +1,6 @@
 # Rubric Graders
 
-Rubrics are defined as `assert` entries with plain strings, `type: llm-rubric`, or `type: agent-rubric`. They support binary checklist grading and score-range analytic grading. Use `agent-rubric` only when the grader target is an agent-capable provider that should inspect workspace evidence.
+Rubrics are defined as `assert` entries with plain strings, `type: llm-rubric`, or `type: agent-rubric`. They support binary checklist grading and score-range analytic grading. Use `agent-rubric` only when the grader provider is agent-capable and should inspect workspace evidence.
 
 ## Field Reference
 
@@ -119,14 +119,14 @@ Ranges must be integers 0-10, non-overlapping, covering all values 0-10.
 
 ## Agent Rubric Mode
 
-`agent-rubric` accepts the same `value`, `target`, `max_steps`, `required`, and
-`min_score` fields as `llm-rubric`, but the resolved grader target must be
+`agent-rubric` accepts the same `value`, `provider`, `max_steps`, `required`, and
+`min_score` fields as `llm-rubric`, but the resolved grader provider must be
 agent-capable:
 
 ```yaml
 assert:
   - type: agent-rubric
-    target: codex-grader
+    provider: codex-grader
     value: Inspect the workspace and verify the claimed files exist.
 ```
 

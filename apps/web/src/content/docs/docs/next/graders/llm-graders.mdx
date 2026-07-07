@@ -57,12 +57,12 @@ scoring path, so results still appear as normal `EvaluationScore` entries.
 assert:
   - name: workspace-evidence
     type: agent-rubric
-    target: codex-grader
+    provider: codex-grader
     value: The answer's claims are backed by concrete files in the workspace.
 ```
 
-The resolved grader target must be agent-capable, such as a Codex, Claude,
-Copilot, Pi, VS Code, or `agentv` grader target. If `target:` resolves to a
+The resolved grader provider must be agent-capable, such as a Codex, Claude,
+Copilot, Pi, VS Code, or `agentv` provider. If `provider:` resolves to a
 plain LLM grader provider, AgentV fails clearly instead of silently downgrading
 the check.
 

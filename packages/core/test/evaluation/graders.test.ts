@@ -65,6 +65,7 @@ class VerdictWritingAgentProvider implements Provider {
   readonly kind = 'codex-cli' as const;
   readonly targetName = 'agent';
   lastRequest?: ProviderRequest;
+  lastVerdictPath?: string;
 
   constructor(private readonly verdict: string | Record<string, unknown>) {}
 
@@ -75,6 +76,7 @@ class VerdictWritingAgentProvider implements Provider {
     if (!match) {
       throw new Error('No verdict file path found in grader prompt');
     }
+    this.lastVerdictPath = match[0];
     const content = typeof this.verdict === 'string' ? this.verdict : JSON.stringify(this.verdict);
     await writeFile(match[0], content);
     return textResponse('assistant text should not be parsed when verdict file exists');
@@ -1442,6 +1444,45 @@ describe('LlmGrader (llm-grader)', () => {
     }
   });
 
+  it('creates delegate agent verdict files under target cwd when workspacePath is absent', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'agentv-agent-rubric-cwd-'));
+    const graderProvider = new VerdictWritingAgentProvider({
+      pass: true,
+      score: 1,
+      reason: 'Verdict file was writable under the eval cwd.',
+    });
+
+    try {
+      const evaluator = new LlmGrader({
+        resolveGraderProvider: async () => graderProvider,
+      });
+
+      const result = await evaluator.evaluate({
+        evalCase: { ...baseTestCase, evaluator: 'agent-rubric' },
+        candidate: 'Answer',
+        target: { ...baseTarget, config: { cwd: tempDir } },
+        provider: graderProvider,
+        attempt: 0,
+        promptInputs: { question: '' },
+        now: new Date(),
+        evaluator: {
+          name: 'agent-rubric',
+          type: 'agent-rubric',
+          value: 'Inspect writable eval cwd evidence',
+        },
+      });
+
+      expect(result.verdict).toBe('pass');
+      expect(result.details?.verdict_source).toBe('file');
+      expect(graderProvider.lastRequest?.cwd).toBe(tempDir);
+      expect(graderProvider.lastVerdictPath?.startsWith(join(tempDir, '.agentv', 'tmp'))).toBe(
+        true,
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('fails closed when an agent grader verdict file has invalid JSON', async () => {
     const tempDir = await mkdtemp(join(tmpdir(), 'agentv-agent-rubric-invalid-'));
     const graderProvider = new VerdictWritingAgentProvider('{not json');
@@ -1475,7 +1516,7 @@ describe('LlmGrader (llm-grader)', () => {
     }
   });
 
-  it('rejects agent-rubric when an explicit grader target is not agent-capable', () => {
+  it('rejects agent-rubric when an explicit grader provider is not agent-capable', () => {
     const graderProvider = new CapturingProvider(textResponse('{}'), 'plain-llm');
 
     expect(() =>

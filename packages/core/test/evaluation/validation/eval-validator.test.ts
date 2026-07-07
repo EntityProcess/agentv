@@ -2036,7 +2036,7 @@ tests:
     assert:
       - type: agent-rubric
         value: "Inspect the workspace and verify the evidence"
-        target: codex-grader
+        provider: codex-grader
 `,
       );
 

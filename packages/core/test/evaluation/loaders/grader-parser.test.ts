@@ -388,7 +388,7 @@ describe('parseGraders - deterministic assertion types', () => {
             metric: 'agent-check',
             type: 'agent-rubric',
             value: 'Inspect the workspace and verify the claimed file exists',
-            target: 'codex-grader',
+            provider: 'codex-grader',
             max_steps: 4,
           },
         ],

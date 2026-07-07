@@ -109,7 +109,7 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
     }
     if (!graderTargetProvider) {
       throw new Error(
-        `llm-grader evaluator '${c.name}': target '${c.target}' not found in targets`,
+        `llm-grader evaluator '${c.name}': provider '${c.target}' not found in configured providers`,
       );
     }
     // Only pass graderTargetProvider for agent providers (delegate mode).
@@ -119,7 +119,7 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
     const isAgent = isAgentCapableGraderProvider(graderTargetProvider);
     if (c.type === 'agent-rubric' && !isAgent) {
       throw new Error(
-        `agent-rubric evaluator '${c.name}': target '${c.target}' must resolve to an agent-capable grader provider`,
+        `agent-rubric evaluator '${c.name}': provider '${c.target}' must resolve to an agent-capable grader provider`,
       );
     }
     evaluator = new LlmGrader({
