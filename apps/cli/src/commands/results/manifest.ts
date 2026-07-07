@@ -130,42 +130,12 @@ export interface ManifestHydrationOptions {
 
 type HydratedScore = NonNullable<EvaluationResult['scores']>[number];
 
-function mapGradingAssertions(
-  value: unknown,
-): NonNullable<EvaluationResult['assertions']> | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  return value.map((assertion) => {
-    const record = assertion as Record<string, unknown>;
-    return {
-      text: String(record.text ?? ''),
-      passed: Boolean(record.passed),
-      evidence: typeof record.evidence === 'string' ? record.evidence : undefined,
-    };
-  });
-}
-
-function readGradingAssertionResults(
-  record: Record<string, unknown>,
-): NonNullable<EvaluationResult['assertions']> | undefined {
-  return mapGradingAssertions(
-    Array.isArray(record.assertion_results) ? record.assertion_results : record.assertions,
-  );
-}
-
 function readNestedGradingScores(record: Record<string, unknown>): unknown {
   if (Array.isArray(record.component_results)) {
     return record.component_results;
   }
   if (Array.isArray(record.scores)) {
     return record.scores;
-  }
-  if (Array.isArray(record.graders)) {
-    return record.graders;
-  }
-  if (Array.isArray(record.evaluators)) {
-    return record.evaluators;
   }
   return undefined;
 }
@@ -209,11 +179,7 @@ function collectComponentAssertions(value: unknown): NonNullable<EvaluationResul
 }
 
 function mapGradingEvaluator(evaluator: Record<string, unknown>): HydratedScore {
-  const pass =
-    typeof evaluator.pass === 'boolean'
-      ? evaluator.pass
-      : evaluator.verdict === 'pass' ||
-        (typeof evaluator.score === 'number' && evaluator.score >= 0.8);
+  const pass = evaluator.pass === true;
   const verdict = pass ? ('pass' as const) : ('fail' as const);
   const details =
     evaluator.details && typeof evaluator.details === 'object' && !Array.isArray(evaluator.details)
@@ -236,7 +202,7 @@ function mapGradingEvaluator(evaluator: Record<string, unknown>): HydratedScore 
       if (nestedAssertions.length > 0) {
         return nestedAssertions;
       }
-      return readGradingAssertionResults(evaluator) ?? [mapComponentAssertion(evaluator)];
+      return [mapComponentAssertion(evaluator)];
     })(),
     scores: mapGradingEvaluators(readNestedGradingScores(evaluator)),
     weight: typeof evaluator.weight === 'number' ? evaluator.weight : undefined,
@@ -401,15 +367,8 @@ function hydrateManifestRecord(
   const gradingAssertions = grading
     ? collectComponentAssertions((grading as unknown as Record<string, unknown>).component_results)
     : undefined;
-  const gradingRecord = grading as
-    | (GradingArtifact & {
-        graders?: readonly Record<string, unknown>[];
-        evaluators?: readonly Record<string, unknown>[];
-      })
-    | undefined;
-  const gradingScores = mapGradingEvaluators(
-    gradingRecord?.component_results ?? gradingRecord?.graders ?? gradingRecord?.evaluators,
-  );
+  const gradingRecord = grading as GradingArtifact | undefined;
+  const gradingScores = mapGradingEvaluators(gradingRecord?.component_results);
 
   return {
     timestamp: record.timestamp,
@@ -426,10 +385,7 @@ function hydrateManifestRecord(
       passed: assertion.passed,
       evidence: assertion.evidence,
     })),
-    scores:
-      // `evaluators` was renamed to `graders` in v4.13 — read both for backwards compat with old artifacts.
-      // TODO: remove `evaluators` fallback once old run directories are no longer in use.
-      gradingScores ?? (record.scores as EvaluationResult['scores']),
+    scores: gradingScores ?? (record.scores as EvaluationResult['scores']),
     tokenUsage: metrics?.tokens
       ? {
           input: metrics.tokens.input,
