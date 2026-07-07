@@ -70,11 +70,11 @@ indexes into Phoenix.
 
 ## Features
 
-- **Recent Runs** — table of all evaluation runs with source badge (`local` / `remote`), target, experiment, timestamp, test count, pass rate, and mean score
+- **Recent Runs** — table of all evaluation runs with source badge (`local` / `remote`), provider/model label, experiment, timestamp, test count, pass rate, and mean score
 - **Experiments** — group and compare runs by experiment name
-- **Targets** — group runs by target (model/agent)
+- **Targets** — group runs by provider/model label
 - **Run Detail** — drill into a run to see per-test results, scores, and grader output
-- **Analytics** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags. Includes a collapsible charts section with baseline comparison analytics
+- **Analytics** — provider/model comparison for multi-provider eval runs, an aggregated experiment × provider/model matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags. Includes a collapsible charts section with baseline comparison analytics
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
 
 ## Pass threshold
@@ -90,7 +90,7 @@ Legacy `studio.threshold`, `studio.pass_threshold`, and root-level `pass_thresho
 
 ## Run Detail
 
-Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from. Files and source views resolve against the generated run artifacts referenced by `index.jsonl`—including per-result test bundles when present—so Dashboard does not require authors to create a separate source-side bundle structure.
+Click any run to see a breakdown by suite, per-test scores, provider/model label, duration, and cost. The source label (`local` or `remote`) tells you where the run came from. Files and source views resolve against the generated run artifacts referenced by `index.jsonl`—including per-result test bundles when present—so Dashboard does not require authors to create a separate source-side bundle structure.
 
 In the per-test results table, click a test ID to open its checks, transcript, source, and files in a row detail panel while the table, filters, and scroll position stay in place. Use **Full page** from the panel when you want the standalone eval detail route.
 
@@ -116,13 +116,13 @@ The Experiments tab groups runs by experiment name so you can compare the impact
 
 ## Analytics
 
-The **Analytics** tab has two modes: **Aggregated** for the classic experiment × target matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
+The **Analytics** tab has two modes: **Aggregated** for the experiment × provider/model matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
 
 <Image src={studioCompareSideBySide} alt="AgentV Dashboard side-by-side comparison of two runs tagged improved-prompt and baseline, with per-test pass rates" />
 
 ### Aggregated matrix
 
-The default view shows a cross-experiment, cross-target performance matrix. Numbers are colour-coded by pass rate — green (80%+), amber (50–80%), red (below 50%) — and each cell shows `passed/total` and the mean score. Click any cell to expand the per-test-case breakdown.
+The default view shows a cross-experiment, cross-provider/model performance matrix. Numbers are colour-coded by pass rate — green (80%+), amber (50–80%), red (below 50%) — and each cell shows `passed/total` and the mean score. Click any cell to expand the per-test-case breakdown.
 
 <Image src={studioAnalyticsAggregated} alt="AgentV Dashboard Analytics tab showing aggregated experiment × target matrix with pass rates for baseline, optimized-prompt, and with-rag across claude-sonnet, gemini-pro, and gpt-4o" />
 
@@ -136,9 +136,25 @@ agentv eval my.EVAL.yaml --provider gemini --experiment with-caching
 agentv dashboard  # Analytics tab shows 2x2 matrix
 ```
 
+When one run evaluates the same prompt/test matrix across multiple provider labels, Analytics also shows a **Provider/model comparison** table. Each row is a test case and each column is a provider/model label from the run, with pass/score, answer output, timing, and links to the raw answer, grading, and transcript artifacts. Use this for Promptfoo-style model comparison:
+
+```yaml
+providers:
+  - id: openai
+    label: gpt-5.4
+    config:
+      model: "{{ env.MODEL_A }}"
+  - id: openai
+    label: gpt-5.4-mini
+    config:
+      model: "{{ env.MODEL_B }}"
+```
+
+Keep model identity in `providers` and provider `label`s. Use `tags.experiment` for the condition under test, such as `baseline-prompt` or `with-tools`, not for model names.
+
 ### Per-run comparison
 
-Running the same `(experiment, target)` twice no longer collapses into a single cell. Switch to **Per run** mode to see every run as its own row, select two or more, and compare them head-to-head.
+Running the same `(experiment, provider/model label)` twice no longer collapses into a single cell. Switch to **Per run** mode to see every run as its own row, select two or more, and compare them head-to-head.
 
 <Image src={studioComparePerRun} alt="AgentV Dashboard per-run compare mode with a filter-by-tag chip row and individual runs listing timestamp, tags, experiment, target, and pass rate; experiment-prefixed runs surface the experiment name under the timestamp" />
 
@@ -166,15 +182,15 @@ The same filter is available to API consumers via `GET /api/compare?tags=baselin
 
 ### Analytics charts
 
-Below the aggregated matrix, a collapsible **Analytics** section provides visual charts for deeper comparison. Select a **baseline target** from the dropdown to compute deltas and normalized gain metrics against that target.
+Below the aggregated matrix, a collapsible **Analytics** section provides visual charts for deeper comparison. Select a **baseline provider/model** from the dropdown to compute deltas and normalized gain metrics against that label.
 
 <Image src={studioAnalyticsCharts} alt="AgentV Dashboard analytics charts showing normalized gain bar chart with baseline selector and score distribution histogram" />
 
 The section includes the following visualizations:
 
-- **Normalized Gain (g)** — horizontal bar chart showing how much of the remaining headroom each experiment × target captured relative to the baseline. Bars are colour-coded green (positive gain), red (regression), or grey (null / no headroom). See [Normalized Gain](/docs/tools/compare#normalized-gain-g) for the formula.
-- **Tag × Target Heatmap** — pass-rate grid across tags and targets, colour-coded by performance (emerald for high, amber for medium, red for low).
-- **Negative Delta Table** — filtered list of experiment × target pairs that scored worse than the baseline, sorted by largest regression.
+- **Normalized Gain (g)** — horizontal bar chart showing how much of the remaining headroom each experiment × provider/model label captured relative to the baseline. Bars are colour-coded green (positive gain), red (regression), or grey (null / no headroom). See [Normalized Gain](/docs/tools/compare#normalized-gain-g) for the formula.
+- **Tag × Provider/Model Heatmap** — pass-rate grid across tags and provider/model labels, colour-coded by performance (emerald for high, amber for medium, red for low).
+- **Negative Delta Table** — filtered list of experiment × provider/model pairs that scored worse than the baseline, sorted by largest regression.
 - **Score Distribution** — histogram showing the variance of scores across all test cases, binned by 10% intervals.
 - **Score Trend Over Time** — line chart plotting mean score per target across runs over time, with a colour-coded legend for each target.
 

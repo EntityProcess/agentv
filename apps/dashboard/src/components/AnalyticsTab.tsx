@@ -2,7 +2,7 @@
  * Analytics tab — cross-model comparison view.
  *
  * Two modes:
- *   1. Aggregated (default)  — `(experiment, target)` matrix, one cell per pair.
+ *   1. Aggregated (default)  — `(experiment, provider/model)` matrix, one cell per pair.
  *   2. Per run               — individual runs are first-class; users select
  *                              2+ runs to render a side-by-side comparison.
  *
@@ -176,24 +176,32 @@ function AggregatedView({ data, projectId }: { data: CompareResponse; projectId?
     return map;
   }, [cells]);
 
+  const hasProviderModelRun = useMemo(
+    () => (data.runs ?? []).some((run) => providerLabelsForRun(run).length > 1),
+    [data.runs],
+  );
+
   if (experiments.length <= 1 && targets.length <= 1) {
     return (
       <Notice
         headline="Not enough variation to compare"
-        body={`The aggregated matrix requires at least 2 experiments or 2 targets. Currently ${experiments.length} experiment(s) and ${targets.length} target(s).`}
+        body={`The aggregated matrix requires at least 2 experiments or 2 provider/model labels. Currently ${experiments.length} experiment(s) and ${targets.length} provider/model label(s).`}
       />
     );
   }
 
   return (
     <div className="space-y-3">
+      {hasProviderModelRun && <ProviderModelComparison data={data} projectId={projectId} />}
       <Legend />
       <div className="overflow-x-auto rounded-lg border border-gray-800">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-gray-800 bg-gray-900/50">
             <tr>
               <th className="px-4 py-3 font-medium text-gray-400">
-                <span className="text-xs uppercase tracking-wider">Target ↓ / Experiment →</span>
+                <span className="text-xs uppercase tracking-wider">
+                  Provider/Model ↓ / Experiment →
+                </span>
               </th>
               {experiments.map((exp) => (
                 <th key={exp} className="px-4 py-3 font-medium text-gray-300">
@@ -361,7 +369,7 @@ function PerRunView({ data }: { data: CompareResponse }) {
               <th className="w-10 px-3 py-3" aria-label="Select" />
               <th className="px-4 py-3 font-medium text-gray-400">Timestamp</th>
               <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Target</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Provider/Model</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
               <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Avg</th>
@@ -450,7 +458,9 @@ function PerRunRow({
         {subLabel && <div className="text-xs text-gray-500">{subLabel}</div>}
       </td>
       <td className="px-4 py-3 align-middle text-gray-300">{run.experiment}</td>
-      <td className="px-4 py-3 align-middle text-gray-300">{run.target}</td>
+      <td className="px-4 py-3 align-middle text-gray-300">
+        <ProviderModelLabel run={run} />
+      </td>
       <td className="px-4 py-3 align-middle text-right tabular-nums text-gray-400">
         <div>{qualityCount}</div>
         {errors > 0 && <div className="text-xs text-amber-400">{errors} errors</div>}
@@ -585,6 +595,232 @@ function PerRunCompareView({
   );
 }
 
+function ProviderModelComparison({
+  data,
+  projectId,
+}: {
+  data: CompareResponse;
+  projectId?: string;
+}) {
+  const run = useMemo(
+    () => (data.runs ?? []).find((entry) => providerLabelsForRun(entry).length > 1),
+    [data.runs],
+  );
+
+  const model = useMemo(() => (run ? buildProviderModelTable(run) : null), [run]);
+
+  if (!run || !model) return null;
+
+  return (
+    <section className="space-y-3 rounded-lg border border-gray-800 bg-gray-950/40 p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-white">Provider/model comparison</h3>
+          <p className="mt-1 text-sm text-gray-400">
+            {run.experiment} · {formatTimestamp(run.started_at)}
+          </p>
+        </div>
+        <PassRatePill rate={run.pass_rate} />
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-gray-800">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="border-b border-gray-800 bg-gray-900/50">
+            <tr>
+              <th className="sticky left-0 z-10 w-52 bg-gray-900/90 px-4 py-3 font-medium text-gray-400 backdrop-blur">
+                Test case
+              </th>
+              {model.providerLabels.map((label) => (
+                <th key={label} className="min-w-[240px] px-4 py-3 font-medium text-gray-300">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800/50">
+            {model.rows.map((row) => (
+              <tr key={row.testId} className="align-top transition-colors hover:bg-gray-900/30">
+                <td className="sticky left-0 z-10 bg-gray-950/90 px-4 py-3 font-medium text-gray-200 backdrop-blur">
+                  {row.testId}
+                </td>
+                {model.providerLabels.map((label) => (
+                  <td key={label} className="px-4 py-3">
+                    <ProviderModelResultCell
+                      run={run}
+                      result={row.resultsByProvider.get(label)}
+                      projectId={projectId}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function ProviderModelResultCell({
+  run,
+  result,
+  projectId,
+}: {
+  run: CompareRunEntry;
+  result: CompareTestResult | undefined;
+  projectId?: string;
+}) {
+  if (!result) {
+    return <div className="text-center text-gray-600">—</div>;
+  }
+
+  const isError = result.execution_status === 'execution_error';
+  const scoreLabel = isError ? 'error' : `${Math.round(result.score * 100)}%`;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden
+          className={`h-1.5 w-1.5 rounded-full ${
+            isError ? 'bg-amber-400' : result.passed ? 'bg-emerald-400' : 'bg-red-400'
+          }`}
+        />
+        <span
+          className={`tabular-nums ${
+            isError ? 'text-amber-400' : result.passed ? 'text-emerald-400' : 'text-red-400'
+          }`}
+        >
+          {scoreLabel}
+        </span>
+        {result.duration_ms !== undefined && (
+          <span className="text-xs tabular-nums text-gray-500">
+            {formatDurationMs(result.duration_ms)}
+          </span>
+        )}
+      </div>
+      {result.answer ? (
+        <pre className="max-h-28 overflow-auto whitespace-pre-wrap rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-xs leading-relaxed text-gray-300">
+          {result.answer}
+        </pre>
+      ) : (
+        <div className="rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-gray-500">
+          No answer captured
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2 text-xs">
+        <ArtifactLink run={run} result={result} path={result.answer_path} projectId={projectId}>
+          Answer
+        </ArtifactLink>
+        <ArtifactLink run={run} result={result} path={result.grading_path} projectId={projectId}>
+          Grading
+        </ArtifactLink>
+        <ArtifactLink run={run} result={result} path={result.transcript_path} projectId={projectId}>
+          Transcript
+        </ArtifactLink>
+      </div>
+    </div>
+  );
+}
+
+function ArtifactLink({
+  run,
+  result,
+  path,
+  projectId,
+  children,
+}: {
+  run: CompareRunEntry;
+  result: CompareTestResult;
+  path: string | undefined;
+  projectId?: string;
+  children: React.ReactNode;
+}) {
+  if (!path) return null;
+  const href = artifactHref(run, result, path, projectId);
+  return (
+    <a
+      className="text-cyan-400 transition-colors hover:text-cyan-300"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {children}
+    </a>
+  );
+}
+
+function ProviderModelLabel({ run }: { run: CompareRunEntry }) {
+  const labels = providerLabelsForRun(run);
+  if (labels.length <= 1) return <>{run.target}</>;
+  return (
+    <div>
+      <div>{labels.length} providers</div>
+      <div
+        className="mt-0.5 max-w-[18rem] truncate text-xs text-gray-500"
+        title={labels.join(', ')}
+      >
+        {labels.join(', ')}
+      </div>
+    </div>
+  );
+}
+
+function providerLabelsForRun(run: CompareRunEntry): string[] {
+  const labels = new Set<string>();
+  for (const target of run.targets ?? []) {
+    if (target.trim()) labels.add(target);
+  }
+  for (const test of run.tests) {
+    const target = test.target?.trim();
+    if (target) labels.add(target);
+  }
+  return [...labels].sort();
+}
+
+function buildProviderModelTable(run: CompareRunEntry): {
+  providerLabels: string[];
+  rows: Array<{ testId: string; resultsByProvider: Map<string, CompareTestResult> }>;
+} | null {
+  const providerLabels = providerLabelsForRun(run);
+  if (providerLabels.length <= 1) return null;
+
+  const rowsByTest = new Map<string, Map<string, CompareTestResult>>();
+  for (const result of run.tests) {
+    const provider = result.target?.trim();
+    if (!provider) continue;
+    const row = rowsByTest.get(result.test_id) ?? new Map<string, CompareTestResult>();
+    row.set(provider, result);
+    rowsByTest.set(result.test_id, row);
+  }
+
+  return {
+    providerLabels,
+    rows: [...rowsByTest.entries()].map(([testId, resultsByProvider]) => ({
+      testId,
+      resultsByProvider,
+    })),
+  };
+}
+
+function artifactHref(
+  run: CompareRunEntry,
+  result: CompareTestResult,
+  filePath: string,
+  projectId?: string,
+): string {
+  const runBase = projectId ? `/api/projects/${encodeURIComponent(projectId)}/runs` : '/api/runs';
+  const params = new URLSearchParams({ raw: '1' });
+  if (result.result_dir) params.set('result_dir', result.result_dir);
+  return `${runBase}/${encodeURIComponent(run.run_id)}/evals/${encodeURIComponent(
+    result.test_id,
+  )}/files/${encodeURIComponent(filePath)}?${params.toString()}`;
+}
+
+function formatDurationMs(value: number): string {
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
+  return `${Math.round(value)}ms`;
+}
+
 function RunColumnHeader({ run }: { run: CompareRunEntry }) {
   return (
     <div className="min-w-[140px] space-y-1">
@@ -592,7 +828,7 @@ function RunColumnHeader({ run }: { run: CompareRunEntry }) {
         {formatTimestamp(run.started_at)}
       </div>
       <div className="text-xs text-gray-500">
-        {run.experiment} · {run.target}
+        {run.experiment} · {providerLabelsForRun(run).join(', ') || run.target}
       </div>
     </div>
   );
@@ -632,7 +868,7 @@ function EmptyState() {
   return (
     <Notice
       headline="No comparison data yet"
-      body="Run evaluations with different experiment and target combinations to populate this view."
+      body="Run evaluations with different experiment and provider/model combinations to populate this view."
     />
   );
 }

@@ -4018,13 +4018,21 @@ describe('serve app', () => {
         experiment: string;
         target: string;
         eval_count: number;
-        tests?: Array<{ test_id: string; category?: string }>;
+        tests?: Array<{ test_id: string; target?: string; category?: string; answer?: string }>;
       }>;
       runs?: Array<{
         run_id: string;
         experiment: string;
         target: string;
-        tests?: Array<{ test_id: string; category?: string }>;
+        targets?: string[];
+        tests?: Array<{
+          test_id: string;
+          target?: string;
+          category?: string;
+          answer?: string;
+          answer_path?: string;
+          result_dir?: string;
+        }>;
       }>;
     };
 
@@ -4054,6 +4062,53 @@ describe('serve app', () => {
       const run = data.runs?.find((r) => r.experiment === 'exp-b' && r.target === 'gpt-4o');
       expect(cell?.tests?.[0]?.category).toBe('prompting');
       expect(run?.tests?.[0]?.category).toBe('prompting');
+    });
+
+    it('preserves provider/model results and answer evidence inside a multi-provider run', async () => {
+      const runsDir = localResultsExperimentDir(tempDir);
+      const runDir = path.join(runsDir, '2026-04-05T10-00-00-000Z');
+      mkdirSync(path.join(runDir, '.internal'), { recursive: true });
+      mkdirSync(path.join(runDir, 'case-gpt-4o', 'sample-1', 'outputs'), { recursive: true });
+      mkdirSync(path.join(runDir, 'case-claude', 'sample-1', 'outputs'), { recursive: true });
+      writeFileSync(path.join(runDir, 'case-gpt-4o', 'sample-1', 'outputs', 'answer.md'), 'A');
+      writeFileSync(path.join(runDir, 'case-claude', 'sample-1', 'outputs', 'answer.md'), 'B');
+      writeFileSync(
+        path.join(runDir, '.internal', 'index.jsonl'),
+        toJsonl(
+          {
+            ...RESULT_A,
+            test_id: 'same-case',
+            experiment: 'model-compare',
+            target: 'gpt-4o',
+            result_dir: 'case-gpt-4o',
+            answer_path: 'case-gpt-4o/sample-1/outputs/answer.md',
+          },
+          {
+            ...RESULT_A,
+            test_id: 'same-case',
+            experiment: 'model-compare',
+            target: 'claude',
+            result_dir: 'case-claude',
+            answer_path: 'case-claude/sample-1/outputs/answer.md',
+            score: 0.5,
+          },
+        ),
+      );
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/compare');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as CompareJson;
+      const run = data.runs?.find((entry) => entry.run_id === '2026-04-05T10-00-00-000Z');
+
+      expect(run?.target).toBe('2 providers');
+      expect(run?.targets).toEqual(['claude', 'gpt-4o']);
+      expect(run?.tests?.map((test) => [test.test_id, test.target, test.answer])).toEqual([
+        ['same-case', 'gpt-4o', 'A'],
+        ['same-case', 'claude', 'B'],
+      ]);
+      expect(run?.tests?.[0]?.answer_path).toBe('case-gpt-4o/sample-1/outputs/answer.md');
+      expect(run?.tests?.[0]?.result_dir).toBe('case-gpt-4o');
     });
   });
 

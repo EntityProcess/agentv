@@ -449,8 +449,20 @@ export interface LightweightResultRecord {
   readonly executionStatus?: string;
   readonly error?: string;
   readonly costUsd?: number;
+  readonly durationMs?: number;
+  readonly tokenUsage?: {
+    readonly input?: number;
+    readonly output?: number;
+    readonly reasoning?: number;
+  };
   readonly timestamp?: string;
   readonly runtimeSource?: RunRuntimeSourceMetadata;
+  readonly resultDir?: string;
+  readonly outputPath?: string;
+  readonly answerPath?: string;
+  readonly gradingPath?: string;
+  readonly transcriptPath?: string;
+  readonly metricsPath?: string;
 }
 
 /**
@@ -488,7 +500,15 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
     executionStatus: record.execution_status,
     error: record.error,
     costUsd: record.cost_usd,
+    durationMs: record.duration_ms,
+    tokenUsage: record.token_usage,
     timestamp: record.timestamp,
     runtimeSource: record.runtime_source,
+    resultDir: record.result_dir,
+    outputPath: record.output_path,
+    answerPath: record.answer_path,
+    gradingPath: record.grading_path,
+    transcriptPath: record.transcript_path,
+    metricsPath: record.metrics_path,
   }));
 }
