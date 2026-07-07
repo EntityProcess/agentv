@@ -23,9 +23,13 @@ describe('materializeTaskBundle', () => {
     const fixturePath = path.join(tempDir, 'fixtures', 'input.txt');
     const promptPath = path.join(tempDir, 'graders', 'prompt.md');
     const scriptPath = path.join(tempDir, 'graders', 'check.ts');
+    const providerWorkdir = path.join(tempDir, 'provider-workdir');
+    const providerSetupPath = path.join(tempDir, 'provider-env', 'setup.ts');
     await mkdir(path.dirname(evalFile), { recursive: true });
     await mkdir(path.dirname(fixturePath), { recursive: true });
     await mkdir(path.dirname(promptPath), { recursive: true });
+    await mkdir(providerWorkdir, { recursive: true });
+    await mkdir(path.dirname(providerSetupPath), { recursive: true });
     await writeFile(
       evalFile,
       'tests:\n  - id: direct-case\n    input: file://fixtures/input.txt\n',
@@ -33,6 +37,8 @@ describe('materializeTaskBundle', () => {
     await writeFile(fixturePath, 'fixture text\n');
     await writeFile(promptPath, 'grade carefully\n');
     await writeFile(scriptPath, 'console.log("ok");\n');
+    await writeFile(path.join(providerWorkdir, 'README.md'), 'provider workspace\n');
+    await writeFile(providerSetupPath, 'console.log("provider setup");\n');
 
     const test = {
       id: 'direct-case',
@@ -92,6 +98,12 @@ describe('materializeTaskBundle', () => {
           provider: 'mock',
           api_key: '${{ MOCK_API_KEY }}',
           fallback_targets: ['backup'],
+          environment: {
+            type: 'host',
+            workdir: providerWorkdir,
+            sourceDir: tempDir,
+            setup: { command: ['bun', providerSetupPath, '--api-key', 'literal-secret'] },
+          },
         },
         {
           name: 'backup',
@@ -122,6 +134,9 @@ describe('materializeTaskBundle', () => {
     expect(await readFile(path.join(testBundleDir, 'graders', 'graders', 'check.ts'), 'utf8')).toBe(
       'console.log("ok");\n',
     );
+    expect(
+      await readFile(path.join(testBundleDir, 'scripts', 'provider-env', 'setup.ts'), 'utf8'),
+    ).toBe('console.log("provider setup");\n');
 
     const taskEval = await readFile(paths?.evalPath ?? '', 'utf8');
     const taskProviders = await readFile(paths?.providersPath ?? '', 'utf8');
@@ -144,6 +159,9 @@ describe('materializeTaskBundle', () => {
     expect(taskProviders).toContain('label: judge');
     expect(taskProviders).toContain('api_key: ${{ JUDGE_API_KEY }}');
     expect(taskProviders).toContain('api_key: "[redacted]"');
+    expect(taskProviders).toContain('environment:');
+    expect(taskProviders).toContain('workdir: workspaces/provider-workdir');
+    expect(taskProviders).toContain('scripts/provider-env/setup.ts');
     expect(taskEval).not.toContain('literal-secret');
     expect(taskProviders).not.toContain('literal-secret');
     await expect(readdir(path.join(tempDir, 'out', '.agentv', 'results'))).rejects.toThrow();

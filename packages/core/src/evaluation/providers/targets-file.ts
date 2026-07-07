@@ -3,7 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { parseYamlValue } from '../yaml-loader.js';
-import { normalizeProviderDefinition } from './targets.js';
+import { normalizeProviderDefinition, resolveProviderDefinitionEnvironments } from './targets.js';
 import { TARGETS_SCHEMA_V2 } from './types.js';
 import type { ProviderDefinition } from './types.js';
 
@@ -74,7 +74,9 @@ export async function readProviderDefinitions(
   const definitions = providers.map((entry, index) =>
     assertProviderDefinition(entry, index, absolutePath),
   );
-  return definitions;
+  return resolveProviderDefinitionEnvironments(definitions, path.dirname(absolutePath), {
+    location: 'providers',
+  });
 }
 
 export function listProviderLabels(definitions: readonly ProviderDefinition[]): readonly string[] {

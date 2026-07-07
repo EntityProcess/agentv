@@ -679,6 +679,7 @@ const EvalProviderObjectSchema = z
     transform: z.union([z.string(), JsonObjectSchema]).optional(),
     delay: z.number().min(0).optional(),
     env: z.record(z.string()).optional(),
+    environment: EnvironmentSchema.optional(),
     hooks: TargetHooksSchema.optional(),
     provider: z
       .never({
@@ -691,7 +692,6 @@ const EvalProviderObjectSchema = z
         invalid_type_error: 'providers[].name has been removed. Use providers[].label.',
       })
       .optional(),
-    environment: z.never().optional(),
     container: z.never().optional(),
     install: z.never().optional(),
   })

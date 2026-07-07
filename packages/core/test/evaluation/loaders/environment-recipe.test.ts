@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { readProviderDefinitions } from '../../../src/evaluation/providers/targets-file.js';
 import { validateEvalFile } from '../../../src/evaluation/validation/eval-validator.js';
 import { loadTestSuite, loadTests } from '../../../src/evaluation/yaml-parser.js';
 
@@ -283,6 +284,36 @@ describe('environment recipe loading', () => {
       expect(suite.tests[0].extensions?.[0]).toMatchObject({
         hook: 'beforeAll',
         path: path.join(dir, 'hooks.mjs'),
+      });
+    });
+  });
+
+  it('loads provider-local file:// environment recipes from provider catalogs', async () => {
+    await withTempDir('agentv-provider-env-file-', async (dir) => {
+      const environmentDir = path.join(dir, '.agentv/environments');
+      await mkdirSync(environmentDir, { recursive: true });
+      writeFileSync(
+        path.join(environmentDir, 'provider.yaml'),
+        ['type: host', 'workdir: ./provider-workdir', ''].join('\n'),
+      );
+      const providersPath = path.join(dir, 'providers.yaml');
+      writeFileSync(
+        providersPath,
+        [
+          '- id: mock',
+          '  label: candidate',
+          '  environment: file://.agentv/environments/provider.yaml',
+          '',
+        ].join('\n'),
+      );
+
+      const [definition] = await readProviderDefinitions(providersPath);
+
+      expect(definition.environment).toMatchObject({
+        type: 'host',
+        authoredReference: 'file://.agentv/environments/provider.yaml',
+        recipeFilePath: path.join(environmentDir, 'provider.yaml'),
+        workdir: path.join(environmentDir, 'provider-workdir'),
       });
     });
   });

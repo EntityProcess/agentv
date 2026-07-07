@@ -2,6 +2,11 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { renderEnvTemplateString } from '../interpolation.js';
+import {
+  type EnvironmentRecipe,
+  isResolvedEnvironmentRecipe,
+  resolveEnvironmentRecipe,
+} from '../loaders/environment-recipe.js';
 import type { TargetRuntimeConfig, TargetRuntimeMode } from './sandbox-runner.js';
 import type { EnvLookup, ProviderDefinition } from './types.js';
 
@@ -849,11 +854,6 @@ export function normalizeProviderDefinition(
   if (definition.name !== undefined) {
     throw new Error(`Invalid ${location}.name: use providers[].label for the stable identity.`);
   }
-  if (definition.environment !== undefined) {
-    throw new Error(
-      `Invalid ${location}.environment: provider-local environments are future scope; author environment at suite/test/case scope.`,
-    );
-  }
   if (definition.container !== undefined) {
     throw new Error(`Invalid ${location}.container: use an environment recipe for testbed setup.`);
   }
@@ -864,11 +864,11 @@ export function normalizeProviderDefinition(
   const rawLabel = definition.label;
   const name =
     typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : providerId;
-  const { id: _id, label: _label, ...rest } = definition;
+  const { id: _id, label: _label, environment, ...rest } = definition;
   const publicSpec = normalizePublicProviderId(providerId);
   const authoredConfig = isRecord(rest.config) ? rest.config : {};
 
-  return normalizeInternalProviderDefinition({
+  const normalized = normalizeInternalProviderDefinition({
     ...rest,
     config: {
       ...publicSpec.config,
@@ -877,6 +877,10 @@ export function normalizeProviderDefinition(
     id: name,
     provider: publicSpec.provider,
   });
+  return {
+    ...normalized,
+    ...(environment !== undefined ? { environment } : {}),
+  };
 }
 
 /** Normalizes an internal provider definition object for resolver use. */
@@ -913,11 +917,6 @@ export function normalizeInternalProviderDefinition(
 }
 
 function assertNoTargetTestbedFields(definition: Record<string, unknown>): void {
-  if (definition.environment !== undefined) {
-    throw new Error(
-      'Provider definitions cannot include environment; author environment at suite/test/case scope.',
-    );
-  }
   if (definition.container !== undefined) {
     throw new Error(
       'Provider definitions cannot include container setup; use an environment recipe.',
@@ -926,6 +925,32 @@ function assertNoTargetTestbedFields(definition: Record<string, unknown>): void 
   if (definition.install !== undefined) {
     throw new Error('Provider definitions cannot include install steps; use environment.setup.');
   }
+}
+
+export async function resolveProviderDefinitionEnvironments(
+  definitions: readonly ProviderDefinition[],
+  baseDir: string,
+  options: { readonly location?: string } = {},
+): Promise<readonly ProviderDefinition[]> {
+  const location = options.location ?? 'providers';
+  return Promise.all(
+    definitions.map(async (definition, index) => {
+      if (
+        definition.environment === undefined ||
+        isResolvedEnvironmentRecipe(definition.environment)
+      ) {
+        return definition;
+      }
+      return {
+        ...definition,
+        environment: await resolveEnvironmentRecipe(
+          definition.environment,
+          baseDir,
+          `${location}[${index}].environment`,
+        ),
+      };
+    }),
+  );
 }
 
 function collectDeprecatedCamelCaseWarnings(
@@ -1032,6 +1057,7 @@ interface ResolvedProviderBackendBase {
   readonly name: string;
   readonly label?: string;
   readonly runtime?: TargetRuntimeConfig;
+  readonly environment?: EnvironmentRecipe;
   readonly graderTarget?: string;
   readonly workers?: number;
   readonly providerBatching?: boolean;
@@ -1123,6 +1149,7 @@ export type ResolvedProviderBackend =
  */
 export const COMMON_PROVIDER_SETTINGS = [
   'runtime',
+  'environment',
   'batch_requests',
   'subagent_mode_allowed',
   'fallback_targets',
@@ -1141,6 +1168,7 @@ const BASE_TARGET_SCHEMA = z
     provider_spec: z.string().optional(),
     config: z.record(z.unknown()).optional(),
     runtime: z.unknown().optional(),
+    environment: z.unknown().optional(),
     use_target: z.string().optional(),
     grader_target: z.string().optional(),
     workers: z.number().int().min(1).optional(),
@@ -1345,6 +1373,7 @@ export function resolveProviderDefinition(
     name: parsed.name,
     label: parsed.label,
     runtime: resolveTargetRuntime(parsed.runtime, parsed.name),
+    environment: isResolvedEnvironmentRecipe(parsed.environment) ? parsed.environment : undefined,
     graderTarget: parsed.grader_target,
     workers: parsed.workers,
     providerBatching,

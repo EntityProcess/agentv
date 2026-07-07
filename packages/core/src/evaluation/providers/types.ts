@@ -1,5 +1,6 @@
 import type { Content, ContentImage } from '../content.js';
 import { getTextContent, isContentArray } from '../content.js';
+import type { EnvironmentRecipe } from '../loaders/environment-recipe.js';
 import type { JsonObject } from '../types.js';
 
 export type ChatMessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'function';
@@ -435,6 +436,7 @@ export interface Provider {
   readonly id: string;
   readonly kind: ProviderKind;
   readonly targetName: string;
+  readonly environment?: EnvironmentRecipe;
   invoke(request: ProviderRequest): Promise<ProviderResponse>;
   /**
    * Optional capability marker for provider-managed batching (single session handling multiple requests).
@@ -459,6 +461,8 @@ export interface ProviderDefinition {
   /** Promptfoo-shaped provider options bag. Provider settings are flattened at the boundary. */
   readonly config?: unknown | undefined;
   readonly runtime?: unknown | undefined;
+  /** AgentV-only provider-scoped environment overlay. */
+  readonly environment?: EnvironmentRecipe | unknown | undefined;
   readonly prompts?: unknown | undefined;
   readonly transform?: unknown | undefined;
   readonly delay?: number | unknown | undefined;

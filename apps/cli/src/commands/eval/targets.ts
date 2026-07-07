@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
   type EvalTargetSpec,
   type ProviderDefinition,
@@ -6,6 +7,7 @@ import {
   readProviderDefinitions,
   readTestSuiteMetadata,
   resolveProviderDefinition,
+  resolveProviderDefinitionEnvironments,
 } from '@agentv/core';
 import { validateTargetsFile } from '@agentv/core/evaluation/validation';
 import { discoverTargetsFile } from '../../utils/targets.js';
@@ -228,6 +230,19 @@ function definitionsWithEffectiveTarget(
   return [effective, ...definitions.filter((definition) => definition.name !== effective.name)];
 }
 
+async function resolveInlineDefinitionEnvironment(
+  definition: ProviderDefinition,
+  testFilePath: string,
+  location: string,
+): Promise<ProviderDefinition> {
+  const [resolved] = await resolveProviderDefinitionEnvironments(
+    [definition],
+    path.dirname(path.resolve(testFilePath)),
+    { location },
+  );
+  return resolved ?? definition;
+}
+
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
   const {
     testFilePath,
@@ -260,10 +275,13 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     options.fileTargetName ?? fileTargetSpec?.name ?? (await readTestSuiteTarget(testFilePath));
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
-  const overlayDefinition =
+  const rawOverlayDefinition =
     targetChoice.source === 'test-file'
       ? overlayTargetDefinition({ spec: fileTargetSpec, definitions, env, targetsFilePath })
       : undefined;
+  const overlayDefinition = rawOverlayDefinition
+    ? await resolveInlineDefinitionEnvironment(rawOverlayDefinition, testFilePath, 'providers')
+    : undefined;
   const targetDefinition = withModelOverride(
     overlayDefinition ?? resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath),
     modelOverride,
@@ -351,7 +369,9 @@ export async function selectMultipleTargets(
   if (targetRefs) {
     for (const ref of targetRefs) {
       if (ref.definition && !fileDefinitions.some((d) => d.name === ref.name)) {
-        definitions.push(ref.definition);
+        definitions.push(
+          await resolveInlineDefinitionEnvironment(ref.definition, testFilePath, 'providers'),
+        );
       } else if (ref.use_target && !fileDefinitions.some((d) => d.name === ref.name)) {
         definitions.push({ name: ref.name, use_target: ref.use_target } as ProviderDefinition);
       }

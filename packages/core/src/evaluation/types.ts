@@ -1301,6 +1301,13 @@ export interface EnvironmentRecipeProvenance {
     readonly buildId?: string;
   };
   readonly repoProvenance?: JsonValue;
+  readonly composition?: {
+    readonly layers: readonly {
+      readonly scope: 'base' | 'provider';
+      readonly providerName?: string;
+      readonly environment: EnvironmentRecipeProvenance;
+    }[];
+  };
 }
 
 /**

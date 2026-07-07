@@ -35,6 +35,8 @@ export interface EvaluationContext {
   };
   readonly now: Date;
   readonly graderProvider?: Provider;
+  /** Provider-local environment cwd for grader provider invocation only. */
+  readonly graderWorkspacePath?: string;
   readonly graderTemplateOverride?: string;
   readonly evaluator?: GraderConfig;
   /** Output messages from agent execution (primary source for tool trajectory) */

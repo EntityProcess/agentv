@@ -177,4 +177,160 @@ describe('host environment runtime', () => {
     expect(existsSync(path.join(workdir, 'ready.txt'))).toBe(true);
     expect(existsSync(workdir)).toBe(true);
   });
+
+  it('applies provider-local host environment setup as a candidate overlay with provenance', async () => {
+    const root = tempDir('agentv-provider-env-candidate-');
+    const workdir = path.join(root, 'workdir');
+    const sourceDir = path.join(root, '.agentv/environments');
+    await mkdir(sourceDir, { recursive: true });
+    await writeFile(
+      path.join(sourceDir, 'provider-setup.mjs'),
+      "import { writeFileSync } from 'node:fs'; writeFileSync(process.env.AGENTV_ENVIRONMENT_WORKDIR + '/provider-ready.txt', 'ready');\n",
+    );
+
+    const capturedRequests: ProviderRequest[] = [];
+    const results = await runEvaluation({
+      testFilePath: path.join(root, 'suite.eval.yaml'),
+      repoRoot: root,
+      target: {
+        kind: 'mock',
+        name: 'candidate',
+        config: {},
+        environment: {
+          type: 'host',
+          workdir,
+          sourceDir,
+          setup: { command: ['node', 'provider-setup.mjs'] },
+        },
+      },
+      providerFactory: providerFactory(capturedRequests),
+      evalCases: [
+        baseEvalCase({
+          environment: {
+            type: 'host',
+            workdir,
+            sourceDir,
+            env: { BASE_FLAG: '1' },
+          },
+        }),
+      ],
+      maxConcurrency: 1,
+    });
+
+    expect(capturedRequests[0].cwd).toBe(workdir);
+    expect(existsSync(path.join(workdir, 'provider-ready.txt'))).toBe(true);
+    expect(results[0].environmentProvenance?.composition?.layers).toMatchObject([
+      { scope: 'base' },
+      { scope: 'provider', providerName: 'candidate' },
+    ]);
+    const [baseLayer, providerLayer] = results[0].environmentProvenance?.composition?.layers ?? [];
+    expect(baseLayer?.environment.setupExecutions).toBeUndefined();
+    expect(providerLayer?.environment.setupExecutions?.[0]?.command).toEqual([
+      'node',
+      'provider-setup.mjs',
+    ]);
+  });
+
+  it('returns an explicit conflict when base and provider setup both define commands', async () => {
+    const root = tempDir('agentv-provider-env-conflict-');
+    const workdir = path.join(root, 'workdir');
+
+    const results = await runEvaluation({
+      testFilePath: path.join(root, 'suite.eval.yaml'),
+      repoRoot: root,
+      target: {
+        kind: 'mock',
+        name: 'candidate',
+        config: {},
+        environment: {
+          type: 'host',
+          workdir,
+          sourceDir: root,
+          setup: { command: ['node', '-e', ''] },
+        },
+      },
+      providerFactory: providerFactory([]),
+      evalCases: [
+        baseEvalCase({
+          environment: {
+            type: 'host',
+            workdir,
+            sourceDir: root,
+            setup: { command: ['node', '-e', ''] },
+          },
+        }),
+      ],
+      maxConcurrency: 1,
+    });
+
+    expect(results[0].executionStatus).toBe('execution_error');
+    expect(results[0].error).toContain('both base and provider environments define setup');
+  });
+
+  it('prepares grader provider-local environment only for grader invocation', async () => {
+    const root = tempDir('agentv-provider-env-grader-');
+    const candidateWorkdir = path.join(root, 'candidate');
+    const graderWorkdir = path.join(root, 'grader');
+    const graderSetupScript = path.join(root, 'grader-setup.ts');
+    await writeFile(
+      graderSetupScript,
+      'await Bun.write(`${process.argv[2]}/grader-marker.txt`, "ready");\n',
+    );
+    const captured: Record<string, ProviderRequest[]> = { answer: [], grader: [] };
+    const answerProvider = providerFactory(captured.answer);
+    const graderProvider: Provider = {
+      id: 'mock:grader',
+      kind: 'mock',
+      targetName: 'grader',
+      async invoke(request): Promise<ProviderResponse> {
+        captured.grader.push(request);
+        expect(await readFile(path.join(request.cwd ?? '', 'grader-marker.txt'), 'utf8')).toBe(
+          'ready',
+        );
+        return {
+          output: [
+            {
+              role: 'assistant',
+              content: JSON.stringify({
+                score: 1,
+                assertions: [{ text: 'ok', passed: true }],
+              }),
+            },
+          ],
+        };
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: path.join(root, 'suite.eval.yaml'),
+      repoRoot: root,
+      target: { kind: 'mock', name: 'answer', config: {}, graderTarget: 'grader' },
+      targets: [
+        { name: 'answer', provider: 'mock' },
+        {
+          name: 'grader',
+          provider: 'mock',
+          environment: {
+            type: 'host',
+            workdir: graderWorkdir,
+            sourceDir: root,
+            setup: { command: ['bun', graderSetupScript, graderWorkdir] },
+          },
+        },
+      ],
+      providerFactory: (target) =>
+        target.name === 'grader' ? graderProvider : answerProvider(target),
+      evalCases: [
+        baseEvalCase({
+          environment: { type: 'host', workdir: candidateWorkdir, sourceDir: root },
+          assertions: [{ name: 'rubric', type: 'llm-rubric', value: 'Judge it.' }],
+        }),
+      ],
+      maxConcurrency: 1,
+    });
+
+    expect(results[0].score).toBe(1);
+    expect(captured.answer[0].cwd).toBe(candidateWorkdir);
+    expect(captured.grader[0].cwd).toBe(graderWorkdir);
+  });
 });

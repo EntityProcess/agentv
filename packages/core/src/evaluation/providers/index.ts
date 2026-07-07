@@ -21,6 +21,7 @@ import {
   COMMON_PROVIDER_SETTINGS,
   resolveDelegatedProviderDefinition,
   resolveProviderDefinition,
+  resolveProviderDefinitionEnvironments,
 } from './targets.js';
 import type {
   EnvLookup,
@@ -70,7 +71,12 @@ export type {
   VSCodeResolvedConfig,
 } from './targets.js';
 
-export { COMMON_PROVIDER_SETTINGS, resolveDelegatedProviderDefinition, resolveProviderDefinition };
+export {
+  COMMON_PROVIDER_SETTINGS,
+  resolveDelegatedProviderDefinition,
+  resolveProviderDefinition,
+  resolveProviderDefinitionEnvironments,
+};
 export { readProviderDefinitions, listProviderLabels } from './targets-file.js';
 export {
   ensureVSCodeSubagents,
