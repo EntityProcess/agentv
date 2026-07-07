@@ -903,7 +903,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'correctness',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               weight: 2.0,
@@ -940,7 +941,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'correctness',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               required_min_score: 7,
@@ -966,7 +968,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'overlapping',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'test',
               score_ranges: [
@@ -989,7 +992,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'incomplete',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'test',
               score_ranges: [
@@ -1012,7 +1016,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'legacy',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'r1',
               description: 'Must be polite', // Legacy field name — no longer supported
@@ -1049,7 +1054,8 @@ describe('parseGraders - score_ranges shorthand map', () => {
       assert: [
         {
           metric: 'shorthand-test',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               weight: 2.0,
@@ -1101,7 +1107,8 @@ describe('parseGraders - score_ranges shorthand map', () => {
       assert: [
         {
           metric: 'bad-start',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'test',
               score_ranges: {
@@ -1125,7 +1132,8 @@ describe('parseGraders - score_ranges shorthand map', () => {
       assert: [
         {
           metric: 'array-format',
-          type: 'llm-rubric',value: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               score_ranges: [
