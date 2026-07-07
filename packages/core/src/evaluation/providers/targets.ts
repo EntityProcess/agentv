@@ -753,6 +753,16 @@ export function expandProviderDefinitionEntries(
       return;
     }
 
+    if (
+      entry.provider !== undefined ||
+      entry.name !== undefined ||
+      entry.container !== undefined ||
+      entry.install !== undefined
+    ) {
+      normalizeProviderDefinition(entry, { location: entryLocation });
+      return;
+    }
+
     const mapEntries = Object.entries(entry);
     if (mapEntries.length === 0) {
       throw new Error(`Invalid ${entryLocation}: provider map must not be empty.`);
