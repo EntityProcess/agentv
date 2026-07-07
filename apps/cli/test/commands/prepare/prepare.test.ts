@@ -57,7 +57,7 @@ await Bun.write(\`\${payload.workspace_path}/\${step}.txt\`, \`\${payload.test_i
     'utf8',
   );
   await writeFile(
-    path.join(root, '.agentv', 'targets.yaml'),
+    path.join(root, '.agentv', 'providers.yaml'),
     `
 providers:
   - id: cli
@@ -250,7 +250,7 @@ describe('agentv prepare', () => {
     await writeFile(path.join(tempDir, 'rules', 'AGENTS.md'), '# Rules\n', 'utf8');
     await writeFile(path.join(tempDir, 'scripts', 'target.ts'), '', 'utf8');
     await writeFile(
-      path.join(tempDir, '.agentv', 'targets.yaml'),
+      path.join(tempDir, '.agentv', 'providers.yaml'),
       `
 providers:
   - id: cli

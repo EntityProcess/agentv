@@ -68,8 +68,8 @@ async function createFixture(): Promise<EvalFixture> {
   const agentvDir = path.join(suiteDir, '.agentv');
   await mkdir(agentvDir, { recursive: true });
 
-  const targetsPath = path.join(agentvDir, 'targets.yaml');
-  const targetsContent = `$schema: agentv-targets-v2.2
+  const providersPath = path.join(agentvDir, 'providers.yaml');
+  const providersContent = `$schema: agentv-targets-v2.2
 providers:
   - id: mock
     label: default
@@ -81,7 +81,7 @@ providers:
     label: codex-target
     model: gpt-5-default
 `;
-  await writeFile(targetsPath, targetsContent, 'utf8');
+  await writeFile(providersPath, providersContent, 'utf8');
 
   const testFilePath = path.join(suiteDir, 'sample.test.yaml');
   const testFileContent = `description: CLI integration test
@@ -130,13 +130,13 @@ async function createNestedEnvFixture(): Promise<EvalFixture> {
   const agentvDir = path.join(suiteDir, '.agentv');
   await mkdir(agentvDir, { recursive: true });
 
-  const targetsPath = path.join(agentvDir, 'targets.yaml');
-  const targetsContent = `$schema: agentv-targets-v2.2
+  const providersPath = path.join(agentvDir, 'providers.yaml');
+  const providersContent = `$schema: agentv-targets-v2.2
 providers:
   - id: mock
     label: default
 `;
-  await writeFile(targetsPath, targetsContent, 'utf8');
+  await writeFile(providersPath, providersContent, 'utf8');
 
   const testFilePath = path.join(evalDir, 'sample.test.yaml');
   const testFileContent = `description: CLI nested env integration test
