@@ -1233,9 +1233,9 @@ tests:
         evalPath,
         '--workers',
         '2',
-        '--target',
+        '--provider',
         'file-target',
-        '--target',
+        '--provider',
         'cli-target',
       ]);
 
@@ -1346,7 +1346,7 @@ tests:
       const { stdout, exitCode } = await runCli(fixture, [
         'eval',
         fixture.testFilePath,
-        '--target',
+        '--provider',
         'cli-target',
         '--record-replay',
         replayPath,
