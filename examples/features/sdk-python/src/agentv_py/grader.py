@@ -184,22 +184,22 @@ def emit_grader_result(result: ScriptGraderResult) -> None:
     sys.stdout.write(f"{json.dumps(result.to_wire(), indent=2)}\n")
 
 
-class TargetClient:
-    """Minimal stdlib client for AgentV's target proxy."""
+class ProviderClient:
+    """Minimal stdlib client for AgentV's provider proxy."""
 
     def __init__(self, url: str, token: str):
         self._url = url.rstrip("/")
         self._token = token
 
     @classmethod
-    def from_env(cls) -> "TargetClient | None":
-        url = os.environ.get("AGENTV_TARGET_PROXY_URL")
-        token = os.environ.get("AGENTV_TARGET_PROXY_TOKEN")
+    def from_env(cls) -> "ProviderClient | None":
+        url = os.environ.get("AGENTV_PROVIDER_PROXY_URL")
+        token = os.environ.get("AGENTV_PROVIDER_PROXY_TOKEN")
         if not url:
             return None
         if not token:
             raise RuntimeError(
-                "AGENTV_TARGET_PROXY_URL is set but AGENTV_TARGET_PROXY_TOKEN is missing"
+                "AGENTV_PROVIDER_PROXY_URL is set but AGENTV_PROVIDER_PROXY_TOKEN is missing"
             )
         return cls(url, token)
 
@@ -230,7 +230,7 @@ class TargetClient:
         system_prompt: str | None = None,
         eval_case_id: str | None = None,
         attempt: int | None = None,
-        target: str | None = None,
+        provider: str | None = None,
     ) -> Any:
         return self._request(
             "POST",
@@ -240,7 +240,7 @@ class TargetClient:
                 "systemPrompt": system_prompt,
                 "evalCaseId": eval_case_id,
                 "attempt": attempt,
-                "target": target,
+                "provider": provider,
             },
         )
 

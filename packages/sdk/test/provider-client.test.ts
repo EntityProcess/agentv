@@ -1,54 +1,54 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 
 import {
-  TargetInvocationError,
-  TargetNotAvailableError,
-  createTargetClient,
-  createTargetClientInternal,
-} from '../src/target-client.js';
+  ProviderInvocationError,
+  ProviderNotAvailableError,
+  createProviderClient,
+  createProviderClientInternal,
+} from '../src/provider-client.js';
 
-describe('createTargetClient', () => {
-  const originalUrl = process.env.AGENTV_TARGET_PROXY_URL;
-  const originalToken = process.env.AGENTV_TARGET_PROXY_TOKEN;
+describe('createProviderClient', () => {
+  const originalUrl = process.env.AGENTV_PROVIDER_PROXY_URL;
+  const originalToken = process.env.AGENTV_PROVIDER_PROXY_TOKEN;
 
   beforeEach(() => {
-    process.env.AGENTV_TARGET_PROXY_URL = '';
-    process.env.AGENTV_TARGET_PROXY_TOKEN = '';
+    process.env.AGENTV_PROVIDER_PROXY_URL = '';
+    process.env.AGENTV_PROVIDER_PROXY_TOKEN = '';
   });
 
   afterEach(() => {
     if (originalUrl === undefined) {
-      process.env.AGENTV_TARGET_PROXY_URL = '';
+      process.env.AGENTV_PROVIDER_PROXY_URL = '';
     } else {
-      process.env.AGENTV_TARGET_PROXY_URL = originalUrl;
+      process.env.AGENTV_PROVIDER_PROXY_URL = originalUrl;
     }
 
     if (originalToken === undefined) {
-      process.env.AGENTV_TARGET_PROXY_TOKEN = '';
+      process.env.AGENTV_PROVIDER_PROXY_TOKEN = '';
     } else {
-      process.env.AGENTV_TARGET_PROXY_TOKEN = originalToken;
+      process.env.AGENTV_PROVIDER_PROXY_TOKEN = originalToken;
     }
   });
 
   it('returns undefined when no env vars are set', () => {
-    const client = createTargetClient();
+    const client = createProviderClient();
     expect(client).toBeUndefined();
   });
 
-  it('throws TargetNotAvailableError when URL is set but token is missing', () => {
-    process.env.AGENTV_TARGET_PROXY_URL = 'http://127.0.0.1:3000';
+  it('throws ProviderNotAvailableError when URL is set but token is missing', () => {
+    process.env.AGENTV_PROVIDER_PROXY_URL = 'http://127.0.0.1:3000';
 
-    expect(() => createTargetClient()).toThrow(TargetNotAvailableError);
-    expect(() => createTargetClient()).toThrow(
-      'AGENTV_TARGET_PROXY_URL is set but AGENTV_TARGET_PROXY_TOKEN is missing',
+    expect(() => createProviderClient()).toThrow(ProviderNotAvailableError);
+    expect(() => createProviderClient()).toThrow(
+      'AGENTV_PROVIDER_PROXY_URL is set but AGENTV_PROVIDER_PROXY_TOKEN is missing',
     );
   });
 
   it('returns client when both env vars are set', () => {
-    process.env.AGENTV_TARGET_PROXY_URL = 'http://127.0.0.1:3000';
-    process.env.AGENTV_TARGET_PROXY_TOKEN = 'test-token-123';
+    process.env.AGENTV_PROVIDER_PROXY_URL = 'http://127.0.0.1:3000';
+    process.env.AGENTV_PROVIDER_PROXY_TOKEN = 'test-token-123';
 
-    const client = createTargetClient();
+    const client = createProviderClient();
     expect(client).toBeDefined();
     expect(typeof client?.invoke).toBe('function');
     expect(typeof client?.invokeBatch).toBe('function');
@@ -56,24 +56,24 @@ describe('createTargetClient', () => {
   });
 });
 
-describe('createTargetClientInternal', () => {
+describe('createProviderClientInternal', () => {
   it('creates client with invoke method', () => {
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
     expect(typeof client.invoke).toBe('function');
   });
 
   it('creates client with invokeBatch method', () => {
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
     expect(typeof client.invokeBatch).toBe('function');
   });
 
   it('creates client with getInfo method', () => {
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
     expect(typeof client.getInfo).toBe('function');
   });
 });
 
-describe('TargetClient.invoke', () => {
+describe('ProviderClient.invoke', () => {
   it('makes POST request with correct headers', async () => {
     const mockResponse = {
       output: [{ role: 'assistant', content: 'test response' }],
@@ -85,7 +85,7 @@ describe('TargetClient.invoke', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'secret-token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'secret-token');
     await client.invoke({ question: 'test question' });
 
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -113,7 +113,7 @@ describe('TargetClient.invoke', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
     const response = await client.invoke({ question: 'test' });
 
     expect(response.output).toEqual([{ role: 'assistant', content: 'test' }]);
@@ -122,23 +122,23 @@ describe('TargetClient.invoke', () => {
     fetchSpy.mockRestore();
   });
 
-  it('throws TargetInvocationError on non-ok response', async () => {
+  it('throws ProviderInvocationError on non-ok response', async () => {
     const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
       status: 429,
       text: () => Promise.resolve('{"error":"Max calls exceeded"}'),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
 
-    let error: TargetInvocationError | undefined;
+    let error: ProviderInvocationError | undefined;
     try {
       await client.invoke({ question: 'test' });
     } catch (e) {
-      error = e as TargetInvocationError;
+      error = e as ProviderInvocationError;
     }
 
-    expect(error).toBeInstanceOf(TargetInvocationError);
+    expect(error).toBeInstanceOf(ProviderInvocationError);
     expect(error?.message).toBe('Max calls exceeded');
     expect(error?.statusCode).toBe(429);
 
@@ -152,16 +152,16 @@ describe('TargetClient.invoke', () => {
       text: () => Promise.resolve('Internal Server Error'),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
 
-    let error: TargetInvocationError | undefined;
+    let error: ProviderInvocationError | undefined;
     try {
       await client.invoke({ question: 'test' });
     } catch (e) {
-      error = e as TargetInvocationError;
+      error = e as ProviderInvocationError;
     }
 
-    expect(error).toBeInstanceOf(TargetInvocationError);
+    expect(error).toBeInstanceOf(ProviderInvocationError);
     expect(error?.message).toBe('Internal Server Error');
     expect(error?.statusCode).toBe(500);
 
@@ -169,7 +169,7 @@ describe('TargetClient.invoke', () => {
   });
 });
 
-describe('TargetClient.invokeBatch', () => {
+describe('ProviderClient.invokeBatch', () => {
   it('makes POST request to /invokeBatch endpoint', async () => {
     const mockResponse = {
       responses: [
@@ -183,7 +183,7 @@ describe('TargetClient.invokeBatch', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
     await client.invokeBatch([{ question: 'q1' }, { question: 'q2' }]);
 
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -209,7 +209,7 @@ describe('TargetClient.invokeBatch', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
     const responses = await client.invokeBatch([{ question: 'q1' }, { question: 'q2' }]);
 
     expect(responses).toHaveLength(2);
@@ -219,7 +219,7 @@ describe('TargetClient.invokeBatch', () => {
     fetchSpy.mockRestore();
   });
 
-  it('throws TargetInvocationError on batch limit exceeded', async () => {
+  it('throws ProviderInvocationError on batch limit exceeded', async () => {
     const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
       status: 429,
@@ -229,16 +229,16 @@ describe('TargetClient.invokeBatch', () => {
         ),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
 
-    let error: TargetInvocationError | undefined;
+    let error: ProviderInvocationError | undefined;
     try {
       await client.invokeBatch([{ question: 'q1' }]);
     } catch (e) {
-      error = e as TargetInvocationError;
+      error = e as ProviderInvocationError;
     }
 
-    expect(error).toBeInstanceOf(TargetInvocationError);
+    expect(error).toBeInstanceOf(ProviderInvocationError);
     expect(error?.message).toContain('Batch would exceed max calls');
     expect(error?.statusCode).toBe(429);
 
@@ -246,13 +246,13 @@ describe('TargetClient.invokeBatch', () => {
   });
 });
 
-describe('TargetClient.getInfo', () => {
+describe('ProviderClient.getInfo', () => {
   it('makes GET request to /info endpoint', async () => {
     const mockResponse = {
-      targetName: 'default-target',
+      providerLabel: 'default-provider',
       maxCalls: 50,
       callCount: 5,
-      availableTargets: ['default-target', 'alt-target'],
+      availableProviderLabels: ['default-provider', 'alt-provider'],
     };
 
     const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
@@ -260,7 +260,7 @@ describe('TargetClient.getInfo', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'secret-token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'secret-token');
     await client.getInfo();
 
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -277,12 +277,12 @@ describe('TargetClient.getInfo', () => {
     fetchSpy.mockRestore();
   });
 
-  it('returns target info', async () => {
+  it('returns provider info', async () => {
     const mockResponse = {
-      targetName: 'default-target',
+      providerLabel: 'default-provider',
       maxCalls: 50,
       callCount: 5,
-      availableTargets: ['default-target', 'alt-target'],
+      availableProviderLabels: ['default-provider', 'alt-provider'],
     };
 
     const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
@@ -290,34 +290,34 @@ describe('TargetClient.getInfo', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
     const info = await client.getInfo();
 
-    expect(info.targetName).toBe('default-target');
+    expect(info.providerLabel).toBe('default-provider');
     expect(info.maxCalls).toBe(50);
     expect(info.callCount).toBe(5);
-    expect(info.availableTargets).toEqual(['default-target', 'alt-target']);
+    expect(info.availableProviderLabels).toEqual(['default-provider', 'alt-provider']);
 
     fetchSpy.mockRestore();
   });
 
-  it('throws TargetInvocationError on non-ok response', async () => {
+  it('throws ProviderInvocationError on non-ok response', async () => {
     const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
       status: 401,
       text: () => Promise.resolve('{"error":"Unauthorized"}'),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
 
-    let error: TargetInvocationError | undefined;
+    let error: ProviderInvocationError | undefined;
     try {
       await client.getInfo();
     } catch (e) {
-      error = e as TargetInvocationError;
+      error = e as ProviderInvocationError;
     }
 
-    expect(error).toBeInstanceOf(TargetInvocationError);
+    expect(error).toBeInstanceOf(ProviderInvocationError);
     expect(error?.message).toBe('Unauthorized');
     expect(error?.statusCode).toBe(401);
 
@@ -325,8 +325,8 @@ describe('TargetClient.getInfo', () => {
   });
 });
 
-describe('TargetClient.invoke with target override', () => {
-  it('includes target in request body when specified', async () => {
+describe('ProviderClient.invoke with provider override', () => {
+  it('includes provider in request body when specified', async () => {
     const mockResponse = {
       output: [{ role: 'assistant', content: 'test response' }],
       rawText: 'test response',
@@ -337,8 +337,8 @@ describe('TargetClient.invoke with target override', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
-    await client.invoke({ question: 'test', target: 'alt-target' });
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
+    await client.invoke({ question: 'test', provider: 'alt-provider' });
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'http://127.0.0.1:3000/invoke',
@@ -348,7 +348,7 @@ describe('TargetClient.invoke with target override', () => {
           systemPrompt: undefined,
           evalCaseId: undefined,
           attempt: undefined,
-          target: 'alt-target',
+          provider: 'alt-provider',
         }),
       }),
     );
@@ -357,8 +357,8 @@ describe('TargetClient.invoke with target override', () => {
   });
 });
 
-describe('TargetClient.invokeBatch with target override', () => {
-  it('includes target in each request when specified', async () => {
+describe('ProviderClient.invokeBatch with provider override', () => {
+  it('includes provider in each request when specified', async () => {
     const mockResponse = {
       responses: [
         { output: [], rawText: 'response 1' },
@@ -371,8 +371,8 @@ describe('TargetClient.invokeBatch with target override', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
-    await client.invokeBatch([{ question: 'q1' }, { question: 'q2', target: 'alt-target' }]);
+    const client = createProviderClientInternal('http://127.0.0.1:3000', 'token');
+    await client.invokeBatch([{ question: 'q1' }, { question: 'q2', provider: 'alt-provider' }]);
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'http://127.0.0.1:3000/invokeBatch',
@@ -384,14 +384,14 @@ describe('TargetClient.invokeBatch with target override', () => {
               systemPrompt: undefined,
               evalCaseId: undefined,
               attempt: undefined,
-              target: undefined,
+              provider: undefined,
             },
             {
               question: 'q2',
               systemPrompt: undefined,
               evalCaseId: undefined,
               attempt: undefined,
-              target: 'alt-target',
+              provider: 'alt-provider',
             },
           ],
         }),
@@ -403,21 +403,21 @@ describe('TargetClient.invokeBatch with target override', () => {
 });
 
 describe('Error classes', () => {
-  it('TargetNotAvailableError has correct name', () => {
-    const error = new TargetNotAvailableError('test');
-    expect(error.name).toBe('TargetNotAvailableError');
+  it('ProviderNotAvailableError has correct name', () => {
+    const error = new ProviderNotAvailableError('test');
+    expect(error.name).toBe('ProviderNotAvailableError');
     expect(error.message).toBe('test');
   });
 
-  it('TargetInvocationError has correct name and statusCode', () => {
-    const error = new TargetInvocationError('test', 429);
-    expect(error.name).toBe('TargetInvocationError');
+  it('ProviderInvocationError has correct name and statusCode', () => {
+    const error = new ProviderInvocationError('test', 429);
+    expect(error.name).toBe('ProviderInvocationError');
     expect(error.message).toBe('test');
     expect(error.statusCode).toBe(429);
   });
 
-  it('TargetInvocationError works without statusCode', () => {
-    const error = new TargetInvocationError('test');
+  it('ProviderInvocationError works without statusCode', () => {
+    const error = new ProviderInvocationError('test');
     expect(error.statusCode).toBeUndefined();
   });
 });

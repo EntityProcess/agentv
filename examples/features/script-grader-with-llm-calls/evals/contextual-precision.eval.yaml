@@ -5,7 +5,7 @@ assert:
       - bun
       - run
       - ../scripts/contextual-precision.ts
-    target:
+    provider:
       max_calls: 10
 providers:
   - llm

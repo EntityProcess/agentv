@@ -40,7 +40,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [script-grader-sdk](script-grader-sdk/) | TypeScript script graders using `defineScriptGrader()` from `agentv` |
-| [script-grader-with-llm-calls](script-grader-with-llm-calls/) | script graders that make LLM calls via a target proxy |
+| [script-grader-with-llm-calls](script-grader-with-llm-calls/) | script graders that make LLM calls via a provider proxy |
 | [eval-assert-demo](eval-assert-demo/) | script graders runnable both in a suite and individually via `agentv eval assert` |
 | [functional-grading](functional-grading/) | Install dependencies, compile, and run tests against agent-generated code |
 
@@ -51,7 +51,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 |---------|-------------|
 | [trajectory-assertions-simple](trajectory-assertions-simple/) | Validate expected tool calls with Promptfoo trajectory assertions |
 | [trajectory-assertions-advanced](trajectory-assertions-advanced/) | Promptfoo trajectory assertions with `expected_output` and per-call checks |
-| [latency-assertions](latency-assertions/) | Tool sequence and argument checks for a latency-flavored mock target |
+| [latency-assertions](latency-assertions/) | Tool sequence and argument checks for a latency-flavored mock provider |
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | F1 precision/recall scoring for tool-call accuracy |
 | [trace-evaluation](trace-evaluation/) | Inspect agent internals: LLM call counts, tool executions, step durations |
 
@@ -103,10 +103,10 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [workspace-setup-script](workspace-setup-script/) | Multi-step setup with a `beforeAll` lifecycle extension |
 | [workspace-multi-repo](workspace-multi-repo/) | Multi-repo environment using a VS Code `.code-workspace` file |
 | [workspace-shared-config](workspace-shared-config/) | Define an environment recipe once and reference it across eval files |
-| [repo-lifecycle](repo-lifecycle/) | Clone a git repo into the workspace and target the agent at it |
+| [repo-lifecycle](repo-lifecycle/) | Clone a git repo into the workspace and point the agent at it |
 | [file-changes](file-changes/) | Capture workspace file changes made by the agent across test runs |
 | [file-changes-graders](file-changes-graders/) | Grade file diffs with rubrics and LLM graders |
-| [local-cli](local-cli/) | Define and invoke local CLI targets |
+| [local-cli](local-cli/) | Define and invoke local CLI providers |
 | [batch-cli](batch-cli/) | Run bulk evaluations from the CLI |
 
 ---
@@ -138,7 +138,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [assert-extended](assert-extended/) | Deterministic assertions |
 | [basic](basic/) | Getting started |
 | [basic-jsonl](basic-jsonl/) | Getting started |
-| [batch-cli](batch-cli/) | Workspace & targets |
+| [batch-cli](batch-cli/) | Workspace & providers |
 | [benchmark-tooling](benchmark-tooling/) | Benchmarking |
 | [script-grader-sdk](script-grader-sdk/) | Custom graders |
 | [script-grader-with-llm-calls](script-grader-with-llm-calls/) | Custom graders |
@@ -152,17 +152,17 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [eval-assert-demo](eval-assert-demo/) | Custom graders |
 | [execution-metrics](execution-metrics/) | Cost, latency & tokens |
 | [external-datasets](external-datasets/) | Dataset & input |
-| [file-changes](file-changes/) | Workspace & targets |
-| [file-changes-graders](file-changes-graders/) | Workspace & targets |
+| [file-changes](file-changes/) | Workspace & providers |
+| [file-changes-graders](file-changes-graders/) | Workspace & providers |
 | [functional-grading](functional-grading/) | Custom graders |
 | [input-files-shorthand](input-files-shorthand/) | Dataset & input |
 | [latency-assertions](latency-assertions/) | Tool & agent evaluation |
-| [local-cli](local-cli/) | Workspace & targets |
+| [local-cli](local-cli/) | Workspace & providers |
 | [multi-turn-conversation](multi-turn-conversation/) | LLM grading |
 | [nlp-metrics](nlp-metrics/) | Deterministic assertions |
 | [file-transforms](file-transforms/) | LLM grading |
 | [prompt-template-sdk](prompt-template-sdk/) | TypeScript SDK |
-| [repo-lifecycle](repo-lifecycle/) | Workspace & targets |
+| [repo-lifecycle](repo-lifecycle/) | Workspace & providers |
 | [rubric](rubric/) | LLM grading |
 | [scenarios](scenarios/) | Dataset & prompt templates |
 | [sdk-config-file](sdk-config-file/) | TypeScript SDK |
@@ -181,6 +181,6 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [trial-output-consistency](trial-output-consistency/) | Benchmarking |
 | [trials](trials/) | Benchmarking |
 | [weighted-graders](weighted-graders/) | LLM grading |
-| [workspace-multi-repo](workspace-multi-repo/) | Workspace & targets |
-| [workspace-setup-script](workspace-setup-script/) | Workspace & targets |
-| [workspace-shared-config](workspace-shared-config/) | Workspace & targets |
+| [workspace-multi-repo](workspace-multi-repo/) | Workspace & providers |
+| [workspace-setup-script](workspace-setup-script/) | Workspace & providers |
+| [workspace-shared-config](workspace-shared-config/) | Workspace & providers |

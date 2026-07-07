@@ -551,7 +551,7 @@ Configure via the `assert` array. Multiple graders produce a weighted average sc
   type: script
   command: [uv, run, validate.py]
   cwd: ./scripts          # optional working directory
-  target: {}              # optional: enable LLM target proxy (max_calls: 50)
+  provider: {}            # optional: enable LLM provider proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{pass, score, reason, checks?: [{text, pass, score?, reason}]}`
 Raw stdin uses snake_case and includes: `input`, `expected_output`, `output` (final answer string), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
@@ -825,7 +825,7 @@ import { graders } from '@agentv/sdk';
 export function ragFaithfulness() {
   return graders.llmRubric(undefined, {
     name: 'rag-faithfulness',
-    target: 'grader-target',
+    provider: 'grader-provider',
     prompt: 'Grade whether the answer is supported by the retrieved context.',
   });
 }

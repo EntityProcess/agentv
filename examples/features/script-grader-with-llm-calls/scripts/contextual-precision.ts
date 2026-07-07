@@ -12,10 +12,10 @@
  * Retrieval context is extracted from expected_output.tool_calls output,
  * which represents the expected agent behavior (calling a retrieval tool).
  *
- * Requires `target: { max_calls: N }` in the grader YAML config,
+ * Requires `provider: { max_calls: N }` in the grader YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
-import { createTargetClient, defineScriptGrader } from 'agentv';
+import { createProviderClient, defineScriptGrader } from 'agentv';
 import { extractRetrievalContext } from './utils.js';
 
 interface RelevanceResult {
@@ -63,14 +63,14 @@ export default defineScriptGrader(async (input) => {
     };
   }
 
-  const target = createTargetClient();
+  const provider = createProviderClient();
 
-  if (!target) {
+  if (!provider) {
     return {
       score: 0,
       assertions: [
         {
-          text: 'Target not available - ensure `target` block is configured in grader YAML',
+          text: 'Provider proxy not available - ensure `provider` block is configured in grader YAML',
           passed: false,
         },
       ],
@@ -78,7 +78,7 @@ export default defineScriptGrader(async (input) => {
   }
 
   // Step 1: Use batch invocation to determine relevance of each node
-  // Demonstrates target override - uses gemini-llm regardless of default target
+  // Demonstrates provider override - uses gemini-llm regardless of default provider
   const requests = retrievalContext.map((node, index) => ({
     question: `Determine if this retrieved context node is relevant to answering the question.
 
@@ -95,10 +95,10 @@ Is this node relevant to answering the question? Respond with JSON only:
 }`,
     systemPrompt:
       'You are a precise relevance grader for RAG systems. Determine if a retrieved node contains information useful for answering the given question. Output valid JSON only.',
-    target: 'gemini-llm', // Override: use gemini-llm for relevance checks
+    provider: 'gemini-llm', // Override: use gemini-llm for relevance checks
   }));
 
-  const responses = await target.invokeBatch(requests);
+  const responses = await provider.invokeBatch(requests);
 
   // Step 2: Parse relevance scores for each node
   const relevanceScores: boolean[] = [];

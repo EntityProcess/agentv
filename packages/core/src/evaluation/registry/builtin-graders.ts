@@ -206,7 +206,7 @@ export const scriptFactory: GraderFactoryFn = (config, context) => {
     cwd: c.resolvedCwd ?? c.cwd,
     agentTimeoutMs: context.agentTimeoutMs,
     config: c.config,
-    target: c.target,
+    provider: c.provider,
   });
 };
 

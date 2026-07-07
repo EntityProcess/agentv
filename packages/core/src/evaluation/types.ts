@@ -222,12 +222,12 @@ export function isGraderKind(value: unknown): value is GraderKind {
 }
 
 /**
- * Configuration for enabling target access in script evaluators.
+ * Configuration for enabling provider access in script evaluators.
  * When present, the runtime will start a local proxy server that allows
- * the script to invoke configured targets without direct credential access.
+ * the script to invoke configured providers without direct credential access.
  */
-export type TargetAccessConfig = {
-  /** Maximum number of target invocations allowed per execution (default: 50) */
+export type ProviderAccessConfig = {
+  /** Maximum number of provider invocations allowed per execution (default: 50) */
   readonly max_calls?: number;
 };
 
@@ -427,8 +427,8 @@ export type ScriptGraderConfig = {
   readonly negate?: boolean;
   /** Pass-through configuration for the script (any unrecognized YAML properties) */
   readonly config?: JsonObject;
-  /** When present, enables target access via local proxy */
-  readonly target?: TargetAccessConfig;
+  /** When present, enables provider access via local proxy */
+  readonly provider?: ProviderAccessConfig;
   /** Optional content preprocessors inherited from suite/evaluator config */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };

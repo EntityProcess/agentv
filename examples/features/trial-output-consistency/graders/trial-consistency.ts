@@ -3,7 +3,7 @@
  * Trial Output Consistency Grader
  *
  * Computes consistency across repeated trial outputs using embedding similarity.
- * Uses the Vercel AI SDK for embeddings via AgentV's target client, with a
+ * Uses the Vercel AI SDK for embeddings via AgentV's provider client, with a
  * token-overlap cosine similarity fallback when embeddings are unavailable.
  *
  * Config:
@@ -15,7 +15,7 @@
  *   1 trial   → score 1.0 (perfect consistency by definition)
  *   2+ trials → average pairwise cosine similarity
  */
-import { createTargetClient, defineScriptGrader, z } from 'agentv';
+import { createProviderClient, defineScriptGrader, z } from 'agentv';
 
 const ConfigSchema = z.object({
   trialOutputs: z.array(z.string()),
@@ -64,11 +64,11 @@ function tokenVectors(texts: string[]): number[][] {
   return tfs.map((tf) => vocab.map((w) => tf.get(w) ?? 0));
 }
 
-// ── Embedding via target client ─────────────────────────────────────────
+// ── Embedding via provider client ─────────────────────────────────────────
 
 async function getEmbeddings(texts: string[]): Promise<number[][] | null> {
-  const target = createTargetClient();
-  if (!target) return null;
+  const provider = createProviderClient();
+  if (!provider) return null;
 
   try {
     const requests = texts.map((text) => ({
@@ -76,7 +76,7 @@ async function getEmbeddings(texts: string[]): Promise<number[][] | null> {
       systemPrompt:
         'Return ONLY a JSON array of 64 floating-point numbers representing a semantic embedding of the user message. No explanation.',
     }));
-    const responses = await target.invokeBatch(requests);
+    const responses = await provider.invokeBatch(requests);
     const embeddings: number[][] = [];
     for (const r of responses) {
       const raw = r.rawText ?? '';

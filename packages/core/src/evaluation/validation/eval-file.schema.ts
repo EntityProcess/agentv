@@ -191,7 +191,7 @@ const ScriptGraderSchema = EvaluatorCommonSchema.extend({
   type: z.literal('script'),
   command: z.union([z.string(), z.array(z.string())]),
   cwd: z.string().optional(),
-  target: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
+  provider: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
   config: z.record(z.unknown()).optional(),
 });
 
@@ -362,7 +362,14 @@ const AssertionObjectSchema = JsonObjectSchema.superRefine((value, ctx) => {
       message: 'postprocess has been removed. Use transform instead.',
     });
   }
-  if (typeof value.target === 'string') {
+  if (value.type === 'script' && value.target !== undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['target'],
+      message:
+        "Script evaluator field 'target' has been removed. Use script evaluator 'provider' instead.",
+    });
+  } else if (typeof value.target === 'string') {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['target'],

@@ -288,30 +288,30 @@ Prefer Vitest verifiers when the checks naturally fit `expect(...)`. Use `define
 
 **SDK exports:** `defineScriptGrader`, `defineVitestWorkspaceGrader`, `defineWorkspaceGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `ScriptGraderInput`, `ScriptGraderResult`, `ScriptGraderCheck`, `Workspace`, `WorkspaceCheck`
 
-## Target Access
+## Provider Access
 
-Script graders can call an LLM through a target proxy for metrics that require multiple LLM calls (contextual precision, semantic similarity, etc.).
+Script graders can call an LLM through a provider proxy for metrics that require multiple LLM calls (contextual precision, semantic similarity, etc.).
 
 ### Configuration
 
-Add a `target` block to the grader config:
+Add a `provider` block to the grader config:
 
 ```yaml
 assert:
   - name: contextual-precision
     type: script
     command: [bun, scripts/contextual-precision.ts]
-    target:
+    provider:
       max_calls: 10  # Default: 50
 ```
 
 ### Usage
 
-Use `createTargetClient` from the SDK:
+Use `createProviderClient` from the SDK:
 
 ```typescript
 #!/usr/bin/env bun
-import { createTargetClient, defineScriptGrader } from 'agentv';
+import { createProviderClient, defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(async ({ input, output }) => {
   const inputText = input
@@ -319,10 +319,10 @@ export default defineScriptGrader(async ({ input, output }) => {
     .map((message) => typeof message.content === 'string' ? message.content : '')
     .join('\n');
   const outputText = output ?? '';
-  const target = createTargetClient();
-  if (!target) return { pass: false, score: 0, reason: 'Target not configured' };
+  const provider = createProviderClient();
+  if (!provider) return { pass: false, score: 0, reason: 'Provider proxy not configured' };
 
-  const response = await target.invoke({
+  const response = await provider.invoke({
     question: `Is this relevant to: ${inputText}? Response: ${outputText}`,
     systemPrompt: 'Respond with JSON: { "relevant": true/false }'
   });
@@ -336,14 +336,14 @@ export default defineScriptGrader(async ({ input, output }) => {
 });
 ```
 
-Use `target.invokeBatch(requests)` for multiple calls in parallel.
+Use `provider.invokeBatch(requests)` for multiple calls in parallel.
 
-**Environment variables** (set automatically when `target` is configured):
+**Environment variables** (set automatically when `provider` is configured):
 
 | Variable | Description |
 |----------|-------------|
-| `AGENTV_TARGET_PROXY_URL` | Local proxy URL |
-| `AGENTV_TARGET_PROXY_TOKEN` | Bearer token for authentication |
+| `AGENTV_PROVIDER_PROXY_URL` | Local proxy URL |
+| `AGENTV_PROVIDER_PROXY_TOKEN` | Bearer token for authentication |
 
 ## Advanced Input Fields
 
@@ -353,7 +353,7 @@ Beyond the basic fields (`input`, `output`, `expected_output`), script graders r
 |-------|------|-------------|
 | `input` | `Message[]` | Full resolved input message array |
 | `output` | `string \| null` | Final answer / scored result only |
-| `messages` | `Message[]` | Transcript messages from the target execution |
+| `messages` | `Message[]` | Transcript messages from the provider execution |
 | `expected_output` | `Message[]` | Expected/reference output messages |
 | `output_path` | `string` | Temp file containing large final answer JSON, when `output` is omitted |
 | `input_files` | `string[]` | Paths to input files referenced in the eval |

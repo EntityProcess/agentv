@@ -5,16 +5,16 @@ import { dirname, join } from 'node:path';
 import { execFileWithStdin, execShellWithStdin } from '../../runtime/exec.js';
 import {
   DEFAULT_MAX_CALLS,
-  type TargetProxyUsageMetadata,
-  createTargetProxy,
-} from '../../runtime/target-proxy.js';
+  type ProviderProxyUsageMetadata,
+  createProviderProxy,
+} from '../../runtime/provider-proxy.js';
 import { serializeSnakeCaseBoundaryPayload } from '../case-conversion.js';
 import { type ContentImage, isContentArray } from '../content.js';
 import type {
   AssertionEntry,
   GraderCheckResult,
   JsonObject,
-  TargetAccessConfig,
+  ProviderAccessConfig,
 } from '../types.js';
 import { getRepoCheckoutTargets } from '../workspace/repo-checkout.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
@@ -191,8 +191,8 @@ export interface ScriptGraderOptions {
   readonly agentTimeoutMs?: number;
   /** Pass-through configuration from YAML (any unrecognized properties) */
   readonly config?: Record<string, unknown>;
-  /** Target access config - when present, enables target invocation */
-  readonly target?: TargetAccessConfig;
+  /** Provider access config - when present, enables provider invocation */
+  readonly provider?: ProviderAccessConfig;
 }
 
 export class ScriptGrader implements Grader {
@@ -202,14 +202,14 @@ export class ScriptGrader implements Grader {
   private readonly cwd?: string;
   private readonly agentTimeoutMs?: number;
   private readonly config?: Record<string, unknown>;
-  private readonly target?: TargetAccessConfig;
+  private readonly provider?: ProviderAccessConfig;
 
   constructor(options: ScriptGraderOptions) {
     this.command = options.command;
     this.cwd = options.cwd;
     this.agentTimeoutMs = options.agentTimeoutMs;
     this.config = options.config;
-    this.target = options.target;
+    this.provider = options.provider;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -289,22 +289,22 @@ export class ScriptGrader implements Grader {
 
     const inputPayload = JSON.stringify(serializeSnakeCaseBoundaryPayload(payload), null, 2);
 
-    // Set up target proxy if configured and grader provider is available
+    // Set up provider proxy if configured and grader provider is available
     let proxyEnv: Record<string, string> | undefined;
     let proxyShutdown: (() => Promise<void>) | undefined;
-    let getProxyUsage: (() => TargetProxyUsageMetadata) | undefined;
+    let getProxyUsage: (() => ProviderProxyUsageMetadata) | undefined;
 
-    if (this.target !== undefined && context.graderProvider) {
-      const maxCalls = this.target.max_calls ?? DEFAULT_MAX_CALLS;
-      const proxy = await createTargetProxy({
+    if (this.provider !== undefined && context.graderProvider) {
+      const maxCalls = this.provider.max_calls ?? DEFAULT_MAX_CALLS;
+      const proxy = await createProviderProxy({
         defaultProvider: context.graderProvider,
-        targetResolver: context.targetResolver,
-        availableTargets: context.availableTargets,
+        providerResolver: context.targetResolver,
+        availableProviderLabels: context.availableTargets,
         maxCalls,
       });
       proxyEnv = {
-        AGENTV_TARGET_PROXY_URL: proxy.url,
-        AGENTV_TARGET_PROXY_TOKEN: proxy.token,
+        AGENTV_PROVIDER_PROXY_URL: proxy.url,
+        AGENTV_PROVIDER_PROXY_TOKEN: proxy.token,
       };
       proxyShutdown = proxy.shutdown;
       getProxyUsage = proxy.getUsageMetadata;

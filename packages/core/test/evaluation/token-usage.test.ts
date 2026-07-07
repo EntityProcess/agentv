@@ -1,6 +1,6 @@
 /**
  * Tests for token usage tracking across the evaluation pipeline.
- * Covers: AI SDK mapResponse, target proxy accumulation, orchestrator passthrough.
+ * Covers: AI SDK mapResponse, provider proxy accumulation, orchestrator passthrough.
  */
 import { describe, expect, it } from 'bun:test';
 
@@ -58,8 +58,8 @@ describe('token usage type contracts', () => {
   });
 });
 
-// ─── Target proxy token usage accumulation ─────────────────────────────
-describe('target proxy token usage accumulation', () => {
+// ─── Provider proxy token usage accumulation ───────────────────────────
+describe('provider proxy token usage accumulation', () => {
   function createMockProviderWithUsage(
     targetName: string,
     tokenUsage: { input: number; output: number },
@@ -76,10 +76,10 @@ describe('target proxy token usage accumulation', () => {
   }
 
   it('accumulates tokenUsage across multiple invoke calls', async () => {
-    const { createTargetProxy } = await import('../../src/runtime/target-proxy.js');
+    const { createProviderProxy } = await import('../../src/runtime/provider-proxy.js');
 
     const provider = createMockProviderWithUsage('test', { input: 100, output: 50 });
-    const proxy = await createTargetProxy({ defaultProvider: provider, maxCalls: 10 });
+    const proxy = await createProviderProxy({ defaultProvider: provider, maxCalls: 10 });
 
     try {
       const headers = {
@@ -105,10 +105,10 @@ describe('target proxy token usage accumulation', () => {
   });
 
   it('returns per-call tokenUsage in invoke response', async () => {
-    const { createTargetProxy } = await import('../../src/runtime/target-proxy.js');
+    const { createProviderProxy } = await import('../../src/runtime/provider-proxy.js');
 
     const provider = createMockProviderWithUsage('test', { input: 42, output: 17 });
-    const proxy = await createTargetProxy({ defaultProvider: provider, maxCalls: 10 });
+    const proxy = await createProviderProxy({ defaultProvider: provider, maxCalls: 10 });
 
     try {
       const response = await fetch(`${proxy.url}/invoke`, {
@@ -128,7 +128,7 @@ describe('target proxy token usage accumulation', () => {
   });
 
   it('returns undefined tokenUsage when provider reports none', async () => {
-    const { createTargetProxy } = await import('../../src/runtime/target-proxy.js');
+    const { createProviderProxy } = await import('../../src/runtime/provider-proxy.js');
 
     const provider: Provider = {
       id: 'no-usage',
@@ -138,7 +138,7 @@ describe('target proxy token usage accumulation', () => {
         output: [{ role: 'assistant', content: 'response' }],
       }),
     };
-    const proxy = await createTargetProxy({ defaultProvider: provider, maxCalls: 10 });
+    const proxy = await createProviderProxy({ defaultProvider: provider, maxCalls: 10 });
 
     try {
       await fetch(`${proxy.url}/invoke`, {
@@ -159,10 +159,10 @@ describe('target proxy token usage accumulation', () => {
   });
 
   it('accumulates tokenUsage in batch requests', async () => {
-    const { createTargetProxy } = await import('../../src/runtime/target-proxy.js');
+    const { createProviderProxy } = await import('../../src/runtime/provider-proxy.js');
 
     const provider = createMockProviderWithUsage('test', { input: 10, output: 5 });
-    const proxy = await createTargetProxy({ defaultProvider: provider, maxCalls: 10 });
+    const proxy = await createProviderProxy({ defaultProvider: provider, maxCalls: 10 });
 
     try {
       const response = await fetch(`${proxy.url}/invokeBatch`, {

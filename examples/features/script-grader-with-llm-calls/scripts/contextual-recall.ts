@@ -16,10 +16,10 @@
  * Retrieval context is extracted from expected_output.tool_calls output,
  * which represents the expected agent behavior (calling a retrieval tool).
  *
- * Requires `target: { max_calls: N }` in the grader YAML config,
+ * Requires `provider: { max_calls: N }` in the grader YAML config,
  * where N >= 2 (one for statement extraction + one for attribution check).
  */
-import { createTargetClient, defineScriptGrader } from 'agentv';
+import { createProviderClient, defineScriptGrader } from 'agentv';
 import { extractRetrievalContext } from './utils.js';
 
 interface StatementExtractionResult {
@@ -85,14 +85,14 @@ export default defineScriptGrader(async (input) => {
     };
   }
 
-  const target = createTargetClient();
+  const provider = createProviderClient();
 
-  if (!target) {
+  if (!provider) {
     return {
       score: 0,
       assertions: [
         {
-          text: 'Target not available - ensure `target` block is configured in grader YAML',
+          text: 'Provider proxy not available - ensure `provider` block is configured in grader YAML',
           passed: false,
         },
       ],
@@ -100,7 +100,7 @@ export default defineScriptGrader(async (input) => {
   }
 
   // Step 1: Extract statements from the criteria
-  const extractionResponse = await target.invoke({
+  const extractionResponse = await provider.invoke({
     question: `Extract all distinct factual statements or claims from the following expected answer.
 Each statement should be a self-contained claim that can be independently verified.
 
@@ -115,7 +115,7 @@ Extract the statements and respond with JSON only:
 }`,
     systemPrompt:
       'You are a precise statement extractor. Break down answers into distinct, verifiable claims. Output valid JSON only.',
-    target: 'gemini-llm',
+    provider: 'gemini-llm',
   });
 
   let statements: string[] = [];
@@ -168,10 +168,10 @@ Respond with JSON only:
 }`,
     systemPrompt:
       'You are a precise attribution verifier. Determine if statements can be logically derived from or supported by the given context. A statement is attributable if the context contains information that directly supports or implies it. Output valid JSON only.',
-    target: 'gemini-llm',
+    provider: 'gemini-llm',
   }));
 
-  const attributionResponses = await target.invokeBatch(attributionRequests);
+  const attributionResponses = await provider.invokeBatch(attributionRequests);
 
   // Step 3: Parse attribution results
   const attributionResults: Array<{
