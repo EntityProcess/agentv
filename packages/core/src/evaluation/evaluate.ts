@@ -222,6 +222,7 @@ export interface MaterializedEvalConfig {
   readonly threshold?: number;
   readonly metadata?: EvalMetadata;
   readonly target?: ProviderDefinition;
+  readonly targets?: readonly ProviderDefinition[];
   readonly task?: (input: string) => string | Promise<string>;
   readonly providerFactory?: ProviderFactoryFn;
 }
@@ -362,6 +363,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     testFilePath,
     repoRoot,
     target: resolvedTarget,
+    ...(materialized.targets ? { targets: materialized.targets } : {}),
     ...(providerFactory ? { providerFactory } : {}),
     maxRetries: config.maxRetries ?? 2,
     agentTimeoutMs: config.agentTimeoutMs,
@@ -426,6 +428,9 @@ export async function materializeEvalConfig(
       category: options?.category,
     });
     const tests = applyProgrammaticSuiteOverrides(suite.tests, config);
+    const suiteTargetDefinitions = suite.targetRefs
+      ?.map((targetRef) => targetRef.definition)
+      .filter((definition): definition is ProviderDefinition => definition !== undefined);
     return {
       testFilePath,
       tests,
@@ -435,7 +440,10 @@ export async function materializeEvalConfig(
       budgetUsd: config.budgetUsd ?? suite.budgetUsd,
       threshold: config.threshold ?? suite.threshold,
       metadata: config.metadata ?? suite.metadata,
-      target: config.target ?? suite.inlineTarget,
+      target: config.target ?? suite.inlineTarget ?? suiteTargetDefinitions?.[0],
+      ...(suiteTargetDefinitions && suiteTargetDefinitions.length > 0
+        ? { targets: suiteTargetDefinitions }
+        : {}),
       task: config.task,
       providerFactory: suite.providerFactory,
     };
