@@ -132,7 +132,7 @@ describe('ResultTable target error kind', () => {
       target_error_kind: 'timeout',
     });
 
-    expect(html).toContain('[target:timeout] target timed out');
+    expect(html).toContain('[provider:timeout] target timed out');
   });
 
   it('falls back to the legacy nested target_execution shape on older bundles', () => {
@@ -145,6 +145,6 @@ describe('ResultTable target error kind', () => {
       target_execution: { error_kind: 'timeout' },
     });
 
-    expect(html).toContain('[target:timeout] target timed out');
+    expect(html).toContain('[provider:timeout] target timed out');
   });
 });

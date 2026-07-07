@@ -270,7 +270,7 @@ export function RunList({
         }
         const count = err.duplicates.length;
         const confirmed = window.confirm(
-          `${count} duplicate (test_id, target) pair${count === 1 ? '' : 's'} found. Replace duplicates with the latest timestamp?`,
+          `${count} duplicate (test ID, provider/model) pair${count === 1 ? '' : 's'} found. Replace duplicates with the latest timestamp?`,
         );
         if (!confirmed) return;
         result = await combineRunsApi(sourceRunIds, 'latest', projectId, undefined, experiment);
@@ -533,7 +533,7 @@ export function RunList({
               {enableCombine && <th className="w-10 px-4 py-3" />}
               <th className="w-8 px-4 py-3" />
               <th className="w-[18rem] px-4 py-3 font-medium text-gray-400">Experiment</th>
-              <th className="w-[16rem] px-4 py-3 font-medium text-gray-400">Target</th>
+              <th className="w-[16rem] px-4 py-3 font-medium text-gray-400">Provider/Model</th>
               <th className="px-4 py-3 font-medium text-gray-400">Remote</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Failures</th>
@@ -606,7 +606,7 @@ export function RunList({
                     </div>
                   </td>
 
-                  {/* Target */}
+                  {/* Provider/model label */}
                   <td className="w-[16rem] max-w-[16rem] px-4 py-3">
                     <div className="min-w-0">
                       <div className="flex min-w-0 items-center gap-2">

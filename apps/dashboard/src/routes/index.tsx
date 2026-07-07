@@ -50,7 +50,7 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'runs', label: '🏃 Recent Runs' },
   { id: 'tags', label: '🏷️ Tags' },
   { id: 'analytics', label: '📊 Analytics' },
-  { id: 'targets', label: '🤖 Targets' },
+  { id: 'targets', label: '🤖 Providers' },
 ];
 
 export const Route = createFileRoute('/')({
@@ -189,7 +189,7 @@ function ProjectsDashboard() {
         <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-8 text-center">
           <p className="text-lg text-gray-300">No projects registered yet.</p>
           <p className="mt-2 text-sm text-gray-500">
-            Add a project path to start browsing runs, tags, analytics, and targets.
+            Add a project path to start browsing runs, tags, analytics, and providers.
           </p>
         </div>
       ) : (

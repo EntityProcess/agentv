@@ -294,10 +294,10 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
           )}
         </div>
 
-        {/* Target override */}
+        {/* Provider override */}
         <div>
           <label htmlFor="target-override" className="mb-1 block text-sm font-medium text-gray-300">
-            Target Override
+            Provider Override
           </label>
           <select
             id="target-override"
@@ -305,7 +305,7 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
             onChange={(e) => setTarget(e.target.value)}
             className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan-600 focus:outline-none"
           >
-            <option value="">Use eval's configured target</option>
+            <option value="">Use eval's configured provider</option>
             {targetNames.map((name) => (
               <option key={name} value={name}>
                 {name}

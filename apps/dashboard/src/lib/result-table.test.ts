@@ -111,6 +111,7 @@ describe('result-table model', () => {
     ]);
     expect(model.visibleColumns.map((column) => column.id)).toContain('grader:correctness');
     expect(model.columns.find((column) => column.id === 'eval')?.label).toBe('Eval');
+    expect(model.columns.find((column) => column.id === 'target')?.label).toBe('Provider/Model');
     expect(model.rows[0].evalLabel).toBe('evals/dataset.eval.yaml');
   });
 

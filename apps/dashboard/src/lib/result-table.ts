@@ -368,7 +368,7 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
       ? [{ id: 'expander', label: 'Expand', kind: 'base' as const, defaultVisible: true }]
       : []),
     { id: 'test', label: 'Test ID', kind: 'base', defaultVisible: true },
-    { id: 'target', label: 'Target', kind: 'base', defaultVisible: true },
+    { id: 'target', label: 'Provider/Model', kind: 'base', defaultVisible: true },
     ...(hasEval
       ? [{ id: 'eval', label: 'Eval', kind: 'base' as const, defaultVisible: true }]
       : []),

@@ -70,7 +70,7 @@ export function TagValueDetail({ tagKey, tagValue, projectId }: TagValueDetailPr
         </p>
         <h1 className="text-2xl font-semibold text-white">{tagValue}</h1>
         <p className="mt-1 text-sm text-gray-400">
-          {runCount} run{runCount !== 1 ? 's' : ''} &middot; {targetCount} target
+          {runCount} run{runCount !== 1 ? 's' : ''} &middot; {targetCount} provider/model label
           {targetCount !== 1 ? 's' : ''}
           {group?.last_run && (
             <span className="ml-2">&middot; Last run: {formatTimestamp(group.last_run)}</span>
@@ -81,7 +81,7 @@ export function TagValueDetail({ tagKey, tagValue, projectId }: TagValueDetailPr
       {group && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard label="Runs" value={String(runCount)} />
-          <StatCard label="Targets" value={String(targetCount)} />
+          <StatCard label="Providers" value={String(targetCount)} />
           <StatCard
             label="Pass Rate"
             value={`${Math.round(passRate * 100)}%`}

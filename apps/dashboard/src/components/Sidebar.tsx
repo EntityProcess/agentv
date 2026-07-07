@@ -148,7 +148,7 @@ const projectNavItems: { id: ProjectTabId; label: string; description: string }[
   { id: 'runs', label: 'Recent Runs', description: 'Run review' },
   { id: 'tags', label: 'Tags', description: 'Grouped runs' },
   { id: 'analytics', label: 'Analytics', description: 'Compare scores' },
-  { id: 'targets', label: 'Targets', description: 'Target results' },
+  { id: 'targets', label: 'Providers', description: 'Provider results' },
 ];
 
 function sidebarLinkClass(isActive: boolean): string {

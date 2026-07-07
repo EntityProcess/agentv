@@ -118,7 +118,7 @@ export function AnalyticsCharts({ data, projectId }: AnalyticsChartsProps) {
               htmlFor="baseline-select"
               className="text-xs font-medium uppercase tracking-wider text-gray-500"
             >
-              Baseline target
+              Baseline provider/model
             </label>
             <select
               id="baseline-select"
@@ -158,7 +158,7 @@ export function AnalyticsCharts({ data, projectId }: AnalyticsChartsProps) {
 
           {!baseline && (
             <p className="text-xs text-gray-500">
-              Select a baseline target above to see gain and delta charts.
+              Select a baseline provider/model above to see gain and delta charts.
             </p>
           )}
         </div>
@@ -237,7 +237,7 @@ function NormalizedGainChart({ data, baseline }: { data: CompareResponse; baseli
     return (
       <ChartSection title="Normalized Gain (g)">
         <p className="text-xs text-gray-500">
-          No gain data available. Ensure multiple targets exist.
+          No gain data available. Ensure multiple provider/model labels exist.
         </p>
       </ChartSection>
     );
@@ -313,7 +313,7 @@ function NegativeDeltaTable({ data, baseline }: { data: CompareResponse; baselin
           <thead className="border-b border-gray-800 bg-gray-900/50">
             <tr>
               <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Target</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Provider/Model</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Avg Score</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Delta</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">g</th>
