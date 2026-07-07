@@ -18,11 +18,11 @@ describe('eval target selection', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('resolves authored target ids through targets.yaml', async () => {
+  it('resolves authored provider labels through providers.yaml', async () => {
     const agentvDir = path.join(tempDir, '.agentv');
     await mkdir(agentvDir, { recursive: true });
     await writeFile(
-      path.join(agentvDir, 'targets.yaml'),
+      path.join(agentvDir, 'providers.yaml'),
       [
         '$schema: agentv-targets-v2.2',
         'providers:',

@@ -634,7 +634,7 @@ export interface IndexArtifactEntry {
   readonly test_dir?: string;
   readonly task_dir?: string;
   readonly eval_path?: string;
-  readonly targets_path?: string;
+  readonly providers_path?: string;
   readonly files_path?: string;
   readonly graders_path?: string;
   readonly external_trace?: ExternalTraceMetadataWire;
@@ -655,7 +655,7 @@ export type AdditionalResultIndexFields = Partial<
     | 'test_dir'
     | 'task_dir'
     | 'eval_path'
-    | 'targets_path'
+    | 'providers_path'
     | 'files_path'
     | 'graders_path'
     | 'raw_provider_log_path'

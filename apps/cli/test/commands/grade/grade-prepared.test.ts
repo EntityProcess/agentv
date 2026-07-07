@@ -80,7 +80,7 @@ console.log(JSON.stringify({
     'utf8',
   );
   await writeFile(
-    path.join(root, '.agentv', 'targets.yaml'),
+    path.join(root, '.agentv', 'providers.yaml'),
     `
 providers:
   - id: cli

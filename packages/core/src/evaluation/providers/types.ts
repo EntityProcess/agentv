@@ -109,7 +109,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
 ] as const;
 
 /**
- * Schema identifier for targets.yaml files (version 2).
+ * Schema identifier for providers.yaml files (version 2).
  */
 export const TARGETS_SCHEMA_V2 = 'agentv-targets-v2.2';
 

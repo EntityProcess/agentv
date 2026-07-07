@@ -336,7 +336,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
       config: {},
     };
   } else {
-    // Resolve target — inline definition or auto-discover from targets.yaml
+    // Resolve target — inline definition or auto-discover from providers.yaml
     let targetDef: TargetDefinition;
     if (config.target) {
       targetDef = config.target;
@@ -743,10 +743,10 @@ function computeSummary(
   };
 }
 
-const TARGET_FILE_CANDIDATES = ['.agentv/targets.yaml', '.agentv/targets.yml'] as const;
+const TARGET_FILE_CANDIDATES = ['.agentv/providers.yaml', '.agentv/providers.yml'] as const;
 
 /**
- * Auto-discover the 'default' target from targets.yaml in the repo tree.
+ * Auto-discover the 'default' provider from providers.yaml in the repo tree.
  */
 async function discoverDefaultTarget(repoRoot: string): Promise<TargetDefinition | null> {
   const cwd = process.cwd();

@@ -2641,15 +2641,15 @@ describe('writeArtifactsFromResults', () => {
     const rowDir = expectRowDir(indexLine, 'trace-case');
     const testBundleDir = path.join(outputDir, rowDir, 'test');
     const evalPath = path.join(testBundleDir, 'EVAL.yaml');
-    const targetsPath = path.join(testBundleDir, 'targets.yaml');
+    const providersPath = path.join(testBundleDir, 'providers.yaml');
     const taskEval = await readFile(evalPath, 'utf8');
-    const taskTargets = await readFile(targetsPath, 'utf8');
+    const taskProviders = await readFile(providersPath, 'utf8');
 
     expect(indexLine).toMatchObject({
       result_dir: rowDir,
       test_dir: `${rowDir}/test`,
       eval_path: `${rowDir}/test/EVAL.yaml`,
-      targets_path: `${rowDir}/test/targets.yaml`,
+      providers_path: `${rowDir}/test/providers.yaml`,
       files_path: `${rowDir}/test/files`,
       graders_path: `${rowDir}/test/graders`,
     });
@@ -2682,10 +2682,10 @@ describe('writeArtifactsFromResults', () => {
       '[redacted]',
     ]);
 
-    expect(taskTargets).toContain('api_key: ${{ OPENAI_API_KEY }}');
-    expect(taskTargets).toContain('api_key: "[redacted]"');
+    expect(taskProviders).toContain('api_key: ${{ OPENAI_API_KEY }}');
+    expect(taskProviders).toContain('api_key: "[redacted]"');
     expect(taskEval).not.toContain('literal-secret');
-    expect(taskTargets).not.toContain('literal-secret');
+    expect(taskProviders).not.toContain('literal-secret');
     await expect(readdir(path.join(outputDir, rowDir, '.agentv', 'results'))).rejects.toThrow();
     await expect(readdir(path.join(testBundleDir, '.agentv', 'results'))).rejects.toThrow();
   });

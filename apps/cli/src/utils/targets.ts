@@ -4,10 +4,10 @@ import path from 'node:path';
 import { buildDirectoryChain } from '@agentv/core';
 
 export const TARGET_FILE_CANDIDATES = [
-  'targets.yaml',
-  'targets.yml',
-  path.join('.agentv', 'targets.yaml'),
-  path.join('.agentv', 'targets.yml'),
+  'providers.yaml',
+  'providers.yml',
+  path.join('.agentv', 'providers.yaml'),
+  path.join('.agentv', 'providers.yml'),
 ] as const;
 
 export async function fileExists(filePath: string): Promise<boolean> {
@@ -40,7 +40,7 @@ export async function discoverTargetsFile(options: {
       }
     }
 
-    throw new Error(`targets.yaml not found at provided path: ${resolvedExplicit}`);
+    throw new Error(`providers.yaml not found at provided path: ${resolvedExplicit}`);
   }
 
   const directories = [...buildDirectoryChain(testFilePath, repoRoot)];
@@ -60,5 +60,7 @@ export async function discoverTargetsFile(options: {
     }
   }
 
-  throw new Error('Unable to locate targets.yaml. Use --targets to specify the file explicitly.');
+  throw new Error(
+    'Unable to locate providers.yaml. Use --providers to specify the file explicitly.',
+  );
 }

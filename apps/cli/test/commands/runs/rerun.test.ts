@@ -20,7 +20,7 @@ interface BundleFixture {
   readonly sourceRunDir: string;
   readonly outputDir: string;
   readonly envFile: string;
-  readonly overrideTargetsPath: string;
+  readonly overrideProvidersPath: string;
 }
 
 interface CliResult {
@@ -66,7 +66,7 @@ tests:
 `,
     'utf8',
   );
-  await writeFile(path.join(bundleDir, 'targets.yaml'), options.targetsYaml, 'utf8');
+  await writeFile(path.join(bundleDir, 'providers.yaml'), options.targetsYaml, 'utf8');
   await writeFile(path.join(artifactDir, 'grading.json'), '{"assertions":[]}\n', 'utf8');
   await writeFile(path.join(artifactDir, 'timing.json'), '{"duration_ms":1}\n', 'utf8');
   await writeFile(path.join(outputsDir, 'answer.md'), '@[assistant]:\nCaptured answer\n', 'utf8');
@@ -74,7 +74,7 @@ tests:
   const bundlePaths = {
     [`${options.legacyTaskDir ? 'task' : 'test'}_dir`]: `${options.testId}/${bundleDirname}`,
     eval_path: `${options.testId}/${bundleDirname}/EVAL.yaml`,
-    targets_path: `${options.testId}/${bundleDirname}/targets.yaml`,
+    providers_path: `${options.testId}/${bundleDirname}/providers.yaml`,
   };
 
   return {
@@ -124,9 +124,9 @@ async function createBundleFixture(
 
   const envFile = path.join(baseDir, 'local.env');
   await writeFile(envFile, 'LOCAL_AGENT_COMMAND=echo local-agent\n', 'utf8');
-  const overrideTargetsPath = path.join(baseDir, 'override-targets.yaml');
+  const overrideProvidersPath = path.join(baseDir, 'override-providers.yaml');
   await writeFile(
-    overrideTargetsPath,
+    overrideProvidersPath,
     `providers:
   - id: mock
     label: local
@@ -134,7 +134,7 @@ async function createBundleFixture(
     'utf8',
   );
 
-  return { baseDir, cwd, sourceRunDir, outputDir, envFile, overrideTargetsPath };
+  return { baseDir, cwd, sourceRunDir, outputDir, envFile, overrideProvidersPath };
 }
 
 async function runCli(
@@ -257,7 +257,7 @@ describe('agentv runs rerun', () => {
     expect(answer).not.toContain('Captured answer');
   }, 30_000);
 
-  it('reruns legacy task_dir bundles for backward compatibility', async () => {
+  it('reruns task_dir bundles that use providers_path', async () => {
     const created = await createBundleFixture(DEFAULT_TARGETS, { legacyTaskDir: true });
 
     const result = await runCli(created, [
@@ -321,7 +321,7 @@ describe('agentv runs rerun', () => {
 
   it('fails loudly when selected bundle artifacts are missing', async () => {
     const created = await fixture();
-    await rm(path.join(created.sourceRunDir, 'case-beta', 'test', 'targets.yaml'));
+    await rm(path.join(created.sourceRunDir, 'case-beta', 'test', 'providers.yaml'));
 
     const result = await runCli(created, [
       'runs',
@@ -334,7 +334,7 @@ describe('agentv runs rerun', () => {
     ]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Test targets for case-beta@captured not found');
+    expect(result.stderr).toContain('Test providers for case-beta@captured not found');
   }, 30_000);
 
   it('reruns a selected test subset from index.jsonl', async () => {
@@ -404,7 +404,7 @@ describe('agentv runs rerun', () => {
       'rerun',
       created.sourceRunDir,
       '--targets',
-      created.overrideTargetsPath,
+      created.overrideProvidersPath,
       '--target',
       'missing',
       '--output',
@@ -413,7 +413,7 @@ describe('agentv runs rerun', () => {
     ]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Target override is incompatible');
+    expect(result.stderr).toContain('Provider override is incompatible');
     expect(result.stderr).toContain('missing');
   }, 30_000);
 
@@ -425,7 +425,7 @@ describe('agentv runs rerun', () => {
       'rerun',
       created.sourceRunDir,
       '--targets',
-      created.overrideTargetsPath,
+      created.overrideProvidersPath,
       '--target',
       'local',
       '--output',

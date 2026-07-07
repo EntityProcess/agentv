@@ -118,7 +118,7 @@ describe('materializeTaskBundle', () => {
     );
 
     const taskEval = await readFile(paths?.evalPath ?? '', 'utf8');
-    const taskTargets = await readFile(paths?.targetsPath ?? '', 'utf8');
+    const taskProviders = await readFile(paths?.providersPath ?? '', 'utf8');
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
     const [assertion] = testCase.assert as Record<string, unknown>[];
@@ -133,10 +133,10 @@ describe('materializeTaskBundle', () => {
     );
     expect(assertion.prompt).toBe('file://graders/graders/prompt.md');
     expect(assertion.command).toEqual(['bun', 'graders/graders/check.ts', '--token', '[redacted]']);
-    expect(taskTargets).toContain('api_key: ${{ MOCK_API_KEY }}');
-    expect(taskTargets).toContain('api_key: "[redacted]"');
+    expect(taskProviders).toContain('api_key: ${{ MOCK_API_KEY }}');
+    expect(taskProviders).toContain('api_key: "[redacted]"');
     expect(taskEval).not.toContain('literal-secret');
-    expect(taskTargets).not.toContain('literal-secret');
+    expect(taskProviders).not.toContain('literal-secret');
     await expect(readdir(path.join(tempDir, 'out', '.agentv', 'results'))).rejects.toThrow();
     await expect(readdir(path.join(testBundleDir, '.agentv', 'results'))).rejects.toThrow();
   });

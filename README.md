@@ -196,7 +196,7 @@ Run bundle layout:
 │   │   ├── summary.json          # optional per-case rollup across samples
 │   │   ├── test/                 # generated test bundle: frozen inputs for reproducibility
 │   │   │   ├── EVAL.yaml         #   resolved eval spec
-│   │   │   ├── targets.yaml      #   resolved target config
+│   │   │   ├── providers.yaml    #   resolved provider config
 │   │   │   └── graders/          #   grader files used
 │   │   └── sample-1/             # one materialized sample
 │   │       ├── result.json       # compact sample manifest

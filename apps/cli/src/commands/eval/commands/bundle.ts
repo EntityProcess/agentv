@@ -166,7 +166,7 @@ export const evalBundleCommand = command({
     targets: option({
       type: optional(string),
       long: 'targets',
-      description: 'Path to targets.yaml (overrides discovery)',
+      description: 'Path to providers.yaml (overrides discovery)',
     }),
   },
   handler: async (args) => {
@@ -243,7 +243,7 @@ export const evalBundleCommand = command({
       `  Eval: ${path.relative(paths.bundleDir, paths.evalPath).split(path.sep).join('/')}`,
     );
     console.log(
-      `  Targets: ${path.relative(paths.bundleDir, paths.targetsPath).split(path.sep).join('/')}`,
+      `  Providers: ${path.relative(paths.bundleDir, paths.providersPath).split(path.sep).join('/')}`,
     );
     console.log(
       `  Manifest: ${path.relative(paths.bundleDir, paths.manifestPath).split(path.sep).join('/')}`,

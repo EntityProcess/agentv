@@ -366,7 +366,7 @@ const MANIFEST_PATH_FIELDS = [
   'test_dir',
   'task_dir',
   'eval_path',
-  'targets_path',
+  'providers_path',
   'files_path',
   'graders_path',
 ] as const;

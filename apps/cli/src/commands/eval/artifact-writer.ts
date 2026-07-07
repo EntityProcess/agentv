@@ -82,7 +82,7 @@ function buildTaskBundleIndexFields(
   taskBundle: MaterializedTaskBundlePaths | undefined,
 ): Pick<
   IndexArtifactEntry,
-  'test_dir' | 'eval_path' | 'targets_path' | 'files_path' | 'graders_path'
+  'test_dir' | 'eval_path' | 'providers_path' | 'files_path' | 'graders_path'
 > {
   if (!taskBundle) {
     return {};
@@ -90,7 +90,7 @@ function buildTaskBundleIndexFields(
   return {
     test_dir: toRelativeArtifactPath(outputDir, taskBundle.testDir),
     eval_path: toRelativeArtifactPath(outputDir, taskBundle.evalPath),
-    targets_path: toRelativeArtifactPath(outputDir, taskBundle.targetsPath),
+    providers_path: toRelativeArtifactPath(outputDir, taskBundle.providersPath),
     ...(taskBundle.filesPath
       ? { files_path: toRelativeArtifactPath(outputDir, taskBundle.filesPath) }
       : {}),
@@ -133,7 +133,7 @@ export function buildResultIndexArtifact(
     ? {
         test_dir: path.posix.join(artifactSubdir, 'test'),
         eval_path: path.posix.join(artifactSubdir, 'test', 'EVAL.yaml'),
-        targets_path: path.posix.join(artifactSubdir, 'test', 'targets.yaml'),
+        providers_path: path.posix.join(artifactSubdir, 'test', 'providers.yaml'),
         ...(taskBundle.filesPath
           ? { files_path: path.posix.join(artifactSubdir, 'test', 'files') }
           : {}),

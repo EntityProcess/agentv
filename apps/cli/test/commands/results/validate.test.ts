@@ -319,7 +319,7 @@ describe('results validate', () => {
             summary_path: 'test-new/summary.json',
             test_dir: 'test-new/test',
             eval_path: 'test-new/test/EVAL.yaml',
-            targets_path: 'test-new/test/targets.yaml',
+            providers_path: 'test-new/test/providers.yaml',
           }),
           JSON.stringify({
             timestamp: '2026-03-27T12:42:24.429Z',
@@ -331,7 +331,7 @@ describe('results validate', () => {
             summary_path: 'test-legacy/summary.json',
             task_dir: 'test-legacy/task',
             eval_path: 'test-legacy/task/EVAL.yaml',
-            targets_path: 'test-legacy/task/targets.yaml',
+            providers_path: 'test-legacy/task/providers.yaml',
           }),
         ].join('\n')}\n`,
       );

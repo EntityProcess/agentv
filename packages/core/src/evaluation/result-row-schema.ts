@@ -42,7 +42,7 @@ const RESULT_ROW_ALIASES = {
   summaryPath: 'summary_path',
   targetExecution: 'target_execution',
   targetExecutionPath: 'target_execution_path',
-  targetsPath: 'targets_path',
+  providersPath: 'providers_path',
   taskDir: 'task_dir',
   testDir: 'test_dir',
   testId: 'test_id',

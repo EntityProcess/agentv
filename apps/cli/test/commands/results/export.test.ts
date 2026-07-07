@@ -579,7 +579,7 @@ describe('results export', () => {
       path.join(sourceDir, 'case', 'test', 'EVAL.yaml'),
       'tests:\n  - id: test-greeting\n',
     );
-    writeFileSync(path.join(sourceDir, 'case', 'test', 'targets.yaml'), 'targets: []\n');
+    writeFileSync(path.join(sourceDir, 'case', 'test', 'providers.yaml'), 'providers: []\n');
     const sourceFile = path.join(sourceDir, '.internal/index.jsonl');
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl({
@@ -587,7 +587,7 @@ describe('results export', () => {
       result_dir: 'case',
       test_dir: 'case/test',
       eval_path: 'case/test/EVAL.yaml',
-      targets_path: 'case/test/targets.yaml',
+      providers_path: 'case/test/providers.yaml',
     });
 
     await exportResults(sourceFile, content, outputDir);
@@ -596,9 +596,12 @@ describe('results export', () => {
     expect(entry.test_dir).toBe(`${entry.result_dir}/test`);
     expect(entry.task_dir).toBeUndefined();
     expect(entry.eval_path).toBe(`${entry.result_dir}/test/EVAL.yaml`);
-    expect(entry.targets_path).toBe(`${entry.result_dir}/test/targets.yaml`);
+    expect(entry.providers_path).toBe(`${entry.result_dir}/test/providers.yaml`);
     expect(readFileSync(path.join(outputDir, entry.eval_path ?? ''), 'utf8')).toContain(
       'test-greeting',
+    );
+    expect(readFileSync(path.join(outputDir, entry.providers_path ?? ''), 'utf8')).toContain(
+      'providers',
     );
 
     const bundle = buildProjectionBundleFromExportedIndex({
@@ -611,19 +614,19 @@ describe('results export', () => {
       status: 'emitted',
       test_dir: entry.test_dir,
       eval_path: entry.eval_path,
-      targets_path: entry.targets_path,
+      providers_path: entry.providers_path,
     });
   });
 
-  it('exports legacy task_dir bundles as new test_dir artifacts', async () => {
-    const sourceDir = path.join(tempDir, 'legacy-run');
+  it('exports task_dir bundles as new test_dir provider artifacts', async () => {
+    const sourceDir = path.join(tempDir, 'task-run');
     mkdirSync(path.join(sourceDir, 'case', 'task'), { recursive: true });
     mkdirSync(path.join(sourceDir, '.internal'), { recursive: true });
     writeFileSync(
       path.join(sourceDir, 'case', 'task', 'EVAL.yaml'),
       'tests:\n  - id: test-greeting\n',
     );
-    writeFileSync(path.join(sourceDir, 'case', 'task', 'targets.yaml'), 'targets: []\n');
+    writeFileSync(path.join(sourceDir, 'case', 'task', 'providers.yaml'), 'providers: []\n');
     const sourceFile = path.join(sourceDir, '.internal/index.jsonl');
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl({
@@ -631,7 +634,7 @@ describe('results export', () => {
       result_dir: 'case',
       task_dir: 'case/task',
       eval_path: 'case/task/EVAL.yaml',
-      targets_path: 'case/task/targets.yaml',
+      providers_path: 'case/task/providers.yaml',
     });
 
     await exportResults(sourceFile, content, outputDir);
@@ -640,9 +643,12 @@ describe('results export', () => {
     expect(entry.test_dir).toBe(`${entry.result_dir}/test`);
     expect(entry.task_dir).toBeUndefined();
     expect(entry.eval_path).toBe(`${entry.result_dir}/test/EVAL.yaml`);
-    expect(entry.targets_path).toBe(`${entry.result_dir}/test/targets.yaml`);
+    expect(entry.providers_path).toBe(`${entry.result_dir}/test/providers.yaml`);
     expect(readFileSync(path.join(outputDir, entry.eval_path ?? ''), 'utf8')).toContain(
       'test-greeting',
+    );
+    expect(readFileSync(path.join(outputDir, entry.providers_path ?? ''), 'utf8')).toContain(
+      'providers',
     );
   });
 
@@ -657,7 +663,7 @@ describe('results export', () => {
         result_dir: 'case',
         task_dir: 'case/task',
         eval_path: 'case/task/EVAL.yaml',
-        targets_path: 'case/task/targets.yaml',
+        providers_path: 'case/task/providers.yaml',
       }),
     );
 
@@ -674,7 +680,7 @@ describe('results export', () => {
       status: 'planned_export',
       task_dir: 'case/task',
       eval_path: 'case/task/EVAL.yaml',
-      targets_path: 'case/task/targets.yaml',
+      providers_path: 'case/task/providers.yaml',
     });
   });
 

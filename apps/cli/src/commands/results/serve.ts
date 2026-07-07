@@ -839,7 +839,7 @@ function buildResultArtifactCatalog(
   addDirectArtifactCatalogEntry(entries, seen, record.transcript_raw_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.trace_path, 'trace');
   addDirectArtifactCatalogEntry(entries, seen, record.eval_path, 'artifact');
-  addDirectArtifactCatalogEntry(entries, seen, record.targets_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.providers_path, 'artifact');
   addTrialRunCatalogEntries(entries, seen, record);
 
   return entries;
