@@ -107,7 +107,6 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [file-changes](file-changes/) | Capture workspace file changes made by the agent across test runs |
 | [file-changes-graders](file-changes-graders/) | Grade file diffs with rubrics and LLM graders |
 | [local-cli](local-cli/) | Define and invoke local CLI providers |
-| [batch-cli](batch-cli/) | Run bulk evaluations from the CLI |
 
 ---
 
@@ -138,7 +137,6 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [assert-extended](assert-extended/) | Deterministic assertions |
 | [basic](basic/) | Getting started |
 | [basic-jsonl](basic-jsonl/) | Getting started |
-| [batch-cli](batch-cli/) | Workspace & providers |
 | [benchmark-tooling](benchmark-tooling/) | Benchmarking |
 | [script-grader-sdk](script-grader-sdk/) | Custom graders |
 | [script-grader-with-llm-calls](script-grader-with-llm-calls/) | Custom graders |

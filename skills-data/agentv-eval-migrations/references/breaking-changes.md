@@ -892,8 +892,10 @@ targets:
 - Remove `use_target`; current authored target definitions must resolve to
   concrete provider objects.
 - Keep supported AgentV target extensions such as `grader_target`,
-  `fallback_targets`, `workers`, and `batch_requests` as top-level fields on
-  target objects.
+  `fallback_targets`, and `workers` as top-level fields on target objects.
+- Remove runner-level request batching from migrated configs. CLI providers are
+  invoked once per eval case; throughput batching belongs inside provider
+  adapters or CLIs without eval YAML batch configuration.
 
 ### Verification
 
