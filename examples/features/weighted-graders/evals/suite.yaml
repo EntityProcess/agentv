@@ -1,5 +1,6 @@
 name: weighted-graders-examples
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

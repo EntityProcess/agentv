@@ -1,7 +1,8 @@
 description: Code generation quality
 tags:
   experiment: with-skills
-target: local-openai
+providers:
+  - local-openai
 evaluate_options:
   max_concurrency: 2
 prompts:

@@ -1,7 +1,8 @@
 description: JSONL version of the basic example - demonstrates file references, multi-turn, and
   per-case overrides
 name: basic-jsonl
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests: ./cases.jsonl

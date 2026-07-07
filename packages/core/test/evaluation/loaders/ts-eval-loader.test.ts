@@ -67,7 +67,7 @@ describe('loadTsEvalFile', () => {
     expect(suite.tests).toHaveLength(1);
     expect(suite.tests[0].id).toBe('relative-import');
     expect(suite.tests[0].input).toEqual([{ role: 'user', content: 'Say hello' }]);
-    expect(suite.targetSpec).toEqual({ name: 'mock-target' });
+    expect(suite.targetRefs).toEqual([{ name: 'mock-target' }]);
     expect(suite.budgetUsd).toBe(1);
     expect(suite.experimentConfig?.repeat?.count).toBe(2);
     expect(suite.tags).toEqual({ experiment: 'ts-config', group: 'loader' });
@@ -83,7 +83,7 @@ describe('loadTsEvalFile', () => {
   it('reports invalid TypeScript eval contracts through suite loading', async () => {
     await expect(
       loadTestSuite(path.join(fixtureDir, 'invalid-contract.eval.ts'), fixtureDir),
-    ).rejects.toThrow("top-level 'providers'");
+    ).rejects.toThrow('providers[0].id');
   });
 
   it('materializes a YAML-aligned sdk eval through loadTestSuite', async () => {
@@ -100,8 +100,8 @@ describe('loadTsEvalFile', () => {
     expect(suite.tests[0].workspace?.hooks?.before_all?.command).toEqual(['echo', 'suite-setup']);
     expect(suite.tests[0].workspace?.hooks?.before_each?.command).toEqual(['echo', 'case-setup']);
     expect(suite.tests[0].workspace?.hooks?.before_each?.timeout_ms).toBe(1_000);
-    expect(suite.targetSpec).toEqual({ name: 'mock-target' });
-    expect(suite.targets).toBeUndefined();
+    expect(suite.targetRefs).toEqual([{ name: 'mock-target' }]);
+    expect(suite.targets).toEqual(['mock-target']);
     expect(suite.workers).toBeUndefined();
     expect(suite.budgetUsd).toBe(2);
     expect(suite.threshold).toBe(0.75);

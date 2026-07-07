@@ -29,9 +29,9 @@ interface CliResult {
   readonly exitCode: number;
 }
 
-const DEFAULT_TARGETS = `targets:
-  - id: captured
-    provider: mock
+const DEFAULT_TARGETS = `providers:
+  - id: mock
+    label: captured
 `;
 
 async function writeTaskBundle(options: {
@@ -49,7 +49,8 @@ async function writeTaskBundle(options: {
 
   await writeFile(
     path.join(bundleDir, 'EVAL.yaml'),
-    `target: captured
+    `providers:
+  - captured
 prompts:
   - "{{ input }}"
 tests:
@@ -126,9 +127,9 @@ async function createBundleFixture(
   const overrideTargetsPath = path.join(baseDir, 'override-targets.yaml');
   await writeFile(
     overrideTargetsPath,
-    `targets:
-  - id: local
-    provider: mock
+    `providers:
+  - id: mock
+    label: local
 `,
     'utf8',
   );
@@ -280,9 +281,9 @@ describe('agentv runs rerun', () => {
   }, 30_000);
 
   it('fails clearly for missing env and accepts an explicit env file', async () => {
-    const created = await fixture(`targets:
-  - id: captured
-    provider: cli
+    const created = await fixture(`providers:
+  - id: cli
+    label: captured
     command: "{{ env.LOCAL_AGENT_COMMAND }}"
 `);
 

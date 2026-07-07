@@ -82,9 +82,9 @@ console.log(JSON.stringify({
   await writeFile(
     path.join(root, '.agentv', 'targets.yaml'),
     `
-targets:
-  - id: codex
-    provider: cli
+providers:
+  - id: cli
+    label: codex
     command: bun ./scripts/target.ts
 `,
     'utf8',

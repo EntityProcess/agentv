@@ -1,6 +1,7 @@
 name: trials
 description: Repeat runs example with 2 samples configured inline
-target: llm
+providers:
+  - llm
 evaluate_options:
   repeat:
     count: 2

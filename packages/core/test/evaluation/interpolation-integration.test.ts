@@ -170,15 +170,15 @@ describe('env interpolation in YAML loading', () => {
     expect(cases[0].criteria).toBe('fallback criteria');
   });
 
-  it('leaves runtime shell variables in target commands untouched', async () => {
+  it('leaves runtime shell variables in provider commands untouched', async () => {
     const evalFile = path.join(testDir, 'interp-shell-vars.eval.yaml');
     await writeFile(
       evalFile,
       [
-        'target:',
-        '  id: local-shell',
-        '  provider: cli',
-        '  command: "echo $RUNTIME ${RUNTIME} {{ env.AGENTV_TEST_PATH }}"',
+        'providers:',
+        '  - id: cli',
+        '    label: local-shell',
+        '    command: "echo $RUNTIME ${RUNTIME} {{ env.AGENTV_TEST_PATH }}"',
         'tests:',
         '  - id: test-1',
         '    input: "hello"',
@@ -186,12 +186,13 @@ describe('env interpolation in YAML loading', () => {
         '',
       ].join('\n'),
     );
-    const { targetSpec } = await import('../../src/evaluation/yaml-parser.js').then((module) =>
+    const { targetRefs } = await import('../../src/evaluation/yaml-parser.js').then((module) =>
       module.readTestSuiteMetadata(evalFile),
     );
+    const providerRef = targetRefs?.[0];
     expect(
-      targetSpec?.definition && 'command' in targetSpec.definition
-        ? targetSpec.definition.command
+      providerRef?.definition && 'command' in providerRef.definition
+        ? providerRef.definition.command
         : '',
     ).toBe('echo $RUNTIME ${RUNTIME} https://github.com/org/from-env.git');
   });

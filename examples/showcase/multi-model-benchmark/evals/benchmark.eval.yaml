@@ -2,7 +2,8 @@ name: multi-model-benchmark
 description: Multi-model benchmark — accuracy, completeness, and clarity across models
 tags:
   - multi-provider
-target: copilot
+providers:
+  - copilot
 evaluate_options:
   repeat:
     count: 2

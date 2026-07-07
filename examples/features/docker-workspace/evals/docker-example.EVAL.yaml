@@ -1,6 +1,7 @@
 name: docker-workspace-example
 description: Example eval using a Docker environment for grading
-target: mock_agent
+providers:
+  - mock_agent
 environment:
   type: docker
   image: python:3.11-slim

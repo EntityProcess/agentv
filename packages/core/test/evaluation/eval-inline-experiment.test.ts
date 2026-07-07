@@ -24,10 +24,12 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       [
         'name: runtime-suite',
         'experiment: release-gate',
-        'target:',
-        '  extends: codex',
-        '  model: gpt-5.1',
-        '  reasoning_effort: high',
+        'providers:',
+        '  - id: agentv:codex-cli',
+        '    label: codex',
+        '    config:',
+        '      model: gpt-5.1',
+        '      reasoning_effort: high',
         'threshold: 0.7',
         'evaluate_options:',
         '  repeat:',
@@ -56,16 +58,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       timeoutSeconds: 30,
       budgetUsd: 1.5,
     });
-    expect(suite.targetSpec).toMatchObject({
-      name: 'codex',
-      extends: 'codex',
-      definition: {
-        name: 'codex',
-        model: 'gpt-5.1',
-        reasoning_effort: 'high',
-      },
-    });
-    expect(suite.targets).toBeUndefined();
+    expect(suite.targetSpec).toBeUndefined();
+    expect(suite.targets).toEqual(['codex']);
   });
 
   it('parses evaluate_options.repeat number shorthand', async () => {
@@ -74,7 +68,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: runtime-repeat-shorthand',
-        'target: codex',
+        'providers:',
+        '  - codex',
         'evaluate_options:',
         '  repeat: 3',
         'prompts:',
@@ -98,7 +93,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: threshold-suite',
-        'target: codex',
+        'providers:',
+        '  - codex',
         'threshold: 0.9',
         'prompts:',
         '  - "{{ input }}"',
@@ -250,9 +246,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  - id: terse',
         '    label: Terse',
         '    prompt: "In one sentence, summarize {{ topic }}."',
-        'targets:',
-        '  - id: mini',
-        '  - id: local-codex',
+        'providers:',
+        '  - mini',
+        '  - local-codex',
         'tests:',
         '  - id: docs',
         '    vars:',
@@ -278,10 +274,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       'In one sentence, summarize release notes.',
     ]);
     expect(suite.targets).toEqual(['mini', 'local-codex']);
-    expect(suite.targetRefs).toEqual([
-      { name: 'mini', id: 'mini' },
-      { name: 'local-codex', id: 'local-codex' },
-    ]);
+    expect(suite.targetRefs).toEqual([{ name: 'mini' }, { name: 'local-codex' }]);
   });
 
   it('merges default_test vars before top-level prompt expansion', async () => {
@@ -467,7 +460,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: evaluate-options-budget-suite',
-        'target: codex',
+        'providers:',
+        '  - codex',
         'evaluate_options:',
         '  budget_usd: 2.5',
         'prompts:',
@@ -495,7 +489,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: evaluate-options-concurrency-suite',
-        'target: codex',
+        'providers:',
+        '  - codex',
         'evaluate_options:',
         '  max_concurrency: 2',
         'prompts:',
@@ -602,7 +597,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/top-level 'policy'/);
   });
 
-  it('rejects top-level providers during runtime suite loading', async () => {
+  it('rejects legacy target-shaped provider objects during runtime suite loading', async () => {
     const evalPath = path.join(tempDir, 'top-level-providers.eval.yaml');
     await writeFile(
       evalPath,
@@ -620,9 +615,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
-      /top-level 'providers' is not a runtime alias/,
-    );
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/providers\[0\]\.id/);
   });
 
   it('rejects removed top-level repeat controls', async () => {
@@ -688,7 +681,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
   });
 
-  it('rejects top-level model because target object owns model overrides', async () => {
+  it('rejects top-level model because provider config owns model overrides', async () => {
     const evalPath = path.join(tempDir, 'camel-policy.eval.yaml');
     await writeFile(
       evalPath,
@@ -1026,7 +1019,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'target: child-target',
+        'providers:',
+        '  - child-target',
         'threshold: 0.2',
         'timeout_seconds: 10',
         'evaluate_options:',
@@ -1055,7 +1049,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'target: parent-target',
+        'providers:',
+        '  - parent-target',
         'threshold: 0.8',
         'evaluate_options:',
         '  repeat:',
@@ -1097,7 +1092,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: test-options-repeat',
-        'target: codex',
+        'providers:',
+        '  - codex',
         'evaluate_options:',
         '  repeat:',
         '    count: 4',
@@ -1543,7 +1539,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'target: child-target',
+        'providers:',
+        '  - child-target',
         'prompts:',
         '  - "{{ input }}"',
         'tests:',
@@ -1557,7 +1554,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'target: parent-target',
+        'providers:',
+        '  - parent-target',
         'tests:',
         '  - include: child.eval.yaml',
         '    type: suite',
@@ -1578,7 +1576,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       ),
     ).toBe(true);
     expect(
-      warnings.some((error) => error.message.includes('child target and run controls are ignored')),
+      warnings.some((error) =>
+        error.message.includes('child providers and run controls are ignored'),
+      ),
     ).toBe(true);
   });
 

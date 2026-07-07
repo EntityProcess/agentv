@@ -690,6 +690,195 @@ export interface NormalizeTargetDefinitionOptions {
   readonly defaultName?: string;
 }
 
+export interface NormalizeProviderDefinitionOptions {
+  readonly location?: string;
+}
+
+function normalizePublicProviderId(providerId: string): {
+  readonly provider: string;
+  readonly config: Record<string, unknown>;
+} {
+  const providerSpecConfig = { provider_spec: providerId };
+  const colonIndex = providerId.indexOf(':');
+  if (colonIndex === -1) {
+    return { provider: providerId, config: providerSpecConfig };
+  }
+
+  const provider = providerId.slice(0, colonIndex).trim();
+  const spec = providerId.slice(colonIndex + 1).trim();
+  if (!provider || !spec) {
+    return { provider: providerId, config: providerSpecConfig };
+  }
+
+  switch (provider) {
+    case 'exec':
+      assertCrossPlatformExecProviderSpec(spec, providerId);
+      return { provider: 'cli', config: { ...providerSpecConfig, command: spec } };
+    case 'agentv': {
+      const codexCliPrefix = 'codex-cli:';
+      if (spec === 'codex-cli') {
+        return { provider: 'codex-cli', config: providerSpecConfig };
+      }
+      if (spec.startsWith(codexCliPrefix)) {
+        return {
+          provider: 'codex-cli',
+          config: { ...providerSpecConfig, model: spec.slice(codexCliPrefix.length) },
+        };
+      }
+      return { provider, config: { ...providerSpecConfig, model: spec } };
+    }
+    case 'openai': {
+      const codexSdkPrefix = 'codex-sdk:';
+      const codexAliasPrefix = 'codex:';
+      const codexAppServerPrefix = 'codex-app-server:';
+      const codexDesktopPrefix = 'codex-desktop:';
+      if (spec === 'codex' || spec === 'codex-sdk') {
+        return { provider: 'codex-sdk', config: providerSpecConfig };
+      }
+      if (spec.startsWith(codexSdkPrefix)) {
+        return {
+          provider: 'codex-sdk',
+          config: { ...providerSpecConfig, model: spec.slice(codexSdkPrefix.length) },
+        };
+      }
+      if (spec.startsWith(codexAliasPrefix)) {
+        return {
+          provider: 'codex-sdk',
+          config: { ...providerSpecConfig, model: spec.slice(codexAliasPrefix.length) },
+        };
+      }
+      if (spec === 'codex-app-server' || spec === 'codex-desktop') {
+        return { provider: 'codex-app-server', config: providerSpecConfig };
+      }
+      if (spec.startsWith(codexAppServerPrefix)) {
+        return {
+          provider: 'codex-app-server',
+          config: { ...providerSpecConfig, model: spec.slice(codexAppServerPrefix.length) },
+        };
+      }
+      if (spec.startsWith(codexDesktopPrefix)) {
+        return {
+          provider: 'codex-app-server',
+          config: { ...providerSpecConfig, model: spec.slice(codexDesktopPrefix.length) },
+        };
+      }
+      const responsesPrefix = 'responses:';
+      const chatPrefix = 'chat:';
+      if (spec.startsWith(responsesPrefix)) {
+        return {
+          provider,
+          config: {
+            ...providerSpecConfig,
+            api_format: 'responses',
+            model: spec.slice(responsesPrefix.length),
+          },
+        };
+      }
+      if (spec.startsWith(chatPrefix)) {
+        return {
+          provider,
+          config: {
+            ...providerSpecConfig,
+            api_format: 'chat',
+            model: spec.slice(chatPrefix.length),
+          },
+        };
+      }
+      return { provider, config: { ...providerSpecConfig, model: spec } };
+    }
+    case 'anthropic': {
+      const messagesPrefix = 'messages:';
+      return {
+        provider,
+        config: {
+          ...providerSpecConfig,
+          model: spec.startsWith(messagesPrefix) ? spec.slice(messagesPrefix.length) : spec,
+        },
+      };
+    }
+    case 'azure':
+    case 'gemini':
+    case 'openrouter':
+      return { provider, config: { ...providerSpecConfig, model: spec } };
+    default:
+      return { provider, config: { ...providerSpecConfig, model: spec } };
+  }
+}
+
+function assertCrossPlatformExecProviderSpec(spec: string, providerId: string): void {
+  const command = spec.trim();
+  const firstToken = command.split(/\s+/, 1)[0]?.toLowerCase() ?? '';
+  if (
+    firstToken === 'sh' ||
+    firstToken === 'bash' ||
+    firstToken.endsWith('.sh') ||
+    /(?:^|[/\\])[^/\\]+\.sh$/i.test(firstToken)
+  ) {
+    throw new Error(
+      `Invalid providers[].id '${providerId}': exec: is reserved for explicitly cross-platform commands such as 'exec:node ./provider.js'. Use a file:// TypeScript/JavaScript custom provider or a package provider such as 'package:@agentv/promptfoo-providers:CodexCliProvider' for AgentV CLI compatibility instead of shell wrappers.`,
+    );
+  }
+}
+
+/**
+ * Converts the public Promptfoo-shaped provider object into AgentV's internal
+ * target definition. Public YAML uses `providers[].id` for the backend/provider
+ * spec and `providers[].label` for the stable AgentV result/selection key.
+ */
+export function normalizeProviderDefinition(
+  definition: unknown,
+  options: NormalizeProviderDefinitionOptions = {},
+): TargetDefinition {
+  const location = options.location ?? 'provider';
+  if (!isRecord(definition)) {
+    throw new Error(`Invalid ${location}: provider must be an object.`);
+  }
+
+  const rawId = definition.id;
+  const providerId =
+    typeof rawId === 'string' && rawId.trim().length > 0 ? rawId.trim() : undefined;
+  if (!providerId) {
+    throw new Error(`Invalid ${location}.id: expected a non-empty provider backend string.`);
+  }
+
+  if (definition.provider !== undefined) {
+    throw new Error(
+      `Invalid ${location}.provider: use providers[].id for the backend and providers[].label for the stable AgentV identity.`,
+    );
+  }
+  if (definition.name !== undefined) {
+    throw new Error(`Invalid ${location}.name: use providers[].label for the stable identity.`);
+  }
+  if (definition.environment !== undefined) {
+    throw new Error(
+      `Invalid ${location}.environment: provider-local environments are future scope; author environment at suite/test/case scope.`,
+    );
+  }
+  if (definition.container !== undefined) {
+    throw new Error(`Invalid ${location}.container: use an environment recipe for testbed setup.`);
+  }
+  if (definition.install !== undefined) {
+    throw new Error(`Invalid ${location}.install: use environment.setup.`);
+  }
+
+  const rawLabel = definition.label;
+  const name =
+    typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : providerId;
+  const { id: _id, label: _label, ...rest } = definition;
+  const publicSpec = normalizePublicProviderId(providerId);
+  const authoredConfig = isRecord(rest.config) ? rest.config : {};
+
+  return normalizeTargetDefinition({
+    ...rest,
+    config: {
+      ...publicSpec.config,
+      ...authoredConfig,
+    },
+    id: name,
+    provider: publicSpec.provider,
+  });
+}
+
 /**
  * Converts the authored target object into AgentV's internal target definition.
  * Authored YAML uses `id` as the stable AgentV target identity. The runtime
@@ -924,6 +1113,7 @@ const BASE_TARGET_SCHEMA = z
     name: z.string().min(1, 'target name is required'),
     label: z.string().optional(),
     provider: z.string().optional(),
+    provider_spec: z.string().optional(),
     config: z.record(z.unknown()).optional(),
     runtime: z.unknown().optional(),
     use_target: z.string().optional(),
@@ -1359,13 +1549,25 @@ function resolveApiFormat(
   );
 }
 
+function resolveProviderSpecModel(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  description: string,
+): string {
+  return resolveString(
+    target.model ?? target.deployment ?? target.variant,
+    env,
+    description,
+    typeof target.provider_spec === 'string',
+  );
+}
+
 function resolveOpenAIConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): OpenAIResolvedConfig {
   const endpointSource = target.endpoint ?? target.base_url;
   const apiKeySource = target.api_key;
-  const modelSource = target.model ?? target.deployment ?? target.variant;
   const temperatureSource = target.temperature;
   const maxTokensSource = target.max_output_tokens;
 
@@ -1376,7 +1578,7 @@ function resolveOpenAIConfig(
     }),
   );
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
-  const model = resolveString(modelSource, env, `${target.name} model`);
+  const model = resolveProviderSpecModel(target, env, `${target.name} model`);
   const retry = resolveRetryConfig(target);
 
   return {
@@ -1395,14 +1597,13 @@ function resolveOpenRouterConfig(
   env: EnvLookup,
 ): OpenRouterResolvedConfig {
   const apiKeySource = target.api_key;
-  const modelSource = target.model ?? target.deployment ?? target.variant;
   const temperatureSource = target.temperature;
   const maxTokensSource = target.max_output_tokens;
   const retry = resolveRetryConfig(target);
 
   return {
     apiKey: resolveString(apiKeySource, env, `${target.name} OpenRouter api key`),
-    model: resolveString(modelSource, env, `${target.name} OpenRouter model`),
+    model: resolveProviderSpecModel(target, env, `${target.name} OpenRouter model`),
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     retry,
@@ -1414,13 +1615,12 @@ function resolveAnthropicConfig(
   env: EnvLookup,
 ): AnthropicResolvedConfig {
   const apiKeySource = target.api_key;
-  const modelSource = target.model ?? target.deployment ?? target.variant;
   const temperatureSource = target.temperature;
   const maxTokensSource = target.max_output_tokens;
   const thinkingBudgetSource = target.thinking_budget;
 
   const apiKey = resolveString(apiKeySource, env, `${target.name} Anthropic api key`);
-  const model = resolveString(modelSource, env, `${target.name} Anthropic model`);
+  const model = resolveProviderSpecModel(target, env, `${target.name} Anthropic model`);
   const retry = resolveRetryConfig(target);
 
   return {

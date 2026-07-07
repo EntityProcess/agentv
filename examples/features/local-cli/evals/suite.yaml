@@ -1,5 +1,6 @@
 description: Minimal demo showing how to invoke a CLI target with file attachments
-target: local_cli
+providers:
+  - local_cli
 tags:
   - agent
 prompts:

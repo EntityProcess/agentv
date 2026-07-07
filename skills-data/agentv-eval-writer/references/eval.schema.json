@@ -2027,6 +2027,9 @@
               "type": "object",
               "properties": {
                 "target": {
+                  "not": {}
+                },
+                "provider": {
                   "type": "string",
                   "minLength": 1
                 },
@@ -2050,347 +2053,12 @@
           "not": {}
         },
         "target": {
-          "anyOf": [
-            {
-              "type": "string",
-              "minLength": 1
-            },
-            {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "extends": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "provider": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "model": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "config": {
-                  "type": "object",
-                  "additionalProperties": {}
-                },
-                "prompts": {
-                  "anyOf": [
-                    {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "command": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                }
-                              ]
-                            },
-                            "config": {
-                              "type": "object",
-                              "additionalProperties": {}
-                            }
-                          },
-                          "required": ["command"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "label": {
-                              "type": "string"
-                            },
-                            "raw": {
-                              "type": "string"
-                            },
-                            "function": {
-                              "type": "string"
-                            },
-                            "function_file": {
-                              "type": "string"
-                            },
-                            "path": {
-                              "type": "string"
-                            },
-                            "prefix": {
-                              "type": "string"
-                            },
-                            "suffix": {
-                              "type": "string"
-                            },
-                            "config": {
-                              "type": "object",
-                              "additionalProperties": {}
-                            }
-                          },
-                          "additionalProperties": true
-                        }
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "command": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string"
-                                    }
-                                  }
-                                ]
-                              },
-                              "config": {
-                                "type": "object",
-                                "additionalProperties": {}
-                              }
-                            },
-                            "required": ["command"],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "label": {
-                                "type": "string"
-                              },
-                              "raw": {
-                                "type": "string"
-                              },
-                              "function": {
-                                "type": "string"
-                              },
-                              "function_file": {
-                                "type": "string"
-                              },
-                              "path": {
-                                "type": "string"
-                              },
-                              "prefix": {
-                                "type": "string"
-                              },
-                              "suffix": {
-                                "type": "string"
-                              },
-                              "config": {
-                                "type": "object",
-                                "additionalProperties": {}
-                              }
-                            },
-                            "additionalProperties": true
-                          }
-                        ]
-                      },
-                      "minItems": 1
-                    }
-                  ]
-                },
-                "transform": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": {}
-                    }
-                  ]
-                },
-                "delay": {
-                  "type": "number",
-                  "minimum": 0
-                },
-                "env": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                },
-                "environment": {
-                  "not": {}
-                },
-                "container": {
-                  "not": {}
-                },
-                "install": {
-                  "not": {}
-                },
-                "reasoning_effort": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "hooks": {
-                  "type": "object",
-                  "properties": {
-                    "before_all": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "timeout_ms": {
-                          "type": "number"
-                        },
-                        "timeoutMs": {
-                          "type": "number"
-                        },
-                        "cwd": {
-                          "type": "string"
-                        },
-                        "reset": {
-                          "type": "string",
-                          "enum": ["none", "fast", "strict"]
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    "before_each": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "timeout_ms": {
-                          "type": "number"
-                        },
-                        "timeoutMs": {
-                          "type": "number"
-                        },
-                        "cwd": {
-                          "type": "string"
-                        },
-                        "reset": {
-                          "type": "string",
-                          "enum": ["none", "fast", "strict"]
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    "after_each": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "timeout_ms": {
-                          "type": "number"
-                        },
-                        "timeoutMs": {
-                          "type": "number"
-                        },
-                        "cwd": {
-                          "type": "string"
-                        },
-                        "reset": {
-                          "type": "string",
-                          "enum": ["none", "fast", "strict"]
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    "after_all": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "timeout_ms": {
-                          "type": "number"
-                        },
-                        "timeoutMs": {
-                          "type": "number"
-                        },
-                        "cwd": {
-                          "type": "string"
-                        },
-                        "reset": {
-                          "type": "string",
-                          "enum": ["none", "fast", "strict"]
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": true
-            }
-          ]
+          "not": {}
         },
         "targets": {
+          "not": {}
+        },
+        "providers": {
           "anyOf": [
             {
               "anyOf": [
@@ -2405,21 +2073,32 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "extends": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "provider": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "model": {
+                    "label": {
                       "type": "string",
                       "minLength": 1
                     },
                     "config": {
                       "type": "object",
                       "additionalProperties": {}
+                    },
+                    "runtime": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["host", "profile", "sandbox"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "enum": ["host", "profile", "sandbox"]
+                            }
+                          },
+                          "required": ["mode"],
+                          "additionalProperties": true
+                        }
+                      ]
                     },
                     "prompts": {
                       "anyOf": [
@@ -2581,19 +2260,6 @@
                         "type": "string"
                       }
                     },
-                    "environment": {
-                      "not": {}
-                    },
-                    "container": {
-                      "not": {}
-                    },
-                    "install": {
-                      "not": {}
-                    },
-                    "reasoning_effort": {
-                      "type": "string",
-                      "minLength": 1
-                    },
                     "hooks": {
                       "type": "object",
                       "properties": {
@@ -2727,9 +2393,25 @@
                         }
                       },
                       "additionalProperties": false
+                    },
+                    "provider": {
+                      "not": {}
+                    },
+                    "name": {
+                      "not": {}
+                    },
+                    "environment": {
+                      "not": {}
+                    },
+                    "container": {
+                      "not": {}
+                    },
+                    "install": {
+                      "not": {}
                     }
                   },
-                  "additionalProperties": true
+                  "required": ["id"],
+                  "additionalProperties": false
                 }
               ]
             },
@@ -2748,21 +2430,32 @@
                         "type": "string",
                         "minLength": 1
                       },
-                      "extends": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "provider": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "model": {
+                      "label": {
                         "type": "string",
                         "minLength": 1
                       },
                       "config": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "runtime": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": ["host", "profile", "sandbox"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": ["host", "profile", "sandbox"]
+                              }
+                            },
+                            "required": ["mode"],
+                            "additionalProperties": true
+                          }
+                        ]
                       },
                       "prompts": {
                         "anyOf": [
@@ -2924,19 +2617,6 @@
                           "type": "string"
                         }
                       },
-                      "environment": {
-                        "not": {}
-                      },
-                      "container": {
-                        "not": {}
-                      },
-                      "install": {
-                        "not": {}
-                      },
-                      "reasoning_effort": {
-                        "type": "string",
-                        "minLength": 1
-                      },
                       "hooks": {
                         "type": "object",
                         "properties": {
@@ -3070,18 +2750,31 @@
                           }
                         },
                         "additionalProperties": false
+                      },
+                      "provider": {
+                        "not": {}
+                      },
+                      "name": {
+                        "not": {}
+                      },
+                      "environment": {
+                        "not": {}
+                      },
+                      "container": {
+                        "not": {}
+                      },
+                      "install": {
+                        "not": {}
                       }
                     },
-                    "additionalProperties": true
+                    "required": ["id"],
+                    "additionalProperties": false
                   }
                 ]
               },
               "minItems": 1
             }
           ]
-        },
-        "providers": {
-          "not": {}
         },
         "model": {
           "not": {}

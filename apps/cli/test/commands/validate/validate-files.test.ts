@@ -56,8 +56,14 @@ describe('validateFiles TypeScript eval configs', () => {
       configFile,
       `export default {
   prompts: ['{{ input }}'],
-  providers: ['openai:gpt-5'],
-  tests: [{ id: 'hello', vars: { input: 'Say hello' } }],
+  providers: [{ id: 'mock', provider: 'mock' }],
+  tests: [
+    {
+      id: 'hello',
+      vars: { input: 'Say hello' },
+      assert: [{ type: 'contains', value: 'hello' }],
+    },
+  ],
 };
 `,
     );
@@ -65,7 +71,7 @@ describe('validateFiles TypeScript eval configs', () => {
     const summary = await validateFiles([configFile]);
 
     expect(summary.invalidFiles).toBe(1);
-    expect(summary.results[0].errors[0].message).toContain("top-level 'providers'");
+    expect(summary.results[0].errors[0].message).toContain('providers[0].provider');
   });
 
   it('expands directories without treating custom assertion files as eval configs', async () => {

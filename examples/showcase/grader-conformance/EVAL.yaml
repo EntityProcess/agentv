@@ -1,5 +1,6 @@
 description: Keyword-matching grader used for conformance testing demo
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

@@ -1,6 +1,7 @@
 name: external-datasets-demo
 version: "1.0"
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

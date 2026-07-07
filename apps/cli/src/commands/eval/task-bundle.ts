@@ -48,11 +48,14 @@ const SKIPPED_DIR_NAMES = new Set([
 const AUTHORING_TOP_LEVEL_TARGET_FIELDS = new Set([
   'label',
   'provider',
+  'provider_spec',
   'prompts',
   'transform',
   'delay',
   'env',
   'model',
+  'runtime',
+  'hooks',
   'use_target',
   'fallback_targets',
   'grader_target',
@@ -649,9 +652,17 @@ function uniqueTargetDefinitions(
 }
 
 function serializeTargetDefinition(definition: TargetDefinition): Record<string, unknown> {
-  const target: Record<string, unknown> = { id: definition.name };
-  if (definition.id !== undefined) {
-    target.id = definition.id;
+  const providerSpec =
+    typeof definition.provider_spec === 'string' && definition.provider_spec.trim().length > 0
+      ? definition.provider_spec.trim()
+      : typeof definition.provider === 'string' && definition.provider.trim().length > 0
+        ? definition.provider.trim()
+        : typeof definition.id === 'string' && definition.id.trim().length > 0
+          ? definition.id.trim()
+          : definition.name;
+  const provider: Record<string, unknown> = { id: providerSpec };
+  if (definition.name !== providerSpec) {
+    provider.label = definition.name;
   }
   const config: Record<string, unknown> = {};
 
@@ -660,13 +671,15 @@ function serializeTargetDefinition(definition: TargetDefinition): Record<string,
       value === undefined ||
       key === 'name' ||
       key === 'id' ||
+      key === 'provider' ||
+      key === 'provider_spec' ||
       key === 'label' ||
       key === 'config'
     ) {
       continue;
     }
     if (AUTHORING_TOP_LEVEL_TARGET_FIELDS.has(key)) {
-      target[key] = value;
+      provider[key] = value;
     } else {
       config[key] = value;
     }
@@ -680,10 +693,10 @@ function serializeTargetDefinition(definition: TargetDefinition): Record<string,
     }
   }
   if (Object.keys(config).length > 0) {
-    target.config = config;
+    provider.config = config;
   }
 
-  return target;
+  return provider;
 }
 
 function serializeTargetDefinitions(
@@ -1133,11 +1146,11 @@ export async function materializeTaskBundle(
   const targetsPath = path.join(testDir, TASK_TARGETS_FILENAME);
 
   await writeYamlFile(evalPath, {
-    target: options.targetName,
+    providers: [options.targetName],
     prompts: [INPUT_PROMPT],
     tests: [evalCase],
   });
-  await writeYamlFile(targetsPath, { targets: serializeTargetDefinitions(targetDefinitions) });
+  await writeYamlFile(targetsPath, { providers: serializeTargetDefinitions(targetDefinitions) });
 
   return {
     testDir,
@@ -1203,7 +1216,7 @@ export async function materializeEvalBundle(
   const targetsPath = path.join(outputDir, BUNDLE_TARGETS_FILENAME);
   const manifestPath = path.join(outputDir, BUNDLE_MANIFEST_FILENAME);
   const runtime =
-    options.runtime ?? (targetNames.length === 1 ? { target: targetNames[0] } : undefined);
+    options.runtime ?? (targetNames.length > 0 ? { providers: targetNames } : undefined);
 
   await writeYamlFile(evalPath, {
     ...(runtime ?? {}),
@@ -1211,7 +1224,7 @@ export async function materializeEvalBundle(
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
   await writeYamlFile(targetsPath, {
-    targets: serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections)),
+    providers: serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections)),
   });
 
   const manifest = bundleManifest({

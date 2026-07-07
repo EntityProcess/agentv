@@ -1,6 +1,7 @@
 name: multi-model-benchmark
 description: Compare greeting, code generation, and summarization across three model targets
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

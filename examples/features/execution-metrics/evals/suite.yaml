@@ -1,6 +1,7 @@
 name: execution-metrics
 description: Demonstrates the built-in execution_metrics grader
-target: mock_metrics_agent
+providers:
+  - mock_metrics_agent
 prompts:
   - "{{ input }}"
 tests:

@@ -25,9 +25,9 @@ describe('eval target selection', () => {
       path.join(agentvDir, 'targets.yaml'),
       [
         '$schema: agentv-targets-v2.2',
-        'targets:',
-        '  - id: openai:gpt-5.4-mini',
-        '    provider: mock',
+        'providers:',
+        '  - id: mock',
+        '    label: openai:gpt-5.4-mini',
         '',
       ].join('\n'),
     );
@@ -36,8 +36,8 @@ describe('eval target selection', () => {
       evalPath,
       [
         'name: target-label-suite',
-        'targets:',
-        '  - id: openai:gpt-5.4-mini',
+        'providers:',
+        '  - openai:gpt-5.4-mini',
         'prompts:',
         '  - "{{ input }}"',
         'tests:',

@@ -1,6 +1,7 @@
 name: sdk-config-file
 description: Demonstrates defineConfig() for typed project configuration
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

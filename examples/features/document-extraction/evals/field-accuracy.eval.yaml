@@ -1,5 +1,6 @@
 description: Field accuracy grader patterns (per-test-case scoring)
-target: mock_extractor
+providers:
+  - mock_extractor
 assert:
   - metric: invoice_field_accuracy
     type: field-accuracy

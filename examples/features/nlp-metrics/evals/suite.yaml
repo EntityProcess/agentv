@@ -1,6 +1,7 @@
 name: nlp-metrics
 description: NLP text-quality metrics using script_grader graders
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

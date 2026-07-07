@@ -1,5 +1,6 @@
 description: Demonstrates {{ env.VAR }} interpolation in eval fields
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

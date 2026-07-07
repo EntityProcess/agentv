@@ -750,7 +750,7 @@ describe('parseGraders - kebab-case type normalization', () => {
           metric: 'kebab-llm',
           type: 'llm-grader',
           prompt: 'test prompt',
-          target: 'grader-low-cost-a',
+          provider: 'grader-low-cost-a',
         },
       ],
     };

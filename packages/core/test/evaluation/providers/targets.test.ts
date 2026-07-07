@@ -40,6 +40,9 @@ mock.module('@earendil-works/pi-ai', () => ({
 const providerModule = await import('../../../src/evaluation/providers/index.js');
 const { resolveDelegatedTargetDefinition, resolveTargetDefinition, createProvider } =
   providerModule;
+const { normalizeProviderDefinition } = await import(
+  '../../../src/evaluation/providers/targets.js'
+);
 const { extractLastAssistantContent } = await import('../../../src/evaluation/providers/types.js');
 
 describe('resolveDelegatedTargetDefinition', () => {
@@ -155,6 +158,61 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected openai target');
     }
     expect(target.config.model).toBe('gpt-5-mini');
+  });
+
+  it('resolves Promptfoo-style colon provider specs without splitting stable identity', () => {
+    const openaiTarget = resolveTargetDefinition(
+      normalizeProviderDefinition({
+        id: 'openai:responses:gpt-5.4',
+        label: 'gpt5-responses',
+        config: { api_key: '{{ env.OPENAI_API_KEY }}' },
+      }),
+      { OPENAI_API_KEY: 'test-openai-key' },
+    );
+    expect(openaiTarget.name).toBe('gpt5-responses');
+    expect(openaiTarget.kind).toBe('openai');
+    expect(openaiTarget.config.model).toBe('gpt-5.4');
+    expect(openaiTarget.config.apiFormat).toBe('responses');
+
+    const anthropicTarget = resolveTargetDefinition(
+      normalizeProviderDefinition({
+        id: 'anthropic:messages:claude-sonnet-4-6',
+        config: { api_key: '{{ env.ANTHROPIC_API_KEY }}' },
+      }),
+      { ANTHROPIC_API_KEY: 'test-anthropic-key' },
+    );
+    expect(anthropicTarget.name).toBe('anthropic:messages:claude-sonnet-4-6');
+    expect(anthropicTarget.kind).toBe('anthropic');
+    expect(anthropicTarget.config.model).toBe('claude-sonnet-4-6');
+
+    const execTarget = resolveTargetDefinition(
+      normalizeProviderDefinition({ id: 'exec:node ./provider.js' }),
+    );
+    expect(execTarget.name).toBe('exec:node ./provider.js');
+    expect(execTarget.kind).toBe('cli');
+    expect(execTarget.config.command).toBe('node ./provider.js');
+
+    const codexSdkTarget = resolveTargetDefinition(
+      normalizeProviderDefinition({
+        id: 'openai:codex-sdk:gpt-5.4-codex',
+        label: 'codex-sdk',
+        config: { command: ['codex'] },
+      }),
+    );
+    expect(codexSdkTarget.name).toBe('codex-sdk');
+    expect(codexSdkTarget.kind).toBe('codex-sdk');
+    expect(codexSdkTarget.config.model).toBe('gpt-5.4-codex');
+
+    const codexAppServerTarget = resolveTargetDefinition(
+      normalizeProviderDefinition({
+        id: 'openai:codex-desktop:gpt-5.4-codex',
+        label: 'codex-local',
+        config: { command: ['codex'] },
+      }),
+    );
+    expect(codexAppServerTarget.name).toBe('codex-local');
+    expect(codexAppServerTarget.kind).toBe('codex-app-server');
+    expect(codexAppServerTarget.config.model).toBe('gpt-5.4-codex');
   });
 
   it("throws when settings don't use {{ env.* }} syntax", () => {

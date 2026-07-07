@@ -11,7 +11,7 @@ import {
 } from '../../config-overlays.js';
 import { getAgentvConfigDir } from '../../paths.js';
 import { createEvalConfigEnv, interpolateEnv } from '../interpolation.js';
-import { normalizeTargetDefinition } from '../providers/targets.js';
+import { normalizeProviderDefinition } from '../providers/targets.js';
 import type { TargetDefinition } from '../providers/types.js';
 import type {
   EvalTargetRef,
@@ -459,30 +459,12 @@ function getSuiteEvaluateOptionsNumber(
   return undefined;
 }
 
-/** Extract the single top-level target name from a parsed eval suite. */
+/** @deprecated Authored eval YAML now uses top-level providers. */
 export function extractTargetFromSuite(suite: JsonObject): string | undefined {
   rejectAuthoredRuntimeContainers(suite);
-  const targetValue = suite.target;
-  if (typeof targetValue === 'string' && targetValue.trim().length > 0) {
-    return targetValue.trim();
+  if (suite.target !== undefined) {
+    throw new Error("Top-level 'target' has been removed. Use top-level 'providers' instead.");
   }
-  if (isJsonObject(targetValue)) {
-    const id = targetValue.id;
-    const extendsTarget = targetValue.extends;
-    if (typeof targetValue.name === 'string' && targetValue.name.trim().length > 0) {
-      throw new Error("Top-level target object field 'name' has been removed. Use 'id' instead.");
-    }
-    if (typeof targetValue.label === 'string' && targetValue.label.trim().length > 0) {
-      throw new Error("Top-level target object field 'label' has been removed. Use 'id' instead.");
-    }
-    if (typeof id === 'string' && id.trim().length > 0) {
-      return id.trim();
-    }
-    if (typeof extendsTarget === 'string' && extendsTarget.trim().length > 0) {
-      return extendsTarget.trim();
-    }
-  }
-
   return undefined;
 }
 
@@ -490,13 +472,22 @@ export function extractTargetRefsFromSuite(
   suite: JsonObject,
 ): readonly EvalTargetRef[] | undefined {
   rejectAuthoredRuntimeContainers(suite);
-  const rawTargets = suite.targets;
-  if (rawTargets === undefined) {
+  if (suite.target !== undefined) {
+    throw new Error("Top-level 'target' has been removed. Use top-level 'providers' instead.");
+  }
+  if (suite.targets !== undefined) {
+    throw new Error(
+      "Top-level 'targets' has been removed. Use 'providers'; map targets[].id to providers[].label and targets[].provider to providers[].id.",
+    );
+  }
+  const rawProviders = suite.providers;
+  if (rawProviders === undefined) {
     return undefined;
   }
 
-  const entries = Array.isArray(rawTargets) ? rawTargets : [rawTargets];
-  const refs = entries.map((entry, index) => parseEvalTargetRef(entry, `targets[${index}]`));
+  const entries = Array.isArray(rawProviders) ? rawProviders : [rawProviders];
+  const refs = entries.map((entry, index) => parseEvalProviderRef(entry, `providers[${index}]`));
+  assertUniqueProviderRefs(refs);
   return refs.length > 0 ? refs : undefined;
 }
 
@@ -510,64 +501,44 @@ export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | 
   return names.length > 0 ? names : undefined;
 }
 
-function parseEvalTargetRef(raw: unknown, location: string): EvalTargetRef {
+function parseEvalProviderRef(raw: unknown, location: string): EvalTargetRef {
   if (typeof raw === 'string') {
     const name = raw.trim();
     if (name.length === 0) {
-      throw new Error(`Invalid ${location}: target reference must be non-empty.`);
+      throw new Error(`Invalid ${location}: provider reference must be non-empty.`);
     }
     return { name };
   }
 
   if (!isJsonObject(raw)) {
-    throw new Error(`Invalid ${location}: use a target label string or target object.`);
-  }
-  if (typeof raw.name === 'string' && raw.name.trim().length > 0) {
-    throw new Error(`Invalid ${location}: target field 'name' has been removed. Use 'id' instead.`);
-  }
-
-  const rawLabel = raw.label;
-  const rawId = raw.id;
-  const useTarget = raw.use_target;
-  const legacyName = raw.name;
-  const id = typeof rawId === 'string' && rawId.trim().length > 0 ? rawId.trim() : undefined;
-  const label =
-    typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
-  const useTargetName =
-    typeof useTarget === 'string' && useTarget.trim().length > 0 ? useTarget.trim() : undefined;
-  const legacyTargetName =
-    typeof legacyName === 'string' && legacyName.trim().length > 0 ? legacyName.trim() : undefined;
-  if (legacyName !== undefined) {
-    throw new Error(`Invalid ${location}: target field 'name' has been removed. Use 'id' instead.`);
-  }
-  if (label !== undefined) {
-    throw new Error(
-      `Invalid ${location}: target field 'label' has been removed. Use 'id' instead.`,
-    );
+    throw new Error(`Invalid ${location}: use a provider reference string or provider object.`);
   }
 
   const hooks = parseTargetHooks(raw.hooks);
-  const hasInlineDefinition = typeof raw.provider === 'string' || useTargetName !== undefined;
-  if (hasInlineDefinition && !id) {
-    throw new Error(`Invalid ${location}: target object requires an 'id' field.`);
-  }
-  const name = id ?? legacyTargetName;
-  if (!name) {
-    throw new Error(`Invalid ${location}: target object requires an 'id' field.`);
-  }
-  const definition = hasInlineDefinition
-    ? (normalizeTargetDefinition(
-        Object.fromEntries(Object.entries(raw).filter(([key]) => key !== 'hooks')),
-      ) as TargetDefinition)
-    : undefined;
+  const definition = normalizeProviderDefinition(
+    Object.fromEntries(Object.entries(raw).filter(([key]) => key !== 'hooks')),
+    { location },
+  ) as TargetDefinition;
 
   return {
-    name,
-    ...(id !== undefined ? { id } : {}),
-    ...(useTargetName !== undefined ? { use_target: useTargetName } : {}),
-    ...(definition ? { definition } : {}),
+    name: definition.name,
+    id: typeof raw.id === 'string' ? raw.id.trim() : definition.provider,
+    ...(definition.label !== undefined ? { label: definition.label } : {}),
+    definition,
     ...(hooks !== undefined ? { hooks } : {}),
   };
+}
+
+function assertUniqueProviderRefs(refs: readonly EvalTargetRef[]): void {
+  const seen = new Set<string>();
+  for (const ref of refs) {
+    if (seen.has(ref.name)) {
+      throw new Error(
+        `Duplicate provider identity '${ref.name}'. Provider labels and unlabeled provider ids must be unique.`,
+      );
+    }
+    seen.add(ref.name);
+  }
 }
 
 /**

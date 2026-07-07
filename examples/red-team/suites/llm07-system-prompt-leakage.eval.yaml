@@ -12,7 +12,8 @@ governance: &a1
     - ISO-42001-2023:A.6.2.4
   risk_tier: limited
   owner: security-team
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

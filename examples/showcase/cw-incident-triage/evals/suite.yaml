@@ -1,6 +1,7 @@
 description: CargoWise criticality rating (CR1-CR9) classification eval for support ticket triage in
   logistics software.
-target: llm
+providers:
+  - llm
 assert:
   - metric: json_schema_validator
     type: script

@@ -63,7 +63,6 @@ import {
 } from './loaders/shorthand-expansion.js';
 import { parseTransformSpec } from './loaders/transform-parser.js';
 import { parseMetadata } from './metadata.js';
-import { normalizeTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
 import type {
   AgentRulesExtensionConfig,
@@ -2612,11 +2611,6 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
       `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Use supported top-level fields or evaluate_options for authored run controls.`,
     );
   }
-  if (suite.providers !== undefined) {
-    throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'providers' is not a runtime alias in AgentV eval YAML. Use 'targets' for systems under test; provider names backend kind inside each target.`,
-    );
-  }
   if (suite.model !== undefined) {
     throw new Error(
       `Invalid eval runtime config in ${evalFilePath}: top-level 'model' is not part of eval YAML. Put model inside the target object.`,
@@ -2648,13 +2642,14 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
 function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | undefined {
   const suite = parsed as RawTestSuite;
   readSuiteRuntimeBlock(suite, 'eval file');
-  const targetSpec = parseEvalTargetSpec(suite.target);
+  const suiteTargets = extractTargetsFromSuite(parsed);
+  const singleSuiteTarget = suiteTargets?.length === 1 ? suiteTargets[0] : undefined;
   const experimentName = asString(suite.experiment);
   const budgetUsd = extractBudgetUsd(parsed);
   const evaluateOptions = isJsonObject(suite.evaluate_options) ? suite.evaluate_options : undefined;
   const runtimeConfig: JsonObject = {
     ...(experimentName !== undefined ? { name: experimentName } : {}),
-    ...(targetSpec !== undefined ? { target: targetSpec.name } : {}),
+    ...(singleSuiteTarget !== undefined ? { target: singleSuiteTarget } : {}),
     ...(evaluateOptions?.repeat !== undefined ? { repeat: evaluateOptions.repeat } : {}),
     ...(suite.timeout_seconds !== undefined ? { timeout_seconds: suite.timeout_seconds } : {}),
     ...(budgetUsd !== undefined ? { budget_usd: budgetUsd } : {}),
@@ -2670,44 +2665,7 @@ function parseEvalTargetSpec(rawTarget: JsonValue | undefined): EvalTargetSpec |
   if (rawTarget === undefined || rawTarget === null) {
     return undefined;
   }
-  if (typeof rawTarget === 'string') {
-    const name = rawTarget.trim();
-    return name.length > 0 ? { name } : undefined;
-  }
-  if (!isJsonObject(rawTarget)) {
-    throw new Error("Invalid top-level 'target': use a target name or target object.");
-  }
-  if (typeof rawTarget.name === 'string' && rawTarget.name.trim().length > 0) {
-    throw new Error("Invalid top-level 'target': field 'name' has been removed. Use 'id' instead.");
-  }
-  if (typeof rawTarget.label === 'string' && rawTarget.label.trim().length > 0) {
-    throw new Error(
-      "Invalid top-level 'target': field 'label' has been removed. Use 'id' instead.",
-    );
-  }
-
-  const rawExtends = rawTarget.extends;
-  const extendsTarget =
-    typeof rawExtends === 'string' && rawExtends.trim().length > 0 ? rawExtends.trim() : undefined;
-  const rawId = rawTarget.id;
-  const name =
-    typeof rawId === 'string' && rawId.trim().length > 0
-      ? rawId.trim()
-      : (extendsTarget ?? 'eval-local-target');
-  const hooks = parseTargetHooks(rawTarget.hooks);
-  const definitionEntries = Object.entries(rawTarget).filter(
-    ([key]) => key !== 'extends' && key !== 'hooks',
-  );
-  const definition = normalizeTargetDefinition(Object.fromEntries(definitionEntries), {
-    defaultName: name,
-  });
-
-  return {
-    name,
-    ...(extendsTarget !== undefined && { extends: extendsTarget }),
-    definition,
-    ...(hooks !== undefined && { hooks }),
-  };
+  throw new Error("Top-level 'target' has been removed. Use top-level 'providers' instead.");
 }
 
 const SOURCE_SECRET_KEY_PATTERN =

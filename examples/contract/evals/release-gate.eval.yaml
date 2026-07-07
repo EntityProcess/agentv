@@ -3,7 +3,8 @@ description: Lightweight release gate for npm latest promotion.
 environment:
   type: host
   workdir: ../workspace-template
-target: github-models-contract
+providers:
+  - github-models-contract
 prompts:
   - "{{ input }}"
 tests:

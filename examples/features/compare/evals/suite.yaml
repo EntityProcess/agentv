@@ -1,6 +1,7 @@
 name: compare-demo
 description: Demo eval for generating baseline and candidate results to compare
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

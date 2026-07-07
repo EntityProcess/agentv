@@ -127,6 +127,7 @@ export async function validateConfigFile(
       'results',
       'repo_resolvers',
       'refs',
+      'providers',
       'targets',
       'graders',
       'tests',

@@ -1,4 +1,5 @@
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

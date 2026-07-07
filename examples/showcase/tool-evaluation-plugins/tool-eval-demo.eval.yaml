@@ -1,5 +1,6 @@
 description: Showcase of tool evaluation plugin patterns
-target: mock_agent
+providers:
+  - mock_agent
 prompts:
   - "{{ input }}"
 tests:

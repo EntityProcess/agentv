@@ -16,7 +16,8 @@ governance: &a1
     - NIST-AI-RMF-1.0:MEASURE-2.7
   risk_tier: high
   owner: security-team
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

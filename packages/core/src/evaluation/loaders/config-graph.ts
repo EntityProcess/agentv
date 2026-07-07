@@ -2,10 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { isPlainConfigObject } from '../../config-overlays.js';
+import { normalizeProviderDefinition } from '../providers/targets.js';
 import { parseYamlValue } from '../yaml-loader.js';
 
 const FILE_PROTOCOL = 'file://';
-const ARRAY_FIELDS = new Set(['targets', 'graders', 'tests', 'projects']);
+const ARRAY_FIELDS = new Set(['providers', 'targets', 'graders', 'tests', 'projects']);
 const OBJECT_FIELDS = new Set([
   'defaults',
   'execution',
@@ -46,6 +47,12 @@ const REMOVED_TARGET_FIELDS = new Map([
     "target-level 'subagent_mode_allowed' is not part of the base config contract.",
   ],
 ]);
+const REMOVED_PROVIDER_FIELDS = new Map(
+  Array.from(REMOVED_TARGET_FIELDS).filter(
+    ([field]) =>
+      field !== 'label' && field !== 'environment' && field !== 'container' && field !== 'install',
+  ),
+);
 
 export type RuntimeMode = 'host' | 'profile' | 'sandbox';
 
@@ -57,12 +64,12 @@ export type NormalizedRuntimeConfig = {
 export type NormalizedTargetConfig = {
   readonly id: string;
   readonly provider: string;
-  readonly runtime: NormalizedRuntimeConfig;
+  readonly runtime?: NormalizedRuntimeConfig;
   readonly config: Record<string, unknown>;
 };
 
 export type ConfigDefaults = {
-  readonly target?: string;
+  readonly provider?: string;
   readonly grader?: string;
 };
 
@@ -119,12 +126,17 @@ export function normalizeComposableConfigGraph(
 ): ComposableConfigGraph {
   if (rawConfig.graders !== undefined) {
     throw new Error(
-      `Field 'graders' in ${configPath} has been removed. A grader is just a target — move each entry into 'targets' and select it via 'defaults.grader' or an assertion's target override, not a separate grader list.`,
+      `Field 'graders' in ${configPath} has been removed. A grader is just a provider — move each entry into 'providers' and select it via 'defaults.grader' or an assertion's provider override, not a separate grader list.`,
+    );
+  }
+  if (rawConfig.targets !== undefined) {
+    throw new Error(
+      `Field 'targets' in ${configPath} has been removed. Use 'providers:'; map targets[].id to providers[].label and targets[].provider to providers[].id.`,
     );
   }
   const graph: ComposableConfigGraph = {
-    ...(rawConfig.targets !== undefined
-      ? { targets: parseTargets(rawConfig.targets, `${configPath}:targets`) }
+    ...(rawConfig.providers !== undefined
+      ? { targets: parseProviders(rawConfig.providers, `${configPath}:providers`) }
       : {}),
     ...(rawConfig.tests !== undefined
       ? { tests: parseArray(rawConfig.tests, `${configPath}:tests`) }
@@ -195,27 +207,28 @@ function parseArray(value: unknown, location: string): readonly unknown[] {
   return value;
 }
 
-function parseTargets(value: unknown, location: string): readonly NormalizedTargetConfig[] {
+function parseProviders(value: unknown, location: string): readonly NormalizedTargetConfig[] {
   return parseArray(value, location).map((entry, index) =>
-    parseTarget(entry, `${location}[${index}]`),
+    parseProvider(entry, `${location}[${index}]`),
   );
 }
 
-function parseTarget(value: unknown, location: string): NormalizedTargetConfig {
+function parseProvider(value: unknown, location: string): NormalizedTargetConfig {
   if (!isPlainConfigObject(value)) {
-    throw new Error(`Invalid ${location}: target must be an object.`);
+    throw new Error(`Invalid ${location}: provider must be an object.`);
   }
-  for (const [field, message] of REMOVED_TARGET_FIELDS) {
+  for (const [field, message] of REMOVED_PROVIDER_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(value, field)) {
       throw new Error(`Invalid ${location}.${field}: ${message}`);
     }
   }
 
-  const id = readRequiredString(value.id, `${location}.id`);
-  const provider = readRequiredString(value.provider, `${location}.provider`);
+  const definition = normalizeProviderDefinition(value, { location });
+  const id = definition.name;
+  const provider = readRequiredString(definition.provider, `${location}.id`);
   if (AMBIGUOUS_PROVIDER_ALIASES.has(provider)) {
     throw new Error(
-      `Invalid ${location}.provider: '${provider}' is ambiguous; choose an explicit provider such as '${provider}-cli' or '${provider}-sdk'.`,
+      `Invalid ${location}.id: '${provider}' is ambiguous; choose an explicit provider such as '${provider}-cli' or '${provider}-sdk'.`,
     );
   }
 
@@ -223,12 +236,16 @@ function parseTarget(value: unknown, location: string): NormalizedTargetConfig {
   validateCommand(config.command, `${location}.config.command`, {
     allowString: provider === 'cli',
   });
+  const runtime =
+    definition.runtime !== undefined
+      ? parseRuntime(definition.runtime, `${location}.runtime`)
+      : undefined;
 
   return {
     id,
     provider,
-    runtime: parseRuntime(value.runtime, `${location}.runtime`),
     config,
+    ...(runtime !== undefined ? { runtime } : {}),
   };
 }
 
@@ -253,10 +270,15 @@ function parseDefaults(value: unknown, location: string): ConfigDefaults {
   if (!defaults) {
     throw new Error(`Invalid ${location}: expected an object.`);
   }
-  const target = readOptionalString(defaults.target, `${location}.target`);
+  if (defaults.target !== undefined) {
+    throw new Error(
+      `Invalid ${location}.target: defaults.target has been removed. Use defaults.provider.`,
+    );
+  }
+  const provider = readOptionalString(defaults.provider, `${location}.provider`);
   const grader = readOptionalString(defaults.grader, `${location}.grader`);
   return {
-    ...(target !== undefined ? { target } : {}),
+    ...(provider !== undefined ? { provider } : {}),
     ...(grader !== undefined ? { grader } : {}),
   };
 }
@@ -296,26 +318,21 @@ function parseExecution(
 }
 
 function validateDefaultSelections(graph: ComposableConfigGraph, configPath: string): void {
-  // A grader is just a target selected for a grading role, not a separate
-  // entity — `defaults.target` and `defaults.grader` both resolve against the
-  // same `targets` pool. Only validated against targets defined inline in
-  // this same config document; either may instead name a target defined in a
-  // separately-discovered `.agentv/targets.yaml`, which this graph has no
-  // visibility into — that case is resolved (and, on an unknown name,
-  // reported) lazily at eval-run time, the same way CLI `--grader-target`
-  // already is.
+  // A grader is just a provider selected for a grading role, not a separate
+  // entity. Only validate against providers defined inline in this same config
+  // document; external provider catalogs are resolved lazily at eval-run time.
   if (!graph.targets || graph.targets.length === 0) {
     return;
   }
   const targetIds = new Set(graph.targets.map((target) => target.id));
-  if (graph.defaults?.target !== undefined && !targetIds.has(graph.defaults.target)) {
+  if (graph.defaults?.provider !== undefined && !targetIds.has(graph.defaults.provider)) {
     throw new Error(
-      `Invalid defaults.target in ${configPath}: '${graph.defaults.target}' does not match a configured target id.`,
+      `Invalid defaults.provider in ${configPath}: '${graph.defaults.provider}' does not match a configured provider label or id.`,
     );
   }
   if (graph.defaults?.grader !== undefined && !targetIds.has(graph.defaults.grader)) {
     throw new Error(
-      `Invalid defaults.grader in ${configPath}: '${graph.defaults.grader}' does not match a configured target id.`,
+      `Invalid defaults.grader in ${configPath}: '${graph.defaults.grader}' does not match a configured provider label or id.`,
     );
   }
 }

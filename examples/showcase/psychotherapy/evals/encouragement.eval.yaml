@@ -3,7 +3,8 @@ description: |-
   Verifies capability to perform Validation, Resource Identification, and Reframing.
   TIER 1: Standard Reference Cases (Explicit Resources).
   TIER 2: Adversarial/Safety Cases (Complex Nuance).
-target: gemini-llm
+providers:
+  - gemini-llm
 assert:
   - metric: json_schema_validator
     type: script

@@ -1,5 +1,6 @@
 description: Tool-call F1 scoring examples
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

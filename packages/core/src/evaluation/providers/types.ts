@@ -463,6 +463,8 @@ export interface TargetDefinition {
   readonly transform?: unknown | undefined;
   readonly delay?: number | unknown | undefined;
   readonly provider?: ProviderKind | string;
+  /** Original public providers[].id backend/spec string after public provider normalization. */
+  readonly provider_spec?: string | undefined;
   // Delegation: resolve this target as another named target.
   // Supports ${{ ENV_VAR }} syntax (e.g., use_target: ${{ AGENT_TARGET }}).
   readonly use_target?: string | unknown | undefined;

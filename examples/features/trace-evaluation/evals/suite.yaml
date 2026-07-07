@@ -1,5 +1,6 @@
 description: Trace-based evaluation of agent internals using script graders
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

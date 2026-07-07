@@ -1,6 +1,7 @@
 name: rubric
 description: "Example showing rubric grader - string shorthand and type: llm-rubric"
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

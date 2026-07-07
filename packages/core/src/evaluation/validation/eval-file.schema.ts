@@ -196,7 +196,7 @@ const LlmGraderSchema = EvaluatorCommonSchema.extend({
   prompt: PromptSchema.optional(),
   rubrics: z.array(RubricItemSchema).optional(),
   model: z.string().optional(),
-  target: z.string().optional(),
+  provider: z.string().optional(),
   config: z.record(z.unknown()).optional(),
   max_steps: z.number().int().min(1).max(50).optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -367,6 +367,13 @@ const AssertionObjectSchema = JsonObjectSchema.superRefine((value, ctx) => {
       code: z.ZodIssueCode.custom,
       path: ['postprocess'],
       message: 'postprocess has been removed. Use transform instead.',
+    });
+  }
+  if (typeof value.target === 'string') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['target'],
+      message: "Assertion field 'target' has been removed. Use assertion 'provider' instead.",
     });
   }
   const rawType = value.type;
@@ -652,6 +659,44 @@ const EvalLocalTargetSchema = z
 
 const EvalTargetSchema = z.union([z.string().min(1), EvalLocalTargetSchema]);
 const EvalTargetsSchema = z.union([EvalTargetSchema, z.array(EvalTargetSchema).min(1)]);
+const EvalProviderObjectSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1).optional(),
+    config: JsonRecordSchema.optional(),
+    runtime: z
+      .union([
+        z.enum(['host', 'profile', 'sandbox']),
+        z
+          .object({
+            mode: z.enum(['host', 'profile', 'sandbox']),
+          })
+          .passthrough(),
+      ])
+      .optional(),
+    prompts: PromptsSchema.optional(),
+    transform: z.union([z.string(), JsonObjectSchema]).optional(),
+    delay: z.number().min(0).optional(),
+    env: z.record(z.string()).optional(),
+    hooks: TargetHooksSchema.optional(),
+    provider: z
+      .never({
+        invalid_type_error:
+          'providers[].provider has been removed. Use providers[].id for the backend and providers[].label for the stable identity.',
+      })
+      .optional(),
+    name: z
+      .never({
+        invalid_type_error: 'providers[].name has been removed. Use providers[].label.',
+      })
+      .optional(),
+    environment: z.never().optional(),
+    container: z.never().optional(),
+    install: z.never().optional(),
+  })
+  .strict();
+const EvalProviderSchema = z.union([z.string().min(1), EvalProviderObjectSchema]);
+const EvalProvidersSchema = z.union([EvalProviderSchema, z.array(EvalProviderSchema).min(1)]);
 
 // ---------------------------------------------------------------------------
 // Execution block
@@ -661,8 +706,16 @@ const EvalTargetsSchema = z.union([EvalTargetSchema, z.array(EvalTargetSchema).m
 const FailOnErrorSchema = z.boolean();
 
 const ExecutionSchema = z.object({
-  target: z.string().optional(),
-  targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
+  target: z
+    .never({
+      invalid_type_error: "execution.target has been removed. Use top-level 'providers'.",
+    })
+    .optional(),
+  targets: z
+    .never({
+      invalid_type_error: "execution.targets has been removed. Use top-level 'providers'.",
+    })
+    .optional(),
   workers: z.never().optional(),
   assert: z.array(AssertionItemSchema).optional(),
   skip_defaults: z.boolean().optional(),
@@ -836,7 +889,12 @@ const ConfigTargetSchema = z
 
 const ConfigDefaultsSchema = z
   .object({
-    target: z.string().min(1).optional(),
+    target: z
+      .never({
+        invalid_type_error: 'defaults.target has been removed. Use defaults.provider.',
+      })
+      .optional(),
+    provider: z.string().min(1).optional(),
     grader: z.string().min(1).optional(),
   })
   .strict();
@@ -901,19 +959,19 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
   tests: TestsSchema.optional(),
   providerPromptMap: z
     .never({
-      invalid_type_error: "Top-level 'providerPromptMap' is not supported. Use 'targets'.",
+      invalid_type_error: "Top-level 'providerPromptMap' is not supported. Use 'providers'.",
     })
     .optional(),
   provider_prompt_map: z
     .never({
-      invalid_type_error: "Top-level 'provider_prompt_map' is not supported. Use 'targets'.",
+      invalid_type_error: "Top-level 'provider_prompt_map' is not supported. Use 'providers'.",
     })
     .optional(),
   // Shared composable config graph fields
   graders: z
     .never({
       invalid_type_error:
-        "Top-level 'graders' has been removed. A grader is just a target — move each entry into 'targets' and select it via 'defaults.grader' or an assertion's target override.",
+        "Top-level 'graders' has been removed. A grader is just a provider — move each entry into 'providers' and select it via 'defaults.grader' or an assertion's provider override.",
     })
     .optional(),
   defaults: z.union([ConfigDefaultsSchema, z.string().min(1)]).optional(),
@@ -931,9 +989,18 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
     })
     .optional(),
   // Target
-  target: z.union([z.string().min(1), EvalLocalTargetSchema]).optional(),
-  targets: EvalTargetsSchema.optional(),
-  providers: z.never().optional(),
+  target: z
+    .never({
+      invalid_type_error: "Top-level 'target' has been removed. Use top-level 'providers'.",
+    })
+    .optional(),
+  targets: z
+    .never({
+      invalid_type_error:
+        "Top-level 'targets' has been removed. Use 'providers'; map targets[].id to providers[].label and targets[].provider to providers[].id.",
+    })
+    .optional(),
+  providers: EvalProvidersSchema.optional(),
   model: z.never().optional(),
   // Run/result grouping label and flat run controls
   experiment: z.string().min(1).optional(),

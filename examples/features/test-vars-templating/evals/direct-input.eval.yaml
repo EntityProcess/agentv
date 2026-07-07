@@ -1,5 +1,6 @@
 description: Demonstrates AgentV direct-input shorthand and role/content messages
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

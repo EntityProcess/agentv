@@ -1,6 +1,7 @@
 description: Python helper example that emits canonical AgentV YAML/JSONL.
 name: python-helper
-target: local_cli
+providers:
+  - local_cli
 tags:
   - python
   - sdk

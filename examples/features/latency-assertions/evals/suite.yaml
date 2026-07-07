@@ -1,6 +1,7 @@
 name: latency-assertions
 description: Tool sequence checks for the latency demo target
-target: mock_latency_agent
+providers:
+  - mock_latency_agent
 prompts:
   - "{{ input }}"
 tests:
