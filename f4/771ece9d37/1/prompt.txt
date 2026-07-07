@@ -1,0 +1,271 @@
+currently graders in agentv must return structured json, which means it only has llm graders not agent graders. check if promptfoo has agent graders and how they return structured JSON or if not. search in local clone or ask deep wiki. also research vercel-labs/agent-evals they have agentic llm grader how does it work, what patterns can we copy into agentv. spawn worker to do this research and create beads  if actions identified
+
+---
+
+we should support agent-rubric based on our learnings. should we just use promptfoo's code for this
+
+---
+
+i think we should rename targets to providers to match promptfoo and id should become label, proviers should become id. so basically we come a fork of promptfoo but with better dashboard, environment setup. please brainstorm. this would be better than trying to add every feature they have, and we can reuse their docs
+
+---
+
+do you thing targets is bettter as a name.
+
+---
+
+so what about a grader provider, do we call it grader_provider
+
+---
+
+so basically a grader is also a target, and we can grade a grader.
+
+---
+
+what if a target is renamed to provider_config
+
+---
+
+explain the design for agentic rubric, how will that work and how do we enusre it returns json
+
+---
+
+i mean the agent grader needs to return valid json
+
+---
+
+how does promptfoo ensures that for its agent rubric
+
+---
+
+what do you eman by verdict file
+
+---
+
+ok lets do that then. ensure we have beads clear enough to hand off. then proceed to impelmentation and merge PR if no issues
+
+---
+
+you're the lead, please spawn workmux worker to do this on worktree
+
+---
+
+brainstorm if there's a way to use existing prompfoo primitves to replicate functionality of environment. could we have a transpiler that accepts enviornment and uses promptfoo sdk under the hood
+spawn worker to do the brainstorm
+
+---
+
+also for the wtg promtps dogfood there were quallity fialures, did we ask it to fix the quality failures.
+
+---
+
+can you spawn worker to document the research in adr in agentv.
+
+---
+
+and fix the quality failures
+
+---
+
+I ran it. try again  penai-oauth                     OpenAI-compatible endpoint ready at http://127.0.0.1:10531/v1                                                         Use this as your OpenAI base URL. No API key is required.                                                             Available Models: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark, codex-auto-review
+
+---
+
+please continue addressing agentv side gap for all providers so skill calls metadata is emitted, and hard deprecate skill trigger and incorporate any useful logic from legacy field. borrow patterns also from promptfoo (local clone or deepwiki MCP)
+
+---
+
+also note that graders object is hard deprecated it's all targets now. ensure you have latest main.
+
+---
+
+please push and merge if no issues
+
+---
+
+also spawn worker to brainstorm how to best implement margin evals or harbor framework like environment setup in promptfoo. I am considering just creating a wrapper on top of promptfoo as worst case which transpiles environment field in agentv to promptfooconfig yaml.
+
+---
+
+based on the research should agentv simply transpile environment to promptfoo since promptfoo is a popular framework incumbent
+
+---
+
+since our YAML configuration and SDK will be exact match. I think only advantage is environment sugar.
+
+---
+
+so then users author agentv eval YAML which transpiles into promptfoo. problem solved
+
+---
+
+then at least we should rename targets to providers, use label instead of id.
+
+---
+
+we can make breaking change so agentv becomes a fork of promptfoo and we can file upstream changes in future
+
+---
+
+what if we were starting fresh, and agentv has no users yet. I need a fresh pair of eyes
+
+---
+
+spawn worker to deep dive the provider and target surface of promptfoo. create implementation plan. this is a breaking change. also we should support specifying grader provider in config.
+
+---
+
+also remove any workmux workers that are finished and ensure their work is pushed or merged somewhere so we don't lose their work.
+
+---
+
+it's probably easier to fork promptfoo, use their SDK to create a second YAML parser with environment field. spawn worker to investigate feasibility. this is better than maintaining the entire config surface ourselves.
+
+---
+
+also if we can configure a CLI provider, then technically it can declaratively declare an environment. maybe have another environment YAML read by the provider.
+
+---
+
+also check if promptfoo can be configured to run multiple samples or attempts so we pass if any attempt passes, so flaky tests will pass. we implement early exit. what is the cleanest way to do this in promptfoo.
+
+---
+
+whats the status so far. should we simply become a fork of promptfoo. or even better just a setup script which installs promptfoo and scaffolds a project.
+
+---
+
+but promptfoo can have CLI provider. can't the CLI provider be configured like docker with repos
+
+---
+
+ok let's just ensure we continue to make progress in targets to providers to match promptfoo config surface.
+
+---
+
+hard deprecate anything we no longer will use. we don't have users yet
+
+---
+
+delegate work to workmux workers
+
+---
+
+$coordinator
+
+---
+
+summarize what will be the deliverable after the workers are done
+
+---
+
+should be add a bead for internal migration so  the codebase is closer to a fork of promptfoo so its easier to sync features from upstream in future
+
+---
+
+shoudl we also support the provider id with colon which promptfoo uses
+
+---
+
+so is this backward compatbile with promptfoo, so promptfoo can read the providers field an understand it
+
+---
+
+so agentv can create custom providers with their own id then,  but promptfoo cannot. i expect that to be the only difference apart from agentv environment fiel.d
+
+---
+
+so that means our codex providers (x3) would need to change to match promptfoo.
+
+---
+
+but agentv is in typescripti and sh won't work on windows so maybe top level is better unless we want to have an installation script that adds the custom providers out of the box
+
+---
+
+so wont promptfoo give validation error for package:@agentv/promptfoo-providers/codex-cli
+
+---
+
+so maybe we can still include it as part of agentv but we have a promptfoo exporter
+
+---
+
+id: package:@agentv/promptfoo-providers:CodexCliProvider - does promptfoo understand this?
+
+---
+
+so does promptfoo-providers need to be a published npm package
+
+---
+
+so the near term is just to emit it, and ensure that we have ergonomic id like agentv:codex-cli
+
+---
+
+ok so are the workers going to make the eval surface completely backward copatbile then? perhaps we should add a script and have promptfoo validation run as a GitHub Action.
+
+---
+
+for isolated work it deserves seaprate worker
+
+---
+
+ok so only difference is envrionment, refs and built-in providers.
+
+---
+
+we should update the ADRs then. That simplifies a lot of things.
+
+---
+
+is there an epic or bead for this migration to align with promptfoo. give me list of workers and beads they're working on.
+
+---
+
+any workers completed their work and we can review and merge
+
+---
+
+ok lets do all that then. make sure you understand the original goal of promptfoo compatability with exceptions, with export as full compatability except for enviroment. For environment do you think we should transpile into extensions and point provider workdir to the extension variable used for isolated workspace. so only difference when exporting to promptfoo is that docker is not supported but filesystem isolation is.
+
+---
+
+ensure ADR is updated with this constraint / strategy / direction. also STRATEGY and ROADMAP might need updating.
+
+---
+
+you are the coordinator, please delegate to worker asap so you can focus on coordination.
+
+---
+
+also workers are idle and need feedback, unblocking or merging.
+
+---
+
+anything that can be merged, and no remianing issues, please merge. you have full auhtoriyt
+
+---
+
+anything mergeable, please unblcok, and remind you of your goal
+
+---
+
+so why is README still the old schema with targets and grader
+
+---
+
+or is that intentional
+
+---
+
+in that case is the shappe better:
+
+defaults:
+  provider:
+    target: local-openai
+    grader: local-openai-grader
+
+---
+
+so then config.yaml will be different to promptfooconfig.yaml then right
