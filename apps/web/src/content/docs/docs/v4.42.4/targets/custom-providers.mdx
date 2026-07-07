@@ -23,6 +23,24 @@ interface Provider {
 }
 ```
 
+## Invocation Boundary
+
+AgentV resolves an eval into authored provider-case executions. For each
+execution, including repeats and retries, the eval runner sends one
+`ProviderRequest` to `Provider.invoke()`.
+
+Provider adapters can batch, queue, pool sessions, rate-limit, or fan out work
+internally when that is the right way to talk to the backend. Keep that behavior
+behind the adapter boundary. Each original `ProviderRequest` must settle to
+exactly one `ProviderResponse` or one error, and the adapter must preserve that
+request's response, trace and transcript identity, metrics, artifact paths, and
+cancellation through `request.signal`.
+
+Do not expose runner-selected batch grouping as eval YAML or project config. If
+an adapter needs a drain, cleanup, or session lifecycle step to flush queued
+provider work, treat it as provider-owned plumbing rather than a public eval
+batching mode.
+
 ### ProviderRequest
 
 The request object passed to `invoke()`:
