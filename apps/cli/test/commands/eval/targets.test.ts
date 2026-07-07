@@ -133,7 +133,51 @@ describe('eval target selection', () => {
         targetRefs: suite.targetRefs,
         targetSource: 'test-file',
       }),
-    ).rejects.toThrow(/Add `providers: file:\/\/providers\.yaml` to \.agentv\/config\.yaml/);
+    ).rejects.toThrow(/Add `providers:` to \.agentv\/config\.yaml/);
+  });
+
+  it('uses provider definitions loaded from inline project config', async () => {
+    const evalPath = path.join(tempDir, 'inline-providers.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'providers:',
+        '  - inline-modern',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: provider-case',
+        '    criteria: ok',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+    const selections = await selectMultipleTargets({
+      testFilePath: evalPath,
+      repoRoot: tempDir,
+      cwd: tempDir,
+      providerDefinitions: [
+        {
+          id: 'inline-modern',
+          label: 'inline-modern',
+          name: 'inline-modern',
+          provider: 'mock',
+          response: 'inline',
+        },
+      ],
+      providerDefinitionsSource: '.agentv/config.yaml:providers',
+      requireExplicitProviderCatalog: true,
+      env: {},
+      targetNames: suite.targets ?? [],
+      targetRefs: suite.targetRefs,
+      targetSource: 'test-file',
+    });
+
+    expect(selections[0]?.targetName).toBe('inline-modern');
+    expect(selections[0]?.targetsFilePath).toBe('.agentv/config.yaml:providers');
+    expect(selections[0]?.resolvedTarget.config.response).toBe('inline');
   });
 
   it('hard-rejects legacy targets.yaml as authored provider config', async () => {

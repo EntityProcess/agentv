@@ -407,6 +407,20 @@ function buildSourceMetadataByEvalFile(
   );
 }
 
+function buildProviderCatalogPathByEvalFile(
+  selected: readonly SelectedTaskBundle[],
+  overrideProvidersPath?: string,
+): ReadonlyMap<string, string> {
+  return new Map(
+    selected.map((bundle) => [
+      path.resolve(bundle.evalPath),
+      overrideProvidersPath
+        ? path.resolve(overrideProvidersPath)
+        : path.resolve(bundle.providersPath),
+    ]),
+  );
+}
+
 export const runsRerunCommand = command({
   name: 'rerun',
   description: 'Rerun captured test bundles with local target environment',
@@ -522,6 +536,10 @@ export const runsRerunCommand = command({
         verbose: args.verbose,
         // Legacy generated run bundles stored the captured provider graph as targets.yaml.
         allowLegacyTargetFiles: true,
+        providerCatalogPathByEvalFile: buildProviderCatalogPathByEvalFile(
+          selected,
+          args.targets ? path.resolve(cwd, args.targets) : undefined,
+        ),
         sourceMetadataByEvalFile: buildSourceMetadataByEvalFile(sourceRunDir, indexPath, selected),
       },
     });

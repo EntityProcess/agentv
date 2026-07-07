@@ -105,6 +105,8 @@ export type AgentVConfig = {
   readonly configDir?: string;
   /** Resolved file path when top-level `providers` was authored as a file:// reference. */
   readonly providerCatalogPath?: string;
+  /** Provider definitions resolved from top-level `providers`, including inline arrays and file refs. */
+  readonly providerDefinitions?: readonly TargetDefinition[];
 } & ComposableConfigGraph;
 
 /**
@@ -277,6 +279,10 @@ function parseConfigObject(
       allowExecutionDefaultFields: true,
     });
     const execution = mergeExecutionConfig(executionDefaults, graph.execution);
+    const providerDefinitions = parseProviderDefinitions(
+      (parsed as Record<string, unknown>).providers,
+      configPath,
+    );
 
     return {
       required_version: requiredVersion as string | undefined,
@@ -293,6 +299,7 @@ function parseConfigObject(
       ...(graph.defaults && { defaults: graph.defaults }),
       configDir: projectDir,
       ...(providerCatalogPath && { providerCatalogPath }),
+      ...(providerDefinitions && { providerDefinitions }),
     };
   } catch (error) {
     const message = (error as Error).message;
@@ -302,6 +309,21 @@ function parseConfigObject(
     logWarning(`Could not parse AgentV config at ${configPath}: ${message}`);
     return null;
   }
+}
+
+function parseProviderDefinitions(
+  rawProviders: unknown,
+  configPath: string,
+): readonly TargetDefinition[] | undefined {
+  if (rawProviders === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(rawProviders)) {
+    return undefined;
+  }
+  return rawProviders.map((entry, index) =>
+    normalizeProviderDefinition(entry, { location: `${configPath}:providers[${index}]` }),
+  );
 }
 
 function mergeExecutionConfig(

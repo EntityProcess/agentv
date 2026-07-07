@@ -99,6 +99,10 @@ describe('loadConfig', () => {
       expect(config?.tests).toEqual([{ id: 'smoke', input: 'Fix the failing test' }]);
       expect(config?.defaults).toEqual({ provider: 'codex-local', grader: 'openai-grader' });
       expect(config?.execution?.max_concurrency).toBe(3);
+      expect(config?.providerDefinitions?.map((definition) => definition.name)).toEqual([
+        'codex-local',
+        'openai-grader',
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -122,6 +126,7 @@ describe('loadConfig', () => {
       const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
 
       expect(config?.providerCatalogPath).toBe(providersPath);
+      expect(config?.providerDefinitions?.map((definition) => definition.name)).toEqual(['grader']);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
