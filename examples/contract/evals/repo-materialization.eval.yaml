@@ -12,7 +12,8 @@ environment:
       - EntityProcess/agentv-contract-fixture
       - 21a34daed7ebcfe36cbed053607622a55e5e94cb
     cwd: "."
-target: github-models-contract
+providers:
+  - github-models-contract
 prompts:
   - "{{ input }}"
 tests:

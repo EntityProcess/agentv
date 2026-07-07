@@ -1,7 +1,8 @@
 description: |-
   Evaluation suite for 'Psychology Router'.
   Verifies correct selection of therapeutic framework based on client needs.
-target: gemini-llm
+providers:
+  - gemini-llm
 assert:
   - metric: json_schema_validator
     type: script

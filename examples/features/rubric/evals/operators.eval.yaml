@@ -1,6 +1,7 @@
 name: rubric-operators
 description: Focused example showing correctness and contradiction rubric operators
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

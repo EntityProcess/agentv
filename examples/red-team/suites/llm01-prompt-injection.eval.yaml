@@ -13,7 +13,8 @@ governance: &a1
     - EU-AI-ACT-2024:Art.55
   risk_tier: high
   owner: security-team
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

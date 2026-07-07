@@ -13,15 +13,15 @@ environment:
       - https://github.com/EntityProcess/agentv
       - 6e446b722627e9df017b22e391fa63320362d8c7
     cwd: "."
-target:
-  name: claude-baseline
-  extends: "{{ env.AGENT_TARGET }}"
-  hooks:
-    before_each:
-      command:
-        - bash
-        - ../scripts/setup-variant.sh
-        - baseline
+providers:
+  - id: claude-cli
+    label: claude-baseline
+    hooks:
+      before_each:
+        command:
+          - bash
+          - ../scripts/setup-variant.sh
+          - baseline
 tags:
   - coding
   - bugfix

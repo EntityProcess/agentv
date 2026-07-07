@@ -134,7 +134,7 @@ function buildBundleRuntime(options: {
   readonly threshold?: number;
 }): Record<string, unknown> {
   const runtime: Record<string, unknown> =
-    options.targetNames.length === 1 ? { target: options.targetNames[0] } : {};
+    options.targetNames.length > 0 ? { providers: options.targetNames } : {};
   if (options.budgetUsd !== undefined) {
     runtime.budget_usd = options.budgetUsd;
   }

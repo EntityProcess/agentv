@@ -1,5 +1,6 @@
 description: script graders with eval assert CLI integration
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

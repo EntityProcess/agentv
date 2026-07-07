@@ -1,5 +1,6 @@
 description: Trial output consistency via embedding similarity
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

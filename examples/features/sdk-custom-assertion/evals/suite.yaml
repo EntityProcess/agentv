@@ -1,6 +1,7 @@
 name: sdk-custom-assertion
 description: Demonstrates custom assertions via defineAssertion() and convention discovery
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

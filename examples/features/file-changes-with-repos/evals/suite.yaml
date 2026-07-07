@@ -5,7 +5,8 @@ environment:
   workdir: ../workspace-template
 extensions:
   - file://../scripts/setup-nested-repo.mjs:beforeAll
-target: mock_agent
+providers:
+  - mock_agent
 prompts:
   - "{{ input }}"
 tests:

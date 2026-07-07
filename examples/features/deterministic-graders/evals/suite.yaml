@@ -1,6 +1,7 @@
 name: deterministic-graders
 description: Built-in deterministic assertions — contains, regex, JSON validation, equals
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

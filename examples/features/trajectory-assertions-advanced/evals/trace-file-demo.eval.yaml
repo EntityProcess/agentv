@@ -1,5 +1,6 @@
 description: Static trace file evaluation demo - Product Research Agent
-target: static_trace
+providers:
+  - static_trace
 prompts:
   - "{{ input }}"
 tests:

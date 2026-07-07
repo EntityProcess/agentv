@@ -1,6 +1,7 @@
 name: suite-level-input-example
 description: Suite-level input prepended to all tests (like suite-level assertions)
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests: ./cases.yaml

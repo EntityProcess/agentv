@@ -1,6 +1,7 @@
 name: threshold-grader-example
 description: Demonstrates assert-set threshold grouping
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

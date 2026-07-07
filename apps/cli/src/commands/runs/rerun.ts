@@ -2,7 +2,7 @@ import { constants } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { parseYamlValue } from '@agentv/core';
+import { parseYamlValue, readTargetDefinitions as readCoreTargetDefinitions } from '@agentv/core';
 import {
   array,
   command,
@@ -111,14 +111,11 @@ async function readTaskTarget(evalPath: string, fallback: string): Promise<strin
   return readExecutionTarget(parseYamlValue(raw)) ?? fallback;
 }
 
-async function readTargetDefinitions(
+async function readRerunTargetDefinitions(
   targetsPath: string,
 ): Promise<readonly Record<string, unknown>[]> {
-  const parsed = parseYamlValue(await readFile(targetsPath, 'utf8'));
-  if (!isRecord(parsed) || !Array.isArray(parsed.targets)) {
-    throw new Error(`Targets file is missing a top-level targets array: ${targetsPath}`);
-  }
-  return parsed.targets.filter(isRecord);
+  const definitions = await readCoreTargetDefinitions(targetsPath);
+  return definitions.map((definition) => definition as unknown as Record<string, unknown>);
 }
 
 function targetName(definition: Record<string, unknown>): string | undefined {
@@ -198,7 +195,7 @@ async function validateTargetFile(
   targetNames: readonly string[],
   label: string,
 ): Promise<void> {
-  const definitions = await readTargetDefinitions(targetsPath);
+  const definitions = await readRerunTargetDefinitions(targetsPath);
   const byName = new Map<string, Record<string, unknown>>();
   for (const definition of definitions) {
     const name = targetName(definition);

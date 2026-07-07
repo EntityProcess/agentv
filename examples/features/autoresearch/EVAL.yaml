@@ -3,7 +3,8 @@ description: |
   Evaluates the incident severity classifier prompt for accuracy, output format,
   and reasoning quality. Used as an autoresearch demo — the prompt artifact starts
   weak and the optimization loop iteratively improves it.
-target: llm
+providers:
+  - llm
 defaults:
   system_message: |
     Classify the incident into P0, P1, P2, or P3.

@@ -1,6 +1,7 @@
 name: trajectory-assertions-simple
 description: Promptfoo trajectory assertion examples for agent execution validation
-target: mock_agent
+providers:
+  - mock_agent
 prompts:
   - "{{ input }}"
 tests:

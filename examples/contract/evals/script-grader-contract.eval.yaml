@@ -1,6 +1,7 @@
 name: script-grader-contract
 description: Release gate verifying the script-grader stdin payload contract.
-target: github-models-contract
+providers:
+  - github-models-contract
 prompts:
   - "{{ input }}"
 tests:

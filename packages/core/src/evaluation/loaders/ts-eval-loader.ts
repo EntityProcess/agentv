@@ -110,7 +110,7 @@ export async function loadTsEvalSuite(
   if (isSdkEvalSuiteExport(config)) {
     return loadTestSuiteFromYamlObject(
       absolutePath,
-      config[SDK_TO_EVAL_YAML_OBJECT_SYMBOL](),
+      lowerTypeScriptEvalConfig(config[SDK_TO_EVAL_YAML_OBJECT_SYMBOL]()),
       repoRoot,
       { ...options, allowInternalExpectedOutput: true },
     );
@@ -193,9 +193,12 @@ function isProgrammaticEvalConfig(value: unknown): value is ProgrammaticEvalConf
 
 function lowerTypeScriptEvalConfig(config: Record<string, unknown>): Record<string, unknown> {
   const lowered = lowerEvalYamlValue(config) as Record<string, unknown>;
-  const { budget_usd: budgetUsd, repeat, ...withoutRuntimeAliases } = lowered;
+  const { budget_usd: budgetUsd, repeat, target, ...withoutRuntimeAliases } = lowered;
+  if (target !== undefined && withoutRuntimeAliases.providers === undefined) {
+    withoutRuntimeAliases.providers = [target];
+  }
   if (budgetUsd === undefined && repeat === undefined) {
-    return lowered;
+    return withoutRuntimeAliases;
   }
 
   const evaluateOptions =

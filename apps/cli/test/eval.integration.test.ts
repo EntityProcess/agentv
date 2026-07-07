@@ -70,22 +70,23 @@ async function createFixture(): Promise<EvalFixture> {
 
   const targetsPath = path.join(agentvDir, 'targets.yaml');
   const targetsContent = `$schema: agentv-targets-v2.2
-targets:
-  - id: default
-    provider: mock
-  - id: file-target
-    provider: mock
-  - id: cli-target
-    provider: mock
-  - id: codex-target
-    provider: codex-sdk
+providers:
+  - id: mock
+    label: default
+  - id: mock
+    label: file-target
+  - id: mock
+    label: cli-target
+  - id: openai:codex-sdk
+    label: codex-target
     model: gpt-5-default
 `;
   await writeFile(targetsPath, targetsContent, 'utf8');
 
   const testFilePath = path.join(suiteDir, 'sample.test.yaml');
   const testFileContent = `description: CLI integration test
-target: file-target
+providers:
+  - file-target
 prompts:
   - "{{ input }}"
 tests:
@@ -131,9 +132,9 @@ async function createNestedEnvFixture(): Promise<EvalFixture> {
 
   const targetsPath = path.join(agentvDir, 'targets.yaml');
   const targetsContent = `$schema: agentv-targets-v2.2
-targets:
-  - id: default
-    provider: mock
+providers:
+  - id: mock
+    label: default
 `;
   await writeFile(targetsPath, targetsContent, 'utf8');
 
@@ -633,7 +634,8 @@ describe('agentv eval CLI', () => {
         evalPath,
         [
           'description: Budget options integration test',
-          'target: file-target',
+          'providers:',
+          '  - file-target',
           'evaluate_options:',
           '  budget_usd: 1.25',
           'prompts:',
@@ -672,7 +674,8 @@ describe('agentv eval CLI', () => {
         path.join(fixture.suiteDir, 'unused.test.yaml'),
         [
           'description: unmatched eval file should not resolve targets',
-          'target: missing-target',
+          'providers:',
+          '  - missing-target',
           'prompts:',
           '  - "{{ input }}"',
           'tests:',
@@ -689,9 +692,8 @@ describe('agentv eval CLI', () => {
         wrapperPath,
         [
           'name: native-exp',
-          'target:',
-          '  extends: codex-target',
-          '  model: gpt-5-codex',
+          'providers:',
+          '  - codex-target',
           'timeout_seconds: 12',
           'threshold: 0.8',
           'evaluate_options:',
@@ -728,7 +730,7 @@ describe('agentv eval CLI', () => {
       const diagnostics = await readDiagnostics(fixture);
       expect(diagnostics).toMatchObject({
         target: 'codex-target',
-        targetModel: 'gpt-5-codex',
+        targetModel: 'gpt-5-default',
         agentTimeoutMs: 5000,
         maxConcurrency: 4,
         evalCaseIds: ['case-alpha'],
@@ -772,7 +774,8 @@ describe('agentv eval CLI', () => {
         evalPath,
         [
           'name: default-threshold',
-          'target: file-target',
+          'providers:',
+          '  - file-target',
           'threshold: 0.9',
           'prompts:',
           '  - "{{ input }}"',
@@ -826,7 +829,8 @@ describe('agentv eval CLI', () => {
         firstPath,
         [
           'name: first-default-threshold',
-          'target: file-target',
+          'providers:',
+          '  - file-target',
           'prompts:',
           '  - "{{ input }}"',
           'default_test:',
@@ -843,7 +847,8 @@ describe('agentv eval CLI', () => {
         secondPath,
         [
           'name: second-default-threshold',
-          'target: file-target',
+          'providers:',
+          '  - file-target',
           'prompts:',
           '  - "{{ input }}"',
           'default_test:',
@@ -875,7 +880,8 @@ describe('agentv eval CLI', () => {
         firstPath,
         [
           'name: first',
-          'target: cli-target',
+          'providers:',
+          '  - cli-target',
           'timeout_seconds: 11',
           'evaluate_options:',
           '  budget_usd: 0.11',
@@ -893,7 +899,8 @@ describe('agentv eval CLI', () => {
         secondPath,
         [
           'name: second',
-          'target: file-target',
+          'providers:',
+          '  - file-target',
           'timeout_seconds: 22',
           'evaluate_options:',
           '  budget_usd: 0.22',
@@ -963,7 +970,8 @@ describe('agentv eval CLI', () => {
         evalPath,
         [
           'name: max-concurrency',
-          'target: file-target',
+          'providers:',
+          '  - file-target',
           'evaluate_options:',
           '  max_concurrency: 2',
           'prompts:',
@@ -1027,7 +1035,8 @@ describe('agentv eval CLI', () => {
       await writeFile(
         fixture.testFilePath,
         `description: CLI integration test
-target: file-target
+providers:
+  - file-target
 prompts:
   - "{{ input }}"
 tests:
@@ -1096,7 +1105,8 @@ tests:
       const firstEvalPath = path.join(fixture.suiteDir, 'collision-a.eval.yaml');
       const secondEvalPath = path.join(fixture.suiteDir, 'collision-b.eval.yaml');
       const evalContent = (name: string) => `description: ${name}
-target: file-target
+providers:
+  - file-target
 prompts:
   - "{{ input }}"
 tests:
@@ -1201,7 +1211,8 @@ tests:
         evalPath,
         [
           'name: target-matrix',
-          'target: file-target',
+          'providers:',
+          '  - file-target',
           'prompts:',
           '  - "{{ input }}"',
           'tests:',

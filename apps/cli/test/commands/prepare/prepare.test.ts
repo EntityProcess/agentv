@@ -59,9 +59,9 @@ await Bun.write(\`\${payload.workspace_path}/\${step}.txt\`, \`\${payload.test_i
   await writeFile(
     path.join(root, '.agentv', 'targets.yaml'),
     `
-targets:
-  - id: codex
-    provider: cli
+providers:
+  - id: cli
+    label: codex
     command: bun ./scripts/target.ts
 `,
     'utf8',
@@ -71,19 +71,21 @@ targets:
     `environment:
   type: host
   workdir: ../template
-target:
-  extends: codex
-  hooks:
-    before_all:
-      command:
-        - bun
-        - ../scripts/hook.ts
-        - target_before_all
-    before_each:
-      command:
-        - bun
-        - ../scripts/hook.ts
-        - target_before_each
+providers:
+  - id: cli
+    label: codex
+    command: bun ../scripts/target.ts
+    hooks:
+      before_all:
+        command:
+          - bun
+          - ../scripts/hook.ts
+          - target_before_all
+      before_each:
+        command:
+          - bun
+          - ../scripts/hook.ts
+          - target_before_each
 assertions:
   - name: secret-grader
     type: script
@@ -250,9 +252,9 @@ describe('agentv prepare', () => {
     await writeFile(
       path.join(tempDir, '.agentv', 'targets.yaml'),
       `
-targets:
-  - id: codex
-    provider: cli
+providers:
+  - id: cli
+    label: codex
     command: bun ./scripts/target.ts
 `,
       'utf8',

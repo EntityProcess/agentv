@@ -1,6 +1,7 @@
 name: basic
 description: Example showing basic features, conversation threading, multiple graders
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

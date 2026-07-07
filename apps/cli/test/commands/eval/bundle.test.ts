@@ -53,13 +53,13 @@ describe('agentv eval bundle', () => {
 
     await writeFile(
       path.join(sourceDir, '.agentv', 'targets.yaml'),
-      `targets:
-  - id: inherited
-    provider: mock
+      `providers:
+  - id: mock
+    label: inherited
     response: '{"answer":"Mock provider response from inherited target"}'
     fallback_targets: [backup]
-  - id: backup
-    provider: mock
+  - id: mock
+    label: backup
     response: '{"answer":"Backup mock response"}'
 `,
       'utf8',
@@ -92,7 +92,8 @@ await Bun.write(\`\${payload.workspace_path}/hook-ran.txt\`, 'ok\\n');
 
     const evalPath = path.join(sourceDir, 'evals', 'demo.eval.yaml');
     const sourceEvalBefore = `name: portable-demo
-target: inherited
+providers:
+  - inherited
 environment:
   type: host
   workdir: ../workspace-template
@@ -141,7 +142,7 @@ tests: ../data/cases.yaml
     const bundledEvalText = await readFile(path.join(bundleDir, 'evals', 'demo.eval.yaml'), 'utf8');
     expect(bundledEvalText).not.toContain(sourceDir);
     const bundledEval = parseYamlValue(bundledEvalText) as Record<string, unknown>;
-    expect(bundledEval.target).toBe('inherited');
+    expect(bundledEval.providers).toEqual(['inherited']);
     expect(bundledEval.execution).toBeUndefined();
     const [testCase] = bundledEval.tests as Record<string, unknown>[];
     expect(testCase.id).toBe('case-alpha');
@@ -158,8 +159,8 @@ tests: ../data/cases.yaml
     expect(input[0]?.content[0]).toEqual({ type: 'file', value: 'files/data/input.txt' });
 
     const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
-    expect(bundledTargets).toContain('id: inherited');
-    expect(bundledTargets).toContain('id: backup');
+    expect(bundledTargets).toContain('label: inherited');
+    expect(bundledTargets).toContain('label: backup');
 
     await rm(sourceDir, { recursive: true, force: true });
     const run = await runCli(bundleDir, [
@@ -179,12 +180,12 @@ tests: ../data/cases.yaml
     const bundleDir = path.join(tempDir, 'inline-bundle');
     await mkdir(path.join(sourceDir, '.agentv'), { recursive: true });
     await mkdir(path.join(sourceDir, 'evals'), { recursive: true });
-    await writeFile(path.join(sourceDir, '.agentv', 'targets.yaml'), 'targets: []\n', 'utf8');
+    await writeFile(path.join(sourceDir, '.agentv', 'targets.yaml'), 'providers: []\n', 'utf8');
     await writeFile(
       path.join(sourceDir, 'evals', 'inline.eval.yaml'),
-      `targets:
-  - id: candidate
-    provider: mock
+      `providers:
+  - id: mock
+    label: candidate
     response: '{"answer":"inline bundled response"}'
 prompts:
   - "{{ input }}"
@@ -209,8 +210,8 @@ tests:
 
     expect(bundle.exitCode).toBe(0);
     const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
-    expect(bundledTargets).toContain('id: candidate');
-    expect(bundledTargets).toContain('provider: mock');
+    expect(bundledTargets).toContain('id: mock');
+    expect(bundledTargets).toContain('label: candidate');
     expect(bundledTargets).toContain('inline bundled response');
   }, 30_000);
 
@@ -221,9 +222,9 @@ tests:
     await mkdir(path.join(sourceDir, 'evals'), { recursive: true });
     await writeFile(
       path.join(sourceDir, '.agentv', 'targets.yaml'),
-      `targets:
-  - id: default
-    provider: mock
+      `providers:
+  - id: mock
+    label: default
 `,
       'utf8',
     );

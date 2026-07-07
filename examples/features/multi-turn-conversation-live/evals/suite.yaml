@@ -1,5 +1,6 @@
 description: Live multi-turn conversation evaluation with per-turn grading
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

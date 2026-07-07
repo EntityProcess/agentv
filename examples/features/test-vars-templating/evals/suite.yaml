@@ -1,5 +1,6 @@
 description: Demonstrates prompt templates rendered from default_test.vars and tests[].vars
-target: llm
+providers:
+  - llm
 prompts:
   - id: support-chat
     label: Support chat

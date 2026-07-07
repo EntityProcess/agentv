@@ -123,7 +123,7 @@ describe('materializeTaskBundle', () => {
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
     const [assertion] = testCase.assert as Record<string, unknown>[];
 
-    expect(parsedEval.target).toBe('selected');
+    expect(parsedEval.providers).toEqual(['selected']);
     expect(parsedEval.prompts).toEqual(['{{ input }}']);
     expect(parsedEval.execution).toBeUndefined();
     expect(parsedEval.tests as unknown[]).toHaveLength(1);

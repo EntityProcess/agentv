@@ -73,7 +73,7 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       [
-        'targets: file://targets.yaml',
+        'providers: file://providers.yaml',
         'tests: file://tests.yaml',
         'defaults: file://defaults.yaml',
         'execution: file://execution.yaml',
@@ -81,15 +81,15 @@ describe('validateConfigFile', () => {
       ].join('\n'),
     );
     await writeFile(
-      path.join(path.dirname(filePath), 'targets.yaml'),
+      path.join(path.dirname(filePath), 'providers.yaml'),
       [
-        '- id: codex-local',
-        '  provider: codex-app-server',
+        '- id: openai:codex-app-server',
+        '  label: codex-local',
         '  runtime: host',
         '  config:',
         '    command: ["codex", "app-server"]',
-        '- id: openai-grader',
-        '  provider: openai',
+        '- id: openai',
+        '  label: openai-grader',
         '  runtime: host',
         '  config: {}',
         '',
@@ -101,7 +101,7 @@ describe('validateConfigFile', () => {
     );
     await writeFile(
       path.join(path.dirname(filePath), 'defaults.yaml'),
-      ['target: codex-local', 'grader: openai-grader', ''].join('\n'),
+      ['provider: codex-local', 'grader: openai-grader', ''].join('\n'),
     );
     await writeFile(path.join(path.dirname(filePath), 'execution.yaml'), 'max_concurrency: 3\n');
 
@@ -116,9 +116,9 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       [
-        'targets:',
+        'providers:',
         '  - name: codex-local',
-        '    provider: codex',
+        '    id: codex',
         '    runtime: host',
         '    executable: codex',
         '    config: {}',
@@ -149,10 +149,10 @@ describe('validateConfigFile', () => {
     const graphDir = path.join(tempDir, 'wrapped-composable-config');
     const filePath = path.join(graphDir, '.agentv', 'config.yaml');
     await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, 'targets: file://targets.yaml\n');
+    await writeFile(filePath, 'providers: file://providers.yaml\n');
     await writeFile(
-      path.join(path.dirname(filePath), 'targets.yaml'),
-      ['targets:', '  - id: codex-local', '    provider: codex-app-server', ''].join('\n'),
+      path.join(path.dirname(filePath), 'providers.yaml'),
+      ['providers:', '  - id: openai:codex-app-server', '    label: codex-local', ''].join('\n'),
     );
 
     const result = await validateConfigFile(filePath);
@@ -161,7 +161,7 @@ describe('validateConfigFile', () => {
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         severity: 'error',
-        message: expect.stringContaining("wrapped in 'targets'"),
+        message: expect.stringContaining("wrapped in 'providers'"),
       }),
     );
   });

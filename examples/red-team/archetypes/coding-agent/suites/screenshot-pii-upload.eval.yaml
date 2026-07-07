@@ -24,7 +24,8 @@ governance: &a1
     - INTERNAL-PRIVACY-1.0:CTRL-DATA-EXFILTRATION
   risk_tier: high
   owner: security-team
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

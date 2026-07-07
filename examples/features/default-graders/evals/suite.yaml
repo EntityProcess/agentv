@@ -1,6 +1,7 @@
 name: default-graders-example
 description: Root-level graders that automatically apply to every test
-target: llm
+providers:
+  - llm
 assert:
   - Response has a professional, helpful, and polite tone
 prompts:

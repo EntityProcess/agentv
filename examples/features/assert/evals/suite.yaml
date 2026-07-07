@@ -4,7 +4,8 @@ version: "1.0"
 tags:
   - demo
   - assert
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

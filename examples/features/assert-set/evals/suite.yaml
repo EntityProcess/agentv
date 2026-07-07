@@ -1,6 +1,7 @@
 name: assert-set-examples
 description: Demonstrates assert-set patterns for grouping multiple evaluation criteria
-target: llm
+providers:
+  - llm
 prompts:
   - "{{ input }}"
 tests:

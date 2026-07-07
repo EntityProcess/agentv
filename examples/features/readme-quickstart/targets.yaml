@@ -1,6 +1,6 @@
-targets:
-  - id: local-openai
-    provider: openai
+providers:
+  - id: openai
+    label: local-openai
     runtime: host
     config:
       api_format: chat

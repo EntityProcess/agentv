@@ -1,6 +1,7 @@
 tags:
   - agent
-target: copilot-transcript-replay
+providers:
+  - copilot-transcript-replay
 extensions:
   - file://../scripts/copilot-replay-workspace.mjs:beforeAll
 environment:
