@@ -2,8 +2,8 @@
 import { spawn } from 'node:child_process';
 /**
  * Generates AgentV JSON schemas from Zod schemas.
+ * Run: bun run generate:eval-schema (from repo root)
  * Run: bun run generate:schema (from packages/core)
- * Or:  bun packages/core/scripts/generate-eval-schema.ts (from repo root)
  */
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';

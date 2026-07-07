@@ -12,6 +12,11 @@ This file expands [AGENTS.md](../AGENTS.md) for testing, manual UAT, CLI and bro
   smallest command that exercises the changed code, such as a package-specific
   test, a single test file, `bun run typecheck` for type-facing changes, or
   `bun run validate:examples` for eval example changes.
+- When changing `packages/core/src/evaluation/validation/eval-file.schema.ts`,
+  run `bun run validate:eval-schema` from the repo root. The command regenerates
+  `skills-data/agentv-eval-writer/references/eval.schema.json` from the Zod
+  source and fails with a schema diff if the generated artifact needs to be
+  committed. Do not edit the generated JSON schema by hand.
 
 - Do not default to full local workspace validation before every PR. Push/open
   the PR so GitHub Actions runs the broad build, typecheck, lint, test,
