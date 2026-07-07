@@ -1508,26 +1508,8 @@
                             "maximum": 1
                           },
                           "repeat": {
-                            "type": "object",
-                            "properties": {
-                              "count": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "strategy": {
-                                "type": "string",
-                                "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
-                              },
-                              "early_exit": {
-                                "type": "boolean"
-                              },
-                              "cost_limit_usd": {
-                                "type": "number",
-                                "minimum": 0
-                              }
-                            },
-                            "required": ["count"],
-                            "additionalProperties": false
+                            "type": "integer",
+                            "minimum": 1
                           },
                           "timeout_seconds": {
                             "type": "number",
@@ -1961,26 +1943,8 @@
                             "maximum": 1
                           },
                           "repeat": {
-                            "type": "object",
-                            "properties": {
-                              "count": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "strategy": {
-                                "type": "string",
-                                "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
-                              },
-                              "early_exit": {
-                                "type": "boolean"
-                              },
-                              "cost_limit_usd": {
-                                "type": "number",
-                                "minimum": 0
-                              }
-                            },
-                            "required": ["count"],
-                            "additionalProperties": false
+                            "type": "integer",
+                            "minimum": 1
                           },
                           "timeout_seconds": {
                             "type": "number",
@@ -3186,34 +3150,8 @@
               "type": "boolean"
             },
             "repeat": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "count": {
-                      "type": "integer",
-                      "minimum": 1
-                    },
-                    "strategy": {
-                      "type": "string",
-                      "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
-                    },
-                    "early_exit": {
-                      "type": "boolean"
-                    },
-                    "cost_limit_usd": {
-                      "type": "number",
-                      "minimum": 0
-                    }
-                  },
-                  "required": ["count"],
-                  "additionalProperties": false
-                }
-              ]
+              "type": "integer",
+              "minimum": 1
             },
             "timeout_ms": {
               "type": "number",
@@ -5977,26 +5915,8 @@
                               "maximum": 1
                             },
                             "repeat": {
-                              "type": "object",
-                              "properties": {
-                                "count": {
-                                  "type": "integer",
-                                  "minimum": 1
-                                },
-                                "strategy": {
-                                  "type": "string",
-                                  "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
-                                },
-                                "early_exit": {
-                                  "type": "boolean"
-                                },
-                                "cost_limit_usd": {
-                                  "type": "number",
-                                  "minimum": 0
-                                }
-                              },
-                              "required": ["count"],
-                              "additionalProperties": false
+                              "type": "integer",
+                              "minimum": 1
                             },
                             "timeout_seconds": {
                               "type": "number",
@@ -7627,26 +7547,8 @@
                               "maximum": 1
                             },
                             "repeat": {
-                              "type": "object",
-                              "properties": {
-                                "count": {
-                                  "type": "integer",
-                                  "minimum": 1
-                                },
-                                "strategy": {
-                                  "type": "string",
-                                  "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
-                                },
-                                "early_exit": {
-                                  "type": "boolean"
-                                },
-                                "cost_limit_usd": {
-                                  "type": "number",
-                                  "minimum": 0
-                                }
-                              },
-                              "required": ["count"],
-                              "additionalProperties": false
+                              "type": "integer",
+                              "minimum": 1
                             },
                             "timeout_seconds": {
                               "type": "number",
