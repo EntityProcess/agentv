@@ -39,15 +39,16 @@ AgentV transcript artifacts are not Phoenix-native conversation inputs. Model-ca
 
 ## Promptfoo-Compatible Authoring Boundary
 
-AgentV should adopt Promptfoo-compatible eval matrix authoring where it strengthens repo-native evaluation, but Promptfoo is reference evidence rather than schema authority. The core mental model is `prompts x tests/vars x targets`, with repeat samples and retries applied as run policy after the authored matrix is resolved.
+AgentV adopts Promptfoo-compatible eval matrix authoring by default where Promptfoo has matching semantics. The core mental model is `prompts x tests/vars x providers`, with repeat samples and retries applied as run policy after the authored matrix is resolved.
 
 Keep these AgentV-native boundaries explicit:
 
-- `targets` are systems under test. A target `id` is stable AgentV identity; `provider` inside the target names the backend or adapter kind.
-- Top-level Promptfoo `providers` is not the canonical AgentV authoring key.
+- `providers` are systems under test. AgentV accepts Promptfoo-shaped provider declarations: strings like `openai:gpt-4.1-mini`, complete package provider strings like `package:@agentv/promptfoo-providers:CodexCliProvider`, provider option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, and provider maps like `{ "openai:gpt-4": { label, config } }`. In AgentV, `id` names the backend/spec and `label` is the stable AgentV identity used for selection and result grouping.
+- AgentV-only provider ids such as `agentv:codex-cli` are first-class AgentV authoring sugar, but they are not directly Promptfoo-runnable. `agentv export promptfoo` must lower supported built-ins to Promptfoo-readable `file://...:callApi` or complete `package:...:Export` provider entries.
 - Coding-agent testbeds use `environment` recipes for host/Docker substrate, setup, fixtures, services, and cwd. Do not make Promptfoo lifecycle `extensions` or public `workspace` authoring the canonical testbed contract.
+- Promptfoo export may lower a filesystem/host subset of `environment` into generated `extensions` plus provider workdir configuration. Docker environments are not part of the initial export subset and must fail with explicit diagnostics rather than silently losing isolation.
 - Top-level `env` means provider/eval environment variables. `extensions` remain lifecycle hooks.
-- Reusable prompts, tests, defaults, and environments use field-local `file://` refs such as `prompts: file://...`, `tests: file://...`, and `environment: file://...`.
+- Reusable prompts, tests, defaults, and environments use field-local `file://` refs such as `prompts: file://...`, `tests: file://...`, and `environment: file://...`. Export may rewrite supported AgentV refs into Promptfoo-readable generated files.
 - Grouping and Dashboard navigation use tags and run-bundle metadata, not experiment path buckets, Vercel path layout, or model-as-experiment grouping.
 - AgentV run bundles, traces, transcripts, datasets, indexes, and Git-backed artifacts stay AgentV-owned. Do not design an Opik export path or Phoenix projection path for those artifacts.
 

@@ -21,6 +21,12 @@ feature explicitly overrides it. Runtime mode vocabulary may be refined by
 Bead `av-oi9a`; that separate cleanup does not move testbed setup under
 targets.
 
+Amended (2026-07-07) by [ADR 0019](0019-promptfoo-first-provider-authoring-and-export-boundary.md):
+public coding-agent systems under test are now authored under `providers`, not
+`targets`. This ADR's runtime-boundary decisions still apply to AgentV-native
+provider entries such as `agentv:codex-cli`. Existing artifact fields named
+`target` are not renamed by this amendment.
+
 ## Context
 
 AgentV evaluates coding agents in real repositories. Those agents are not
@@ -70,15 +76,15 @@ Peer frameworks are evidence, not schema authority:
 
 ## Decision
 
-AgentV treats coding-agent targets as external runtimes to orchestrate, not
+AgentV treats coding-agent providers as external runtimes to orchestrate, not
 libraries to call in-process by default.
 
-Authored targets use this shape:
+Authored provider entries use this shape:
 
 ```yaml
-targets:
-  - id: codex-local
-    provider: codex-app-server
+providers:
+  - id: agentv:codex-app-server
+    label: codex-local
     runtime: host
     config:
       command: ["codex", "app-server"]
@@ -89,8 +95,8 @@ The fields mean:
 
 | Field | Meaning |
 | --- | --- |
-| `id` | Stable AgentV target identity used for CLI selection, artifacts, Dashboard, and comparisons. |
-| `provider` | Adapter/control boundary such as `codex-cli`, `codex-app-server`, `pi-rpc`, `claude-cli`, or `copilot-sdk`. |
+| `id` | Backend/spec string. For AgentV-native coding-agent providers this may be `agentv:codex-cli`, `agentv:codex-app-server`, or another AgentV resolver id. |
+| `label` | Stable AgentV selection/result identity used for CLI selection, artifacts, Dashboard, and comparisons. |
 | `runtime` | Placement/isolation mode: `host`, `profile`, or `sandbox`; may be a string shorthand or an object with `mode`. |
 | `config` | Provider-specific knobs such as `command`, `model`, `cwd`, `timeout_seconds`, auth endpoint settings, permission flags, and provider protocol settings. |
 
@@ -100,35 +106,34 @@ Do not add competing top-level fields such as `isolation`, `sandbox`,
 `config.command` as a non-empty argv array. Authored eval concurrency belongs
 under `evaluate_options.max_concurrency`, not inside a target definition.
 Grader selection belongs to `defaults.grader`, CLI overrides, or
-evaluator-level target selection, not to the system-under-test target.
+evaluator-level provider selection, not to the system-under-test provider.
 
 `environment` is valid as an AgentV eval/test/case recipe field outside target
 definitions. It prepares the host or Docker testbed and defines
 `environment.workdir`; the target runtime then decides how the selected
 provider/agent is invoked against that prepared cwd. `environment` does not
-replace `targets[].id`, `targets[].provider`, or `targets[].runtime`.
+replace `providers[].id`, `providers[].label`, or `providers[].runtime`.
 Docker/testbed setup belongs to the environment driver by default, not to each
-target provider.
+provider entry.
 
 ### Provider Boundaries
 
 Process and protocol providers are the preferred defaults:
 
-- `codex-app-server`: preferred Codex rich protocol/control boundary.
-- `codex-cli`: simple Codex subprocess boundary for host/profile execution and
+- `agentv:codex-app-server`: preferred Codex rich protocol/control boundary.
+- `agentv:codex-cli`: simple Codex subprocess boundary for host/profile execution and
   installed user shims.
-- `pi-rpc`: preferred Pi rich control boundary over stdio/RPC.
-- `pi-cli`: simple Pi subprocess boundary.
-- `claude-cli`: default Claude path through the installed Claude CLI.
-- `copilot-cli`: active Copilot execution through the installed CLI/protocol
+- `agentv:pi-rpc`: preferred Pi rich control boundary over stdio/RPC.
+- `agentv:pi-cli`: simple Pi subprocess boundary.
+- `agentv:claude-cli`: default Claude path through the installed Claude CLI.
+- `agentv:copilot-cli`: active Copilot execution through the installed CLI/protocol
   path.
 
 SDK providers are explicit advanced paths:
 
-- `codex-sdk`
-- `pi-sdk`
-- `claude-sdk`
-- `copilot-sdk`
+- Promptfoo-native SDK ids such as `openai:codex-sdk` where available.
+- AgentV-native SDK ids such as `agentv:pi-sdk`, `agentv:claude-sdk`, or
+  `agentv:copilot-sdk` where AgentV owns a provider adapter.
 
 SDK transports run behind an AgentV child-runner process on the host. The parent
 CLI/orchestrator starts the child with the target config and provider request,
@@ -230,12 +235,10 @@ zero-infra. SDK providers are explicit advanced targets.
 
 ### Copy Promptfoo provider naming wholesale
 
-Rejected. Promptfoo is useful evidence for explicit provider IDs and optional
-provider dependencies, but AgentV keeps target identity and backend/control
-boundary separate: `id` is stable AgentV target identity, while `provider` names
-the adapter kind. AgentV does not copy Promptfoo's use of `label` as the target
-identity field or carry compatibility aliases where the beta contract can be
-cleaner.
+Superseded by ADR 0019. AgentV now follows Promptfoo's public
+`providers`/`id`/`label` shape where semantics match, while reserving
+`agentv:*` ids for AgentV-native built-ins and using export/transpile for full
+Promptfoo execution compatibility.
 
 ### Put runtime placement under provider-specific config
 

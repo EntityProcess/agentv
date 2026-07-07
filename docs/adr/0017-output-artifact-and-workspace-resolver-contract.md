@@ -23,6 +23,14 @@ contract below supersedes both the earlier agentskills-shaped
 `graders[]`/`checks[]` wording. Native AgentV grading artifacts now use a
 recursive Promptfoo-style grading result in `snake_case`.
 
+Amended (2026-07-07) by [ADR 0019](0019-promptfoo-first-provider-authoring-and-export-boundary.md):
+Promptfoo-compatible authoring now uses top-level `providers` for systems under
+test. The artifact contract may keep `target` fields until a separate artifact
+migration is accepted. `environment` remains the AgentV-owned testbed recipe;
+Promptfoo export may lower a host/filesystem subset into generated extensions
+and provider workdir configuration, while Docker environments are unsupported
+for export until a faithful runner boundary exists.
+
 Amended (2026-07-06) by tracker `av-cpl5`: decision point 3 below described
 `transcript_summary` as inlined into each `index.jsonl` result row. That
 inlining is superseded — see "Summary/index/sidecar boundary is locked" below
@@ -285,8 +293,8 @@ contract than this ADR's original `workspace` decision:
 
 AgentV combines promptfoo-compatible eval authoring with an AgentV-owned
 environment recipe informed by Margin, Harbor, and Terminal-Bench evidence:
-Promptfoo is the compatibility baseline for prompts, vars, tests, assertions,
-targets/providers, top-level `env`, and lifecycle `extensions`; Margin Evals is
+Promptfoo is the compatibility baseline for providers, prompts, vars, tests,
+assertions, top-level `env`, and lifecycle `extensions`; Margin Evals is
 the closest reference for local coding-agent UX, filesystem-native suite
 ergonomics, immutable run bundles, resume/artifact discipline, and per-case
 image/cwd/test execution; Harbor and Terminal-Bench 2 are the strongest
@@ -298,9 +306,11 @@ in
 ```yaml
 environment: file://.agentv/environments/local-python.yaml
 
-targets:
-  - id: codex
-    provider: codex-cli
+providers:
+  - id: agentv:codex-cli
+    label: codex
+    config:
+      command: codex
 ```
 
 ```yaml
@@ -339,9 +349,11 @@ mechanically run setup code. For example, an eval could author a reusable
 extensions:
   - file://.agentv/extensions/setup-workspace.ts:beforeAll
 
-targets:
-  - id: codex
-    provider: codex-cli
+providers:
+  - id: agentv:codex-cli
+    label: codex
+    config:
+      command: codex
 ```
 
 That shape is not a good canonical product contract for coding-agent eval
@@ -358,6 +370,12 @@ separate visible concepts.
 
 Therefore `extensions` stay lifecycle hooks for customizing eval flow, while
 `environment` is the explicit AgentV substrate, setup, and `workdir` contract.
+For Promptfoo export, AgentV may generate extensions that implement a supported
+host/filesystem environment subset and pass the resolved workdir to providers.
+That generated shape is an export artifact, not the canonical AgentV authoring
+contract. Docker environments must not be flattened into extensions until an
+export path can preserve image, mount, service, resource, and provenance
+semantics.
 
 1. **`environment` is the authored testbed recipe** at suite/test/case scope.
    It may be inline or loaded through a field-level `file://` reference. Shared

@@ -1,6 +1,6 @@
 # AgentV Roadmap
 
-Last updated: 2026-06-21
+Last updated: 2026-07-07
 
 This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product phases. It is intentionally short: the goal is to keep priorities and boundaries visible without turning the roadmap into a plan dump.
 
@@ -10,7 +10,9 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 - The AgentV Dashboard is the supported zero-infra local cockpit for AgentV-owned runs, traces, sessions, transcripts, and Git-backed artifacts.
 - Phoenix is optional external trace infrastructure only when Codex, Arize, or another hook already emitted spans independently; AgentV may correlate with those sessions but does not write AgentV artifacts into Phoenix.
 - Harbor stays an optional benchmark-grade runner boundary, not AgentV core.
-- AgentV YAML remains the authoring surface even when execution moves behind another runner; prefer a lightweight translation layer over duplicated specs.
+- AgentV YAML remains the authoring surface even when execution moves behind another runner; keep it Promptfoo-compatible by default and prefer a lightweight export/translation layer over duplicated specs.
+- The intended authored-config differences from Promptfoo are limited to `environment`, AgentV refs, and built-in AgentV providers. Promptfoo-native declarations should run directly; AgentV-native sugar should become Promptfoo-compatible through `agentv export promptfoo`.
+- Promptfoo export may lower host/filesystem `environment` setup into generated extensions and provider workdir configuration. Docker environments remain AgentV-native until a separate runner/export boundary is accepted.
 - Adapters, workers, and artifact projections are preferred over rebuilding adjacent platforms inside AgentV, except Phoenix: Phoenix integration is link-out correlation only and not an AgentV-to-Phoenix projection path.
 
 ## Phase 1: Finish the artifact and local inspection foundation
@@ -35,6 +37,7 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 
 ## Phase 4: Extend outward through optional boundaries
 
+- Promptfoo: add and maintain an exporter/validation gate that proves AgentV-native provider sugar and supported refs lower into Promptfoo-readable configs. Keep Docker environment export unsupported with explicit diagnostics until a faithful runner boundary exists.
 - Harbor: move toward Harbor becoming the benchmark-grade runner behind a lightweight translation layer from AgentV YAML, while AgentV stays the authoring, gating, import, and comparison surface.
 - Harbor: in the near term, launch or import benchmark-grade runs through a runner boundary; over time, converge on Harbor as the execution layer for the suites it already owns.
 - Opik and similar systems: consume completed AgentV projection bundles as post-run adapters rather than as runtime owners.
