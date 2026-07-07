@@ -885,6 +885,7 @@ export async function runEvaluation(
     }
     return [];
   }
+  validateDependencyGraph(filteredEvalCases);
 
   const runtime = createEvaluationRuntime({
     target,
@@ -1068,8 +1069,7 @@ export async function runEvaluation(
     // fail_on_error tracking (best-effort under concurrency > 1, matching budgetExhausted semantics)
     let failOnErrorTriggered = false;
 
-    // --- Validate dependency graph and compute execution waves ---
-    validateDependencyGraph(filteredEvalCases);
+    // --- Compute dependency-aware execution waves ---
     const waves = computeWaves(filteredEvalCases);
 
     // Track completed test results for dependency injection
