@@ -76,14 +76,15 @@ export async function discoverTargetsFile(options: {
   readonly testFilePath: string;
   readonly repoRoot: string;
   readonly cwd: string;
+  readonly allowLegacyTargetFiles?: boolean;
 }): Promise<string> {
-  const { explicitPath, testFilePath, repoRoot, cwd } = options;
+  const { explicitPath, testFilePath, repoRoot, cwd, allowLegacyTargetFiles = false } = options;
 
   if (explicitPath) {
     const resolvedExplicit = path.resolve(explicitPath);
     const kind = await pathKind(resolvedExplicit);
     if (kind === 'file') {
-      if (isLegacyTargetFile(resolvedExplicit)) {
+      if (!allowLegacyTargetFiles && isLegacyTargetFile(resolvedExplicit)) {
         throw removedTargetsFileError(resolvedExplicit);
       }
       return resolvedExplicit;
@@ -96,6 +97,9 @@ export async function discoverTargetsFile(options: {
       }
       const legacyTargetFile = await findLegacyTargetFileInDirectory(resolvedExplicit);
       if (legacyTargetFile) {
+        if (allowLegacyTargetFiles) {
+          return legacyTargetFile;
+        }
         throw removedTargetsFileError(legacyTargetFile);
       }
     }
@@ -121,6 +125,9 @@ export async function discoverTargetsFile(options: {
   for (const directory of directories) {
     const legacyTargetFile = await findLegacyTargetFileInDirectory(directory);
     if (legacyTargetFile) {
+      if (allowLegacyTargetFiles) {
+        return legacyTargetFile;
+      }
       throw removedTargetsFileError(legacyTargetFile);
     }
   }

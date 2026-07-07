@@ -272,6 +272,8 @@ interface NormalizedOptions {
   readonly target?: string;
   readonly cliTargets: readonly string[];
   readonly targetsPath?: string;
+  /** Internal rerun-only carveout for generated test bundle targets.yaml artifacts. */
+  readonly allowLegacyTargetFiles?: boolean;
   readonly filter?: string | readonly string[];
   readonly workers?: number;
   /** --output <dir>: canonical artifact directory */
@@ -699,6 +701,7 @@ function normalizeOptions(
     target: singleTarget,
     cliTargets,
     targetsPath: normalizeString(rawOptions.targets),
+    allowLegacyTargetFiles: normalizeBoolean(rawOptions.allowLegacyTargetFiles),
     filter: normalizeFilter(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
     outputDir: cliOutputDir ?? configOutputDir,
@@ -1471,6 +1474,7 @@ async function prepareFileMetadata(params: {
         repoRoot,
         cwd,
         explicitTargetsPath: effectiveOptions.targetsPath,
+        allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
         env: process.env,
         targetNames,
         targetRefs,
@@ -1490,6 +1494,7 @@ async function prepareFileMetadata(params: {
         repoRoot,
         cwd,
         explicitTargetsPath: effectiveOptions.targetsPath,
+        allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
         cliTargetName:
           targetSource === 'cli'
             ? targetNames.length === 1

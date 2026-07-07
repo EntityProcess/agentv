@@ -97,6 +97,7 @@ export interface TargetSelectionOptions {
   readonly repoRoot: string;
   readonly cwd: string;
   readonly explicitTargetsPath?: string;
+  readonly allowLegacyTargetFiles?: boolean;
   readonly cliTargetName?: string;
   readonly cliTargetNames?: readonly string[];
   readonly fileTargetName?: string;
@@ -159,14 +160,23 @@ function definitionsWithEffectiveTarget(
 }
 
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
-  const { testFilePath, repoRoot, cwd, explicitTargetsPath, cliTargetName, modelOverride, env } =
-    options;
+  const {
+    testFilePath,
+    repoRoot,
+    cwd,
+    explicitTargetsPath,
+    allowLegacyTargetFiles,
+    cliTargetName,
+    modelOverride,
+    env,
+  } = options;
 
   const targetsFilePath = await discoverTargetsFile({
     explicitPath: explicitTargetsPath,
     testFilePath,
     repoRoot,
     cwd,
+    allowLegacyTargetFiles,
   });
 
   // Validate the targets file and show warnings
@@ -253,6 +263,7 @@ export async function selectMultipleTargets(
     repoRoot,
     cwd,
     explicitTargetsPath,
+    allowLegacyTargetFiles,
     env,
     targetNames,
     targetRefs,
@@ -278,6 +289,7 @@ export async function selectMultipleTargets(
     testFilePath,
     repoRoot,
     cwd,
+    allowLegacyTargetFiles,
   });
 
   // Validate targets file once

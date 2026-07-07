@@ -26,6 +26,7 @@ import { type ResultManifestRecord, parseResultManifest } from '../results/manif
 
 const TASK_EVAL_FILENAME = 'EVAL.yaml';
 const TASK_PROVIDERS_FILENAME = 'providers.yaml';
+const TASK_TARGETS_FILENAME = 'targets.yaml';
 const ENV_REF_PATTERN = /\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
 
 interface SelectedTaskBundle {
@@ -332,11 +333,19 @@ async function loadSelectedTaskBundles(options: {
         options.sourceRunDir,
         bundleDir && `${bundleDir}/${TASK_EVAL_FILENAME}`,
       );
+    const rawRecord = record as unknown as Record<string, unknown>;
+    const legacyTargetsPath =
+      typeof rawRecord.targets_path === 'string' ? rawRecord.targets_path : undefined;
     const providersPath =
       resolveRelativeRunPath(options.sourceRunDir, record.providers_path) ??
+      resolveRelativeRunPath(options.sourceRunDir, legacyTargetsPath) ??
       resolveRelativeRunPath(
         options.sourceRunDir,
         bundleDir && `${bundleDir}/${TASK_PROVIDERS_FILENAME}`,
+      ) ??
+      resolveRelativeRunPath(
+        options.sourceRunDir,
+        bundleDir && `${bundleDir}/${TASK_TARGETS_FILENAME}`,
       );
     const testDir =
       resolveRelativeRunPath(options.sourceRunDir, bundleDir) ??
@@ -511,6 +520,8 @@ export const runsRerunCommand = command({
         workers: args.workers,
         dryRun: args.dryRun,
         verbose: args.verbose,
+        // Legacy generated run bundles stored the captured provider graph as targets.yaml.
+        allowLegacyTargetFiles: true,
         sourceMetadataByEvalFile: buildSourceMetadataByEvalFile(sourceRunDir, indexPath, selected),
       },
     });
