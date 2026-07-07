@@ -14,7 +14,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type { Message, ProviderRequest } from '../../src/evaluation/providers/types.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
@@ -37,7 +37,7 @@ const baseTestCase: EvalTest = {
   evaluator: 'llm-grader',
 };
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },

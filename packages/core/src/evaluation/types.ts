@@ -351,7 +351,7 @@ export type EvalTargetRef = {
   /** Delegate to another named target (same as use_target in targets.yaml) */
   readonly use_target?: string;
   /** Inline target definition normalized from a promptfoo-shaped target object. */
-  readonly definition?: import('./providers/types.js').TargetDefinition;
+  readonly definition?: import('./providers/types.js').ProviderDefinition;
   /** Per-target hooks for workspace customization */
   readonly hooks?: TargetHooksConfig;
 };

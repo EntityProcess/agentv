@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { runEvaluation } from '../../src/evaluation/orchestrator.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
   ProviderRequest,
@@ -30,7 +30,7 @@ class FixedProvider implements Provider {
   }
 }
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },

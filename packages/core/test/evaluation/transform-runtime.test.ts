@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { runEvalCase, runEvaluation } from '../../src/evaluation/orchestrator.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
   ProviderRequest,
@@ -33,7 +33,7 @@ class StaticProvider implements Provider {
   }
 }
 
-const target: ResolvedTarget = {
+const target: ResolvedProviderBackend = {
   name: 'mock',
   kind: 'mock',
   config: { response: 'raw' },

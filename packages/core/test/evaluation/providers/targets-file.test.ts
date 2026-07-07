@@ -3,9 +3,9 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { readTargetDefinitions } from '../../../src/evaluation/providers/targets-file.js';
+import { readProviderDefinitions } from '../../../src/evaluation/providers/targets-file.js';
 
-describe('readTargetDefinitions', () => {
+describe('readProviderDefinitions', () => {
   let tempDir: string | undefined;
 
   afterEach(async () => {
@@ -33,7 +33,7 @@ describe('readTargetDefinitions', () => {
       reasoning_effort: low
 `);
 
-    const definitions = await readTargetDefinitions(filePath);
+    const definitions = await readProviderDefinitions(filePath);
 
     expect(definitions).toEqual([
       expect.objectContaining({
@@ -53,7 +53,7 @@ describe('readTargetDefinitions', () => {
   label: mini
 `);
 
-    const definitions = await readTargetDefinitions(filePath);
+    const definitions = await readProviderDefinitions(filePath);
 
     expect(definitions).toEqual([
       expect.objectContaining({
@@ -83,7 +83,7 @@ describe('readTargetDefinitions', () => {
   - id: openai:codex-desktop
 `);
 
-    const definitions = await readTargetDefinitions(filePath);
+    const definitions = await readProviderDefinitions(filePath);
 
     expect(definitions).toEqual([
       expect.objectContaining({
@@ -156,7 +156,7 @@ describe('readTargetDefinitions', () => {
   - id: exec:./script.sh
 `);
 
-    await expect(readTargetDefinitions(filePath)).rejects.toThrow(/cross-platform commands/);
+    await expect(readProviderDefinitions(filePath)).rejects.toThrow(/cross-platform commands/);
   });
 
   it('rejects removed top-level targets', async () => {
@@ -165,7 +165,7 @@ describe('readTargetDefinitions', () => {
     provider: mock
 `);
 
-    await expect(readTargetDefinitions(filePath)).rejects.toThrow(/uses removed 'targets'/);
+    await expect(readProviderDefinitions(filePath)).rejects.toThrow(/uses removed 'targets'/);
   });
 
   it('rejects authored name in favor of label', async () => {
@@ -174,7 +174,7 @@ describe('readTargetDefinitions', () => {
     id: mock
 `);
 
-    await expect(readTargetDefinitions(filePath)).rejects.toThrow(/providers\[\]\.label/);
+    await expect(readProviderDefinitions(filePath)).rejects.toThrow(/providers\[\]\.label/);
   });
 
   it('rejects authored provider field in favor of id', async () => {
@@ -183,6 +183,6 @@ describe('readTargetDefinitions', () => {
     provider: mock
 `);
 
-    await expect(readTargetDefinitions(filePath)).rejects.toThrow(/providers\[\]\.id/);
+    await expect(readProviderDefinitions(filePath)).rejects.toThrow(/providers\[\]\.id/);
   });
 });

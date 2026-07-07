@@ -64,7 +64,7 @@ Use `createBuiltinProviderRegistry()` to get a registry pre-loaded with all buil
 import {
   createBuiltinProviderRegistry,
   type ProviderFactoryFn,
-  type ResolvedTarget,
+  type ResolvedProviderBackend,
   type Provider,
   type ProviderRequest,
   type ProviderResponse,
@@ -72,7 +72,7 @@ import {
 
 const registry = createBuiltinProviderRegistry();
 
-registry.register('my-provider', (target: ResolvedTarget): Provider => {
+registry.register('my-provider', (target: ResolvedProviderBackend): Provider => {
   return {
     id: `my-provider:${target.name}`,
     kind: 'cli', // use 'cli' as the kind for custom providers
@@ -90,12 +90,12 @@ registry.register('my-provider', (target: ResolvedTarget): Provider => {
 The `register()` method takes two arguments:
 
 1. **kind** (`string`) -- A unique identifier for your provider. This is the value used in `provider:` in providers.yaml.
-2. **factory** (`ProviderFactoryFn`) -- A function that receives a `ResolvedTarget` and returns a `Provider` instance.
+2. **factory** (`ProviderFactoryFn`) -- A function that receives a `ResolvedProviderBackend` and returns a `Provider` instance.
 
 The factory function signature:
 
 ```typescript
-type ProviderFactoryFn = (target: ResolvedTarget) => Provider;
+type ProviderFactoryFn = (target: ResolvedProviderBackend) => Provider;
 ```
 
 ## Example: Wrapping an HTTP API
@@ -108,7 +108,7 @@ import {
   type Provider,
   type ProviderRequest,
   type ProviderResponse,
-  type ResolvedTarget,
+  type ResolvedProviderBackend,
 } from '@agentv/core';
 
 class HttpAgentProvider implements Provider {
@@ -164,7 +164,7 @@ class HttpAgentProvider implements Provider {
 // Register the provider
 const registry = createBuiltinProviderRegistry();
 
-registry.register('http-agent', (target: ResolvedTarget) => {
+registry.register('http-agent', (target: ResolvedProviderBackend) => {
   const config = target.config as { baseUrl: string; apiKey: string };
   return new HttpAgentProvider(target.name, {
     baseUrl: config.baseUrl ?? 'http://localhost:8080',

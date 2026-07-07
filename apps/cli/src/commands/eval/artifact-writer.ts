@@ -36,7 +36,7 @@ import {
   writePerTestArtifacts as writeCorePerTestArtifacts,
   writeInitialRunSummaryArtifact,
 } from '@agentv/core';
-import type { TargetDefinition } from '@agentv/core';
+import type { ProviderDefinition } from '@agentv/core';
 
 import {
   type MaterializedTaskBundlePaths,
@@ -206,7 +206,7 @@ function createTaskBundleArtifactsWriter(options?: {
     const taskBundle = await materializeTaskBundle({
       test: sourceTest,
       targetName: targetSelection.targetName,
-      targetDefinitions: targetSelection.definitions as readonly TargetDefinition[],
+      targetDefinitions: targetSelection.definitions as readonly ProviderDefinition[],
       outputDir: testDir,
       cwd: options?.cwd,
       repoRoot: options?.repoRoot,

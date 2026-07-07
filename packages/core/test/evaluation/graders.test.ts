@@ -13,7 +13,7 @@ import {
   TokenUsageGrader,
 } from '../../src/evaluation/graders.js';
 import { assembleLlmGraderPrompt } from '../../src/evaluation/graders/llm-grader-prompt.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
   ProviderRequest,
@@ -92,7 +92,7 @@ const baseTestCase: EvalTest = {
   evaluator: 'llm-grader',
 };
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },

@@ -20,7 +20,7 @@ import {
   runEvaluation,
 } from '../../src/evaluation/orchestrator.js';
 import { ReplayProvider } from '../../src/evaluation/providers/index.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type {
   Message,
   Provider,
@@ -148,7 +148,7 @@ const baseTestCase: EvalTest = {
   evaluator: 'llm-grader',
 };
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },
@@ -432,7 +432,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
 
     let liveTargetCalls = 0;
     let graderRuns = 0;
-    const replayTarget: ResolvedTarget = {
+    const replayTarget: ResolvedProviderBackend = {
       kind: 'replay',
       name: 'replay_coding_agent',
       config: {
@@ -533,7 +533,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
 
     let liveTargetCalls = 0;
     let graderRuns = 0;
-    const replayTarget: ResolvedTarget = {
+    const replayTarget: ResolvedProviderBackend = {
       kind: 'replay',
       name: 'replay_coding_agent',
       config: {
@@ -1058,7 +1058,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     const previousPath = process.env.PATH;
     process.env.PATH = `${binDir}${path.delimiter}${previousPath ?? ''}`;
 
-    const resolvedTargets: ResolvedTarget[] = [];
+    const resolvedTargets: ResolvedProviderBackend[] = [];
     const provider = new CapturingCliProvider('docker-cli', {
       output: [{ role: 'assistant', content: 'OK' }],
     });
@@ -2841,7 +2841,7 @@ describe('criteria with assertions runs only declared evaluators (#452)', () => 
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
 
-    const targetWithGrader: ResolvedTarget = {
+    const targetWithGrader: ResolvedProviderBackend = {
       ...baseTarget,
       graderTarget: 'grader-target',
     };
@@ -2867,7 +2867,7 @@ describe('criteria with assertions runs only declared evaluators (#452)', () => 
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
 
-    const targetWithGrader: ResolvedTarget = {
+    const targetWithGrader: ResolvedProviderBackend = {
       ...baseTarget,
       graderTarget: 'grader-target',
     };
@@ -2958,7 +2958,7 @@ describe('criteria with assertions runs only declared evaluators (#452)', () => 
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
 
-    const targetWithGrader: ResolvedTarget = {
+    const targetWithGrader: ResolvedProviderBackend = {
       ...baseTarget,
       graderTarget: 'grader-target',
     };

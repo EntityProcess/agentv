@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveTargetDefinition } from '../../../src/evaluation/providers/targets.js';
+import { resolveProviderDefinition } from '../../../src/evaluation/providers/targets.js';
 
 describe('CLI cwd fallback to eval directory', () => {
   it('uses eval directory as fallback when cwd env var is empty', () => {
@@ -16,7 +16,7 @@ describe('CLI cwd fallback to eval directory', () => {
     };
 
     const evalFilePath = '/path/to/evals/my-test/test.yaml';
-    const resolved = resolveTargetDefinition(definition, env, evalFilePath);
+    const resolved = resolveProviderDefinition(definition, env, evalFilePath);
 
     expect(resolved.kind).toBe('cli');
     if (resolved.kind === 'cli') {
@@ -35,7 +35,7 @@ describe('CLI cwd fallback to eval directory', () => {
     const env = {}; // Env var not defined
 
     const evalFilePath = '/workspace/evals/tool-trajectory/demo.yaml';
-    const resolved = resolveTargetDefinition(definition, env, evalFilePath);
+    const resolved = resolveProviderDefinition(definition, env, evalFilePath);
 
     expect(resolved.kind).toBe('cli');
     if (resolved.kind === 'cli') {
@@ -56,7 +56,7 @@ describe('CLI cwd fallback to eval directory', () => {
     };
 
     const evalFilePath = '/path/to/evals/my-test/test.yaml';
-    const resolved = resolveTargetDefinition(definition, env, evalFilePath);
+    const resolved = resolveProviderDefinition(definition, env, evalFilePath);
 
     expect(resolved.kind).toBe('cli');
     if (resolved.kind === 'cli') {
@@ -74,7 +74,7 @@ describe('CLI cwd fallback to eval directory', () => {
 
     const env = {};
     // No evalFilePath provided
-    const resolved = resolveTargetDefinition(definition, env);
+    const resolved = resolveProviderDefinition(definition, env);
 
     expect(resolved.kind).toBe('cli');
     if (resolved.kind === 'cli') {
@@ -92,7 +92,7 @@ describe('CLI cwd fallback to eval directory', () => {
 
     const env = {};
     const evalFilePath = '/path/to/evals/my-test/test.yaml';
-    const resolved = resolveTargetDefinition(definition, env, evalFilePath);
+    const resolved = resolveProviderDefinition(definition, env, evalFilePath);
 
     expect(resolved.kind).toBe('cli');
     if (resolved.kind === 'cli') {
@@ -112,7 +112,7 @@ describe('CLI cwd fallback to eval directory', () => {
 
     const env = {};
     const evalFilePath = '/path/to/evals/my-test/test.yaml';
-    const resolved = resolveTargetDefinition(definition, env, evalFilePath);
+    const resolved = resolveProviderDefinition(definition, env, evalFilePath);
 
     expect(resolved.kind).toBe('cli');
     if (resolved.kind === 'cli') {

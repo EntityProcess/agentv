@@ -23,7 +23,7 @@ import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { type WriteStream, createWriteStream, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { listTargetNames, readTargetDefinitions } from '@agentv/core';
+import { listProviderLabels, readProviderDefinitions } from '@agentv/core';
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
 
@@ -131,8 +131,8 @@ async function discoverTargetsInProject(cwd: string): Promise<readonly string[]>
   if (!targetsFilePath) return [];
 
   try {
-    const definitions = await readTargetDefinitions(targetsFilePath);
-    return listTargetNames(definitions);
+    const definitions = await readProviderDefinitions(targetsFilePath);
+    return listProviderLabels(definitions);
   } catch {
     return [];
   }

@@ -7,13 +7,13 @@
  * dropping files in `.agentv/providers/`.
  */
 
-import type { ResolvedTarget } from './targets.js';
+import type { ResolvedProviderBackend } from './targets.js';
 import type { Provider } from './types.js';
 
 /**
  * Factory function that creates a Provider instance from a resolved target.
  */
-export type ProviderFactoryFn = (target: ResolvedTarget) => Provider;
+export type ProviderFactoryFn = (target: ResolvedProviderBackend) => Provider;
 
 /**
  * Registry of provider factory functions keyed by provider kind.
@@ -49,7 +49,7 @@ export class ProviderRegistry {
    * Create a provider instance from a resolved target.
    * Falls back to CLI provider for unknown kinds (custom provider escape hatch).
    */
-  create(target: ResolvedTarget): Provider {
+  create(target: ResolvedProviderBackend): Provider {
     const factory = this.factories.get(target.kind);
     if (!factory) {
       throw new Error(

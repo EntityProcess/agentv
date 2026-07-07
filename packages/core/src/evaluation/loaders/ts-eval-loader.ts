@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
 import { type EvalConfig as ProgrammaticEvalConfig, materializeEvalConfig } from '../evaluate.js';
 import { createFunctionProvider } from '../providers/function-provider.js';
 import type { ProviderFactoryFn } from '../providers/provider-registry.js';
-import type { TargetDefinition } from '../providers/types.js';
+import type { ProviderDefinition } from '../providers/types.js';
 import { type EvalSuiteResult, loadTestSuiteFromYamlObject } from '../yaml-parser.js';
 
 const SDK_EVAL_SUITE_SYMBOL = Symbol.for('@agentv/sdk/eval-suite');
@@ -63,7 +63,7 @@ export interface TsEvalResult {
 }
 
 export interface TsEvalSuiteResult extends EvalSuiteResult {
-  readonly inlineTarget?: TargetDefinition;
+  readonly inlineTarget?: ProviderDefinition;
   readonly providerFactory?: ProviderFactoryFn;
 }
 

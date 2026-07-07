@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { listTargetNames, readTargetDefinitions } from '@agentv/core';
+import { listProviderLabels, readProviderDefinitions } from '@agentv/core';
 import { checkbox, confirm, number, search, select } from '@inquirer/prompts';
 
 import { PROVIDER_FILE_CANDIDATES, fileExists } from '../../utils/targets.js';
@@ -209,8 +209,8 @@ async function promptTargetSelection(cwd: string, firstEvalPath: string): Promis
     return 'default';
   }
 
-  const definitions = await readTargetDefinitions(targetsPath);
-  const targetNames = listTargetNames(definitions);
+  const definitions = await readProviderDefinitions(targetsPath);
+  const targetNames = listProviderLabels(definitions);
 
   if (targetNames.length === 0) {
     return 'default';

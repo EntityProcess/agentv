@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { runEvalCase } from '../../src/evaluation/orchestrator.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type { Provider, ProviderResponse } from '../../src/evaluation/providers/types.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
@@ -53,7 +53,7 @@ const baseTestCase: EvalTest = {
   evaluator: 'llm-grader',
 };
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },

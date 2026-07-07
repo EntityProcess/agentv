@@ -16,11 +16,11 @@ import {
   type ExperimentArtifactMetadata,
   type ExperimentConfig,
   type FailOnError,
-  type ResolvedTarget,
+  type ProviderDefinition,
+  type ResolvedProviderBackend,
   ResponseCache,
   RunBudgetTracker,
   type RunRuntimeSourceMetadata,
-  type TargetDefinition,
   type TrialsConfig,
   buildExperimentArtifactMetadata,
   buildTraceFromMessages,
@@ -31,7 +31,7 @@ import {
   loadTestSuite,
   loadTestSuiteFromYamlObject,
   loadTsConfig,
-  resolveTargetDefinition,
+  resolveProviderDefinition,
   shouldEnableCache,
   shouldSkipCacheForTemperature,
   subscribeToCodexLogEntries,
@@ -1205,7 +1205,7 @@ function createDisplayIdTracker(): { getOrAssign(testCaseKey: string): number } 
  * Azure uses `deploymentName`; most other providers use `model`.
  * CLI and mock providers have no model field.
  */
-function extractModelName(target: ResolvedTarget): string | undefined {
+function extractModelName(target: ResolvedProviderBackend): string | undefined {
   if (target.kind === 'azure') {
     return target.config.deploymentName;
   }
@@ -1218,7 +1218,7 @@ function extractModelName(target: ResolvedTarget): string | undefined {
 /**
  * Build the inline label suffix (e.g. `[provider=azure, model=gpt-4]`).
  */
-function buildTargetLabelSuffix(providerLabel: string, target: ResolvedTarget): string {
+function buildTargetLabelSuffix(providerLabel: string, target: ResolvedProviderBackend): string {
   const parts = [`provider=${providerLabel}`];
   const model = extractModelName(target);
   if (model) parts.push(`model=${model}`);
@@ -1345,7 +1345,7 @@ async function prepareFileMetadata(params: {
   readonly cwd: string;
   readonly options: NormalizedOptions;
   readonly providerCatalogPath?: string;
-  readonly providerDefinitions?: readonly TargetDefinition[];
+  readonly providerDefinitions?: readonly ProviderDefinition[];
   readonly providerDefinitionsSource?: string;
   readonly suiteFilter?: string | readonly string[];
 }): Promise<{
@@ -1362,7 +1362,7 @@ async function prepareFileMetadata(params: {
   readonly threshold?: number;
   readonly tags?: readonly string[];
   readonly providerFactory?: (
-    target: import('@agentv/core').ResolvedTarget,
+    target: import('@agentv/core').ResolvedProviderBackend,
   ) => import('@agentv/core').Provider;
 }> {
   const {
@@ -1454,7 +1454,7 @@ async function prepareFileMetadata(params: {
     ];
   } else if (suite.inlineTarget && effectiveOptions.cliTargets.length === 0) {
     const targetDefinition = suite.inlineTarget;
-    const resolvedTarget = resolveTargetDefinition(targetDefinition, process.env, testFilePath, {
+    const resolvedTarget = resolveProviderDefinition(targetDefinition, process.env, testFilePath, {
       emitDeprecationWarnings: false,
     });
     selections = [
@@ -1470,7 +1470,7 @@ async function prepareFileMetadata(params: {
       },
     ];
   } else if (suite.providerFactory && effectiveOptions.cliTargets.length === 0) {
-    const taskTarget: ResolvedTarget = {
+    const taskTarget: ResolvedProviderBackend = {
       kind: 'mock',
       name: 'custom-task',
       graderTarget: undefined,
@@ -1647,7 +1647,7 @@ async function runSingleEvalFile(params: {
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly providerFactory?: (
-    target: import('@agentv/core').ResolvedTarget,
+    target: import('@agentv/core').ResolvedProviderBackend,
   ) => import('@agentv/core').Provider;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
@@ -2156,7 +2156,7 @@ export async function runEvalCommand(
       readonly threshold?: number;
       readonly tags?: readonly string[];
       readonly providerFactory?: (
-        target: import('@agentv/core').ResolvedTarget,
+        target: import('@agentv/core').ResolvedProviderBackend,
       ) => import('@agentv/core').Provider;
     }
   >();
@@ -2359,7 +2359,7 @@ export async function runEvalCommand(
 
   // --transcript: create a shared TranscriptProvider and validate entry count
   let transcriptProviderFactory:
-    | ((target: import('@agentv/core').ResolvedTarget) => import('@agentv/core').Provider)
+    | ((target: import('@agentv/core').ResolvedProviderBackend) => import('@agentv/core').Provider)
     | undefined;
   if (options.transcript) {
     const { TranscriptProvider } = await import('@agentv/core');

@@ -2,14 +2,14 @@ import { describe, expect, it } from 'bun:test';
 
 import { ToolTrajectoryGrader } from '../../src/evaluation/graders.js';
 import type { EvaluationContext } from '../../src/evaluation/graders.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type { Message, Provider } from '../../src/evaluation/providers/types.js';
 import type { ToolTrajectoryGraderConfig, TraceSummary } from '../../src/evaluation/trace.js';
 import { computeTraceSummary } from '../../src/evaluation/trace.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 // Minimal mock objects
-const mockTarget: ResolvedTarget = {
+const mockTarget: ResolvedProviderBackend = {
   name: 'mock',
   kind: 'mock',
   config: {},

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { ExecutionMetricsGrader } from '../../../src/evaluation/graders/execution-metrics.js';
-import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../../src/evaluation/providers/targets.js';
 import type { TokenUsage, TraceSummary } from '../../../src/evaluation/trace.js';
 import type { EvalTest, ExecutionMetricsGraderConfig } from '../../../src/evaluation/types.js';
 
@@ -16,7 +16,7 @@ const baseTestCase: EvalTest = {
   criteria: 'Test outcome',
 };
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },

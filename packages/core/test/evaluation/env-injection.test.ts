@@ -9,7 +9,7 @@ import {
   parseShellExportsEnv,
   runEnvFromEntries,
 } from '../../src/evaluation/env-injection.js';
-import { resolveTargetDefinition } from '../../src/evaluation/providers/targets.js';
+import { resolveProviderDefinition } from '../../src/evaluation/providers/targets.js';
 
 describe('parseShellExportsEnv', () => {
   it('parses export and bare KEY=value lines, stripping quotes', () => {
@@ -230,7 +230,7 @@ describe('env injection feeds {{ env.* }} target interpolation', () => {
 
       await loadEnvPathFiles(['.env'], tempDir);
 
-      const target = resolveTargetDefinition(
+      const target = resolveProviderDefinition(
         {
           id: 'oracle',
           provider: 'openai',
@@ -265,7 +265,7 @@ describe('env injection feeds {{ env.* }} target interpolation', () => {
       { cwd: process.cwd() },
     );
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         id: 'oracle',
         provider: 'openai',

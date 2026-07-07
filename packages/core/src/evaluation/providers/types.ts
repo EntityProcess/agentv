@@ -449,12 +449,12 @@ export interface Provider {
 
 export type EnvLookup = Readonly<Record<string, string | undefined>>;
 
-export interface TargetDefinition {
-  /** Internal canonical target identity. Authored YAML uses `id`; loaders map id -> name. */
+export interface ProviderDefinition {
+  /** Internal canonical provider label. Authored YAML uses providers[].label, falling back to providers[].id. */
   readonly name: string;
-  /** Authored AgentV target identity. */
+  /** Normalized AgentV provider label retained for resolver compatibility. */
   readonly id?: string | undefined;
-  /** Internal compatibility display label; authored `label` is rejected at the boundary. */
+  /** Display label used by result identity and selection. */
   readonly label?: string | undefined;
   /** Promptfoo-shaped provider options bag. Provider settings are flattened at the boundary. */
   readonly config?: unknown | undefined;
@@ -465,7 +465,7 @@ export interface TargetDefinition {
   readonly provider?: ProviderKind | string;
   /** Original public providers[].id backend/spec string after public provider normalization. */
   readonly provider_spec?: string | undefined;
-  // Delegation: resolve this target as another named target.
+  // Delegation: resolve this provider definition as another named provider.
   // Supports ${{ ENV_VAR }} syntax (e.g., use_target: ${{ AGENT_TARGET }}).
   readonly use_target?: string | unknown | undefined;
   readonly grader_target?: string | undefined;

@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { runEvalCase } from '../../src/evaluation/orchestrator.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
   ProviderRequest,
@@ -71,7 +71,7 @@ class ErrorOnFirstProvider implements Provider {
   }
 }
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },

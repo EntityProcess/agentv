@@ -7,7 +7,7 @@ import type {
   Grader,
   GraderFactory,
 } from '../../../src/evaluation/graders/types.js';
-import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../../src/evaluation/providers/targets.js';
 import type { EvalTest, GraderConfig } from '../../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {
@@ -21,7 +21,7 @@ const baseTestCase: EvalTest = {
   criteria: 'Test outcome',
 };
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },
