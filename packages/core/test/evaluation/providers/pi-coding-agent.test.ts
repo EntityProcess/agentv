@@ -11,7 +11,6 @@ describe('PiCodingAgentProvider', () => {
     expect(provider.kind).toBe('pi-coding-agent');
     expect(provider.id).toBe('pi-coding-agent:test-target');
     expect(provider.targetName).toBe('test-target');
-    expect(provider.supportsBatch).toBe(false);
   });
 
   it('rejects when signal is already aborted', async () => {

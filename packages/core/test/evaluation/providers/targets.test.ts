@@ -847,31 +847,19 @@ describe('resolveProviderDefinition', () => {
     ).toThrow(/GOOGLE_API_KEY/i);
   });
 
-  it('honors batch_requests flag in settings', () => {
-    const target = resolveProviderDefinition(
-      {
-        name: 'batched',
-        provider: 'mock',
-        batch_requests: true,
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('mock');
-    expect(target.providerBatching).toBe(true);
-  });
-
-  it('rejects removed provider_batching flag in settings', () => {
-    expect(() =>
-      resolveProviderDefinition(
-        {
-          name: 'batched',
-          provider: 'mock',
-          provider_batching: true,
-        },
-        {},
-      ),
-    ).toThrow(/provider_batching.*batch_requests/);
+  it('rejects removed runner-level batching flags in settings', () => {
+    for (const field of ['batch_requests', 'provider_batching', 'providerBatching'] as const) {
+      expect(() =>
+        resolveProviderDefinition(
+          {
+            name: 'batched',
+            provider: 'mock',
+            [field]: true,
+          },
+          {},
+        ),
+      ).toThrow(new RegExp(`${field}.*Runner-level batching was removed.*per-request invocation`));
+    }
   });
 
   it('resolves cli settings including cwd and timeout', () => {

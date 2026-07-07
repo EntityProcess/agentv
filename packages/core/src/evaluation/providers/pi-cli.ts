@@ -53,8 +53,6 @@ export class PiCliProvider implements Provider {
   readonly id: string;
   readonly kind = 'pi-cli' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: PiCliResolvedConfig;
   private readonly runPi: PiProcessRunner;
 

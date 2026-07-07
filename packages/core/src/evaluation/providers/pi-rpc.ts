@@ -33,8 +33,6 @@ export class PiRpcProvider implements Provider {
   readonly id: string;
   readonly kind = 'pi-rpc' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: PiRpcResolvedConfig;
   private readonly runPi: PiProcessRunner;
 

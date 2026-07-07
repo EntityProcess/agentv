@@ -51,8 +51,6 @@ export class ClaudeSdkProvider implements Provider {
   readonly id: string;
   readonly kind = 'claude-sdk' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: ClaudeResolvedConfig;
 
   constructor(targetName: string, config: ClaudeResolvedConfig) {

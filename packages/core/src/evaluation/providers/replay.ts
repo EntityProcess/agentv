@@ -30,8 +30,6 @@ export class ReplayProvider implements Provider {
   readonly id: string;
   readonly kind = 'replay' as const;
   readonly targetName: string;
-  readonly supportsBatch = true;
-
   private readonly config: ReplayResolvedConfig;
 
   constructor(targetName: string, config: ReplayResolvedConfig) {
