@@ -26,6 +26,16 @@ and `inputs`, or provider maps such as
 Promptfoo may ignore or strip unknown keys and will not execute AgentV
 environment setup without a transpiler or wrapper.
 
+For AgentV-only provider IDs such as `agentv:codex-cli`, use the Promptfoo
+export path instead of running the AgentV YAML directly with Promptfoo. The
+exporter lowers supported AgentV-only IDs to Promptfoo-readable provider
+references such as
+`file://.agentv/generated/promptfoo/providers/codex-cli-provider.ts`
+and fails with a diagnostic for unsupported AgentV-only semantics such as
+top-level `environment`. The generated TypeScript provider is emitted as a
+Promptfoo custom provider module so Promptfoo config validation can load it
+without live provider calls.
+
 Use this matrix when translating a Promptfoo-style normal eval into AgentV YAML.
 It documents which surfaces align directly, which AgentV surfaces are cleaner
 greenfield extensions, and which Promptfoo surfaces are deferred until AgentV

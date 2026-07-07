@@ -1,0 +1,18 @@
+description: Unsupported AgentV environment export fixture
+environment:
+  runtime: host
+  workdir: .
+  setup:
+    command: ["bash", "-lc", "echo preparing workspace"]
+
+providers:
+  - id: openai:responses:gpt-5.4
+    label: responses-direct
+
+prompts:
+  - "{{ question }}"
+
+tests:
+  - id: capital
+    vars:
+      question: What is the capital of France?

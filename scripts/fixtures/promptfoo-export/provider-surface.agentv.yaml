@@ -1,0 +1,29 @@
+description: Promptfoo provider export validation
+providers:
+  - id: openai:responses:gpt-5.4
+    label: responses-direct
+    config:
+      api_key: "{{ env.OPENAI_API_KEY }}"
+  - id: openai:codex-sdk
+    label: codex-sdk-direct
+  - id: agentv:codex-cli
+    label: codex-cli-exported
+    runtime: host
+    config:
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+
+prompts:
+  - "Answer briefly: {{ question }}"
+
+default_test:
+  assert:
+    - type: contains
+      value: Paris
+
+evaluate_options:
+  max_concurrency: 1
+
+tests:
+  - id: capital
+    vars:
+      question: What is the capital of France?
