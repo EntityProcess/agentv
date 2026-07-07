@@ -8,7 +8,7 @@ slug: docs/evaluation/experiments
 
 AgentV eval files are the runnable authoring artifact. Use top-level
 `description` for display metadata, `tags.experiment` as the run/result grouping
-label, `target` for the system under test, and flat top-level run controls such
+label, `providers` for the system under test, and flat top-level run controls such
 as `timeout_seconds` and `threshold`. Use `evaluate_options` for evaluation
 runtime options such as `repeat`, `budget_usd`, and `max_concurrency`.
 `agentv eval --workers N` remains an operator-side override.
@@ -18,10 +18,13 @@ name: support-regression
 description: Support regression suite
 tags:
   experiment: support-codex
-target:
-  extends: codex-gpt5
-  model: gpt-5.1
-  reasoning_effort: high
+providers:
+  - id: codex-app-server
+    label: support-codex
+    extends: codex-gpt5
+    config:
+      model: gpt-5.1
+      reasoning_effort: high
 timeout_seconds: 720
 evaluate_options:
   repeat:
@@ -68,7 +71,8 @@ controls:
 ```yaml
 # experiments/refunds-codex.eval.yaml
 name: refunds-codex
-target: codex-gpt5
+providers:
+  - codex-gpt5
 prompts:
   - "{{ input }}"
 
@@ -112,7 +116,8 @@ test.run > parent top-level run controls
 ```
 
 ```yaml
-target: agent
+providers:
+  - agent
 threshold: 0.8
 evaluate_options:
   repeat:
@@ -153,9 +158,9 @@ target-specific runner state.
 | Install dependencies, build the repo, seed files | `extensions: ["file://scripts/setup.mjs:beforeAll"]` |
 | Apply per-case state | `extensions: ["file://scripts/setup.mjs:beforeEach"]` |
 | Reset file state after each case | `environment` reset policy |
-| Configure an agent runner or provider variant | `target` object or `targets.yaml` |
-| Choose the target | top-level `target` |
-| Override the target's default model | `target.model` |
+| Configure an agent runner or provider variant | `providers` entry or `providers.yaml` |
+| Choose the provider | top-level `providers` or CLI `--provider` |
+| Override the provider's default model | `providers[].config.model` |
 | Configure repeat policy, budget, concurrency, timeout, threshold | `evaluate_options.repeat`, `evaluate_options.budget_usd`, `evaluate_options.max_concurrency`, `timeout_seconds`, `threshold` |
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
@@ -163,11 +168,13 @@ target-specific runner state.
 extensions:
   - file://scripts/build.mjs:beforeAll
 
-target:
-  extends: codex-gpt5
-  hooks:
-    before_each:
-      command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
+providers:
+  - id: codex-app-server
+    label: codex-with-skills
+    extends: codex-gpt5
+    hooks:
+      before_each:
+        command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
 evaluate_options:
   repeat:
     count: 3

@@ -11,7 +11,7 @@ LLM provider targets call language model APIs directly. These are used both as e
 ## OpenAI
 
 ```yaml
-targets:
+providers:
   - id: openai-target
     provider: openai
     runtime: host
@@ -40,7 +40,7 @@ Most users should leave this unset. The default `chat` format is universally sup
 
 ```yaml
 # OpenAI-compatible endpoint (default chat format works)
-targets:
+providers:
   - id: github-models
     provider: openai
     runtime: host
@@ -66,7 +66,7 @@ For smoke tests and dogfood runs against a local OpenAI-compatible proxy, keep
 the endpoint, model, and placeholder key in environment variables:
 
 ```yaml
-targets:
+providers:
   - id: local-openai-grader
     provider: openai
     runtime: host
@@ -85,7 +85,7 @@ shared eval files.
 ## Azure OpenAI
 
 ```yaml
-targets:
+providers:
   - id: azure-base
     provider: azure
     runtime: host
@@ -109,7 +109,7 @@ Azure targets always route through the Responses API (`/openai/v1/responses`). T
 If your Azure deployment only exposes `/chat/completions` (older deployments, certain regions), use `provider: openai` with a deployment-scoped `base_url` instead:
 
 ```yaml
-targets:
+providers:
   - id: azure-chat
     provider: openai
     runtime: host
@@ -125,7 +125,7 @@ The `api_format` field was previously available on `provider: azure` but has bee
 ## Anthropic
 
 ```yaml
-targets:
+providers:
   - id: claude-target
     provider: anthropic
     runtime: host
@@ -142,7 +142,7 @@ targets:
 ## Google Gemini
 
 ```yaml
-targets:
+providers:
   - id: gemini-target
     provider: gemini
     runtime: host

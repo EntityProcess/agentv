@@ -53,7 +53,7 @@ The `duration_ms`, `started_at`, and `ended_at` fields are present on every grad
 Run against a different target than specified in the eval file:
 
 ```bash
-agentv eval --target my-target evals/**/*.yaml
+agentv eval --provider my-target evals/**/*.yaml
 ```
 
 ### Experiment Label
@@ -145,7 +145,7 @@ my-results/
       outputs/file_changes.diff  # when workspace changes are captured
     test/
       EVAL.yaml
-      targets.yaml
+      providers.yaml
       files/      # copied input files when the case references them
       graders/    # copied grader prompt/script files when applicable
 ```
@@ -214,7 +214,7 @@ agentv eval evals/my-eval.yaml --workers 4
 agentv eval evals/file1.yaml evals/file2.yaml evals/file3.yaml --workers 3
 # Files run one at a time; within each file, up to 3 test cases run in parallel
 
-agentv eval evals/my-eval.yaml --target gpt --target claude --workers 4
+agentv eval evals/my-eval.yaml --provider gpt --provider claude --workers 4
 # The target matrix shares the same 4-worker budget
 ```
 
@@ -473,23 +473,23 @@ default.
 
 ### YAML config (`config.yaml` plus optional `config.local.yaml`)
 
-Project config and eval YAML share the same eval-definition graph for targets,
+Project config and eval YAML share the same eval-definition graph for providers,
 tests, defaults, and supported execution defaults. A grader is not a separate
-part of that graph — it is a target, listed under `targets` like any other,
+part of that graph — it is a provider, listed under `providers` like any other,
 selected for a grading role via `defaults.grader`. Small projects can keep the
 graph inline:
 
 ```yaml
-targets:
-  - id: codex-local
-    provider: codex-app-server
+providers:
+  - id: codex-app-server
+    label: codex-local
     runtime: host
     config:
       command: ["codex", "app-server"]
       model: gpt-5-codex
 
-  - id: openai-grader
-    provider: openai
+  - id: openai
+    label: openai-grader
     runtime: host
     config:
       model: gpt-5-mini
@@ -503,7 +503,7 @@ tests:
       input: Fix the failing test
 
 defaults:
-  target: codex-local
+  provider: codex-local
   grader: openai-grader
 ```
 
@@ -512,13 +512,13 @@ Larger projects can decompose any supported top-level field with a direct
 directly:
 
 ```yaml
-targets: file://targets.yaml
+providers: file://providers.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
 
 ```yaml
-# .agentv/targets.yaml
+# .agentv/providers.yaml
 - id: codex-local
   provider: codex-app-server
   runtime: host
@@ -534,13 +534,14 @@ defaults: file://defaults.yaml
 
 ```yaml
 # .agentv/defaults.yaml
-target: codex-local
+providers:
+  - codex-local
 grader: openai-grader
 ```
 
 Do not wrap referenced field files in another object. For example,
-`targets: file://targets.yaml` expects `targets.yaml` to contain a bare array,
-not `{ targets: [...] }`.
+`providers: file://providers.yaml` expects `providers.yaml` to contain a bare array,
+not `{ providers: [...] }`.
 
 Authored suite concurrency belongs in eval files under
 `evaluate_options.max_concurrency`, next to the suite it controls. `agentv eval
@@ -623,14 +624,14 @@ Record target output from the live target with `--record-replay`:
 
 ```bash
 agentv eval evals/legal-review.eval.yaml \
-  --target live_coding_agent \
+  --provider live_coding_agent \
   --record-replay fixtures/legal-review-target-output.jsonl
 ```
 
-Then add a replay target alias in `.agentv/targets.yaml`:
+Then add a replay target alias in `.agentv/providers.yaml`:
 
 ```yaml
-targets:
+providers:
   - id: live_coding_agent
     provider: codex-cli
     runtime: host
@@ -650,7 +651,7 @@ targets:
 Run the same eval against the replay alias:
 
 ```bash
-agentv eval evals/legal-review.eval.yaml --target replay_coding_agent
+agentv eval evals/legal-review.eval.yaml --provider replay_coding_agent
 ```
 
 Replay fixture rows are strict snake_case JSONL. Each row is keyed by `suite` or `eval_path`, `test_id`, `source_target`, `sample_index`, and optional `variant`; missing or duplicate rows fail before grading. Rows preserve the recorded target `output`, `tool_calls`, `transcript`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, and `end_time` when the live provider supplied them.

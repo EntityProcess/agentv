@@ -41,6 +41,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   timeoutMs: 'timeout_ms',
   timeoutSeconds: 'timeout_seconds',
   useTarget: 'use_target',
+  defaultTest: 'default_test',
   windowSize: 'window_size',
 } as const;
 
@@ -134,18 +135,17 @@ export interface EvalDockerEnvironment {
 
 export type EvalEnvironment = EvalHostEnvironment | EvalDockerEnvironment;
 
-export interface EvalTargetRef {
+export interface EvalProviderRef {
   readonly label: string;
   readonly id?: string;
-  readonly useTarget?: string;
+  readonly useProvider?: string;
   readonly hooks?: EvalLifecycleHooks;
 }
 
-export interface EvalTargetConfig {
+export interface EvalProviderConfig {
   readonly extends?: string;
-  readonly id?: string;
+  readonly id: string;
   readonly label?: string;
-  readonly provider?: string;
   readonly model?: string;
   readonly config?: Readonly<Record<string, unknown>>;
   readonly prompts?: unknown;
@@ -154,6 +154,12 @@ export interface EvalTargetConfig {
   readonly env?: Readonly<Record<string, string>>;
   readonly reasoningEffort?: string;
   readonly hooks?: EvalLifecycleHooks;
+  readonly [key: string]: unknown;
+}
+
+export interface EvalDefaultsConfig {
+  readonly provider?: string;
+  readonly grader?: string;
   readonly [key: string]: unknown;
 }
 
@@ -167,8 +173,8 @@ export interface EvalTrials {
 export type EvalRepeat = EvalTrials;
 
 export interface EvalExecution {
-  readonly target?: string;
-  readonly targets?: readonly (string | EvalTargetRef)[];
+  readonly provider?: string;
+  readonly providers?: readonly (string | EvalProviderRef | EvalProviderConfig)[];
   readonly assert?: readonly EvalAssertionConfig[];
   readonly skipDefaults?: boolean;
   readonly cache?: boolean;
@@ -230,13 +236,15 @@ export interface EvalConfig {
   readonly requires?: EvalRequires;
   readonly inputFiles?: readonly string[];
   readonly prompts?: unknown;
+  readonly providers?: readonly (string | EvalProviderRef | EvalProviderConfig)[];
+  readonly defaults?: EvalDefaultsConfig;
+  readonly defaultTest?: Readonly<Record<string, unknown>>;
   readonly tests: readonly EvalTest[] | string;
   /**
    * @deprecated A top-level `experiment` label no longer sets the run's
    * experiment namespace. Use `tags: { experiment: '<name>' }` instead.
    */
   readonly experiment?: string;
-  readonly target?: string | EvalTargetConfig;
   readonly repeat?: EvalRepeat;
   readonly timeoutSeconds?: number;
   readonly threshold?: number;
@@ -353,6 +361,38 @@ function validateTopLevelRuntimeFields(definition: EvalConfig): void {
       }
     });
   }
+  validateProviderSurface(definition);
+}
+
+function validateProviderSurface(definition: unknown): void {
+  const visit = (value: unknown, path: string): void => {
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => visit(entry, `${path}[${index}]`));
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+
+    const record = value as Record<string, unknown>;
+    if (path.endsWith('.defaults') && Object.prototype.hasOwnProperty.call(record, 'target')) {
+      throw new Error("defineEval() no longer accepts 'defaults.target'. Use 'defaults.provider'.");
+    }
+    if (Object.prototype.hasOwnProperty.call(record, 'target')) {
+      throw new Error(
+        `defineEval() no longer accepts '${path}.target'. Use '${path}.provider' or '${path}.providers' instead.`,
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(record, 'targets')) {
+      throw new Error(
+        `defineEval() no longer accepts '${path}.targets'. Use '${path}.providers' instead.`,
+      );
+    }
+
+    for (const [key, nested] of Object.entries(record)) {
+      visit(nested, `${path}.${key}`);
+    }
+  };
+
+  visit(definition, 'eval');
 }
 
 /**

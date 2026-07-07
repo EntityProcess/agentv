@@ -87,19 +87,19 @@ agent-browser --cdp 9222 screenshot output.png
 
 ## Agent Provider Eval Concurrency
 
-- When running evals against agent-provider targets such as `claude`, `claude-sdk`, `codex`, `copilot`, `copilot-sdk`, `pi`, or `pi-cli`, limit concurrency to 3 targets at a time.
+- When running evals against heavyweight agent providers such as `claude`, `claude-sdk`, `codex`, `copilot`, `copilot-sdk`, `pi`, or `pi-cli`, limit concurrency to 3 providers at a time.
 - These providers spawn heavyweight subprocesses and can exhaust system resources if you run too many in parallel.
 
 ```bash
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target claude &
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target codex &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --provider claude &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --provider codex &
 wait
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target copilot &
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target pi &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --provider copilot &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --provider pi &
 wait
 ```
 
-- This limit does not apply to lightweight LLM-only targets such as `azure`, `openai`, `gemini`, or `openrouter`.
+- This limit does not apply to lightweight LLM-only providers such as `azure`, `openai`, `gemini`, or `openrouter`.
 
 ## Writing Tests
 
@@ -142,22 +142,22 @@ bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --
 - `grading.json.assertion_results` reflects the evaluation logic, pass boolean, score, and evidence
 
 4. Update baseline files if output format changes. Baselines live next to eval YAML files as `*.baseline.jsonl`.
-5. `agentv validate` is the cheap schema/config check. For no-live-provider quality validation, run graders against a real reference/oracle target or frozen transcript/replay fixture.
+5. `agentv validate` is the cheap schema/config check. For no-live-provider quality validation, run graders against a real reference/oracle provider or frozen transcript/replay fixture.
 
 ## Live Dogfood for Eval and Experiment Changes
 
-Use live dogfood before marking PRs ready when they affect eval execution, experiments, repeat runs, targets, providers, graders, or artifact provenance.
+Use live dogfood before marking PRs ready when they affect eval execution, experiments, repeat runs, providers, graders, or artifact provenance.
 
-- Live means both sides are real: a live agent/provider target and a live grader target. Do not count `mock`, replay/frozen transcript runs, or deterministic-only assertions as dogfood for these changes.
+- Live means both sides are real: a live agent provider and a live grader provider. Do not count `mock`, replay/frozen transcript runs, or deterministic-only assertions as dogfood for these changes.
 - Dogfood must use a threshold high enough to prove correctness for the eval under test. A threshold of `0` is only an execution smoke check and does not count as dogfood evidence.
 - Prefer the smallest realistic eval: one or two cases, bounded timeouts, and `workers: 1` for heavyweight agent providers.
 - For artifact/result contract changes, prefer letting AgentV choose the canonical run directory and capture the printed `Artifact workspace written to:` and `Results written to:` paths for evidence. Do not precompute `--output` unless the test specifically needs a fixed path.
-- For native experiment changes, run through `agentv eval run ... --experiment <experiment.yaml|ts>` so resolution, setup, scripts, target selection, run knobs, and artifact metadata are exercised together.
+- For native experiment changes, run through `agentv eval run ... --experiment <experiment.yaml|ts>` so resolution, setup, scripts, provider selection, run knobs, and artifact metadata are exercised together.
 - For repeat-run changes, use `evaluate_options.repeat.count >= 2` when validating repeated executions. Inspect `.internal/index.jsonl`, root `summary.json`, and the repeated case folder. Use `repeat` for authored configuration and `sample_index`/`retry_index` for produced executions. The repeated case folder should carry aggregate `summary.json`; sample-specific outputs, transcripts, grading, and metrics live under `sample-N/`. Each `sample-N/` folder should contain `result.json`, `grading.json`, `metrics.json`, `transcript.json`, `transcript-raw.jsonl`, and `outputs/answer.md` when answer output is available. `result.json` should point at `./grading.json`, `./metrics.json`, `./transcript.json`, and `./transcript-raw.jsonl` through the corresponding path fields.
-- For local OpenAI-compatible grading through the OAuth proxy, use `base_url: http://127.0.0.1:10531/v1`, but still route `api_key` and `model` through environment references such as `{{ env.LOCAL_OPENAI_PROXY_API_KEY }}` and `{{ env.LOCAL_OPENAI_PROXY_MODEL }}`. Literal secrets and literal model values are intentionally rejected by target validation unless a resolver explicitly allows them.
-- For `codex`/Codex SDK live dogfood through the same local proxy, configure the agent target with the current target graph (`id`, `provider`, `runtime`, `config`) and put provider settings such as `base_url`, `api_key`, `model`, and `api_format` under `config`. Configure the reusable grader under `graders`, then select it with `defaults.grader` or assertion-level target selection; do not put a grader selector on the system-under-test target. A minimal run should use `bun apps/cli/src/cli.ts eval run <eval.yaml> --targets <targets.yaml> --target <codex-target> --workers 1`.
+- For local OpenAI-compatible grading through the OAuth proxy, use `base_url: http://127.0.0.1:10531/v1`, but still route `api_key` and `model` through environment references such as `{{ env.LOCAL_OPENAI_PROXY_API_KEY }}` and `{{ env.LOCAL_OPENAI_PROXY_MODEL }}`. Literal secrets and literal model values are intentionally rejected by provider validation unless a resolver explicitly allows them.
+- For `codex`/Codex SDK live dogfood through the same local proxy, configure the agent provider with `id`, `label`, `runtime`, and `config`, and put backend settings such as `base_url`, `api_key`, `model`, and `api_format` under `config`. Configure the reusable grader in the same `providers` catalog, then select it with `defaults.grader` or assertion-level `provider`; do not put a grader selector on the system-under-test provider. A minimal run should use `bun apps/cli/src/cli.ts eval run <eval.yaml> --providers <providers.yaml> --provider <codex-label> --workers 1`.
 - If the local proxy returns `401 token_expired`, the blocker is stale Codex OAuth, not AgentV target configuration. Refresh from a trusted local terminal with `codex logout`, `codex login --device-auth`, then restart `openai-oauth` and rerun the same eval command.
-- Preserve review evidence in `agentv-private` on an orphan `evidence/<bead-or-feature-slug>` branch. Include the run bundle, source eval/experiment/targets files, a short README, an artifact tree, contract checks, and screenshots when folder structure or UI behavior is under review.
+- Preserve review evidence in `agentv-private` on an orphan `evidence/<bead-or-feature-slug>` branch. Include the run bundle, source eval/experiment/providers files, a short README, an artifact tree, contract checks, and screenshots when folder structure or UI behavior is under review.
 - If comparing against an external convention such as Vercel `agent-eval`, verify both semantic provenance and the physical `sample-N` artifact layout for repeat runs.
 - For transcript/result artifact contract changes, try the same provider spread before merging: `pi-cli`, `codex-sdk`, and `copilot-sdk` through the local OpenAI-compatible endpoint when available. If a provider cannot run live, record the exact blocker, the run bundle or command output, and whether coverage moved to fixture/regression tests.
 - If dogfood or review changes the durable verification playbook, update this file or `AGENTS.md` in the same PR. Use `docs/solutions/` for longer reusable lessons rather than relying on PR comments or private evidence as the only source.
@@ -169,7 +169,7 @@ Use `scripts/check-grader-scores.ts` as a post-processor after an eval run.
 Workflow:
 
 ```bash
-bun apps/cli/src/cli.ts eval examples/path/to/suite.eval.yaml --target azure \
+bun apps/cli/src/cli.ts eval examples/path/to/suite.eval.yaml --provider azure \
   --output examples/path/to/suite.run
 
 bun scripts/check-grader-scores.ts

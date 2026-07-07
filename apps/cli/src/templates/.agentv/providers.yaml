@@ -1,0 +1,55 @@
+# A list of all supported evaluation providers for the project.
+# In each provider, `id` names the backend/spec and `label` is the stable
+# AgentV selection identity used by --provider and eval `providers`.
+# Actual values for paths/keys are stored in the local .env file.
+
+providers:
+  - id: azure
+    label: default
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+
+  - id: codex
+    label: codex
+    cwd: "{{ env.CODEX_WORKSPACE_DIR }}"
+    log_dir: "{{ env.CODEX_LOG_DIR }}"
+    stream_log: raw
+
+  - id: claude
+    label: claude
+    stream_log: raw
+
+  - id: azure
+    label: azure-llm
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+    version: "{{ env.AZURE_OPENAI_API_VERSION }}"
+
+  - id: gemini
+    label: gemini-llm
+    api_key: "{{ env.GOOGLE_GENERATIVE_AI_API_KEY }}"
+    model: "{{ env.GEMINI_MODEL_NAME }}"
+
+  - id: cli
+    label: local_cli
+    command: uv run ./mock_cli.py --prompt {PROMPT} {FILES} --output {OUTPUT_FILE}
+    files_format: --file {path}
+    cwd: "{{ env.CLI_EVALS_DIR }}"
+    healthcheck:
+      command: uv run ./mock_cli.py --healthcheck
+
+  - id: openrouter
+    label: mimo
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
+    model: xiaomi/mimo-v2.5-pro
+
+  - id: openrouter
+    label: mimo-flash
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
+    model: xiaomi/mimo-v2-flash
+
+defaults:
+  provider: default
+  grader: azure-llm

@@ -39,16 +39,16 @@ AgentV transcript artifacts are not Phoenix-native conversation inputs. Model-ca
 
 ## Promptfoo-Compatible Authoring Boundary
 
-AgentV adopts Promptfoo-compatible eval matrix authoring by default where Promptfoo has matching semantics. The core mental model is `prompts x tests/vars x providers`, with repeat samples and retries applied as run policy after the authored matrix is resolved.
+AgentV should adopt Promptfoo-compatible eval matrix authoring where it strengthens repo-native evaluation, but Promptfoo is reference evidence rather than schema authority. The core mental model is `prompts x tests/vars x providers`, with repeat samples and retries applied as run policy after the authored matrix is resolved. Compatibility is at the provider declaration layer, not a promise that every AgentV config executes unchanged in Promptfoo.
 
 Keep these AgentV-native boundaries explicit:
 
-- `providers` are systems under test. AgentV accepts Promptfoo-shaped provider declarations: strings like `openai:gpt-4.1-mini`, complete package provider strings like `package:@agentv/promptfoo-providers:CodexCliProvider`, provider option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, and provider maps like `{ "openai:gpt-4": { label, config } }`. In AgentV, `id` names the backend/spec and `label` is the stable AgentV identity used for selection and result grouping.
-- AgentV-only provider ids such as `agentv:codex-cli` are first-class AgentV authoring sugar, but they are not directly Promptfoo-runnable. `agentv export promptfoo` must lower supported built-ins to Promptfoo-readable `file://...:callApi` or complete `package:...:Export` provider entries.
+- `providers` are systems under test. AgentV accepts Promptfoo-shaped provider declarations: strings like `openai:gpt-4.1-mini`, complete package provider strings like `package:@agentv/promptfoo-providers:CodexCliProvider` or `package:@agentv/promptfoo-providers/codex-cli:Provider`, provider option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, and provider maps like `{ "openai:gpt-4": { label, config } }`. Package provider strings must include the exported class/function segment after the final colon. In AgentV, `id` names the backend/spec and `label` is the stable AgentV identity used for selection and result grouping.
+- AgentV-only fields such as top-level `environment` and provider-local runtime/testbed overlays are AgentV semantics. Promptfoo may ignore or strip unknown keys and will not execute AgentV environment setup without a transpiler or wrapper.
+- Internal runtime, artifacts, and Dashboard grouping may keep target-named fields until a separate artifact migration.
 - Coding-agent testbeds use `environment` recipes for host/Docker substrate, setup, fixtures, services, and cwd. Do not make Promptfoo lifecycle `extensions` or public `workspace` authoring the canonical testbed contract.
-- Promptfoo export may lower a filesystem/host subset of `environment` into generated `extensions` plus provider workdir configuration. Docker environments are not part of the initial export subset and must fail with explicit diagnostics rather than silently losing isolation.
 - Top-level `env` means provider/eval environment variables. `extensions` remain lifecycle hooks.
-- Reusable prompts, tests, defaults, and environments use field-local `file://` refs such as `prompts: file://...`, `tests: file://...`, and `environment: file://...`. Export may rewrite supported AgentV refs into Promptfoo-readable generated files.
+- Reusable prompts, tests, defaults, and environments use field-local `file://` refs such as `prompts: file://...`, `tests: file://...`, and `environment: file://...`.
 - Grouping and Dashboard navigation use tags and run-bundle metadata, not experiment path buckets, Vercel path layout, or model-as-experiment grouping.
 - AgentV run bundles, traces, transcripts, datasets, indexes, and Git-backed artifacts stay AgentV-owned. Do not design an Opik export path or Phoenix projection path for those artifacts.
 
@@ -64,7 +64,7 @@ Prefer these extension points before adding a built-in:
 - plain assertion strings for simple semantic rubric checks
 - `llm-rubric` for promptfoo-compatible free-form rubric checks
 - `g-eval` for structured or multi-criteria rubric judging
-- config-level grader providers selected through `defaults.grader` or assertion-level provider selection, not system-under-test provider configuration
+- config-level grader providers selected through `defaults.grader` or assertion-level `provider`, not provider-local grader configuration
 - CLI wrappers that consume AgentV JSON or JSONL output for post-processing such as aggregation, comparison, or reporting
 
 Ask: can this be achieved with existing primitives plus a plugin or wrapper? If yes, it should not be a built-in. That includes niche config overrides for existing graders.
@@ -86,9 +86,9 @@ Aim for the maximum feature surface with the minimum primitives.
 
 Before proposing a new feature, enumerate which existing primitives could achieve the same outcome when composed.
 
-- Oracle validation is a `cli` provider target that runs a reference solution through the same evaluators.
+- Oracle validation is a `cli` provider that runs a reference solution through the same evaluators.
 - Snapshot MCP for benchmarks is frozen data in the environment recipe plus `before_all` and `after_all` hooks.
-- Harness variant comparison is target hooks with different `before_each` setup scripts.
+- Harness variant comparison is provider hooks with different `before_each` setup scripts.
 - Skill evaluation is `tool-trajectory` plus `execution-metrics` plus `rubric` composed via `assert-set`.
 
 If existing primitives cover the need, document the pattern instead of building a new feature. New primitives are justified only when composition is impossible, not merely undocumented.
@@ -108,7 +108,7 @@ Research those references from local cloned repositories first when a clone is a
 
 Treat these as reference inputs, not dependencies. AgentV should adopt the shared lowest common denominator when it fits the repo-native artifact model, and document any intentional divergence in the relevant plan, ADR, or contract docs.
 
-Do not copy another framework's schema baggage just because the framework is credible. When a peer contract carries historical constraints, overloaded field names, or compatibility aliases, prefer a cleaner AgentV contract if it preserves the core user need. Document the reason for diverging so future workers do not "realign" it back to the peer shape. For the provider surface, ADR 0019 is the current exception: AgentV follows Promptfoo's `providers`/`id`/`label` shape so the uncommon AgentV differences stay concentrated in `environment`, refs, built-in AgentV providers, artifacts, and Dashboard behavior.
+Do not copy another framework's schema baggage just because the framework is credible. When a peer contract carries historical constraints, overloaded field names, or compatibility aliases, prefer a cleaner AgentV contract if it preserves the core user need. Document the reason for diverging so future workers do not "realign" it back to the peer shape. For provider declarations, AgentV follows the Promptfoo-compatible split: `id` is the backend/spec and `label` is the stable AgentV identity.
 
 ### 5. YAGNI - You Aren't Gonna Need It
 

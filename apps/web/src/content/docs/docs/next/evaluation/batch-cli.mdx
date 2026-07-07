@@ -28,7 +28,8 @@ Use batch CLI evaluation when:
 
 ```yaml
 description: Batch CLI demo using structured input
-target: batch_cli
+providers:
+  - batch_cli
 
 prompts:
   - "{{ input }}"
@@ -244,8 +245,8 @@ The grader extracts these fields and compares them against the parsed candidate 
 Configure the batch CLI provider in your targets file or eval file:
 
 ```yaml
-# In agentv-targets.yaml or eval file
-targets:
+# In agentv-providers.yaml or eval file
+providers:
   batch_cli:
     provider: cli
     command: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}

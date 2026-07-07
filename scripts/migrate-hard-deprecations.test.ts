@@ -67,10 +67,10 @@ tests:
 
     expect(_internal.migrateYamlValue(parsed, '/tmp/targets.yaml')).toBe(true);
     expect(parsed).toEqual({
-      targets: [
+      providers: [
         {
           id: 'cli',
-          provider: 'cli',
+          label: 'cli',
           command: 'echo $FOO ${BAR}',
           cwd: '{{ env.WORKSPACE_DIR }}',
           args: ['{{ env.CODEX_MODEL }}'],
@@ -128,6 +128,86 @@ tests:
     expect(secondAssertion.preprocessors).toBeUndefined();
     expect(secondAssertion.transform).toContain('return (() =>');
     expect(secondAssertion.transform).toContain('Bun.spawnSync(["node","xlsx.js"]');
+  });
+
+  it('migrates target-shaped authoring to provider-shaped authoring', () => {
+    const migrated = migrateSnippet(`targets:
+  - id: codex-host
+    provider: codex-cli
+    runtime: host
+    config:
+      model: gpt-5-codex
+  - id: grader-gpt5-mini
+    provider: openai
+defaults:
+  target: codex-host
+  grader: grader-gpt5-mini
+prompts:
+  - "{{ input }}"
+tests:
+  - id: one
+    vars:
+      input: Fix the bug
+    assert:
+      - type: llm-rubric
+        value: ok
+        target: grader-gpt5-mini
+`);
+    const parsed = asRecord(parse(migrated));
+    const providers = parsed.providers as Array<Record<string, unknown>>;
+    const defaults = asRecord(parsed.defaults);
+    const tests = parsed.tests as Array<Record<string, unknown>>;
+    const assertions = tests[0].assert as Array<Record<string, unknown>>;
+
+    expect(parsed.targets).toBeUndefined();
+    expect(providers).toEqual([
+      {
+        id: 'codex-cli',
+        label: 'codex-host',
+        runtime: 'host',
+        config: { model: 'gpt-5-codex' },
+      },
+      {
+        id: 'openai',
+        label: 'grader-gpt5-mini',
+      },
+    ]);
+    expect(defaults.target).toBeUndefined();
+    expect(defaults.provider).toBe('codex-host');
+    expect(assertions[0]).toEqual({
+      type: 'llm-rubric',
+      value: 'ok',
+      provider: 'grader-gpt5-mini',
+    });
+  });
+
+  it('migrates suite target refs and targets file refs to providers', () => {
+    const migrated = migrateSnippet(`targets: file://.agentv/targets.yaml
+prompts:
+  - "{{ input }}"
+tests:
+  - id: one
+    vars:
+      input: hi
+`);
+    const parsed = asRecord(parse(migrated));
+
+    expect(parsed.targets).toBeUndefined();
+    expect(parsed.providers).toBe('file://.agentv/providers.yaml');
+  });
+
+  it('migrates standalone defaults target to provider', () => {
+    const migrated = _internal.migrateYamlSnippet(
+      `target: local-openai
+grader: local-openai-grader
+`,
+      '/tmp/defaults.yaml',
+    );
+
+    expect(parse(migrated ?? '')).toEqual({
+      provider: 'local-openai',
+      grader: 'local-openai-grader',
+    });
   });
 
   it('migrates authored expected_output to vars.expected_output with explicit rubric assertion', () => {

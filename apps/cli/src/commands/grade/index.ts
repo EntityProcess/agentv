@@ -643,11 +643,16 @@ export const gradeCommand = command({
       long: 'experiment',
       description: 'Experiment label for canonical run output (default: default)',
     }),
+    graderProvider: option({
+      type: optional(string),
+      long: 'grader-provider',
+      description:
+        'Override grader provider for all evaluators (e.g., "agentv", or a provider label from providers.yaml)',
+    }),
     graderTarget: option({
       type: optional(string),
       long: 'grader-target',
-      description:
-        'Override grader target for all evaluators (e.g., "agentv", or a target name from targets.yaml)',
+      description: '[Removed: use --grader-provider <label>] Former grader target selector',
     }),
     model: option({
       type: optional(string),
@@ -673,11 +678,17 @@ export const gradeCommand = command({
     response,
     trace,
     experiment,
+    graderProvider,
     graderTarget,
     model,
     threshold,
     format,
   }) => {
+    if (graderTarget !== undefined) {
+      throw new Error(
+        `--grader-target was removed from agentv grade. Use --grader-provider ${graderTarget} instead.`,
+      );
+    }
     const result = await gradePreparedAttempt({
       evalPath,
       testId,
@@ -686,7 +697,7 @@ export const gradeCommand = command({
       responsePath: response,
       tracePath: trace,
       experiment,
-      graderTarget,
+      graderTarget: graderProvider,
       model,
       threshold,
       verbose: false,

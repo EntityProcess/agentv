@@ -14,11 +14,11 @@ AgentV aims to be the repo-native, workspace-native evaluation framework for AI 
 
 Eval authoring mental model:
 
-- AgentV adopts Promptfoo-compatible matrix authoring by default: an eval expands `prompts x tests/vars x providers`, then applies repeat samples/retries as run policy.
-- Author systems under test as `providers`. A provider entry `id` names the backend/spec string; `label` is the stable AgentV selection and result identity. `id` may contain Promptfoo-style colons such as `openai:responses:gpt-5.4`.
-- The intended authored-config differences from Promptfoo are limited to `environment`, AgentV refs, and built-in AgentV providers such as `agentv:codex-cli`. Full Promptfoo compatibility for those AgentV-native pieces is by `agentv export promptfoo`.
-- Use `environment` recipes for coding-agent testbeds, including host/Docker setup, repo materialization, fixtures, services, and cwd. Promptfoo export may lower a host/filesystem subset into generated `extensions` plus provider workdir configuration; Docker environments must remain unsupported on export until a faithful runner boundary exists. Do not use Promptfoo `extensions` or public `workspace` authoring as the canonical AgentV testbed contract.
-- Use top-level `env` for provider/eval environment variables. Use `extensions` for lifecycle hooks. Use field-local `file://` refs for reusable prompts, tests, defaults, and environments; export may rewrite supported AgentV refs into Promptfoo-readable files.
+- AgentV adopts Promptfoo-compatible matrix authoring where it helps: an eval expands `prompts x tests/vars x providers`, then applies repeat samples/retries as run policy. Compatibility is at the provider declaration layer, not a claim that every AgentV config runs in Promptfoo unchanged.
+- Author systems under test as `providers`. A provider entry `id` names the backend/spec; `label` is the stable AgentV selection and result identity.
+- Treat AgentV as a Promptfoo-compatible superset for provider declarations. Promptfoo-shaped provider entries can be strings like `openai:gpt-4.1-mini`, complete package provider strings like `package:@agentv/promptfoo-providers:CodexCliProvider` or `package:@agentv/promptfoo-providers/codex-cli:Provider`, option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, or provider maps like `{ "openai:gpt-4": { label, config } }`. Package provider strings must include the exported class/function segment after the final colon. AgentV-only fields such as top-level `environment` and provider-local runtime/testbed overlays remain AgentV semantics; Promptfoo may ignore or strip unknown keys and will not execute AgentV environment setup without a transpiler or wrapper.
+- Use `environment` recipes for coding-agent testbeds, including host/Docker setup, repo materialization, fixtures, services, and cwd. Do not use Promptfoo `extensions` or public `workspace` authoring as the canonical testbed contract.
+- Use top-level `env` for provider/eval environment variables. Use `extensions` for lifecycle hooks. Use field-local `file://` refs for reusable prompts, tests, defaults, and environments.
 - Use `tags` and run-bundle metadata for grouping and Dashboard navigation. Do not use experiment path buckets, Vercel path layout, or model-as-experiment grouping as canonical AgentV semantics.
 - AgentV run bundles, traces, transcripts, datasets, indexes, and Git-backed artifacts stay AgentV-owned. Do not design an Opik export path or Phoenix projection path for them; Phoenix correlation is link-out only when `external_trace` metadata already exists.
 
@@ -41,13 +41,12 @@ tests:
       repo: "file://fixtures/retry"
 
 providers:
-  - id: agentv:codex-cli
+  - id: codex-cli
     label: codex-host
     runtime: host
-    config:
-      command: codex
-  - id: anthropic:claude-agent-sdk
-    label: claude
+  - id: claude-cli
+    label: claude-docker
+    runtime: docker
 
 environment: file://.agentv/environments/local-repo.yaml
 tags:
@@ -70,7 +69,7 @@ Design guardrails:
 - Document composition patterns before inventing a new feature.
 - Match industry-standard lowest-common-denominator contracts when possible.
 - When designing AgentV contracts, check public reference standards such as Claude Skills, Vercel agent-eval, Hugging Face Datasets, and OpenInference before inventing AgentV-specific shapes. Use their shared lowest common denominator where it fits, and document any intentional divergence.
-- Treat peer frameworks as evidence, not schema authority. Do not inherit baggage such as overloaded field names, compatibility aliases, or framework-specific historical constraints when AgentV can express a cleaner repo-native contract. For the provider surface, AgentV intentionally follows Promptfoo's `providers`/`id`/`label` shape so the uncommon AgentV differences stay concentrated in `environment`, refs, built-in AgentV providers, artifacts, and Dashboard behavior.
+- Treat peer frameworks as evidence, not schema authority. Do not inherit baggage such as overloaded field names, compatibility aliases, or framework-specific historical constraints when AgentV can express a cleaner repo-native contract. For provider declarations, AgentV intentionally follows Promptfoo's `providers` shapes: `id` is the backend/spec and `label` is the stable AgentV identity.
 - For peer-framework research, use local cloned repositories and DeepWiki MCP before broad web search. In this operator workspace, Promptfoo is cloned at `/home/entity/projects/promptfoo/promptfoo` and DeepEval is cloned at `/home/entity/projects/confident-ai/deepeval`; use DeepWiki repos `promptfoo/promptfoo` and `confident-ai/deepeval` for architecture-level orientation, then verify exact claims with `rg` and `git` in the local clone. If a public contract must be checked for currentness, use official docs and record the source URL or clone commit behind the conclusion.
 - Apply YAGNI aggressively and solve the current request with the smallest surface that works.
 - Keep extensions non-breaking unless a same-week unreleased surface should be hard-corrected.

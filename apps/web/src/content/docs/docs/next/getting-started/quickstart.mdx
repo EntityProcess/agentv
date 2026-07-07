@@ -35,7 +35,7 @@ development.
 
 1. Copy `.env.example` to `.env`
 2. Fill in your API keys, endpoints, and other configuration values
-3. Update the environment variable names in `.agentv/targets.yaml` to match the variables you
+3. Update the environment variable names in `.agentv/providers.yaml` to match the variables you
    exported or defined in `.env`
 
 ## 4. Create an eval
@@ -44,7 +44,8 @@ Create `./evals/example.yaml`:
 
 ```yaml
 description: Math problem solving evaluation
-target: default
+providers:
+  - default
 
 prompts:
   - "{{ question }}"

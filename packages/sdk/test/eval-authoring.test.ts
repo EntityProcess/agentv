@@ -8,20 +8,30 @@ describe('YAML-aligned eval authoring helpers', () => {
       name: 'sdk-yaml-suite',
       inputFiles: ['fixtures/shared-system.md'],
       experiment: 'sdk-yaml-run',
-      target: {
-        label: 'sdk-codex',
-        id: 'codex:gpt-5-codex',
-        extends: 'mock-target',
-        provider: 'codex',
-        config: {
-          model: 'gpt-5-codex',
-          reasoningEffort: 'high',
-        },
-        hooks: {
-          beforeAll: {
-            command: ['bun', 'run', 'scripts/setup.ts'],
-            timeoutMs: 30_000,
+      providers: [
+        {
+          label: 'sdk-codex',
+          id: 'codex:gpt-5-codex',
+          extends: 'mock-target',
+          config: {
+            model: 'gpt-5-codex',
+            reasoningEffort: 'high',
           },
+          hooks: {
+            beforeAll: {
+              command: ['bun', 'run', 'scripts/setup.ts'],
+              timeoutMs: 30_000,
+            },
+          },
+        },
+      ],
+      defaults: {
+        provider: 'sdk-codex',
+        grader: 'grader-gpt5-mini',
+      },
+      defaultTest: {
+        options: {
+          provider: 'grader-gpt5-mini',
         },
       },
       repeat: {
@@ -87,25 +97,35 @@ describe('YAML-aligned eval authoring helpers', () => {
 
     const lowered = toEvalYamlObject(suite);
 
-    expect(typeof suite.target).toBe('object');
+    expect(Array.isArray(suite.providers)).toBe(true);
     expect(lowered).toEqual({
       name: 'sdk-yaml-suite',
       input_files: ['fixtures/shared-system.md'],
       experiment: 'sdk-yaml-run',
-      target: {
-        label: 'sdk-codex',
-        id: 'codex:gpt-5-codex',
-        extends: 'mock-target',
-        provider: 'codex',
-        config: {
-          model: 'gpt-5-codex',
-          reasoning_effort: 'high',
-        },
-        hooks: {
-          before_all: {
-            command: ['bun', 'run', 'scripts/setup.ts'],
-            timeout_ms: 30_000,
+      providers: [
+        {
+          label: 'sdk-codex',
+          id: 'codex:gpt-5-codex',
+          extends: 'mock-target',
+          config: {
+            model: 'gpt-5-codex',
+            reasoning_effort: 'high',
           },
+          hooks: {
+            before_all: {
+              command: ['bun', 'run', 'scripts/setup.ts'],
+              timeout_ms: 30_000,
+            },
+          },
+        },
+      ],
+      defaults: {
+        provider: 'sdk-codex',
+        grader: 'grader-gpt5-mini',
+      },
+      default_test: {
+        options: {
+          provider: 'grader-gpt5-mini',
         },
       },
       timeout_seconds: 600,
@@ -199,7 +219,7 @@ describe('YAML-aligned eval authoring helpers', () => {
     const suite = defineEval({
       name: 'sdk-tags-map',
       tags: { experiment: 'sdk-baseline', team: 'compliance' },
-      target: 'mock-target',
+      providers: ['mock-target'],
       prompts: ['{{ input }}'],
       tests: [
         { id: 'hello', vars: { input: 'Say hello' }, assert: [{ type: 'contains', value: 'hi' }] },
@@ -214,7 +234,7 @@ describe('YAML-aligned eval authoring helpers', () => {
     const suite = defineEval({
       name: 'sdk-tags-list',
       tags: ['smoke', 'regression'],
-      target: 'mock-target',
+      providers: ['mock-target'],
       prompts: ['{{ input }}'],
       tests: [
         { id: 'hello', vars: { input: 'Say hello' }, assert: [{ type: 'contains', value: 'hi' }] },
@@ -292,5 +312,31 @@ describe('YAML-aligned eval authoring helpers', () => {
         ],
       } as never),
     ).toThrow(/top-level 'runs'/);
+  });
+
+  it('rejects removed target-shaped authoring', () => {
+    expect(() =>
+      defineEval({
+        name: 'removed-target',
+        target: 'mock-target',
+        prompts: ['{{ input }}'],
+        tests: [{ id: 'hello', vars: { input: 'Say hello' } }],
+      } as never),
+    ).toThrow(/eval\.target.*provider/);
+
+    expect(() =>
+      defineEval({
+        name: 'removed-assertion-target',
+        providers: ['mock-provider'],
+        prompts: ['{{ input }}'],
+        tests: [
+          {
+            id: 'hello',
+            vars: { input: 'Say hello' },
+            assert: [{ type: 'llm-rubric', value: 'ok', target: 'grader' }],
+          },
+        ],
+      } as never),
+    ).toThrow(/target.*provider/);
   });
 });

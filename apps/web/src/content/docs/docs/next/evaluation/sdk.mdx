@@ -62,7 +62,7 @@ def rag_faithfulness():
     return {
         "name": "rag-faithfulness",
         "type": "llm-rubric",
-        "target": "grader-target",
+        "provider": "grader-provider",
         "prompt": "Grade whether the answer is supported by the retrieved context.",
     }
 
@@ -97,7 +97,7 @@ import { graders, type EvalConfig } from '@agentv/sdk';
 
 const config: EvalConfig = {
   name: 'hello-suite',
-  target: 'mock-sdk',
+  providers: ['mock-sdk'],
   prompts: ['{{ task }}'],
   tests: [
     {
@@ -143,7 +143,7 @@ const config: EvalConfig = {
         graders.llmRubric(undefined, {
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
-          target: 'grader-target',
+          provider: 'grader-provider',
         }),
         graders.scriptGrader(['bun', 'run', 'graders/check.ts'], { name: 'scripted-check' }),
       ],
@@ -166,7 +166,7 @@ import { graders, type EvalConfig } from '@agentv/sdk';
 function ragFaithfulness() {
   return graders.llmRubric(undefined, {
     name: 'rag-faithfulness',
-    target: 'grader-target',
+    provider: 'grader-provider',
     prompt: [
       'Grade whether the answer is supported by the retrieved context.',
       'Use the input and expected_output fields as grounding evidence.',
@@ -201,7 +201,7 @@ assert:
     value: source
   - name: rag-faithfulness
     type: llm-rubric
-    target: grader-target
+    provider: grader-provider
     prompt: |-
       Grade whether the answer is supported by the retrieved context.
       Use the input and expected_output fields as grounding evidence.
@@ -396,7 +396,7 @@ const { summary } = await evaluate({
 console.log(`${summary.passed}/${summary.total} passed`);
 ```
 
-Auto-discovers the `default` target from `.agentv/targets.yaml` and `.env` credentials.
+Auto-discovers the `default` provider from `.agentv/providers.yaml` and `.env` credentials.
 
 ### File-Based via `specFile`
 

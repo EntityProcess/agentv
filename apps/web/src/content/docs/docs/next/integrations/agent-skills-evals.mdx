@@ -13,14 +13,14 @@ slug: docs/integrations/agent-skills-evals
 AgentV treats `evals.json` as a built-in read adapter input, not as a native core eval format. Detection requires a top-level `skill_name` string and `evals` array, so arbitrary `.json` files are still rejected. You can run a detected Agent Skills file directly:
 
 ```bash
-agentv eval evals.json --target claude
+agentv eval evals.json --provider claude
 ```
 
 Or convert it to AgentV EVAL YAML when you want to edit the generated suite:
 
 ```bash
 agentv convert evals.json --out EVAL.yaml
-agentv eval EVAL.yaml --target claude
+agentv eval EVAL.yaml --provider claude
 ```
 
 This keeps AgentV's core authoring formats focused on YAML, JSONL, and TypeScript while still making Agent Skills suites easy to onboard. The boundary is the same adapter layer used for external datasets: external schema in, AgentV-native cases at runtime.
@@ -51,20 +51,20 @@ Create `evals.json`:
 Run it directly or convert it first:
 
 ```bash
-agentv eval evals.json --target claude
+agentv eval evals.json --provider claude
 
 agentv convert evals.json --out EVAL.yaml
-agentv eval EVAL.yaml --target claude
+agentv eval EVAL.yaml --provider claude
 ```
 
-The `--target` flag selects the agent harness. The agent evaluates itself; skills load through the normal agent runtime.
+The `--provider` flag selects the agent harness. The agent evaluates itself; skills load through the normal agent runtime.
 
 ## CLI Surface
 
 Run a detected Agent Skills file directly:
 
 ```bash
-agentv eval evals.json --target claude --output .agentv/results/csv-analyzer
+agentv eval evals.json --provider claude --output .agentv/results/csv-analyzer
 ```
 
 Import the definition into editable AgentV YAML without running a target:
@@ -77,7 +77,7 @@ Prepare one converted case for a human or external agent without running the
 target provider:
 
 ```bash
-agentv prepare EVAL.yaml --test-id "1" --target claude --out .agentv/prepared/csv-analyzer-1
+agentv prepare EVAL.yaml --test-id "1" --provider claude --out .agentv/prepared/csv-analyzer-1
 ```
 
 `agentv import` is reserved for agent session transcripts and selected external
@@ -191,7 +191,7 @@ From there you can add deterministic graders, workspace isolation, multi-turn in
 Keep `evals.json` when another Agent Skills tool owns that file or when you are packaging a skill for an ecosystem that expects it. Use AgentV's read adapter directly:
 
 ```bash
-agentv eval evals/evals.json --target claude --output .agentv/results/csv-analyzer
+agentv eval evals/evals.json --provider claude --output .agentv/results/csv-analyzer
 ```
 
 Use AgentV YAML directly when AgentV owns the eval lifecycle.

@@ -14,7 +14,8 @@ A minimal eval with a single question and expected answer:
 
 ```yaml
 description: Basic arithmetic evaluation
-target: default
+providers:
+  - default
 
 prompts:
   - "{{ question }}"
@@ -35,7 +36,8 @@ Use multipart content to attach files alongside text prompts:
 
 ````yaml
 description: Code review with guidelines
-target: azure-base
+providers:
+  - azure-base
 
 prompts:
   - - role: system
@@ -78,7 +80,8 @@ Combine a script grader and an LLM grader on the same test:
 
 ```yaml
 description: JSON generation with validation
-target: default
+providers:
+  - default
 
 prompts:
   - "{{ input }}"
@@ -114,7 +117,8 @@ Convert a binary file output into text before the `llm-rubric` sees it:
 ```yaml
 description: Grade spreadsheet output via a transform
 
-target: file_output
+providers:
+  - file_output
 default_test:
   options:
     transform: file://../scripts/transforms/xlsx-to-csv.ts
@@ -136,7 +140,8 @@ Validate that an agent uses specific tools during execution:
 
 ```yaml
 description: Tool usage validation
-target: mock_agent
+providers:
+  - mock_agent
 
 prompts:
   - "{{ input }}"
@@ -179,7 +184,8 @@ Benchmark a five-model grader panel against a human-labeled export, then compare
 
 ```yaml
 description: Offline grader benchmark
-target: fixture_replay
+providers:
+  - fixture_replay
 
 tests:
   - file://../fixtures/labeled-grader-export.jsonl
@@ -191,15 +197,15 @@ assert:
     assert:
       - name: grader-gpt-5-mini
         type: llm-rubric
-        target: grader_gpt_5_mini
+        provider: grader_gpt_5_mini
         prompt: ../prompts/grader-pass-fail-v1.md
       - name: grader-claude-haiku
         type: llm-rubric
-        target: grader_claude_haiku
+        provider: grader_claude_haiku
         prompt: ../prompts/grader-pass-fail-v1.md
       - name: grader-gemini-flash
         type: llm-rubric
-        target: grader_gemini_flash
+        provider: grader_gemini_flash
         prompt: ../prompts/grader-pass-fail-v1.md
 ```
 
@@ -211,7 +217,8 @@ Evaluate pre-existing trace files without running an agent:
 
 ```yaml
 description: Static trace evaluation
-target: static_trace
+providers:
+  - static_trace
 
 prompts:
   - "{{ input }}"
@@ -237,7 +244,8 @@ Test multi-turn interactions where intermediate messages set context:
 
 ````yaml
 description: Multi-turn debugging session with clarifying questions
-target: default
+providers:
+  - default
 
 prompts:
   - "{{ input }}"
@@ -300,7 +308,8 @@ Evaluate external batch runners that process all tests in one invocation:
 
 ```yaml
 description: Batch CLI demo (AML screening)
-target: batch_cli
+providers:
+  - batch_cli
 
 prompts:
   - "{{ input }}"

@@ -21,15 +21,26 @@ export const evalRunCommand = command({
       displayName: 'eval-paths',
       description: 'Path(s) or glob(s) to evaluation files (.yaml, .eval.ts)',
     }),
+    provider: multioption({
+      type: array(string),
+      long: 'provider',
+      description:
+        'Override provider label(s) from providers.yaml (repeatable for matrix evaluation)',
+    }),
+    providers: option({
+      type: optional(string),
+      long: 'providers',
+      description: 'Path to providers.yaml (overrides discovery)',
+    }),
     target: multioption({
       type: array(string),
       long: 'target',
-      description: 'Override target name(s) from targets.yaml (repeatable for matrix evaluation)',
+      description: '[Removed: use --provider <label>] Former target selector',
     }),
     targets: option({
       type: optional(string),
       long: 'targets',
-      description: 'Path to targets.yaml (overrides discovery)',
+      description: '[Removed: use --providers <path>] Former providers.yaml path',
     }),
     testId: multioption({
       type: array(string),
@@ -40,7 +51,7 @@ export const evalRunCommand = command({
       type: optional(number),
       long: 'workers',
       description:
-        'Number of parallel test cases within each eval file (default: 3, max: 50). Eval files always run sequentially. Can also be set per-target in targets.yaml',
+        'Number of parallel test cases within each eval file (default: 3, max: 50). Eval files always run sequentially. Can also be set per-provider in providers.yaml',
     }),
     out: option({
       type: optional(string),
@@ -155,11 +166,16 @@ export const evalRunCommand = command({
       long: 'artifacts',
       description: '[Removed: use --output <dir>] Former companion artifact directory',
     }),
+    graderProvider: option({
+      type: optional(string),
+      long: 'grader-provider',
+      description:
+        'Override grader provider for all evaluators (e.g., "agentv", or a provider label from providers.yaml)',
+    }),
     graderTarget: option({
       type: optional(string),
       long: 'grader-target',
-      description:
-        'Override grader target for all evaluators (e.g., "agentv", or a target name from targets.yaml)',
+      description: '[Removed: use --grader-provider <label>] Former grader target selector',
     }),
     model: option({
       type: optional(string),
@@ -199,13 +215,13 @@ export const evalRunCommand = command({
       type: optional(string),
       long: 'transcript',
       description:
-        'Grade a pre-recorded transcript JSONL instead of invoking a live provider. Ignores targets.',
+        'Grade a pre-recorded transcript JSONL instead of invoking a live provider. Ignores providers.',
     }),
     recordReplay: option({
       type: optional(string),
       long: 'record-replay',
       description:
-        'Append live target outputs to a replay fixture JSONL file. Graders still run normally.',
+        'Append live provider outputs to a replay fixture JSONL file. Graders still run normally.',
     }),
     recordReplayVariant: option({
       type: optional(string),
@@ -222,46 +238,7 @@ export const evalRunCommand = command({
       console.error('Error: --results-push and --no-results-push cannot be used together.');
       process.exit(2);
     }
-    const rawOptions: Record<string, unknown> = {
-      target: args.target,
-      targets: args.targets,
-      filter: args.testId,
-      workers: args.workers,
-      out: args.out,
-      output: args.output,
-      outputFormat: args.outputFormat,
-      experiment: args.experiment,
-      resultsRepo: args.resultsRepo,
-      resultsBranch: args.resultsBranch,
-      resultsRemote: args.resultsRemote,
-      resultsPush: args.resultsPush,
-      noResultsPush: args.noResultsPush,
-      resultsRequirePush: args.resultsRequirePush,
-      agentTimeout: args.agentTimeout,
-      maxRetries: args.maxRetries,
-      cache: args.cache,
-      cachePath: args.cachePath,
-      noCache: args.noCache,
-      verbose: args.verbose,
-      workspacePath: args.workspacePath,
-      keepWorkspaces: args.keepWorkspaces,
-      trace: false,
-      retryErrors: args.retryErrors,
-      resume: args.resume,
-      rerunFailed: args.rerunFailed,
-      strict: args.strict,
-      artifacts: args.artifacts,
-      graderTarget: args.graderTarget,
-      model: args.model,
-      outputMessages: args.outputMessages,
-      threshold: args.threshold,
-      budgetUsd: args.budgetUsd,
-      tag: args.tag,
-      excludeTag: args.excludeTag,
-      transcript: args.transcript,
-      recordReplay: args.recordReplay,
-      recordReplayVariant: args.recordReplayVariant,
-    };
+    const rawOptions = buildEvalRunRawOptions(args);
     const result = await runEvalCommand({ testFiles: args.evalPaths, rawOptions });
     if (result?.allExecutionErrors) {
       process.exit(2);
@@ -274,3 +251,73 @@ export const evalRunCommand = command({
     }
   },
 });
+
+export function buildEvalRunRawOptions(args: {
+  readonly [key: string]: unknown;
+  readonly target?: readonly string[];
+  readonly targets?: string;
+  readonly provider?: readonly string[];
+  readonly providers?: string;
+  readonly graderTarget?: string;
+  readonly graderProvider?: string;
+}): Record<string, unknown> {
+  const legacyTargets = Array.isArray(args.target)
+    ? args.target.filter((value) => typeof value === 'string' && value.trim().length > 0)
+    : [];
+  if (legacyTargets.length > 0) {
+    throw new Error(
+      `--target was removed from agentv eval. Use --provider ${legacyTargets[0]} instead.`,
+    );
+  }
+  if (args.targets !== undefined) {
+    throw new Error(
+      `--targets was removed from agentv eval. Use --providers ${String(args.targets)} instead.`,
+    );
+  }
+  if (args.graderTarget !== undefined) {
+    throw new Error(
+      `--grader-target was removed from agentv eval. Use --grader-provider ${args.graderTarget} instead.`,
+    );
+  }
+
+  return {
+    target: args.provider,
+    targets: args.providers,
+    filter: args.testId,
+    workers: args.workers,
+    out: args.out,
+    output: args.output,
+    outputFormat: args.outputFormat,
+    experiment: args.experiment,
+    resultsRepo: args.resultsRepo,
+    resultsBranch: args.resultsBranch,
+    resultsRemote: args.resultsRemote,
+    resultsPush: args.resultsPush,
+    noResultsPush: args.noResultsPush,
+    resultsRequirePush: args.resultsRequirePush,
+    agentTimeout: args.agentTimeout,
+    maxRetries: args.maxRetries,
+    cache: args.cache,
+    cachePath: args.cachePath,
+    noCache: args.noCache,
+    verbose: args.verbose,
+    workspacePath: args.workspacePath,
+    keepWorkspaces: args.keepWorkspaces,
+    trace: false,
+    retryErrors: args.retryErrors,
+    resume: args.resume,
+    rerunFailed: args.rerunFailed,
+    strict: args.strict,
+    artifacts: args.artifacts,
+    graderTarget: args.graderProvider,
+    model: args.model,
+    outputMessages: args.outputMessages,
+    threshold: args.threshold,
+    budgetUsd: args.budgetUsd,
+    tag: args.tag,
+    excludeTag: args.excludeTag,
+    transcript: args.transcript,
+    recordReplay: args.recordReplay,
+    recordReplayVariant: args.recordReplayVariant,
+  };
+}

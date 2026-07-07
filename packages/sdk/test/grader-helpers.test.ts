@@ -49,7 +49,7 @@ describe('grader helper config builders', () => {
       llmRubricGrader(undefined, {
         metric: 'tone-review',
         prompt: 'Grade the answer for tone.',
-        target: 'grader-target',
+        provider: 'grader-provider',
         maxSteps: 3,
         temperature: 0,
       }),
@@ -57,7 +57,7 @@ describe('grader helper config builders', () => {
       metric: 'tone-review',
       type: 'llm-rubric',
       prompt: 'Grade the answer for tone.',
-      target: 'grader-target',
+      provider: 'grader-provider',
       maxSteps: 3,
       temperature: 0,
     });
@@ -65,7 +65,7 @@ describe('grader helper config builders', () => {
       scriptGrader(['bun', 'run', 'graders/check.ts'], {
         metric: 'scripted-check',
         cwd: 'graders',
-        target: { maxCalls: 2 },
+        provider: { maxCalls: 2 },
         config: { mode: 'strict' },
       }),
     ).toEqual({
@@ -73,7 +73,7 @@ describe('grader helper config builders', () => {
       type: 'script',
       command: ['bun', 'run', 'graders/check.ts'],
       cwd: 'graders',
-      target: { maxCalls: 2 },
+      provider: { maxCalls: 2 },
       config: { mode: 'strict' },
     });
     expect(scriptGrader(['bun', 'run', 'graders/check.ts'])).toEqual({
@@ -113,13 +113,13 @@ describe('grader helper config builders', () => {
             graders.llmRubric(undefined, {
               metric: 'llm-review',
               prompt: 'Grade whether the answer is useful.',
-              target: 'grader-target',
+              provider: 'grader-provider',
               maxSteps: 2,
               transform: 'output.trim()',
             }),
             graders.script(['bun', 'run', 'graders/check.ts'], {
               metric: 'scripted-check',
-              target: { maxCalls: 2 },
+              provider: { maxCalls: 2 },
               minScore: 0.5,
             }),
           ],
@@ -156,7 +156,7 @@ describe('grader helper config builders', () => {
         metric: 'llm-review',
         type: 'llm-rubric',
         prompt: 'Grade whether the answer is useful.',
-        target: 'grader-target',
+        provider: 'grader-provider',
         max_steps: 2,
         transform: 'output.trim()',
       },
@@ -164,7 +164,7 @@ describe('grader helper config builders', () => {
         metric: 'scripted-check',
         type: 'script',
         command: ['bun', 'run', 'graders/check.ts'],
-        target: { max_calls: 2 },
+        provider: { max_calls: 2 },
         min_score: 0.5,
       },
     ]);

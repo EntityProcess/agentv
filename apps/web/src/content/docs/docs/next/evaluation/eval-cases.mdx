@@ -35,7 +35,7 @@ tests:
 | `criteria` | No | Optional shared grader guidance for the case |
 | `vars.expected_output` | No | Conventional reference-answer var for graders to consume explicitly |
 | `assert` | Yes | Per-test graders; plain strings become `llm-rubric` rubric checks |
-| `execution` | No | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
+| `execution` | No | Per-case grader/default overrides such as `skip_defaults`; provider selection belongs in top-level `providers` or CLI `--provider` |
 | `environment` | No | Per-case environment recipe (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to graders, setup commands, and lifecycle extensions |
 
@@ -145,8 +145,8 @@ vars:
 ## Per-Case Execution Overrides
 
 Override graders or local scoring settings for specific tests. Do not put
-target selection in cases; use top-level `target`, CLI `--target`, separate
-eval suites, or tags/filters for target-specific cases.
+provider selection in cases; use top-level `providers`, CLI `--provider`,
+separate eval suites, or tags/filters for provider-specific cases.
 
 ```yaml
 tests:
