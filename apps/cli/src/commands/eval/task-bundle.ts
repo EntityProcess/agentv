@@ -636,12 +636,81 @@ function bundledEvalFileName(evalFilePath: string): string {
 
 function uniqueTargetDefinitions(
   selections: readonly TaskBundleTargetSelection[],
+  tests: readonly EvalTest[] = [],
 ): readonly ProviderDefinition[] {
   const selected: ProviderDefinition[] = [];
   const seen = new Set<string>();
 
+  function addDefinitions(
+    names: readonly string[],
+    definitions: readonly ProviderDefinition[],
+  ): void {
+    for (const name of names) {
+      for (const definition of selectTargetDefinitions(name, definitions)) {
+        if (seen.has(definition.name)) {
+          continue;
+        }
+        seen.add(definition.name);
+        selected.push(definition);
+      }
+    }
+  }
+
+  const graderTargetNames = collectGraderTargetNames(tests);
   for (const selection of selections) {
-    for (const definition of selectTargetDefinitions(selection.targetName, selection.definitions)) {
+    addDefinitions([selection.targetName, ...graderTargetNames], selection.definitions);
+  }
+
+  return selected;
+}
+
+function collectGraderTargetNames(tests: readonly EvalTest[]): readonly string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+
+  function collect(value: unknown, key?: string): void {
+    if (key === 'target' && typeof value === 'string') {
+      const target = value.trim();
+      if (target.length > 0 && !target.includes('${{') && !seen.has(target)) {
+        seen.add(target);
+        names.push(target);
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        collect(item);
+      }
+      return;
+    }
+
+    if (isRecord(value)) {
+      for (const [childKey, childValue] of Object.entries(value)) {
+        collect(childValue, childKey);
+      }
+    }
+  }
+
+  for (const test of tests) {
+    for (const grader of test.source?.graderDefinitions ?? []) {
+      collect(grader.definition);
+    }
+  }
+
+  return names;
+}
+
+function selectTaskBundleTargetDefinitions(
+  targetName: string,
+  definitions: readonly ProviderDefinition[],
+  tests: readonly EvalTest[],
+): readonly ProviderDefinition[] {
+  const selected: ProviderDefinition[] = [];
+  const seen = new Set<string>();
+
+  for (const name of [targetName, ...collectGraderTargetNames(tests)]) {
+    for (const definition of selectTargetDefinitions(name, definitions)) {
       if (seen.has(definition.name)) {
         continue;
       }
@@ -1133,7 +1202,11 @@ export async function materializeTaskBundle(
     return undefined;
   }
 
-  const targetDefinitions = selectTargetDefinitions(options.targetName, options.targetDefinitions);
+  const targetDefinitions = selectTaskBundleTargetDefinitions(
+    options.targetName,
+    options.targetDefinitions,
+    [options.test],
+  );
   if (targetDefinitions.length === 0) {
     return undefined;
   }
@@ -1228,7 +1301,7 @@ export async function materializeEvalBundle(
   });
   await writeYamlFile(
     providersPath,
-    serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections)),
+    serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections, options.tests)),
   );
   await mkdir(path.dirname(configPath), { recursive: true });
   await writeYamlFile(configPath, { providers: `file://../${BUNDLE_PROVIDERS_FILENAME}` });

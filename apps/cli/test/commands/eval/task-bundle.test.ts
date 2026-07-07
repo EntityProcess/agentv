@@ -55,6 +55,7 @@ describe('materializeTaskBundle', () => {
               name: 'quality',
               type: 'llm-grader',
               prompt: 'file://graders/prompt.md',
+              target: 'judge',
               command: ['bun', scriptPath, '--token', 'literal-secret'],
             },
           },
@@ -97,6 +98,11 @@ describe('materializeTaskBundle', () => {
           provider: 'mock',
           api_key: 'literal-secret',
         },
+        {
+          name: 'judge',
+          provider: 'mock',
+          api_key: '${{ JUDGE_API_KEY }}',
+        },
       ],
       outputDir: path.join(tempDir, 'out'),
       cwd: tempDir,
@@ -132,8 +138,11 @@ describe('materializeTaskBundle', () => {
       'file://files/fixtures/input.txt',
     );
     expect(assertion.prompt).toBe('file://graders/graders/prompt.md');
+    expect(assertion.target).toBe('judge');
     expect(assertion.command).toEqual(['bun', 'graders/graders/check.ts', '--token', '[redacted]']);
     expect(taskProviders).toContain('api_key: ${{ MOCK_API_KEY }}');
+    expect(taskProviders).toContain('label: judge');
+    expect(taskProviders).toContain('api_key: ${{ JUDGE_API_KEY }}');
     expect(taskProviders).toContain('api_key: "[redacted]"');
     expect(taskEval).not.toContain('literal-secret');
     expect(taskProviders).not.toContain('literal-secret');

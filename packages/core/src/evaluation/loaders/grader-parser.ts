@@ -227,6 +227,7 @@ function assertSupportedPromptfooType(type: string, evalId: string, name?: strin
 export async function parseGraders(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
+    readonly options?: JsonValue;
     readonly assert?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
@@ -245,6 +246,7 @@ export async function parseGraders(
   // Root-level default graders.
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults ? undefined : globalExecution?.assert;
+  const inheritedGraderTarget = readOptionsProvider(rawEvalCase.options, evalId);
 
   // Parse case-level evaluators
   const parsedCase = await parseGraderList(
@@ -253,6 +255,8 @@ export async function parseGraders(
     evalId,
     defaultPreprocessors,
     defaultRubricPrompt,
+    undefined,
+    inheritedGraderTarget,
   );
   // Parse root-level evaluators (appended after case-level)
   const parsedRoot = await parseGraderList(
@@ -261,6 +265,8 @@ export async function parseGraders(
     evalId,
     defaultPreprocessors,
     defaultRubricPrompt,
+    undefined,
+    inheritedGraderTarget,
   );
 
   if (!parsedCase && !parsedRoot) {
@@ -271,6 +277,24 @@ export async function parseGraders(
   const evaluators: GraderConfig[] = [...(parsedCase ?? []), ...(parsedRoot ?? [])];
 
   return evaluators.length > 0 ? evaluators : undefined;
+}
+
+function readOptionsProvider(options: JsonValue | undefined, evalId: string): string | undefined {
+  if (options === undefined || options === null) {
+    return undefined;
+  }
+  if (!isJsonObject(options)) {
+    return undefined;
+  }
+  const provider = options.provider;
+  if (provider === undefined || provider === null) {
+    return undefined;
+  }
+  if (typeof provider === 'string' && provider.trim().length > 0) {
+    return provider.trim();
+  }
+  logWarning(`Skipping options.provider for '${evalId}': provider must be a non-empty string`);
+  return undefined;
 }
 
 interface IncludeContext {
@@ -548,6 +572,7 @@ async function parseGraderList(
   defaultPreprocessors?: readonly ContentPreprocessorConfig[],
   defaultRubricPrompt?: JsonValue,
   inheritedAssertionConfig?: JsonObject,
+  inheritedGraderTarget?: string,
 ): Promise<readonly GraderConfig[] | undefined> {
   const expandedEvaluators = await expandGraderEntries(candidateEvaluators, searchRoots, evalId);
   if (!expandedEvaluators) {
@@ -749,6 +774,7 @@ async function parseGraderList(
         defaultPreprocessors,
         defaultRubricPrompt,
         config,
+        inheritedGraderTarget,
       );
       if (!parsedMembers || parsedMembers.length === 0) {
         logWarning(
@@ -1673,12 +1699,14 @@ async function parseGraderList(
     let graderTargetName: string | undefined;
     if (graderTarget !== undefined) {
       if (typeof graderTarget === 'string' && graderTarget.trim().length > 0) {
-        graderTargetName = graderTarget;
+        graderTargetName = graderTarget.trim();
       } else {
         logWarning(
           `Skipping provider override for llm-grader evaluator '${name}' in '${evalId}': provider must be a non-empty string`,
         );
       }
+    } else {
+      graderTargetName = inheritedGraderTarget;
     }
 
     // Parse prompt field - can be string (text template) or object (executable script)

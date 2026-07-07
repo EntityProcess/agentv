@@ -25,6 +25,7 @@ import {
   loadCasesFromDirectory,
   loadCasesFromFile,
 } from './loaders/case-file-loader.js';
+import type { ConfigDefaults } from './loaders/config-graph.js';
 import {
   type ReferenceMap,
   extractBudgetUsd,
@@ -207,6 +208,7 @@ type RawTestSuite = JsonObject & {
   readonly budget_usd?: JsonValue;
   readonly threshold?: JsonValue;
   readonly default_test?: JsonValue;
+  readonly defaults?: JsonValue;
   readonly environment?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assert?: JsonValue;
@@ -1298,6 +1300,8 @@ export type EvalSuiteResult = {
   readonly threshold?: number;
   /** Preferred inherited per-test defaults from default_test. */
   readonly defaultTest?: EvalDefaultTestDefaults;
+  /** Eval-authored default provider selections from top-level defaults. */
+  readonly defaults?: ConfigDefaults;
   /** Internal normalized run controls derived from flat eval YAML. */
   readonly experimentConfig?: ExperimentConfig;
   /** Inline target definition from a TS eval config. */
@@ -1906,6 +1910,7 @@ function buildEvalSuiteResult(
       : undefined;
   const experimentConfig = normalizeSuiteExperimentConfig(parsed);
   const tags = extractSuiteTagMap(parsed);
+  const defaults = extractSuiteDefaults(parsed);
 
   return {
     tests,
@@ -1919,8 +1924,43 @@ function buildEvalSuiteResult(
     ...(failOnError !== undefined && { failOnError }),
     ...(threshold !== undefined && { threshold }),
     ...(defaultTest !== undefined && { defaultTest }),
+    ...(defaults !== undefined && { defaults }),
     ...(experimentConfig !== undefined && { experimentConfig }),
     ...(tags !== undefined && { tags }),
+  };
+}
+
+function readOptionalDefaultSelection(value: unknown, location: string): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`Invalid ${location}: expected a non-empty string.`);
+  }
+  return value.trim();
+}
+
+function extractSuiteDefaults(parsed: JsonObject): ConfigDefaults | undefined {
+  const rawDefaults = parsed.defaults;
+  if (rawDefaults === undefined || rawDefaults === null) {
+    return undefined;
+  }
+  if (!isJsonObject(rawDefaults)) {
+    throw new Error('Invalid defaults: expected an object.');
+  }
+  if (rawDefaults.target !== undefined) {
+    throw new Error(
+      'Invalid defaults.target: defaults.target has been removed. Use defaults.provider.',
+    );
+  }
+  const provider = readOptionalDefaultSelection(rawDefaults.provider, 'defaults.provider');
+  const grader = readOptionalDefaultSelection(rawDefaults.grader, 'defaults.grader');
+  if (!provider && !grader) {
+    return undefined;
+  }
+  return {
+    ...(provider ? { provider } : {}),
+    ...(grader ? { grader } : {}),
   };
 }
 

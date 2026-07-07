@@ -115,6 +115,35 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.experimentConfig?.threshold).toBe(0.9);
   });
 
+  it('parses top-level provider and grader defaults', async () => {
+    const evalPath = path.join(tempDir, 'suite-defaults.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: suite-defaults',
+        'providers:',
+        '  - openai-candidate',
+        'defaults:',
+        '  provider: openai-candidate',
+        '  grader: openai-grader',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: one',
+        '    criteria: ok',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.defaults).toEqual({
+      provider: 'openai-candidate',
+      grader: 'openai-grader',
+    });
+  });
+
   it('loads default_test from a repo-root env file reference', async () => {
     const agentvDir = path.join(tempDir, '.agentv');
     await mkdir(agentvDir, { recursive: true });
