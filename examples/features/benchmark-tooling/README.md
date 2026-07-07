@@ -130,8 +130,8 @@ Use `agentv results compare` on completed run manifests for pairwise analysis, o
 
 ```bash
 # 1. Run the same eval once per target
-bun agentv eval my-eval.yaml --target gpt-4.1 --experiment model-benchmark
-bun agentv eval my-eval.yaml --target claude-sonnet-4 --experiment model-benchmark
+bun agentv eval my-eval.yaml --provider gpt-4.1 --experiment model-benchmark
+bun agentv eval my-eval.yaml --provider claude-sonnet-4 --experiment model-benchmark
 
 # 2. Compare two completed runs
 bun agentv results compare \

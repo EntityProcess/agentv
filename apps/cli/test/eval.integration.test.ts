@@ -287,7 +287,7 @@ describe('agentv eval CLI', () => {
       const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
 
       // Don't check stderr - it may contain stack traces or other diagnostics
-      expect(stdout).toContain('Using target (test-file): file-target [provider=mock]');
+      expect(stdout).toContain('Using provider (test-file): file-target [provider=mock]');
       expect(stdout).toContain('Mean score: 75%');
       // Std deviation is an implementation detail - don't check it
 

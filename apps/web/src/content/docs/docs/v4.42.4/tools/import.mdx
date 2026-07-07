@@ -216,9 +216,9 @@ agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-4c4f9e4e.
 You can also use the same normalized transcript rows through a replay target:
 
 ```yaml
-targets:
-  - id: recorded-agent
-    provider: replay
+providers:
+  - id: replay
+    label: recorded-agent
     transcripts: .agentv/transcripts/claude-4c4f9e4e.jsonl
     source_target: claude-cli
 ```
@@ -248,7 +248,7 @@ Each instance becomes an EVAL.yaml with:
 - `workspace.repos[].base_commit` — the commit to reset to before the agent runs
 - `assertions` — `code-grader` tasks that run `FAIL_TO_PASS` and `PASS_TO_PASS` pytest suites inside the container
 
-Run an imported SWE-bench eval against any coding agent target:
+Run an imported SWE-bench eval against any coding agent provider:
 
 ```bash
 # Import one instance
@@ -257,8 +257,8 @@ uv run scripts/import-huggingface.py \
   --limit 1 \
   --output /tmp/swebench-eval/
 
-# Run with a coding agent target
-agentv eval /tmp/swebench-eval/*.EVAL.yaml --target codex-cli
+# Run with a coding agent provider
+agentv eval /tmp/swebench-eval/*.EVAL.yaml --provider codex-cli
 ```
 
 The Docker workspace spins up the pre-built SWE-bench image, checks out `base_commit`, runs the agent to apply a patch, then grades by running the test suite inside the container.

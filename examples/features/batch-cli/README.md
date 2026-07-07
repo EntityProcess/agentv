@@ -52,7 +52,7 @@ Trajectory assertions extract tool calls directly from `output[].tool_calls[]`. 
 - `batch-cli-demo.yaml` — Ground truth: tests with inputs and expected outputs
 - `scripts/build-csv-from-eval.ts` — Utilities to convert YAML tests to CSV format (imported by batch-cli-runner.ts)
 - `scripts/batch-cli-runner.ts` — Main batch runner: converts inputs to CSV, processes them, writes actual responses as JSONL
-- `.agentv/targets.yaml` — Defines the `batch_cli` CLI target with request batching enabled
+- `.agentv/providers.yaml` — Defines the `batch_cli` CLI target with request batching enabled
 
 ## Run
 
@@ -63,5 +63,5 @@ cd examples/features/batch-cli
 
 # Run AgentV against the batch CLI target
 # NOTE: This requires the CLI provider to support batching + JSONL batch output.
-bun agentv eval ./evals/suite.yaml --target batch_cli
+bun agentv eval ./evals/suite.yaml --provider batch_cli
 ```

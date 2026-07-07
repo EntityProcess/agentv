@@ -1,4 +1,0 @@
-providers:
-  - id: cli
-    label: translation-cli
-    command: "node ../scripts/translation-target.mjs {PROMPT_FILE} {OUTPUT_FILE}"

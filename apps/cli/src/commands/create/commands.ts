@@ -42,7 +42,8 @@ export default defineAssertion(({ output }) => {
 
 const EVAL_TEMPLATES: Record<string, (name: string) => string> = {
   default: (name: string) => `description: ${name} evaluation suite
-target: default
+providers:
+  - default
 
 tests:
   - id: sample-test
@@ -54,7 +55,8 @@ tests:
         value: "well"
 `,
   rubric: (name: string) => `description: ${name} evaluation suite
-target: default
+providers:
+  - default
 
 tests:
   - id: sample-test
@@ -78,11 +80,11 @@ const PROVIDER_TEMPLATE = `#!/usr/bin/env bun
 /**
  * Custom provider scaffold.
  *
- * AgentV providers are configured via .agentv/targets.yaml using the CLI provider:
+ * AgentV providers are configured via .agentv/providers.yaml using the CLI provider:
  *
- *   targets:
- *     - name: my-target
- *       provider: cli
+ *   providers:
+ *     - id: cli
+ *       label: my-provider
  *       command: "bun run .agentv/providers/<name>.ts {PROMPT}"
  *
  * This script receives the prompt as a CLI argument and prints the response to stdout.
@@ -168,7 +170,7 @@ export const createProviderCommand = command({
     await writeFile(filePath, PROVIDER_TEMPLATE);
     console.log(`Created ${path.relative(process.cwd(), filePath)} (template: ${templateName})`);
     console.log(
-      `\nConfigure in .agentv/targets.yaml:\n  targets:\n    - name: ${name}\n      provider: cli\n      command: "bun run .agentv/providers/${name}.ts {PROMPT}"`,
+      `\nConfigure in .agentv/providers.yaml:\n  providers:\n    - id: cli\n      label: ${name}\n      command: "bun run .agentv/providers/${name}.ts {PROMPT}"`,
     );
   },
 });

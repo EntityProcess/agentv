@@ -92,7 +92,7 @@ example-name/
 │   └── *.md                  # LLM grader prompts (optional)
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/
-│   └── targets.yaml          # Target configuration (optional)
+│   └── providers.yaml          # Target configuration (optional)
 ├── package.json              # Dependencies (if using @agentv/sdk)
 └── README.md                 # Example documentation
 ```

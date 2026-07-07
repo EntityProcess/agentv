@@ -37,5 +37,5 @@ uv run python scripts/check_expected_output.py < sample-grader-input.json
 To run the generated eval through AgentV from the repository root:
 
 ```bash
-bun apps/cli/src/cli.ts eval examples/features/sdk-python/evals/suite.yaml --target local_cli
+bun apps/cli/src/cli.ts eval examples/features/sdk-python/evals/suite.yaml --provider local_cli
 ```

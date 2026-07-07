@@ -1,0 +1,9 @@
+providers:
+  - id: cli
+    command: python3 -c "import argparse; parser = argparse.ArgumentParser();
+      parser.add_argument('--prompt', required=True);
+      parser.add_argument('--output', required=True); args, _ =
+      parser.parse_known_args(); open(args.output, 'w',
+      encoding='utf-8').write(args.prompt)" --prompt {PROMPT} --output
+      {OUTPUT_FILE}
+    label: local_cli

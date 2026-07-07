@@ -641,7 +641,7 @@ function normalizeOptions(
 
   const cliOutputDir = normalizeString(rawOptions.output);
 
-  // Normalize --target: can be a string (legacy) or string[] (multioption)
+  // Normalize provider selection: public --provider lowers into the historical internal target key.
   const rawTarget = rawOptions.target;
   let cliTargets: string[] = [];
   let singleTarget: string | undefined;
@@ -1437,7 +1437,7 @@ async function prepareFileMetadata(params: {
       },
     ];
   } else {
-    // Determine target names: CLI --target flags override YAML
+    // Determine provider labels: CLI --provider flags override YAML
     const cliTargets = effectiveOptions.cliTargets;
     const experimentTargets = effectiveOptions.experimentTargets ?? [];
     const suiteTargetSpec = suite.targetSpec;
@@ -1630,8 +1630,8 @@ async function runSingleEvalFile(params: {
   const explicitVariant = targetVariantForSelection(resolvedTargetSelection);
   const providerLabel = resolvedTargetSelection.resolvedTarget.kind;
   const targetMessage = options.verbose
-    ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
-    : `Using target: ${inlineTargetLabel}`;
+    ? `Using provider (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
+    : `Using provider: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
     console.log(`${targetMessage}`);
   }
@@ -2754,7 +2754,7 @@ export async function runEvalCommand(
     // Suggest resume commands when execution errors are detected
     if (summary.executionErrorCount > 0 && !options.retryErrors && !options.resume) {
       const evalFileArgs = activeTestFiles.map((f) => path.relative(cwd, f)).join(' ');
-      const targetFlag = options.target ? ` --target ${options.target}` : '';
+      const targetFlag = options.target ? ` --provider ${options.target}` : '';
       const relativeRunDir = path.relative(cwd, runDir);
       console.log(
         `\nTip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +

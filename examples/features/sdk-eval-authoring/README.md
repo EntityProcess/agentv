@@ -12,7 +12,7 @@ Demonstrates authoring an explicit `*.eval.ts` file with the `EvalConfig` type f
 ## Files
 
 - `evals/greeting.eval.ts` — the TypeScript eval config
-- `.agentv/targets.yaml` — local mock target for a zero-credential run
+- `.agentv/providers.yaml` — local mock target for a zero-credential run
 - `fixtures/per-test-note.md` — attached input file used by the suite
 
 ## How to Run

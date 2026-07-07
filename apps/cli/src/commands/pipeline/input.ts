@@ -1,5 +1,5 @@
 /**
- * `agentv pipeline input` — Extract eval inputs, target invocation info, and grader
+ * `agentv pipeline input` — Extract eval inputs, provider invocation info, and grader
  * configurations for subagent-mode eval runs.
  *
  * Reads an eval YAML file and writes a structured export directory that agents
@@ -67,15 +67,36 @@ export const evalInputCommand = command({
     target: option({
       type: optional(string),
       long: 'target',
-      description: 'Override target name from targets.yaml (mirrors eval run --target)',
+      description: '[Removed: use --provider <label>] Former provider selector',
     }),
     targets: option({
       type: optional(string),
       long: 'targets',
-      description: 'Path to targets.yaml (overrides discovery)',
+      description: '[Removed: use --providers <path>] Former providers.yaml path',
+    }),
+    provider: option({
+      type: optional(string),
+      long: 'provider',
+      description: 'Override provider label from providers.yaml',
+    }),
+    providers: option({
+      type: optional(string),
+      long: 'providers',
+      description: 'Path to providers.yaml (overrides discovery)',
     }),
   },
-  handler: async ({ evalPath, out, experiment, target, targets }) => {
+  handler: async ({ evalPath, out, experiment, target, targets, provider, providers }) => {
+    if (target !== undefined) {
+      throw new Error(
+        `--target was removed from agentv pipeline input. Use --provider ${target} instead.`,
+      );
+    }
+    if (targets !== undefined) {
+      throw new Error(
+        `--targets was removed from agentv pipeline input. Use --providers ${targets} instead.`,
+      );
+    }
+
     const resolvedEvalPath = resolve(evalPath);
     const outDir = resolve(out ?? buildDefaultRunDir(process.cwd(), experiment));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
@@ -90,9 +111,9 @@ export const evalInputCommand = command({
       process.exit(1);
     }
 
-    // Try to resolve target for CLI invocation info.
+    // Try to resolve provider for CLI invocation info.
     // Non-CLI providers default to agent mode (executor subagents) unless
-    // subagent_mode_allowed: false is set in targets.yaml.
+    // subagent_mode_allowed: false is set in providers.yaml.
     let targetInfo: { kind: 'cli'; command: string; cwd: string; timeoutMs: number } | null = null;
     let targetName = 'agent';
     let targetKind = 'agent';
@@ -103,8 +124,8 @@ export const evalInputCommand = command({
         testFilePath: resolvedEvalPath,
         repoRoot,
         cwd: evalDir,
-        cliTargetName: target,
-        explicitTargetsPath: targets,
+        cliTargetName: provider,
+        explicitTargetsPath: providers,
         env: process.env,
       });
 

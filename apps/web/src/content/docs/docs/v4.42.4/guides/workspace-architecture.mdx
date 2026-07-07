@@ -158,30 +158,30 @@ tested.
 ## World vs player boundary
 
 The eval workspace is the **world**: the same repos, fixtures, template files,
-and workspace hooks are shared by every target in the run. A target is the
+and workspace hooks are shared by every provider in the run. A provider is the
 **player**: the harness under evaluation, plus provider configuration and
-target-specific setup hooks.
+provider-specific setup hooks.
 
-Targets do **not** declare `repos`. Keeping repo provenance in the shared eval
-workspace is what makes multi-target comparison valid: every target sees the
+Providers do **not** declare `repos`. Keeping repo provenance in the shared eval
+workspace is what makes multi-provider comparison valid: every provider sees the
 same substrate, and differences in results come from the harness, not from a
 different checkout.
 
-Use target hooks for per-harness setup:
+Use provider hooks for per-harness setup:
 
 ```yaml
 execution:
-  targets:
+  providers:
     - baseline
     - name: with-skills
-      use_target: baseline
+      use_provider: baseline
       hooks:
         before_each:
           command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.claude/skills\""]
 ```
 
-Workspace hooks run first on setup, then target hooks. Teardown runs in the
-opposite order. See [Target Hooks](/docs/v4.42.4/targets/configuration/#target-hooks)
+Workspace hooks run first on setup, then provider hooks. Teardown runs in the
+opposite order. See [Provider Hooks](/docs/v4.42.4/targets/configuration/#provider-hooks)
 for the command schema and full lifecycle order.
 
 ## Windows performance guidance

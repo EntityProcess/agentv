@@ -5,7 +5,7 @@
  * The inline config mirrors the canonical YAML surface with TypeScript-friendly names.
  *
  * Run: bun run evaluate.ts
- * (Uses 'default' target from .agentv/targets.yaml and .env credentials)
+ * (Uses 'default' target from .agentv/providers.yaml and .env credentials)
  */
 import { evaluate } from '@agentv/sdk';
 

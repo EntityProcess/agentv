@@ -93,7 +93,7 @@ Start with 5–10 focused test cases. You can always add more as you discover ed
 Run the evaluation **without** the skill loaded to establish a baseline:
 
 ```bash
-agentv eval evals.json --target baseline
+agentv eval evals.json --provider baseline
 ```
 
 This produces a results file (e.g., `results-baseline.jsonl`) showing how the agent performs on its own.
@@ -111,7 +111,7 @@ drafts/
     SKILL.md
 
 # Baseline run won't pick it up
-agentv eval evals.json --target baseline
+agentv eval evals.json --provider baseline
 ```
 
 ## Step 3: Run Candidate Evaluation
@@ -119,7 +119,7 @@ agentv eval evals.json --target baseline
 Run the same evaluation **with** the skill loaded:
 
 ```bash
-agentv eval evals.json --target candidate
+agentv eval evals.json --provider candidate
 ```
 
 Or grade existing sessions offline (no API keys required):
@@ -198,7 +198,7 @@ Loop back to Step 3 with the improved skill:
 
 ```bash
 # Run the improved candidate
-agentv eval evals.json --target candidate
+agentv eval evals.json --provider candidate
 
 # Compare against the previous baseline
 agentv compare results-baseline.jsonl results-candidate.jsonl
@@ -256,11 +256,11 @@ If you've been using the Agent Skills skill-creator workflow, AgentV reads your 
 | Skill-Creator | AgentV | Notes |
 |--------------|--------|-------|
 | `evals.json` | `agentv eval evals.json` | Direct — no conversion needed |
-| `claude -p "prompt"` | `agentv eval evals.json --target claude` | Same eval, richer engine |
+| `claude -p "prompt"` | `agentv eval evals.json --provider claude` | Same eval, richer engine |
 | `grading.json` (read) | `<test-id>/grading.json` (write) | Same per-test schema, AgentV writes one grading file per test case |
 | `benchmark.json` (read) | `<output>/benchmark.json` (write) | AgentV writes the canonical run summary; convert it in a wrapper if another tool needs a narrower compatibility shape |
 | n/a | `index.jsonl` (write) | AgentV-specific per-test manifest for filtering, retry, and replay workflows |
-| with-skill vs without-skill | `--target baseline --target candidate` | Structured comparison |
+| with-skill vs without-skill | `--provider baseline --provider candidate` | Structured comparison |
 | Graduate to richer evals | `agentv convert evals.json` → EVAL.yaml | Adds workspace, code graders, etc. |
 
 **Key takeaway:** You do not need to rewrite your `evals.json`. AgentV reads it directly and adds a richer evaluation engine on top.
@@ -279,7 +279,7 @@ agentv pipeline run evals/my-eval.yaml --experiment with_skills
 
 Both runs use the same eval file and produce separate run directories. The experiment label is recorded in `manifest.json` and `index.jsonl`, making it easy to filter and compare in dashboards.
 
-This replaces the need for separate `--target baseline` / `--target candidate` configurations when the only difference between runs is the workspace setup (skills, config, etc.) rather than the target harness.
+This replaces the need for separate `--provider baseline` / `--provider candidate` configurations when the only difference between runs is the workspace setup (skills, config, etc.) rather than the provider harness.
 
 ## Baseline Comparison Best Practices
 

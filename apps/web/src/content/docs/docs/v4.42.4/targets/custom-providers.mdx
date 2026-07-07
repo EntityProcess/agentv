@@ -8,7 +8,7 @@ editUrl: false
 pagefind: false
 ---
 
-Custom providers let you implement evaluation targets in TypeScript instead of shelling out to a CLI command. This is useful when you want to call an HTTP API, use an SDK, or implement custom logic that goes beyond what the CLI provider supports.
+Custom providers let you implement evaluation providers in TypeScript instead of shelling out to a CLI command. This is useful when you want to call an HTTP API, use an SDK, or implement custom logic that goes beyond what the CLI provider supports.
 
 ## Provider Interface
 
@@ -175,20 +175,20 @@ registry.register('http-agent', (target: ResolvedTarget) => {
 });
 ```
 
-Then reference it in your targets file:
+Then reference it in your providers file:
 
 ```yaml
 # .agentv/config.yaml
-targets:
-  - id: my-http-agent
-    provider: http-agent
+providers:
+  - id: http-agent
+    label: my-http-agent
     runtime: host
     config:
       base_url: http://localhost:8080
 
 graders:
-  - id: azure-grader
-    provider: azure
+  - id: azure
+    label: azure-grader
     config:
       endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
       api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -204,11 +204,11 @@ Custom provider kinds are not validated against the built-in provider list. When
 
 ## CLI Providers vs Native Providers
 
-AgentV supports two approaches for custom targets:
+AgentV supports two approaches for custom providers:
 
 | Aspect | CLI Provider | Native TypeScript Provider |
 |--------|-------------|---------------------------|
-| **Configuration** | YAML only (`provider: cli`) | TypeScript code + YAML |
+| **Configuration** | YAML only (`id: cli`) | TypeScript code + YAML |
 | **Communication** | Shell command + JSON output file | Direct function call |
 | **Best for** | Wrapping existing scripts, polyglot tools | HTTP APIs, SDKs, complex orchestration |
 | **Setup** | No code required | Requires a TypeScript entry point |
@@ -217,15 +217,15 @@ AgentV supports two approaches for custom targets:
 
 ### When to use CLI providers
 
-Use `provider: cli` when:
+Use `id: cli` when:
 - You have an existing script or binary to wrap
 - The agent is written in a different language (Python, Go, etc.)
 - You want zero TypeScript code
 
 ```yaml
-targets:
-  - id: python-agent
-    provider: cli
+providers:
+  - id: cli
+    label: python-agent
     runtime: host
     config:
       command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'

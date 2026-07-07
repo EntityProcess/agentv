@@ -1,0 +1,8 @@
+providers:
+  - id: cli
+    provider_batching: false
+    verbose: true
+    command: bun run ../mock_extractor.ts {FILES} {OUTPUT_FILE}
+    healthcheck:
+      command: bun --version
+    label: mock_extractor

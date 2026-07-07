@@ -1,0 +1,4 @@
+providers:
+  - id: mock
+    response: '{"riskLevel": "High", "reasoning": "Mock response for testing"}'
+    label: default

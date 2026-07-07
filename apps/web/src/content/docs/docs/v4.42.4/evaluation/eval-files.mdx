@@ -174,14 +174,14 @@ prompts:
     label: Terse
     prompt: "In one sentence, summarize {{ vars.topic }}."
 
-targets:
-  - id: local-mini
-    provider: openai
+providers:
+  - id: openai
+    label: local-mini
     runtime: host
     config:
       model: gpt-5.4-mini
-  - id: local-codex
-    provider: codex-app-server
+  - id: codex-app-server
+    label: local-codex
     runtime: host
     config:
       command: ["codex", "app-server"]

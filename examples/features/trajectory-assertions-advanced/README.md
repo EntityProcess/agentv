@@ -15,7 +15,7 @@ Demonstrates Promptfoo-compatible trajectory assertions combined with expected o
 ```bash
 # From repository root
 cd examples/features
-bun agentv eval trajectory-assertions-advanced/evals/trace-file-demo.eval.yaml --target static_trace
+bun agentv eval trajectory-assertions-advanced/evals/trace-file-demo.eval.yaml --provider static_trace
 ```
 
 ## Setup

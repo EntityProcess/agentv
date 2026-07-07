@@ -1,0 +1,5 @@
+providers:
+  - id: replay
+    transcripts: ../fixtures/copilot-transcript.jsonl
+    source_target: copilot-cli
+    label: copilot-transcript-replay

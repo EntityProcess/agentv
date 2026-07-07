@@ -1,13 +1,13 @@
 /**
- * `agentv pipeline run` — Combined command that runs input extraction, CLI target
+ * `agentv pipeline run` — Combined command that runs input extraction, CLI provider
  * invocation, and code grading in a single step.
  *
  * Equivalent to running:
  *   1. `agentv pipeline input <eval> --out <dir>`
- *   2. Invoking each CLI target in parallel (writing response.md + metrics.json)
+ *   2. Invoking each CLI provider in parallel (writing response.md + metrics.json)
  *   3. `agentv pipeline grade <dir>`
  *
- * For `kind: agent` targets, step 2 is skipped (subagent handles execution).
+ * For `kind: agent` providers, step 2 is skipped (subagent handles execution).
  *
  * To add new features: extend the handler — all logic is self-contained.
  */
@@ -64,7 +64,7 @@ function loadEnvFile(dir: string): Record<string, string> {
 export const evalRunCommand = command({
   name: 'run',
   description:
-    'Extract inputs, invoke CLI targets, and run script graders (for agent targets, use pipeline input + subagents)',
+    'Extract inputs, invoke CLI providers, and run script graders (for agent providers, use pipeline input + subagents)',
   args: {
     evalPath: positional({
       type: string,
@@ -79,7 +79,8 @@ export const evalRunCommand = command({
     workers: option({
       type: optional(number),
       long: 'workers',
-      description: 'Parallel workers for target invocation (default: targets.yaml workers, then 5)',
+      description:
+        'Parallel workers for provider invocation (default: providers.yaml workers, then 5)',
     }),
     experiment: option({
       type: optional(string),
@@ -95,15 +96,46 @@ export const evalRunCommand = command({
     target: option({
       type: optional(string),
       long: 'target',
-      description: 'Override target name from targets.yaml (mirrors eval run --target)',
+      description: '[Removed: use --provider <label>] Former provider selector',
     }),
     targets: option({
       type: optional(string),
       long: 'targets',
-      description: 'Path to targets.yaml (overrides discovery)',
+      description: '[Removed: use --providers <path>] Former providers.yaml path',
+    }),
+    provider: option({
+      type: optional(string),
+      long: 'provider',
+      description: 'Override provider label from providers.yaml',
+    }),
+    providers: option({
+      type: optional(string),
+      long: 'providers',
+      description: 'Path to providers.yaml (overrides discovery)',
     }),
   },
-  handler: async ({ evalPath, out, workers, experiment, graderType, target, targets }) => {
+  handler: async ({
+    evalPath,
+    out,
+    workers,
+    experiment,
+    graderType,
+    target,
+    targets,
+    provider,
+    providers,
+  }) => {
+    if (target !== undefined) {
+      throw new Error(
+        `--target was removed from agentv pipeline run. Use --provider ${target} instead.`,
+      );
+    }
+    if (targets !== undefined) {
+      throw new Error(
+        `--targets was removed from agentv pipeline run. Use --providers ${targets} instead.`,
+      );
+    }
+
     const resolvedEvalPath = resolve(evalPath);
     const outDir = resolve(out ?? buildDefaultRunDir(process.cwd(), experiment));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
@@ -134,8 +166,8 @@ export const evalRunCommand = command({
         testFilePath: resolvedEvalPath,
         repoRoot,
         cwd: evalDir,
-        cliTargetName: target,
-        explicitTargetsPath: targets,
+        cliTargetName: provider,
+        explicitTargetsPath: providers,
         env: process.env,
       });
       targetName = selection.targetName;

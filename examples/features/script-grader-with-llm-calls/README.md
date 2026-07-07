@@ -231,10 +231,10 @@ The `createTargetClient()` function reads these automatically.
 # From the agentv monorepo root:
 
 # Run contextual precision evaluation
-agentv eval examples/features/script-grader-with-llm-calls/evals/contextual-precision.eval.yaml --target gemini-llm
+agentv eval examples/features/script-grader-with-llm-calls/evals/contextual-precision.eval.yaml --provider gemini-llm
 
 # Run contextual recall evaluation
-agentv eval examples/features/script-grader-with-llm-calls/evals/contextual-recall.eval.yaml --target gemini-llm
+agentv eval examples/features/script-grader-with-llm-calls/evals/contextual-recall.eval.yaml --provider gemini-llm
 ```
 
 ### Expected Results

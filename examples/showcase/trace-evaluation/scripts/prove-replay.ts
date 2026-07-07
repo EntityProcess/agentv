@@ -17,7 +17,7 @@ function runEval(): void {
       'apps/cli/src/cli.ts',
       'eval',
       'examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml',
-      '--target',
+      '--provider',
       'replay_coding_agent',
       '--output',
       resultDir,

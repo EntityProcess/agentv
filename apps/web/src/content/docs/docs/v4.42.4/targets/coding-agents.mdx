@@ -1,6 +1,6 @@
 ---
 title: Coding Agents
-description: Evaluate coding agent targets
+description: Evaluate coding agent providers
 sidebar:
   order: 3
 slug: docs/v4.42.4/targets/coding-agents
@@ -8,21 +8,21 @@ editUrl: false
 pagefind: false
 ---
 
-Coding agent targets evaluate assistants that run against a real workspace. They
-use the target shape `id`, `provider`, `runtime`, and `config`. The target `id`
-is AgentV's stable selection and artifact identity. `provider` names the
-adapter or control boundary. `runtime` names where the target runs. Provider
-settings live under `config`.
+Coding agent providers evaluate assistants that run against a real workspace.
+They use the provider shape `id`, `label`, `runtime`, and `config`. `id` names
+the backend or package provider spec. `label` is AgentV's stable selection and
+artifact identity. `runtime` names where the provider runs. Provider settings
+live under `config`.
 
-Use `defaults.grader`, CLI `--grader` / `--grader-target`, or an
-evaluator-specific target override for LLM-based grading. Grader selection is
-separate from the coding-agent target, so target definitions do not carry a
+Use `defaults.grader`, CLI `--grader` / `--grader-provider`, or an
+evaluator-specific provider override for LLM-based grading. Grader selection is
+separate from the coding-agent provider, so provider definitions do not carry a
 grader field.
 
 ```yaml
-targets:
-  - id: codex-local
-    provider: codex-app-server
+providers:
+  - id: codex-app-server
+    label: codex-local
     runtime: host
     config:
       command: ["codex", "app-server"]
@@ -30,13 +30,13 @@ targets:
       reasoning_effort: high
 
 graders:
-  - id: openai-grader
-    provider: openai
+  - id: openai
+    label: openai-grader
     config:
       model: gpt-5-mini
 
 defaults:
-  target: codex-local
+  provider: codex-local
   grader: openai-grader
 
 execution:
@@ -61,9 +61,9 @@ be evaluated only by intentionally mounting or seeding the profile directory
 the agent needs, which trades portability for fidelity to the local agent setup.
 
 ```yaml
-targets:
-  - id: codex-clean-profile
-    provider: codex-cli
+providers:
+  - id: codex-cli
+    label: codex-clean-profile
     runtime:
       mode: profile
       codex_home: .agentv/profiles/codex-clean
@@ -76,9 +76,9 @@ targets:
 ```
 
 ```yaml
-targets:
-  - id: codex-ci-sandbox
-    provider: codex-cli
+providers:
+  - id: codex-cli
+    label: codex-ci-sandbox
     runtime:
       mode: sandbox
       engine: docker
@@ -137,7 +137,7 @@ bun add --optional @anthropic-ai/claude-agent-sdk
 bun add --optional @github/copilot-sdk
 ```
 
-Missing SDK packages are reported as target execution failures from the child
+Missing SDK packages are reported as provider execution failures from the child
 runner. Prefer the process/protocol providers for default local and CI runs,
 and choose an SDK provider only when SDK-native events or lifecycle control are
 the behavior under test.
@@ -147,9 +147,9 @@ the behavior under test.
 Use `codex-app-server` when you want rich protocol control:
 
 ```yaml
-targets:
-  - id: codex-local
-    provider: codex-app-server
+providers:
+  - id: codex-app-server
+    label: codex-local
     runtime: host
     config:
       command: ["codex", "app-server"]
@@ -162,9 +162,9 @@ Use `codex-cli` when a simple CLI boundary is enough or when you want an
 operator-specific shim:
 
 ```yaml
-targets:
-  - id: codex-eng
-    provider: codex-cli
+providers:
+  - id: codex-cli
+    label: codex-eng
     runtime: host
     config:
       command: ["codex-eng", "exec", "--json"]
@@ -174,9 +174,9 @@ targets:
 Use `codex-sdk` only when you intentionally want the Codex SDK path:
 
 ```yaml
-targets:
-  - id: codex-sdk-isolated
-    provider: codex-sdk
+providers:
+  - id: codex-sdk
+    label: codex-sdk-isolated
     runtime: host
     config:
       model: gpt-5-codex
@@ -192,9 +192,9 @@ Common Codex config fields include `command`, `model`, `reasoning_effort`,
 Use `pi-rpc` for the rich stdio/RPC boundary:
 
 ```yaml
-targets:
-  - id: pi-rpc-local
-    provider: pi-rpc
+providers:
+  - id: pi-rpc
+    label: pi-rpc-local
     runtime: host
     config:
       command: ["pi"]
@@ -205,9 +205,9 @@ targets:
 Use `pi-cli` for simple subprocess execution:
 
 ```yaml
-targets:
-  - id: pi-cli-local
-    provider: pi-cli
+providers:
+  - id: pi-cli
+    label: pi-cli-local
     runtime:
       mode: profile
       home: .agentv/profiles/pi-local
@@ -221,9 +221,9 @@ targets:
 Use `pi-sdk` only when you intentionally want the SDK path:
 
 ```yaml
-targets:
-  - id: pi-sdk-isolated
-    provider: pi-sdk
+providers:
+  - id: pi-sdk
+    label: pi-sdk-isolated
     runtime: host
     config:
       subprovider: openai-codex
@@ -240,9 +240,9 @@ Azure provider path for custom gateways.
 ## Claude
 
 ```yaml
-targets:
-  - id: claude-local
-    provider: claude-cli
+providers:
+  - id: claude-cli
+    label: claude-local
     runtime: host
     config:
       command: ["claude"]
@@ -255,9 +255,9 @@ locally. Use `claude-sdk` only when you intentionally want the Claude Agent SDK
 path:
 
 ```yaml
-targets:
-  - id: claude-sdk-isolated
-    provider: claude-sdk
+providers:
+  - id: claude-sdk
+    label: claude-sdk-isolated
     runtime: host
     config:
       model: claude-sonnet-4-20250514
@@ -271,9 +271,9 @@ and `system_prompt`.
 ## Copilot
 
 ```yaml
-targets:
-  - id: copilot-local
-    provider: copilot-cli
+providers:
+  - id: copilot-cli
+    label: copilot-local
     runtime: host
     config:
       command: ["copilot"]
@@ -283,9 +283,9 @@ targets:
 Route Copilot through an OpenAI-compatible endpoint:
 
 ```yaml
-targets:
-  - id: copilot-openai
-    provider: copilot-cli
+providers:
+  - id: copilot-cli
+    label: copilot-openai
     runtime: host
     config:
       command: ["copilot"]
@@ -303,9 +303,9 @@ agentv import copilot --session-id <uuid> -o .agentv/transcripts/copilot-case.js
 ```
 
 ```yaml
-targets:
-  - id: copilot-session-replay
-    provider: replay
+providers:
+  - id: replay
+    label: copilot-session-replay
     config:
       transcripts: .agentv/transcripts/copilot-case.jsonl
       source_target: copilot-cli
@@ -314,9 +314,9 @@ targets:
 Use `copilot-sdk` only when you intentionally want the SDK path:
 
 ```yaml
-targets:
-  - id: copilot-sdk-isolated
-    provider: copilot-sdk
+providers:
+  - id: copilot-sdk
+    label: copilot-sdk-isolated
     runtime: host
     config:
       model: gpt-5-mini
@@ -366,9 +366,9 @@ LLM providers receive file content inline instead; see
 For deterministic harness checks without a real provider:
 
 ```yaml
-targets:
-  - id: mock-target
-    provider: mock
+providers:
+  - id: mock
+    label: mock-target
     runtime: host
     config:
       response: ok

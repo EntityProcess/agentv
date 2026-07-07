@@ -44,6 +44,6 @@ bun agentv eval ./evals/suite.yaml
 │   ├── reset.ts                   # after_each: git reset
 │   └── validate-sync.ts           # script grader
 ├── .agentv/
-│   └── targets.yaml               # Mock CLI agent
+│   └── providers.yaml               # Mock CLI agent
 └── package.json
 ```

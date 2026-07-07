@@ -15,7 +15,7 @@ Demonstrates rubric-based evaluation with weights, required flags, and auto-gene
 
 ```bash
 # From repository root
-bun agentv eval examples/features/rubric/evals/suite.yaml --target default
+bun agentv eval examples/features/rubric/evals/suite.yaml --provider default
 ```
 
 ## Key Files

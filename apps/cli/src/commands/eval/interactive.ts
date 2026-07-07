@@ -3,7 +3,7 @@ import path from 'node:path';
 import { listTargetNames, readTargetDefinitions } from '@agentv/core';
 import { checkbox, confirm, number, search, select } from '@inquirer/prompts';
 
-import { TARGET_FILE_CANDIDATES, fileExists } from '../../utils/targets.js';
+import { PROVIDER_FILE_CANDIDATES, fileExists } from '../../utils/targets.js';
 import {
   type DiscoveredEvalFile,
   discoverEvalFiles,
@@ -98,7 +98,7 @@ async function promptMainMenu(
       choices.push({
         name: '⏯  Resume last run',
         value: 'resume',
-        description: `${dirLabel} (target: ${lastConfig.target})`,
+        description: `${dirLabel} (provider: ${lastConfig.target})`,
       });
     }
   }
@@ -108,7 +108,7 @@ async function promptMainMenu(
     choices.push({
       name: '🔄 Rerun last config',
       value: 'rerun',
-      description: `${evalCount} eval file(s), target: ${lastConfig.target}`,
+      description: `${evalCount} eval file(s), provider: ${lastConfig.target}`,
     });
   }
 
@@ -143,7 +143,7 @@ async function promptNewEvaluation(cwd: string): Promise<InteractiveConfig | und
     return undefined;
   }
 
-  // Step 3: Select target
+  // Step 3: Select provider
   const target = await promptTargetSelection(cwd, selectedFiles[0].path);
 
   // Step 4: Advanced options
@@ -217,12 +217,12 @@ async function promptTargetSelection(cwd: string, firstEvalPath: string): Promis
   }
 
   if (targetNames.length === 1) {
-    console.log(`${ANSI_DIM}Using target: ${targetNames[0]}${ANSI_RESET}`);
+    console.log(`${ANSI_DIM}Using provider: ${targetNames[0]}${ANSI_RESET}`);
     return targetNames[0];
   }
 
   return search<string>({
-    message: 'Select a target (type to search)',
+    message: 'Select a provider (type to search)',
     source: async (term) => {
       const filtered = term
         ? targetNames.filter((t) => t.toLowerCase().includes(term.toLowerCase()))
@@ -232,7 +232,7 @@ async function promptTargetSelection(cwd: string, firstEvalPath: string): Promis
         return {
           name: t,
           value: t,
-          description: def ? `provider: ${def.provider}` : undefined,
+          description: def ? `backend: ${def.provider}` : undefined,
         };
       });
     },
@@ -263,7 +263,7 @@ async function findTargetsFile(
   }
 
   for (const dir of dirsToSearch) {
-    for (const candidate of TARGET_FILE_CANDIDATES) {
+    for (const candidate of PROVIDER_FILE_CANDIDATES) {
       const fullPath = `${dir}/${candidate}`;
       if (await fileExists(fullPath)) {
         return fullPath;
@@ -314,7 +314,7 @@ async function promptReviewAndConfirm(config: InteractiveConfig, cwd: string): P
   console.log(`\n${ANSI_BOLD}Review Configuration${ANSI_RESET}`);
   console.log(`${ANSI_DIM}${'─'.repeat(40)}${ANSI_RESET}`);
   console.log(`${ANSI_GREEN}Eval files:${ANSI_RESET}\n${evalDisplay}`);
-  console.log(`${ANSI_GREEN}Target:${ANSI_RESET}    ${config.target}`);
+  console.log(`${ANSI_GREEN}Provider:${ANSI_RESET}  ${config.target}`);
   console.log(`${ANSI_GREEN}Workers:${ANSI_RESET}   ${config.workers}`);
   console.log(`${ANSI_GREEN}Cache:${ANSI_RESET}     ${config.cache ? 'yes' : 'no'}`);
   console.log(`${ANSI_DIM}${'─'.repeat(40)}${ANSI_RESET}`);

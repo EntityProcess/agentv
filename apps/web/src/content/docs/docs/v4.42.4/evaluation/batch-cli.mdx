@@ -238,24 +238,25 @@ expected_output:
 
 The grader extracts these fields and compares them against the parsed candidate output.
 
-## Target Configuration
+## Provider Configuration
 
-Configure the batch CLI provider in your targets file or eval file:
+Configure the batch CLI provider in your providers file or eval file:
 
 ```yaml
-# In agentv-targets.yaml or eval file
-targets:
-  batch_cli:
-    provider: cli
-    command: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}
-    provider_batching: true
+# In .agentv/providers.yaml or an eval file
+providers:
+  - id: cli
+    label: batch-cli
+    config:
+      command: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}
+      provider_batching: true
 ```
 
 Key settings:
 
 | Setting | Description |
 |---------|-------------|
-| `provider: cli` | Use the CLI provider |
+| `id: cli` | Use the CLI provider |
 | `provider_batching: true` | Run once for all tests instead of per-test |
 | `{EVAL_FILE}` | Placeholder replaced with the eval file path |
 | `{OUTPUT_FILE}` | Placeholder replaced with the JSONL output path |

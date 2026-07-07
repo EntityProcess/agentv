@@ -11,7 +11,7 @@ This showcase demonstrates trace evaluation as target substitution:
 
 ```text
 trace-evaluation/
-├── .agentv/targets.yaml
+├── .agentv/providers.yaml
 ├── evals/
 │   ├── coding-agent-replay.eval.yaml
 │   └── transcript-import.eval.yaml
@@ -33,7 +33,7 @@ From the repository root:
 ```bash
 bun apps/cli/src/cli.ts eval \
   examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml \
-  --target replay_coding_agent \
+  --provider replay_coding_agent \
   --output /tmp/agentv-trace-showcase-replay-run
 ```
 
@@ -81,7 +81,7 @@ target and `--record-replay`:
 ```bash
 bun apps/cli/src/cli.ts eval \
   examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml \
-  --target live_coding_agent \
+  --provider live_coding_agent \
   --record-replay examples/showcase/trace-evaluation/fixtures/replay-target-output.jsonl \
   --output /tmp/agentv-trace-showcase-live-run
 ```

@@ -42,7 +42,7 @@ examples/red-team/
 
 ```bash
 # Single suite against your own target
-agentv eval examples/red-team/suites/llm01-prompt-injection.yaml --target your-target
+agentv eval examples/red-team/suites/llm01-prompt-injection.yaml --provider your-target
 
 # Filter by governance tag (any built-in jq pipeline works because the metadata
 # is present verbatim in the JSONL):

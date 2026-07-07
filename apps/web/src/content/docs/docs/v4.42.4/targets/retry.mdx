@@ -15,9 +15,9 @@ Configure automatic retry with exponential backoff for transient failures.
 Add retry fields to any target:
 
 ```yaml
-targets:
-  - id: azure-base
-    provider: azure
+providers:
+  - id: azure
+    label: azure-base
     runtime: host
     config:
       endpoint: ${{ AZURE_OPENAI_ENDPOINT }}

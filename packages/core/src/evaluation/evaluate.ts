@@ -743,7 +743,7 @@ function computeSummary(
   };
 }
 
-const TARGET_FILE_CANDIDATES = ['.agentv/providers.yaml', '.agentv/providers.yml'] as const;
+const PROVIDER_FILE_CANDIDATES = ['.agentv/providers.yaml', '.agentv/providers.yml'] as const;
 
 /**
  * Auto-discover the 'default' provider from providers.yaml in the repo tree.
@@ -753,7 +753,7 @@ async function discoverDefaultTarget(repoRoot: string): Promise<TargetDefinition
   const chain = buildDirectoryChain(path.join(cwd, '_placeholder'), repoRoot);
 
   for (const dir of chain) {
-    for (const candidate of TARGET_FILE_CANDIDATES) {
+    for (const candidate of PROVIDER_FILE_CANDIDATES) {
       const targetsPath = path.join(dir, candidate);
       if (!existsSync(targetsPath)) continue;
       try {

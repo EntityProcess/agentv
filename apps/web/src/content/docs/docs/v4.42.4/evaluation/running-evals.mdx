@@ -54,7 +54,7 @@ The `duration_ms`, `started_at`, and `ended_at` fields are present on every grad
 Run against a different target than specified in the eval file:
 
 ```bash
-agentv eval --target my-target evals/**/*.yaml
+agentv eval --provider my-target evals/**/*.yaml
 ```
 
 ### Experiment Label
@@ -215,7 +215,7 @@ agentv eval evals/my-eval.yaml --workers 4
 agentv eval evals/file1.yaml evals/file2.yaml evals/file3.yaml --workers 3
 # Files run one at a time; within each file, up to 3 test cases run in parallel
 
-agentv eval evals/my-eval.yaml --target gpt --target claude --workers 4
+agentv eval evals/my-eval.yaml --provider gpt --provider claude --workers 4
 # The target matrix shares the same 4-worker budget
 ```
 
@@ -462,22 +462,22 @@ Use `config.yaml` for portable defaults and shared eval-definition fields that c
 
 ### YAML config (`config.yaml` plus optional `config.local.yaml`)
 
-Project config and eval YAML share the same eval-definition graph for targets,
+Project config and eval YAML share the same eval-definition graph for providers,
 graders, tests, defaults, and execution policy. Small projects can keep that
 graph inline:
 
 ```yaml
-targets:
-  - id: codex-local
-    provider: codex-app-server
+providers:
+  - id: codex-app-server
+    label: codex-local
     runtime: host
     config:
       command: ["codex", "app-server"]
       model: gpt-5-codex
 
 graders:
-  - id: openai-grader
-    provider: openai
+  - id: openai
+    label: openai-grader
     config:
       model: gpt-5-mini
 
@@ -486,7 +486,7 @@ tests:
     input: Fix the failing test
 
 defaults:
-  target: codex-local
+  provider: codex-local
   grader: openai-grader
 
 execution:
@@ -498,7 +498,7 @@ Larger projects can decompose any supported top-level field with a direct
 directly:
 
 ```yaml
-targets: file://targets.yaml
+providers: file://providers.yaml
 graders: file://graders.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
@@ -506,9 +506,9 @@ execution: file://execution.yaml
 ```
 
 ```yaml
-# .agentv/targets.yaml
-- id: codex-local
-  provider: codex-app-server
+# .agentv/providers.yaml
+- id: codex-app-server
+  label: codex-local
   runtime: host
   config:
     command: ["codex", "app-server"]
@@ -516,13 +516,13 @@ execution: file://execution.yaml
 
 ```yaml
 # .agentv/defaults.yaml
-target: codex-local
+provider: codex-local
 grader: openai-grader
 ```
 
 Do not wrap referenced field files in another object. For example,
-`targets: file://targets.yaml` expects `targets.yaml` to contain a bare array,
-not `{ targets: [...] }`.
+`providers: file://providers.yaml` expects `providers.yaml` to contain a bare
+array, not `{ providers: [...] }`.
 
 In authored eval YAML, use `evaluate_options.max_concurrency` for suite
 parallelism. In `.agentv/config.yaml`, operators can set
@@ -598,31 +598,31 @@ export default defineConfig({
 
 Response cache and replay are separate concepts. The response cache is an iteration aid for repeated live provider calls. Transcript or fixture replay is target substitution from curated artifacts, and graders still run fresh against the replayed output.
 
-## Replay Target Fixtures
+## Replay Provider Fixtures
 
-Replay target fixtures let you record live target output once, then swap in a replay target alias for later runs without changing eval YAML or grader config. This is useful for expensive coding-agent and document-intelligence runs where you want deterministic target output but fresh grading.
+Replay provider fixtures let you record live provider output once, then swap in a replay provider alias for later runs without changing eval YAML or grader config. This is useful for expensive coding-agent and document-intelligence runs where you want deterministic provider output but fresh grading.
 
-Record target output from the live target with `--record-replay`:
+Record provider output from the live provider with `--record-replay`:
 
 ```bash
 agentv eval evals/legal-review.eval.yaml \
-  --target live_coding_agent \
+  --provider live_coding_agent \
   --record-replay fixtures/legal-review-target-output.jsonl
 ```
 
-Then add a replay target alias in `.agentv/targets.yaml`:
+Then add a replay provider alias in `.agentv/providers.yaml`:
 
 ```yaml
-targets:
-  - id: live_coding_agent
-    provider: codex-cli
+providers:
+  - id: codex-cli
+    label: live_coding_agent
     runtime: host
     config:
       command: ["codex"]
       model: gpt-5
 
-  - id: replay_coding_agent
-    provider: replay
+  - id: replay
+    label: replay_coding_agent
     runtime: host
     config:
       fixtures: ../fixtures/legal-review-target-output.jsonl
@@ -633,7 +633,7 @@ targets:
 Run the same eval against the replay alias:
 
 ```bash
-agentv eval evals/legal-review.eval.yaml --target replay_coding_agent
+agentv eval evals/legal-review.eval.yaml --provider replay_coding_agent
 ```
 
 Replay fixture rows are strict snake_case JSONL. Each row is keyed by `suite` or `eval_path`, `test_id`, `source_target`, `attempt`, and optional `variant`; missing or duplicate rows fail before grading. Rows preserve the recorded target `output`, `tool_calls`, `transcript`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, and `end_time` when the live provider supplied them.

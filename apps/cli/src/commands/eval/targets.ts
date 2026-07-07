@@ -41,7 +41,7 @@ function resolveUseTarget(
   if (!current) {
     const available = listTargetNames(definitions).join(', ');
     throw new Error(
-      `Target '${name}' not found in ${targetsFilePath}. Available targets: ${available}`,
+      `Provider '${name}' not found in ${targetsFilePath}. Available providers: ${available}`,
     );
   }
 
@@ -60,7 +60,7 @@ function resolveUseTarget(
     if (!next) {
       const available = listTargetNames(definitions).join(', ');
       throw new Error(
-        `Target '${name}' use_target '${resolved.trim()}' not found in ${targetsFilePath}. Available targets: ${available}`,
+        `Provider '${name}' use_target '${resolved.trim()}' not found in ${targetsFilePath}. Available providers: ${available}`,
       );
     }
     current = next;
@@ -195,7 +195,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
       const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
       console.error(`${prefix}${location} ${message}`);
     }
-    throw new Error(`Targets file validation failed with ${errors.length} error(s)`);
+    throw new Error(`Providers file validation failed with ${errors.length} error(s)`);
   }
 
   const definitions = await readTargetDefinitions(targetsFilePath);
@@ -233,7 +233,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to resolve target '${targetChoice.name}': ${message}`);
+    throw new Error(`Failed to resolve provider '${targetChoice.name}': ${message}`);
   }
 }
 
@@ -303,7 +303,7 @@ export async function selectMultipleTargets(
       const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
       console.error(`${prefix}${location} ${message}`);
     }
-    throw new Error(`Targets file validation failed with ${errors.length} error(s)`);
+    throw new Error(`Providers file validation failed with ${errors.length} error(s)`);
   }
 
   const fileDefinitions = await readTargetDefinitions(targetsFilePath);
@@ -345,7 +345,7 @@ export async function selectMultipleTargets(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to resolve target '${name}': ${message}`);
+      throw new Error(`Failed to resolve provider '${name}': ${message}`);
     }
   }
 

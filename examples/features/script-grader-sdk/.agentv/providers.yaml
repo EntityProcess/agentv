@@ -1,10 +1,11 @@
-targets:
-  - id: local_cli
-    provider: cli
+providers:
+  - id: cli
     grader_target: grader
-    command: uv run ../local-cli/mock_cli.py --prompt {PROMPT} {FILES} --output {OUTPUT_FILE}
+    command: uv run ../local-cli/mock_cli.py --prompt {PROMPT} {FILES} --output
+      {OUTPUT_FILE}
     files_format: --file {path}
     cwd: ..
     healthcheck:
       command: uv run ../local-cli/mock_cli.py --healthcheck
       cwd: ..
+    label: local_cli

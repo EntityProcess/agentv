@@ -19,4 +19,4 @@ bun agentv eval examples/features/local-cli/evals/suite.yaml
 ## Key Files
 
 - `evals/suite.yaml` - Test cases with file attachments
-- `.agentv/targets.yaml` - Local CLI target configuration
+- `.agentv/providers.yaml` - Local CLI target configuration

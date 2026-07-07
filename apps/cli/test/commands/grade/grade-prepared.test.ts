@@ -139,7 +139,7 @@ describe('agentv grade prepared attempts', () => {
     const runDir = path.join(tempDir, 'runs', 'prepared-grade');
 
     await runCli(
-      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      ['prepare', evalPath, '--test-id', 'case-1', '--provider', 'codex', '--out', preparedDir],
       tempDir,
     );
     await writeFile(
@@ -272,7 +272,7 @@ describe('agentv grade prepared attempts', () => {
     const runDir = path.join(tempDir, 'runs', 'trace-tools');
 
     await runCli(
-      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      ['prepare', evalPath, '--test-id', 'case-1', '--provider', 'codex', '--out', preparedDir],
       tempDir,
     );
     await writeFile(
@@ -331,7 +331,7 @@ describe('agentv grade prepared attempts', () => {
     const tracePath = path.join(tempDir, 'trace.jsonl');
 
     await runCli(
-      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      ['prepare', evalPath, '--test-id', 'case-1', '--provider', 'codex', '--out', preparedDir],
       tempDir,
     );
     await writeFile(
@@ -447,7 +447,7 @@ describe('agentv grade prepared attempts', () => {
     const tracePath = path.join(tempDir, 'wrong-transcript-target.jsonl');
 
     await runCli(
-      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      ['prepare', evalPath, '--test-id', 'case-1', '--provider', 'codex', '--out', preparedDir],
       tempDir,
     );
     await writeFile(
@@ -491,7 +491,7 @@ describe('agentv grade prepared attempts', () => {
     const tracePath = path.join(tempDir, 'wrong-envelope-target.json');
 
     await runCli(
-      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      ['prepare', evalPath, '--test-id', 'case-1', '--provider', 'codex', '--out', preparedDir],
       tempDir,
     );
     await writeFile(
