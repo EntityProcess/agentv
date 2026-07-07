@@ -652,43 +652,68 @@ const EvalLocalTargetSchema = z
 
 const EvalTargetSchema = z.union([z.string().min(1), EvalLocalTargetSchema]);
 const EvalTargetsSchema = z.union([EvalTargetSchema, z.array(EvalTargetSchema).min(1)]);
-const EvalProviderObjectSchema = z
+const EvalProviderExtensionFieldsSchema = z.object({
+  runtime: z
+    .union([
+      z.enum(['host', 'profile', 'sandbox']),
+      z
+        .object({
+          mode: z.enum(['host', 'profile', 'sandbox']),
+        })
+        .passthrough(),
+    ])
+    .optional(),
+  environment: EnvironmentSchema.optional(),
+  hooks: TargetHooksSchema.optional(),
+});
+const EvalProviderOptionsSchema = z
   .object({
-    id: z.string().min(1),
     label: z.string().min(1).optional(),
     config: JsonRecordSchema.optional(),
-    runtime: z
-      .union([
-        z.enum(['host', 'profile', 'sandbox']),
-        z
-          .object({
-            mode: z.enum(['host', 'profile', 'sandbox']),
-          })
-          .passthrough(),
-      ])
-      .optional(),
     prompts: PromptsSchema.optional(),
     transform: z.union([z.string(), JsonObjectSchema]).optional(),
     delay: z.number().min(0).optional(),
     env: z.record(z.string()).optional(),
-    environment: EnvironmentSchema.optional(),
-    hooks: TargetHooksSchema.optional(),
-    provider: z
-      .never({
-        invalid_type_error:
-          'providers[].provider has been removed. Use providers[].id for the backend and providers[].label for the stable identity.',
-      })
-      .optional(),
-    name: z
-      .never({
-        invalid_type_error: 'providers[].name has been removed. Use providers[].label.',
-      })
-      .optional(),
-    container: z.never().optional(),
-    install: z.never().optional(),
+    inputs: JsonRecordSchema.optional(),
   })
+  .merge(EvalProviderExtensionFieldsSchema)
   .strict();
-const EvalProviderSchema = z.union([z.string().min(1), EvalProviderObjectSchema]);
+const EvalProviderObjectSchema = EvalProviderOptionsSchema.extend({
+  id: z.string().min(1),
+  provider: z
+    .never({
+      invalid_type_error:
+        'providers[].provider has been removed. Use providers[].id for the backend and providers[].label for the stable identity.',
+    })
+    .optional(),
+  name: z
+    .never({
+      invalid_type_error: 'providers[].name has been removed. Use providers[].label.',
+    })
+    .optional(),
+  container: z.never().optional(),
+  install: z.never().optional(),
+}).strict();
+const EvalProviderMapOptionsSchema = EvalProviderOptionsSchema.extend({
+  id: z.string().min(1).optional(),
+}).strict();
+const EvalProviderMapSchema = z
+  .record(z.string().min(1), EvalProviderMapOptionsSchema)
+  .refine(
+    (value) =>
+      !Object.prototype.hasOwnProperty.call(value, 'id') &&
+      !Object.prototype.hasOwnProperty.call(value, 'label') &&
+      !Object.prototype.hasOwnProperty.call(value, 'config'),
+    {
+      message:
+        'Provider maps must be keyed by provider id, e.g. { "openai:gpt-4": { label, config } }.',
+    },
+  );
+const EvalProviderSchema = z.union([
+  z.string().min(1),
+  EvalProviderObjectSchema,
+  EvalProviderMapSchema,
+]);
 const EvalProvidersSchema = z.union([EvalProviderSchema, z.array(EvalProviderSchema).min(1)]);
 
 // ---------------------------------------------------------------------------

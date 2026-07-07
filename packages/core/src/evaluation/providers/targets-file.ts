@@ -3,7 +3,10 @@ import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { parseYamlValue } from '../yaml-loader.js';
-import { normalizeProviderDefinition, resolveProviderDefinitionEnvironments } from './targets.js';
+import {
+  expandProviderDefinitionEntries,
+  resolveProviderDefinitionEnvironments,
+} from './targets.js';
 import { TARGETS_SCHEMA_V2 } from './types.js';
 import type { ProviderDefinition } from './types.js';
 
@@ -32,24 +35,6 @@ function extractProvidersArray(parsed: unknown, absolutePath: string): unknown[]
   return providers;
 }
 
-function assertProviderDefinition(
-  value: unknown,
-  index: number,
-  filePath: string,
-): ProviderDefinition {
-  if (!isRecord(value)) {
-    throw new Error(`providers entry at index ${index} in ${filePath} must be an object`);
-  }
-
-  const id = value.id;
-
-  if (typeof id !== 'string' || id.trim().length === 0) {
-    throw new Error(`providers entry at index ${index} in ${filePath} is missing a valid 'id'`);
-  }
-
-  return normalizeProviderDefinition(value, { location: `providers[${index}]` });
-}
-
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await access(filePath, constants.F_OK);
@@ -71,9 +56,10 @@ export async function readProviderDefinitions(
   const parsed = parseYamlValue(raw);
 
   const providers = extractProvidersArray(parsed, absolutePath);
-  const definitions = providers.map((entry, index) =>
-    assertProviderDefinition(entry, index, absolutePath),
-  );
+  const definitions = expandProviderDefinitionEntries(providers, {
+    location: 'providers',
+    stringMode: 'all',
+  }).map((entry) => entry.definition);
   return resolveProviderDefinitionEnvironments(definitions, path.dirname(absolutePath), {
     location: 'providers',
   });

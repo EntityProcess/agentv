@@ -264,7 +264,41 @@ function lowerProviderId(id: string): string {
   return lowered;
 }
 
+function assertPromptfooExportableProviderExtensions(provider: JsonMap, label: string): void {
+  if (provider.environment !== undefined) {
+    throw new PromptfooExportDiagnostic(
+      'unsupported_provider_environment',
+      `${label}.environment is AgentV-only provider-local testbed setup. Move shared setup to top-level environment for supported host export, or remove the provider-local environment before exporting to Promptfoo.`,
+    );
+  }
+  if (provider.hooks !== undefined) {
+    throw new PromptfooExportDiagnostic(
+      'unsupported_provider_hooks',
+      `${label}.hooks are AgentV-only provider hooks and cannot be represented in Promptfoo provider declarations. Move compatible lifecycle work to top-level extensions or remove hooks before export.`,
+    );
+  }
+
+  const runtime = provider.runtime;
+  if (runtime === undefined || runtime === 'host') {
+    return;
+  }
+  if (
+    runtime &&
+    typeof runtime === 'object' &&
+    !Array.isArray(runtime) &&
+    (runtime as JsonMap).mode === 'host' &&
+    Object.keys(runtime as JsonMap).length === 1
+  ) {
+    return;
+  }
+  throw new PromptfooExportDiagnostic(
+    'unsupported_provider_runtime',
+    `${label}.runtime is AgentV-only. Promptfoo export can omit runtime: host, but profile/sandbox or runtime-specific settings must be removed or represented by a custom Promptfoo provider wrapper.`,
+  );
+}
+
 function lowerProviderObject(provider: JsonMap): JsonMap {
+  assertPromptfooExportableProviderExtensions(provider, 'providers[]');
   const lowered: JsonMap = {};
   for (const [key, value] of Object.entries(provider)) {
     if (AGENTV_ONLY_PROVIDER_KEYS.has(key)) {
@@ -292,7 +326,12 @@ function lowerProviderEntry(provider: unknown, environment?: HostEnvironmentExpo
     const providerObject = provider as JsonMap;
     if (looksLikeProviderOptionsMap(providerObject)) {
       const [[id, options]] = Object.entries(providerObject);
-      return { [lowerProviderId(id)]: options };
+      const optionObject =
+        options && typeof options === 'object' && !Array.isArray(options)
+          ? (options as JsonMap)
+          : {};
+      assertPromptfooExportableProviderExtensions(optionObject, `providers[].${id}`);
+      return { [lowerProviderId(id)]: lowerProviderObject(optionObject) };
     }
     return lowerProviderObject(providerObject);
   }

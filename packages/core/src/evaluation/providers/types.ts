@@ -466,6 +466,7 @@ export interface ProviderDefinition {
   readonly prompts?: unknown | undefined;
   readonly transform?: unknown | undefined;
   readonly delay?: number | unknown | undefined;
+  readonly inputs?: unknown | undefined;
   readonly provider?: ProviderKind | string;
   /** Original public providers[].id backend/spec string after public provider normalization. */
   readonly provider_spec?: string | undefined;

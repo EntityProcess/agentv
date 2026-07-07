@@ -66,6 +66,39 @@ describe('readProviderDefinitions', () => {
     ]);
   });
 
+  it('accepts Promptfoo provider strings and maps in provider catalogs', async () => {
+    const filePath = await writeProvidersYaml(`providers:
+  - openai:gpt-4.1-mini
+  - openai:gpt-4:
+      label: gpt4-map
+      config:
+        temperature: 0
+      inputs:
+        prompt: User prompt text
+`);
+
+    const definitions = await readProviderDefinitions(filePath);
+
+    expect(definitions).toEqual([
+      expect.objectContaining({
+        id: 'openai:gpt-4.1-mini',
+        name: 'openai:gpt-4.1-mini',
+        label: 'openai:gpt-4.1-mini',
+        provider: 'openai',
+        model: 'gpt-4.1-mini',
+      }),
+      expect.objectContaining({
+        id: 'gpt4-map',
+        name: 'gpt4-map',
+        label: 'gpt4-map',
+        provider: 'openai',
+        model: 'gpt-4',
+        temperature: 0,
+        inputs: { prompt: 'User prompt text' },
+      }),
+    ]);
+  });
+
   it('accepts colon provider specs and preserves unlabeled specs as stable identity', async () => {
     const filePath = await writeProvidersYaml(`providers:
   - id: openai:gpt-4.1-mini

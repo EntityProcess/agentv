@@ -20,14 +20,14 @@ Promptfoo parity matrix: https://agentv.dev/docs/reference/promptfoo-parity/
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
 Eval files define what is tested and how it runs: prompts, datasets, assertions,
-task fixtures, top-level `target`, and suite run controls. Use field-local file
+task fixtures, top-level `providers`, and suite run controls. Use field-local file
 refs such as `tests: file://...`, `prompts: file://...`, `default_test:
 file://...`, and `environment: file://...`. String-valued `tests` and string
 entries inside `tests[]` are raw-case refs for direct paths, directories, and
 globs. Run several full eval suites directly with CLI multi-file selection and
 tags. Use scoped `run:` on individual tests only for `threshold`, `repeat`,
-`timeout_seconds`, and legacy `budget_usd`; keep target selection at top-level
-`target` or CLI `--target`, put suite budget caps under
+`timeout_seconds`, and legacy `budget_usd`; keep provider selection at top-level
+`providers` or CLI `--provider`, put suite budget caps under
 `evaluate_options.budget_usd`, authored concurrency under
 `evaluate_options.max_concurrency`, suite repeat policy under
 `evaluate_options.repeat`, coding-agent testbed setup under `environment`,
@@ -122,7 +122,8 @@ tests:
 
 ```yaml
 description: Example eval
-target: default
+providers:
+  - default
 
 prompts:
   - "{{ prompt }}"
@@ -142,7 +143,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `scenarios`
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `environment`, `env`, `extensions`, `assert`
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `providers`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `environment`, `env`, `extensions`, `assert`
 
 **Test fields:**
 
@@ -152,10 +153,20 @@ tests:
 | `vars` | yes when the prompt needs row data | Prompt-template variables for this row |
 | `vars.expected_output` | no | Conventional reference-answer var consumed by explicit graders |
 | `assert` | yes | Graders: deterministic checks, `llm-rubric` / `agent-rubric` checks, script graders, or plain string rubric criteria |
-| `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
+| `execution` | no | Per-case grader/default overrides such as `skip_defaults`; provider selection belongs in top-level `providers` or CLI `--provider` |
 | `environment` | no | Per-case coding-agent testbed config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |
+
+**Provider declarations:** AgentV accepts Promptfoo-shaped provider entries
+where they map cleanly: strings such as `openai:gpt-4.1-mini`, object form with
+`id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`,
+and provider maps such as `{ "openai:gpt-4": { label, config } }`. In object
+form, `id` is the backend/spec and `label` is the stable AgentV selection and
+result identity. AgentV-only `runtime`, provider-local `environment`, and
+provider `hooks` must be explicit extensions; direct Promptfoo runs do not
+execute them, and export must lower supported cases or reject unsupported ones
+clearly.
 
 ## Prompt Templates and Vars
 
@@ -167,7 +178,8 @@ repeat samples.
 
 ```yaml
 description: Prompt matrix example
-target: default
+providers:
+  - default
 
 prompts:
   - id: support-chat

@@ -12,7 +12,8 @@ import {
 import { getAgentvConfigDir } from '../../paths.js';
 import { createEvalConfigEnv, interpolateEnv } from '../interpolation.js';
 import {
-  normalizeProviderDefinition,
+  expandProviderDefinitionEntries,
+  isProviderSpecString,
   resolveProviderDefinitionEnvironments,
 } from '../providers/targets.js';
 import type { ProviderDefinition } from '../providers/types.js';
@@ -326,12 +327,42 @@ function parseProviderDefinitions(
   if (!Array.isArray(rawProviders)) {
     return Promise.resolve(undefined);
   }
-  const definitions = rawProviders.map((entry, index) =>
-    normalizeProviderDefinition(entry, { location: `${configPath}:providers[${index}]` }),
-  );
+  const definitions = expandProviderDefinitionEntries(rawProviders, {
+    location: `${configPath}:providers`,
+    stringMode: 'all',
+  }).map((entry) => entry.definition);
   return resolveProviderDefinitionEnvironments(definitions, baseDir, {
     location: `${configPath}:providers`,
   });
+}
+
+function parseInlineProviderRefs(rawProviders: readonly unknown[]): readonly EvalTargetRef[] {
+  const refs: EvalTargetRef[] = [];
+  rawProviders.forEach((entry, index) => {
+    const location = `providers[${index}]`;
+    if (typeof entry === 'string' && !isProviderSpecString(entry)) {
+      const name = entry.trim();
+      if (name.length === 0) {
+        throw new Error(`Invalid ${location}: provider reference must be non-empty.`);
+      }
+      refs.push({ name });
+      return;
+    }
+
+    refs.push(...parseEvalProviderRefs(entry, location));
+  });
+  return refs;
+}
+
+function parseEvalProviderRefs(raw: unknown, location: string): readonly EvalTargetRef[] {
+  const entries = expandProviderDefinitionEntries([raw], {
+    location: location.replace(/\[\d+\]$/, ''),
+    stringMode: 'spec-only',
+  });
+
+  return entries.map((entry) =>
+    providerDefinitionToRef(entry.rawDefinition, entry.rawId, entry.definition),
+  );
 }
 
 function mergeExecutionConfig(
@@ -543,7 +574,7 @@ export function extractTargetRefsFromSuite(
   }
 
   const entries = Array.isArray(rawProviders) ? rawProviders : [rawProviders];
-  const refs = entries.map((entry, index) => parseEvalProviderRef(entry, `providers[${index}]`));
+  const refs = parseInlineProviderRefs(entries);
   assertUniqueProviderRefs(refs);
   return refs.length > 0 ? refs : undefined;
 }
@@ -558,29 +589,18 @@ export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | 
   return names.length > 0 ? names : undefined;
 }
 
-function parseEvalProviderRef(raw: unknown, location: string): EvalTargetRef {
-  if (typeof raw === 'string') {
-    const name = raw.trim();
-    if (name.length === 0) {
-      throw new Error(`Invalid ${location}: provider reference must be non-empty.`);
-    }
-    return { name };
-  }
-
-  if (!isJsonObject(raw)) {
-    throw new Error(`Invalid ${location}: use a provider reference string or provider object.`);
-  }
-
+function providerDefinitionToRef(
+  raw: Record<string, unknown>,
+  rawId: string,
+  definition: ProviderDefinition,
+): EvalTargetRef {
   const hooks = parseTargetHooks(raw.hooks);
-  const definition = normalizeProviderDefinition(
-    Object.fromEntries(Object.entries(raw).filter(([key]) => key !== 'hooks')),
-    { location },
-  ) as ProviderDefinition;
-
+  const rawLabel =
+    typeof raw.label === 'string' && raw.label.trim().length > 0 ? raw.label.trim() : undefined;
   return {
     name: definition.name,
-    id: typeof raw.id === 'string' ? raw.id.trim() : definition.provider,
-    ...(definition.label !== undefined ? { label: definition.label } : {}),
+    id: rawId,
+    ...(rawLabel !== undefined ? { label: rawLabel } : {}),
     definition,
     ...(hooks !== undefined ? { hooks } : {}),
   };

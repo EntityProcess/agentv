@@ -366,6 +366,30 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts Promptfoo provider maps and provider inputs', () => {
+    const result = EvalFileSchema.safeParse({
+      name: 'promptfoo-provider-maps',
+      prompts: ['{{ prompt }}'],
+      providers: [
+        {
+          'openai:gpt-4': {
+            label: 'gpt4',
+            config: { temperature: 0 },
+            inputs: { prompt: 'User prompt text' },
+          },
+        },
+        {
+          id: 'openai:gpt-4.1-mini',
+          label: 'mini',
+          inputs: { prompt: { type: 'text', description: 'User prompt text' } },
+        },
+      ],
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('rejects invalid evaluate_options.max_concurrency', () => {
     const result = EvalFileSchema.safeParse({
       providers: ['openai:codex'],
