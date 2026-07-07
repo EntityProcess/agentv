@@ -1118,7 +1118,6 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       {
         name: 'openai:gpt-4.1-mini',
         id: 'openai:gpt-4.1-mini',
-        label: 'openai:gpt-4.1-mini',
         definition: expect.objectContaining({
           id: 'openai:gpt-4.1-mini',
           name: 'openai:gpt-4.1-mini',
@@ -1158,7 +1157,6 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       {
         name: 'anthropic:messages:claude-sonnet-4-6',
         id: 'anthropic:messages:claude-sonnet-4-6',
-        label: 'anthropic:messages:claude-sonnet-4-6',
         definition: expect.objectContaining({
           id: 'anthropic:messages:claude-sonnet-4-6',
           name: 'anthropic:messages:claude-sonnet-4-6',
@@ -1169,7 +1167,6 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       {
         name: 'exec:node ./provider.js',
         id: 'exec:node ./provider.js',
-        label: 'exec:node ./provider.js',
         definition: expect.objectContaining({
           id: 'exec:node ./provider.js',
           name: 'exec:node ./provider.js',
@@ -1180,7 +1177,6 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       {
         name: 'gateway:openai:responses:gpt-5.4',
         id: 'gateway:openai:responses:gpt-5.4',
-        label: 'gateway:openai:responses:gpt-5.4',
         definition: expect.objectContaining({
           id: 'gateway:openai:responses:gpt-5.4',
           name: 'gateway:openai:responses:gpt-5.4',
@@ -1213,7 +1209,6 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       {
         name: 'openai:codex-desktop',
         id: 'openai:codex-desktop',
-        label: 'openai:codex-desktop',
         definition: expect.objectContaining({
           id: 'openai:codex-desktop',
           name: 'openai:codex-desktop',

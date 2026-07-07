@@ -595,10 +595,12 @@ function providerDefinitionToRef(
   definition: ProviderDefinition,
 ): EvalTargetRef {
   const hooks = parseTargetHooks(raw.hooks);
+  const rawLabel =
+    typeof raw.label === 'string' && raw.label.trim().length > 0 ? raw.label.trim() : undefined;
   return {
     name: definition.name,
     id: rawId,
-    ...(definition.label !== undefined ? { label: definition.label } : {}),
+    ...(rawLabel !== undefined ? { label: rawLabel } : {}),
     definition,
     ...(hooks !== undefined ? { hooks } : {}),
   };
