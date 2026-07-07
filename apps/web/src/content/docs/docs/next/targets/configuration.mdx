@@ -63,8 +63,11 @@ settings belong under `config`. Process-backed coding-agent providers use
 
 A grader is not a separate kind of entity — it is a provider selected for a
 grading role, either through `defaults.grader` (shown above) or an
-assertion-level `provider` override. There is no separate `graders:` list;
-authoring one is a hard error telling you to move each entry into `providers`.
+`options.provider` / assertion-level `provider` override. `default_test.options.provider`
+sets a shared grader fallback for tests, `tests[].options.provider` overrides it
+for one test, and an assertion-level `provider` wins for that assertion. There
+is no separate `graders:` list; authoring one is a hard error telling you to
+move each entry into `providers`.
 
 ## Runtime Modes
 
@@ -306,8 +309,9 @@ providers:
     reasoning_effort: high
 ```
 
-Use `defaults.grader` for the project default grader. A specific evaluator can
-still choose its own grader provider when the evaluator supports that override.
+Use `defaults.grader` for the project default grader. `default_test.options.provider`
+and `tests[].options.provider` can choose a grader provider for LLM-backed
+assertions before an assertion-level `provider` override takes final precedence.
 
 ### Environment And Lifecycle Extensions
 

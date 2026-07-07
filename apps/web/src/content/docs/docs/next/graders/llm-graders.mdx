@@ -162,10 +162,27 @@ tests:
 
 ## Per-Grader Provider
 
-By default, an `llm-rubric` uses `defaults.grader` from the resolved config graph.
-Override it per assertion when you need multiple grader models in one run:
+By default, an `llm-rubric` uses `tests[].options.provider`, then
+`default_test.options.provider`, then `defaults.grader` from the resolved config
+graph. Each value selects from the same `providers` pool used for candidate
+providers; AgentV does not infer a grader from the first candidate provider.
+Override the provider per assertion when you need multiple grader models in one
+run:
 
 ```yaml
+default_test:
+  options:
+    provider: grader_gpt_5_mini
+
+tests:
+  - id: strict-case
+    options:
+      provider: grader_claude_haiku
+    assert:
+      - name: semantic_quality
+        type: llm-rubric
+        value: The answer is correct and concise.
+
 assert:
   - name: grader-gpt
     type: llm-rubric

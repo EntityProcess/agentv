@@ -41,11 +41,7 @@ import type {
   ProviderResponse,
   ProviderStreamCallbacks,
 } from './providers/types.js';
-import {
-  LLM_GRADER_CAPABLE_KINDS,
-  extractLastAssistantContent,
-  isAgentProvider,
-} from './providers/types.js';
+import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions, discoverGraders } from './registry/index.js';
 import {
   type ReplayRecordingOptions,
@@ -79,6 +75,7 @@ import type {
   GraderResult,
   JsonObject,
   JsonValue,
+  LlmBackedGraderConfig,
   LlmGraderConfig,
   TestMessage,
   TestMessageRole,
@@ -140,6 +137,26 @@ function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
 }
 
+function isLlmBackedGraderConfig(config: GraderConfig): config is LlmBackedGraderConfig {
+  return (
+    config.type === 'llm-grader' || config.type === 'llm-rubric' || config.type === 'agent-rubric'
+  );
+}
+
+function caseNeedsFallbackGraderProvider(evalCase: EvalTest): boolean {
+  if (evalCase.assertions && evalCase.assertions.length > 0) {
+    return evalCase.assertions.some(
+      (assertion) => isLlmBackedGraderConfig(assertion) && !assertion.target,
+    );
+  }
+
+  if (evalCase.evaluator === 'llm-grader' || evalCase.evaluator === 'llm-rubric') {
+    return true;
+  }
+
+  return (evalCase.preprocessors?.length ?? 0) > 0;
+}
+
 function extractProviderRawLogPath(response: ProviderResponse): string | undefined {
   const raw = response.raw;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -185,7 +202,7 @@ interface EvaluationRuntimeOptions {
   readonly providerFactory?: (target: ResolvedProviderBackend) => Provider;
   readonly evalFilePath?: string;
   readonly graderTarget?: string;
-  /** Config-level fallback grader target name (`.agentv/config.yaml`'s `defaults.grader`), used when a target has no `grader_target` and no CLI `--grader-target` override is given. */
+  /** Config-level fallback grader provider name (`.agentv/config.yaml`'s `defaults.grader`), used when no assertion/test-level provider and no CLI override is given. */
   readonly defaultGraderTarget?: string;
   readonly model?: string;
 }
@@ -248,34 +265,34 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
   const resolveGraderProvider = async (
     targetContext: ResolvedProviderBackend,
   ): Promise<Provider | undefined> => {
-    // CLI --grader-target takes highest priority.
+    // CLI --grader-provider takes highest priority.
     if (cliGraderTarget) {
       if (cliGraderTarget === 'agentv') {
         if (!cliModel) {
-          throw new Error('--grader-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
+          throw new Error(
+            '--grader-provider "agentv" requires --model (e.g., "openai:gpt-5-mini")',
+          );
         }
         const { AgentvProvider } = await import('./providers/agentv-provider.js');
         return new AgentvProvider('agentv', { model: cliModel, temperature: 0 });
       }
       const overrideTarget = resolveTargetByName(cliGraderTarget);
       if (!overrideTarget) {
-        throw new Error(`--grader-target "${cliGraderTarget}" not found in targets`);
+        throw new Error(`--grader-provider "${cliGraderTarget}" not found in providers`);
       }
       return getOrCreateProvider(overrideTarget);
     }
 
-    // TODO: When --model is provided without --grader-target, override the model of
-    // whichever grader target is resolved. For now, --model only works with --grader-target agentv.
+    // TODO: When --model is provided without --grader-provider, override the model of
+    // whichever grader provider is resolved. For now, --model only works with --grader-provider agentv.
 
-    const graderName = targetContext.graderTarget ?? defaultGraderTarget ?? targetContext.name;
+    const graderName = targetContext.graderTarget ?? defaultGraderTarget;
+    if (!graderName) {
+      return undefined;
+    }
     const resolvedGrader = resolveTargetByName(graderName);
     if (!resolvedGrader) {
-      // Only use the eval target as its own grader if it can return structured JSON.
-      // Agent providers, transcript, cli, and replay cannot grade.
-      if (!LLM_GRADER_CAPABLE_KINDS.includes(targetContext.kind)) {
-        return undefined;
-      }
-      return getOrCreateProvider(targetContext);
+      throw new Error(`Grader provider "${graderName}" not found in configured providers`);
     }
     return getOrCreateProvider(resolvedGrader);
   };
@@ -545,11 +562,11 @@ export interface RunEvaluationOptions {
   readonly retainOnSuccess?: 'keep' | 'cleanup';
   /** Retention policy override for failed cases */
   readonly retainOnFailure?: 'keep' | 'cleanup';
-  /** CLI override: grader target name (e.g., "agentv" or a target from targets.yaml) */
+  /** CLI override: grader provider name (e.g., "agentv" or a provider label from providers.yaml) */
   readonly graderTarget?: string;
-  /** Config-level fallback grader target name (`.agentv/config.yaml`'s `defaults.grader`), used when a target has no `grader_target` and no CLI `--grader-target` override is given. */
+  /** Config-level fallback grader provider name (`.agentv/config.yaml`'s `defaults.grader`). */
   readonly defaultGraderTarget?: string;
-  /** CLI override: model for grader target (e.g., "openai:gpt-5-mini") */
+  /** CLI override: model for grader provider (e.g., "openai:gpt-5-mini") */
   readonly model?: string;
   /** Per-test score threshold for pass/fail (default: 0.8) */
   readonly threshold?: number;
@@ -881,19 +898,32 @@ export async function runEvaluation(
   });
   const { getOrCreateProvider, resolveGraderProvider, targetResolver, availableTargets } = runtime;
 
-  // Validate grader_target: error if an agent provider would be used as grader.
-  // Agent providers can't return structured JSON for grading — they respond with
-  // tool calls and markdown, causing silent score-0 failures.
-  // CLI --grader-target override or config-level `defaults.grader` also satisfy
-  // this requirement.
+  const usesBuiltinLlmGrader = evaluators?.['llm-grader'] === undefined;
+  const needsFallbackGraderProvider =
+    usesBuiltinLlmGrader && filteredEvalCases.some(caseNeedsFallbackGraderProvider);
+
+  // Agent providers cannot grade themselves with structured JSON. This keeps
+  // the error specific for agent candidates when they lack an explicit fallback.
   if (
     isAgentProvider(getOrCreateProvider(target)) &&
     !target.graderTarget &&
     !cliGraderTarget &&
-    !defaultGraderTarget
+    !defaultGraderTarget &&
+    needsFallbackGraderProvider
   ) {
     throw new Error(
-      `Target "${target.name}" is an agent provider ("${target.kind}") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target on the target, pass --grader-target, or set defaults.grader in .agentv/config.yaml to an LLM provider (e.g., azure-llm).`,
+      `Provider "${target.name}" is an agent provider ("${target.kind}") with LLM-backed assertions but no grader provider. Set assertion provider, tests[].options.provider, default_test.options.provider, pass --grader-provider, or set defaults.grader in .agentv/config.yaml to a grader-capable provider.`,
+    );
+  }
+
+  if (
+    !target.graderTarget &&
+    !cliGraderTarget &&
+    !defaultGraderTarget &&
+    needsFallbackGraderProvider
+  ) {
+    throw new Error(
+      'No grader provider configured for LLM-backed assertions. Set assertion provider, tests[].options.provider, default_test.options.provider, pass --grader-provider, or set defaults.grader in .agentv/config.yaml to a grader-capable provider.',
     );
   }
 

@@ -657,7 +657,7 @@ export const gradeCommand = command({
     model: option({
       type: optional(string),
       long: 'model',
-      description: 'Override model for the grader target (e.g., "openai:gpt-5-mini")',
+      description: 'Override model for the grader provider (e.g., "openai:gpt-5-mini")',
     }),
     threshold: option({
       type: optional(number),

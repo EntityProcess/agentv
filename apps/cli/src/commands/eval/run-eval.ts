@@ -303,7 +303,7 @@ interface NormalizedOptions {
   /** Removed: the run directory always uses index.jsonl */
   readonly outputFormat?: string;
   readonly graderTarget?: string;
-  /** Config-level fallback grader target name, from `.agentv/config.yaml`'s `defaults.grader`. */
+  /** Config-level fallback grader provider name, from `.agentv/config.yaml`'s `defaults.grader`. */
   readonly defaultGraderTarget?: string;
   readonly model?: string;
   readonly outputMessages: number | 'all';
@@ -1405,7 +1405,12 @@ async function prepareFileMetadata(params: {
       : suite.tests;
   const testIds = testCases.map((value) => value.id);
   const suiteTargetSpec = suite.targetSpec;
+  const suiteDefaults = suite.defaults;
   const suiteTargets = suiteTargetSpec ? [suiteTargetSpec.name] : suite.targets;
+  const fileOptions =
+    suiteDefaults?.grader && !effectiveOptions.graderTarget
+      ? { ...effectiveOptions, defaultGraderTarget: suiteDefaults.grader }
+      : effectiveOptions;
   const defaultBudgetUsd =
     effectiveOptions.cliBudgetUsd === undefined
       ? (effectiveOptions.budgetUsd ?? suite.budgetUsd)
@@ -1414,11 +1419,11 @@ async function prepareFileMetadata(params: {
 
   if (testCases.length === 0) {
     return {
-      options: effectiveOptions,
+      options: fileOptions,
       testIds,
       testCases,
       selections: [],
-      trialsConfig: effectiveOptions.experimentTrialsConfig,
+      trialsConfig: fileOptions.experimentTrialsConfig,
       suiteTargets,
       yamlCache: suite.cacheConfig?.enabled,
       yamlCachePath: suite.cacheConfig?.cachePath,
@@ -1432,7 +1437,7 @@ async function prepareFileMetadata(params: {
 
   let selections: { selection: TargetSelection; inlineTargetLabel: string }[];
 
-  if (effectiveOptions.transcript) {
+  if (fileOptions.transcript) {
     // --transcript mode: bypass target resolution entirely.
     // Create a synthetic TargetSelection for the transcript provider.
     const transcriptSelection: TargetSelection = {
@@ -1444,15 +1449,15 @@ async function prepareFileMetadata(params: {
       },
       targetName: 'transcript',
       targetSource: 'cli',
-      targetsFilePath: effectiveOptions.transcript,
+      targetsFilePath: fileOptions.transcript,
     };
     selections = [
       {
         selection: transcriptSelection,
-        inlineTargetLabel: `transcript (${path.basename(effectiveOptions.transcript)})`,
+        inlineTargetLabel: `transcript (${path.basename(fileOptions.transcript)})`,
       },
     ];
-  } else if (suite.inlineTarget && effectiveOptions.cliTargets.length === 0) {
+  } else if (suite.inlineTarget && fileOptions.cliTargets.length === 0) {
     const targetDefinition = suite.inlineTarget;
     const resolvedTarget = resolveProviderDefinition(targetDefinition, process.env, testFilePath, {
       emitDeprecationWarnings: false,
@@ -1469,7 +1474,7 @@ async function prepareFileMetadata(params: {
         inlineTargetLabel: resolveTargetLabel(targetDefinition.name, resolvedTarget.name),
       },
     ];
-  } else if (suite.providerFactory && effectiveOptions.cliTargets.length === 0) {
+  } else if (suite.providerFactory && fileOptions.cliTargets.length === 0) {
     const taskTarget: ResolvedProviderBackend = {
       kind: 'mock',
       name: 'custom-task',
@@ -1490,12 +1495,12 @@ async function prepareFileMetadata(params: {
     ];
   } else {
     // Determine provider labels: CLI --provider flags override YAML
-    const cliTargets = effectiveOptions.cliTargets;
-    const experimentTargets = effectiveOptions.experimentTargets ?? [];
+    const cliTargets = fileOptions.cliTargets;
+    const experimentTargets = fileOptions.experimentTargets ?? [];
     const suiteTargetSpec = suite.targetSpec;
     const suiteTargets = suiteTargetSpec ? [suiteTargetSpec.name] : suite.targets;
     const suiteTargetRefs = suite.targetRefs;
-    const experimentTargetRefs = effectiveOptions.experimentTargetRefs;
+    const experimentTargetRefs = fileOptions.experimentTargetRefs;
 
     // Resolve which target names to use (precedence: CLI/experiment > suite YAML targets > default)
     let targetNames: readonly string[];
@@ -1511,6 +1516,9 @@ async function prepareFileMetadata(params: {
     } else if (suiteTargets && suiteTargets.length > 0) {
       targetNames = suiteTargets;
       targetRefs = suiteTargetRefs;
+    } else if (suiteDefaults?.provider) {
+      targetNames = [suiteDefaults.provider];
+      targetRefs = undefined;
     } else {
       targetNames = [];
       targetRefs = undefined;
@@ -1526,12 +1534,12 @@ async function prepareFileMetadata(params: {
         providerDefinitions,
         providerDefinitionsSource,
         requireExplicitProviderCatalog: true,
-        allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
+        allowLegacyTargetFiles: fileOptions.allowLegacyTargetFiles,
         env: process.env,
         targetNames,
         targetRefs,
         targetSource,
-        modelOverride: effectiveOptions.targetModelOverride,
+        modelOverride: fileOptions.targetModelOverride,
       });
 
       selections = multiSelections.map((sel) => ({
@@ -1549,18 +1557,18 @@ async function prepareFileMetadata(params: {
         providerDefinitions,
         providerDefinitionsSource,
         requireExplicitProviderCatalog: true,
-        allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
+        allowLegacyTargetFiles: fileOptions.allowLegacyTargetFiles,
         cliTargetName:
           targetSource === 'cli'
             ? targetNames.length === 1
               ? targetNames[0]
-              : effectiveOptions.target
-            : effectiveOptions.target,
+              : fileOptions.target
+            : fileOptions.target,
         fileTargetName:
           targetSource === 'test-file' && targetNames.length === 1 ? targetNames[0] : undefined,
         fileTargetSpec:
           targetSource === 'test-file' && targetNames.length === 1 ? suiteTargetSpec : undefined,
-        modelOverride: effectiveOptions.targetModelOverride,
+        modelOverride: fileOptions.targetModelOverride,
         env: process.env,
       });
 
@@ -1587,11 +1595,11 @@ async function prepareFileMetadata(params: {
   }
 
   return {
-    options: effectiveOptions,
+    options: fileOptions,
     testIds,
     testCases,
     selections,
-    trialsConfig: effectiveOptions.experimentTrialsConfig,
+    trialsConfig: fileOptions.experimentTrialsConfig,
     suiteTargets,
     yamlCache: suite.cacheConfig?.enabled,
     yamlCachePath: suite.cacheConfig?.cachePath,
@@ -1951,9 +1959,9 @@ export async function runEvalCommand(
     process.env.AGENTV_EXPERIMENT = normalizedExperiment;
   }
 
-  // Validate --grader-target / --model combinations
+  // Validate --grader-provider / --model combinations
   if (options.graderTarget === 'agentv' && !options.model) {
-    throw new Error('--grader-target agentv requires --model (e.g., --model openai:gpt-5-mini)');
+    throw new Error('--grader-provider agentv requires --model (e.g., --model openai:gpt-5-mini)');
   }
 
   if (options.removedOut) {
