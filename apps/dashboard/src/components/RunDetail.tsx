@@ -81,9 +81,9 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
       {/* Category Breakdown */}
       <div>
         <h3 className="mb-3 text-sm font-medium text-gray-400">Category Breakdown</h3>
-        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 ring-1 ring-white/5">
           <table className="min-w-[620px] w-full whitespace-nowrap text-left text-sm">
-            <thead className="border-b border-gray-800 bg-gray-900/50">
+            <thead className="border-b border-gray-800 bg-gray-900/80">
               <tr>
                 <th className="px-4 py-2.5 font-medium text-gray-400">Category</th>
                 <th className="px-4 py-2.5 font-medium text-gray-400">Pass Rate</th>
@@ -95,11 +95,11 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                 <th className="px-4 py-2.5 text-right font-medium text-gray-400">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800/50">
+            <tbody className="divide-y divide-gray-800/70">
               {visibleCategories.map((cat) => {
                 const expanded = expandedCategories[cat.name] === true;
                 return (
-                  <tr key={cat.name} className="transition-colors hover:bg-gray-900/30">
+                  <tr key={cat.name} className="transition-colors hover:bg-gray-900/50">
                     <td className="w-[18rem] max-w-[18rem] px-4 py-2.5 font-medium text-gray-200">
                       <span className="flex min-w-0 items-center gap-2">
                         <span
