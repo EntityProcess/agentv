@@ -54,7 +54,7 @@ The import pipeline:
 
 ### transcript-quality (script-grader)
 
-Custom grader using `defineScriptGrader` from `@agentv/sdk`. Validates:
+Custom grader using `defineScriptGrader` from `agentv`. Validates:
 1. Transcript contains at least one assistant message
 2. Tool calls were recorded with outputs
 3. No empty assistant messages

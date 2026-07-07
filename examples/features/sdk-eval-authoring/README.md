@@ -1,6 +1,6 @@
 # SDK Example: TypeScript Eval Config Authoring
 
-Demonstrates authoring an explicit `*.eval.ts` file with the `EvalConfig` type from `@agentv/sdk`.
+Demonstrates authoring an explicit `*.eval.ts` file with the `EvalConfig` type from `agentv`.
 
 ## What It Shows
 

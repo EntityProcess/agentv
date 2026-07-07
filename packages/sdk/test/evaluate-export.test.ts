@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import { evaluate } from '../src/index.js';
 
 describe('evaluate export', () => {
-  it('runs the core programmatic evaluate API through @agentv/sdk', async () => {
+  it('runs the core programmatic evaluate API through the internal SDK implementation', async () => {
     const { results, summary } = await evaluate({
       prompts: ['{{ input }}'],
       tests: [

@@ -31,7 +31,7 @@ Script graders receive eval context via stdin JSON and return a result via stdou
 }
 ```
 
-Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. TypeScript and JavaScript graders that use `@agentv/sdk` receive the same payload converted to `camelCase`. The repo-local Python helper in `examples/features/sdk-python/` keeps the same `snake_case` field names.
+Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. TypeScript and JavaScript graders that use `agentv` receive the same payload converted to `camelCase`. The repo-local Python helper in `examples/features/sdk-python/` keeps the same `snake_case` field names.
 
 | Raw stdin key | TypeScript SDK field | Meaning |
 |---------------|----------------------|---------|
@@ -204,11 +204,11 @@ assert:
 
 ## TypeScript SDK
 
-The `@agentv/sdk` package provides a declarative API with automatic stdin/stdout handling. Use `defineScriptGrader` to skip protocol boilerplate:
+The `agentv` package provides a declarative API with automatic stdin/stdout handling. Use `defineScriptGrader` to skip protocol boilerplate:
 
 ```typescript
 #!/usr/bin/env bun
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(({ output, criteria }) => {
   const outputText = output ?? '';
@@ -274,7 +274,7 @@ For tiny one-off file checks, `defineWorkspaceGrader` can resolve the workspace 
 
 ```typescript
 #!/usr/bin/env bun
-import { defineWorkspaceGrader } from '@agentv/sdk';
+import { defineWorkspaceGrader } from 'agentv';
 
 export default defineWorkspaceGrader(async ({ workspace }) => [
   await workspace.file('app/page.tsx').contains('Status: All systems ready'),
@@ -311,7 +311,7 @@ Use `createTargetClient` from the SDK:
 
 ```typescript
 #!/usr/bin/env bun
-import { createTargetClient, defineScriptGrader } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(async ({ input, output }) => {
   const inputText = input

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { appendFileSync } from 'node:fs';
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(
   ({ trace, tokenUsage, costUsd, durationMs, messages, config }) => {

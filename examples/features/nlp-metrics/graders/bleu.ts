@@ -6,7 +6,7 @@
  * BLEU (Bilingual Evaluation Understudy) measures n-gram precision with a
  * brevity penalty, commonly used for translation evaluation.
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 function tokenize(text: string): string[] {
   return text

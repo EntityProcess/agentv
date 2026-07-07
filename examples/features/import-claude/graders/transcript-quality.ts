@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(({ output }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];

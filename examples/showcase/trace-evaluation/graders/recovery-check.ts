@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { type Message, type ToolCall, defineScriptGrader } from '@agentv/sdk';
+import { type Message, type ToolCall, defineScriptGrader } from 'agentv';
 
 function allToolCalls(output: readonly Message[] | null | undefined): ToolCall[] {
   return (output ?? []).flatMap((message) => [...(message.toolCalls ?? [])]);

@@ -5,7 +5,7 @@
  * Demonstrates how to evaluate agent efficiency using execution metrics
  * available in the trace payload.
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 // Configurable thresholds
 const THRESHOLDS = {

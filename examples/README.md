@@ -93,11 +93,11 @@ example-name/
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/
 │   └── providers.yaml          # Target configuration (optional)
-├── package.json              # Dependencies (if using @agentv/sdk)
+├── package.json              # Dependencies (if using agentv)
 └── README.md                 # Example documentation
 ```
 
-### Using `@agentv/sdk`
+### Using `agentv`
 
 For TypeScript script graders, add a `package.json`:
 
@@ -107,7 +107,7 @@ For TypeScript script graders, add a `package.json`:
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agentv/sdk": "file:../../../packages/sdk"
+    "agentv": "file:../../../apps/cli"
   }
 }
 ```
@@ -116,7 +116,7 @@ Then write type-safe script graders:
 
 ```typescript
 #!/usr/bin/env bun
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(({ output }) => ({
   pass: (output ?? '').includes('expected'),

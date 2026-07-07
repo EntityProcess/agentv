@@ -33,7 +33,7 @@ describe('agentv create assertion', () => {
         path.join(cwd, '.agentv', 'assertions', 'word-count.ts'),
         'utf8',
       );
-      expect(content).toContain("import { defineAssertion } from '@agentv/sdk';");
+      expect(content).toContain("import { defineAssertion } from 'agentv';");
       expect(content).toContain("const text = output ?? '';");
       expect(content).toContain('pass,');
       expect(content).toContain('score: pass ? 1 : 0,');

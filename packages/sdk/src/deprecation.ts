@@ -13,7 +13,7 @@ import type { ScriptGraderInput } from './schemas.js';
  *
  * Previously populated text convenience accessors; now a no-op pass-through since
  * those fields were removed. script graders should extract text from `Message.content`
- * using `getTextContent()` from `@agentv/core` instead.
+ * using `getTextContent()` from `agentv/contracts` instead.
  */
 export function enrichInput(input: ScriptGraderInput): ScriptGraderInput {
   return input;

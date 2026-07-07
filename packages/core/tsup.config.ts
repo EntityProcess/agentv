@@ -3,6 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: [
     'src/index.ts',
+    'src/script-grader.ts',
     'src/evaluation/validation/index.ts',
     'src/evaluation/providers/sdk-child-runner.ts',
   ],

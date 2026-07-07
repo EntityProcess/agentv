@@ -5,7 +5,7 @@
  * Validates that the batch CLI runner produces the expected decision
  * by comparing candidate output against expected_output or input.
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

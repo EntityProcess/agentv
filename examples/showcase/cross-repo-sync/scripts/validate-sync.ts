@@ -11,7 +11,7 @@
  *   - ground_truth: string — path to the ground truth diff file (from metadata)
  */
 
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 defineScriptGrader(({ fileChanges, config }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];

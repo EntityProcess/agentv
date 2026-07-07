@@ -3,6 +3,6 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@agentv/sdk": "file:../../../packages/sdk"
+    "agentv": "file:../../../apps/cli"
   }
 }

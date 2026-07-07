@@ -19,7 +19,7 @@
  * Requires `target: { max_calls: N }` in the grader YAML config,
  * where N >= 2 (one for statement extraction + one for attribution check).
  */
-import { createTargetClient, defineScriptGrader } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader } from 'agentv';
 import { extractRetrievalContext } from './utils.js';
 
 interface StatementExtractionResult {

@@ -168,7 +168,7 @@ graders:
 ## Usage in Code
 
 ```typescript
-import { createTargetClient, defineScriptGrader } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(async ({ question, config }) => {
   const target = createTargetClient();

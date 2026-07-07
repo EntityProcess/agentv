@@ -10,7 +10,7 @@ Custom providers let you implement evaluation targets in TypeScript instead of s
 
 ## Provider Interface
 
-Every provider must implement the `Provider` interface from `@agentv/core`:
+Every provider must implement the `Provider` interface from `agentv/provider`:
 
 ```typescript
 interface Provider {
@@ -68,7 +68,7 @@ import {
   type Provider,
   type ProviderRequest,
   type ProviderResponse,
-} from '@agentv/core';
+} from 'agentv/provider';
 
 const registry = createBuiltinProviderRegistry();
 
@@ -109,7 +109,7 @@ import {
   type ProviderRequest,
   type ProviderResponse,
   type ResolvedProviderBackend,
-} from '@agentv/core';
+} from 'agentv/provider';
 
 class HttpAgentProvider implements Provider {
   readonly id: string;

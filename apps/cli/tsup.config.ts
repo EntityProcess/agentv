@@ -3,11 +3,23 @@ import path from 'node:path';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/cli.ts'],
+  entry: [
+    'src/index.ts',
+    'src/sdk.ts',
+    'src/provider.ts',
+    'src/contracts.ts',
+    'src/config.ts',
+    'src/cli.ts',
+  ],
   format: ['esm'],
   sourcemap: true,
   clean: true,
-  dts: false,
+  dts: {
+    resolve: true,
+    compilerOptions: {
+      composite: false,
+    },
+  },
   target: 'node20',
   platform: 'node',
   tsconfig: './tsconfig.build.json',

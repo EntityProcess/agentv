@@ -5,7 +5,7 @@ import {
   preprocessArgv,
   shouldRunBeforeSessionHook,
   usesDeprecatedStudioAlias,
-} from '../../src/index.js';
+} from '../../src/cli-app.js';
 
 describe('preprocessArgv', () => {
   describe('--eval-id convenience alias', () => {

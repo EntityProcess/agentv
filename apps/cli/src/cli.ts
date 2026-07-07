@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { killAllTrackedChildren } from '@agentv/core';
 
-import { runCli } from './index.js';
+import { runCli } from './cli-app.js';
 
 // Forward SIGINT/SIGTERM to spawned provider subprocesses before exiting.
 // Without this, Dashboard's `child.kill('SIGTERM')` against the CLI orphans

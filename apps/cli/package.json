@@ -14,17 +14,42 @@
   "bin": {
     "agentv": "./dist/cli.js"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk.d.ts",
+      "import": "./dist/sdk.js"
+    },
+    "./provider": {
+      "types": "./dist/provider.d.ts",
+      "import": "./dist/provider.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "import": "./dist/contracts.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": ["dist", "README.md"],
   "scripts": {
     "dev": "bun src/cli.ts",
-    "build": "(cd ../../packages/sdk && bun run build) && tsup && bun run copy-readme",
+    "build": "tsup && bun run copy-readme",
     "copy-readme": "bun -e \"import { cpSync } from 'fs'; cpSync('../../README.md', 'README.md')\"",
     "prepublishOnly": "node -e \"if(process.env.ALLOW_PUBLISH!=='1'){console.error('ERROR: Use bun run publish:next, then bun run promote:latest');process.exit(1)}\"",
-    "typecheck": "(cd ../../packages/sdk && bun run build) && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
     "fix": "biome check --write .",
-    "test": "(cd ../../packages/sdk && bun run build) && bun test",
+    "test": "bun test",
     "test:watch": "bun test --watch"
   },
   "dependencies": {

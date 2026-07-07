@@ -1,6 +1,6 @@
 # script grader SDK Helper
 
-Demonstrates how a TypeScript script grader can use `defineScriptGrader` from `@agentv/sdk` for a declarative, low-boilerplate approach while still consuming the canonical AgentV wire format.
+Demonstrates how a TypeScript script grader can use `defineScriptGrader` from `agentv` for a declarative, low-boilerplate approach while still consuming the canonical AgentV wire format.
 
 Use this pattern for command-backed graders referenced with `type: script`. For reusable assertion types discovered from `.agentv/assertions/`, use `defineAssertion()` instead.
 
@@ -16,7 +16,7 @@ From repository root:
 
 ```bash
 bun install  # Links workspace dependencies
-bun run build  # Builds @agentv/core package
+bun run build  # Builds the local agentv package
 ```
 
 ## Run
@@ -58,7 +58,7 @@ The `defineScriptGrader` helper:
 - Handles errors gracefully
 
 ```typescript
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(({ output, criteria }) => ({
   pass: (output ?? '').includes(criteria),

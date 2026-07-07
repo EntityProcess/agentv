@@ -1,6 +1,7 @@
 {
   "name": "@agentv/core",
   "version": "5.3.1-next.1",
+  "private": true,
   "description": "Primitive runtime components for AgentV",
   "type": "module",
   "repository": {
@@ -23,6 +24,11 @@
       "types": "./dist/evaluation/validation/index.d.ts",
       "import": "./dist/evaluation/validation/index.js",
       "require": "./dist/evaluation/validation/index.cjs"
+    },
+    "./script-grader": {
+      "types": "./dist/script-grader.d.ts",
+      "import": "./dist/script-grader.js",
+      "require": "./dist/script-grader.cjs"
     }
   },
   "scripts": {
@@ -38,7 +44,6 @@
     "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts",
     "generate:schema": "bun scripts/generate-eval-schema.ts"
   },
-  "files": ["dist", "README.md"],
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.1",
     "@earendil-works/pi-ai": "^0.74.0",

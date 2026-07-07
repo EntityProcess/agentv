@@ -32,7 +32,7 @@ AgentV follows that framing for `assert:` entries and `defineAssertion()`. The A
 ## Installation
 
 ```bash
-npm install @agentv/sdk
+npm install agentv
 ```
 
 ## Convention-Based Discovery
@@ -68,7 +68,7 @@ The simplest pattern returns `pass` (boolean), `reason`, and optional `checks`:
 
 ```typescript
 // .agentv/assertions/min-words.ts
-import { defineAssertion } from '@agentv/sdk';
+import { defineAssertion } from 'agentv';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
@@ -89,7 +89,7 @@ Return a `score` (0 to 1) for granular evaluation instead of binary pass/fail:
 
 ```typescript
 // .agentv/assertions/efficiency.ts
-import { defineAssertion } from '@agentv/sdk';
+import { defineAssertion } from 'agentv';
 
 export default defineAssertion(({ output, traceSummary }) => {
   const hasContent = (output ?? '').length > 0 ? 0.5 : 0;
@@ -203,7 +203,7 @@ my-project/
 ```typescript
 // .agentv/assertions/min-words.ts
 #!/usr/bin/env bun
-import { defineAssertion } from '@agentv/sdk';
+import { defineAssertion } from 'agentv';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
@@ -265,7 +265,7 @@ tests:
 ### 4. Install and Run
 
 ```bash
-npm install @agentv/sdk
+npm install agentv
 agentv eval evals/suite.yaml
 ```
 
