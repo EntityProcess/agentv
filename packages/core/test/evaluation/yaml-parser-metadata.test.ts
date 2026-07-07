@@ -253,8 +253,8 @@ tests:
       ticker: AAPL
     assert:
       - name: dexter_rubric
-        type: llm-grader
-        rubrics:
+        type: llm-rubric
+        value:
           - id: factual
             operator: correctness
             criteria: "Uses the supplied company and ticker"
@@ -264,8 +264,8 @@ tests:
     expect(suite.tests[0].input[0].content).toBe('Use Apple (AAPL)');
     expect(suite.tests[0].question).toBe('Use Apple (AAPL)');
     const grader = suite.tests[0].assertions?.[0];
-    expect(grader?.type).toBe('llm-grader');
-    if (grader?.type === 'llm-grader') {
+    expect(grader?.type).toBe('llm-rubric');
+    if (grader?.type === 'llm-rubric') {
       expect(grader.rubrics?.[0]).toMatchObject({
         id: 'factual',
         operator: 'correctness',

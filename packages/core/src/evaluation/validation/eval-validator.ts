@@ -67,7 +67,6 @@ const REMOVED_ASSERTION_TYPE_REPLACEMENTS = new Map<string, string>([
   ['rubric', 'llm-rubric with value'],
   ['script-grader', 'script'],
   ['code-judge', 'script'],
-  ['llm-judge', 'llm-grader'],
 ]);
 
 const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
@@ -186,6 +185,9 @@ function staleToolTrajectoryMessage(value: JsonObject): string {
 function staleAuthoredAssertionMessage(value: JsonObject): string | undefined {
   if (typeof value.type !== 'string') return undefined;
   const type = value.type.replace(/_/g, '-');
+  if (type === 'llm-grader' || type === 'llm-judge') {
+    return "Authored assertion type 'llm-grader' has been removed. Use 'llm-rubric' for free-form rubric checks or 'agent-rubric' for agentic rubric checks.";
+  }
   if (type === 'skill-trigger') return staleSkillTriggerMessage(value);
   if (type === 'tool-trajectory') return staleToolTrajectoryMessage(value);
   return undefined;
@@ -2623,7 +2625,7 @@ function validateAssertArray(
   }
 
   // String items in the assert array are valid shorthand — the parser collects them
-  // into a single rubrics/llm-grader evaluator. Filter them out before object validation.
+  // into a single llm-rubric evaluator. Filter them out before object validation.
   const objectItems: { item: JsonObject; index: number }[] = [];
   for (let i = 0; i < assertField.length; i++) {
     const item = assertField[i];

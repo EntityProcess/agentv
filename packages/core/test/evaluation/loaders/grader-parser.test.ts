@@ -412,7 +412,7 @@ describe('parseGraders - deterministic assertion types', () => {
       {
         assert: [
           { metric: 'rubric', type: 'llm-rubric', value: 'Judge whether it is helpful' },
-          { metric: 'grader', type: 'llm-grader' },
+          { metric: 'contains-check', type: 'contains', value: 'ok' },
         ],
       },
       undefined,
@@ -427,7 +427,11 @@ describe('parseGraders - deterministic assertion types', () => {
       type: 'llm-rubric',
       prompt: 'Grade {{ output }} against {{ rubric }}',
     });
-    expect((evaluators?.[1] as LlmGraderConfig).prompt).toBeUndefined();
+    expect(evaluators?.[1]).toMatchObject({
+      name: 'contains-check',
+      type: 'contains',
+      value: 'ok',
+    });
   });
 
   it('rejects explicit g-eval until AgentV implements promptfoo two-call semantics', async () => {
@@ -775,7 +779,7 @@ describe('parseGraders - kebab-case type normalization', () => {
       assert: [
         {
           metric: 'kebab-llm',
-          type: 'llm-grader',
+          type: 'llm-rubric',
           prompt: 'test prompt',
           provider: 'grader-low-cost-a',
         },
@@ -785,7 +789,7 @@ describe('parseGraders - kebab-case type normalization', () => {
     const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-grader');
+    expect(evaluators?.[0].type).toBe('llm-rubric');
     expect((evaluators?.[0] as LlmGraderConfig).target).toBe('grader-low-cost-a');
   });
 
@@ -843,7 +847,23 @@ describe('parseGraders - kebab-case type normalization', () => {
     expect(evaluators?.[0].type).toBe('is-json');
   });
 
-  it('rejects removed snake_case grader aliases', async () => {
+  it('rejects public llm-grader assertion type with migration guidance', async () => {
+    const rawEvalCase = {
+      assert: [
+        {
+          metric: 'public-llm',
+          type: 'llm-grader',
+          prompt: 'test prompt',
+        },
+      ],
+    };
+
+    await expect(parseGraders(rawEvalCase, undefined, [tempDir], 'test-case')).rejects.toThrow(
+      "Unsupported grader 'llm-grader' in 'test-case'. Use 'llm-rubric' for free-form rubric checks or 'agent-rubric' for agentic rubric checks.",
+    );
+  });
+
+  it('rejects removed snake_case llm-grader alias with migration guidance', async () => {
     const rawEvalCase = {
       assert: [
         {
@@ -855,7 +875,7 @@ describe('parseGraders - kebab-case type normalization', () => {
     };
 
     await expect(parseGraders(rawEvalCase, undefined, [tempDir], 'test-case')).rejects.toThrow(
-      "Unsupported grader 'llm_grader' in 'test-case'. Use 'llm-grader' instead.",
+      "Unsupported grader 'llm_grader' in 'test-case'. Use 'llm-rubric' for free-form rubric checks or 'agent-rubric' for agentic rubric checks.",
     );
   });
 
@@ -883,8 +903,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'correctness',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               weight: 2.0,
@@ -905,8 +925,8 @@ describe('parseGraders - score_ranges rubrics', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    expect(config?.type).toBe('llm-grader');
-    if (config?.type === 'llm-grader') {
+    expect(config?.type).toBe('llm-rubric');
+    if (config?.type === 'llm-rubric') {
       expect(config.rubrics).toHaveLength(1);
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
@@ -921,8 +941,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'correctness',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               required_min_score: 7,
@@ -948,8 +968,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'overlapping',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'test',
               score_ranges: [
@@ -972,8 +992,8 @@ describe('parseGraders - score_ranges rubrics', () => {
       assert: [
         {
           metric: 'incomplete',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'test',
               score_ranges: [
@@ -991,14 +1011,13 @@ describe('parseGraders - score_ranges rubrics', () => {
     ).rejects.toThrow(/coverage/i);
   });
 
-  it('skips rubric items that use legacy description field without outcome', async () => {
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+  it('keeps legacy description objects as promptfoo-compatible llm-rubric value', async () => {
     const rawEvalCase = {
       assert: [
         {
           metric: 'legacy',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'r1',
               description: 'Must be polite', // Legacy field name — no longer supported
@@ -1014,12 +1033,18 @@ describe('parseGraders - score_ranges rubrics', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    if (config?.type === 'llm-grader') {
-      // Rubric should be skipped since it has no 'outcome' field
-      expect(config.rubrics ?? []).toHaveLength(0);
+    if (config?.type !== 'llm-rubric') {
+      throw new Error('expected llm-rubric config');
     }
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing outcome'));
-    warnSpy.mockRestore();
+    expect(config.rubrics).toBeUndefined();
+    expect(config.value).toEqual([
+      {
+        id: 'r1',
+        description: 'Must be polite',
+        weight: 1.0,
+        required: true,
+      },
+    ]);
   });
 });
 
@@ -1029,8 +1054,8 @@ describe('parseGraders - score_ranges shorthand map', () => {
       assert: [
         {
           metric: 'shorthand-test',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               weight: 2.0,
@@ -1051,8 +1076,8 @@ describe('parseGraders - score_ranges shorthand map', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    expect(config?.type).toBe('llm-grader');
-    if (config?.type === 'llm-grader') {
+    expect(config?.type).toBe('llm-rubric');
+    if (config?.type === 'llm-rubric') {
       expect(config.rubrics).toHaveLength(1);
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
@@ -1082,8 +1107,8 @@ describe('parseGraders - score_ranges shorthand map', () => {
       assert: [
         {
           metric: 'bad-start',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'test',
               score_ranges: {
@@ -1107,8 +1132,8 @@ describe('parseGraders - score_ranges shorthand map', () => {
       assert: [
         {
           metric: 'array-format',
-          type: 'llm-grader',
-          rubrics: [
+          type: 'llm-rubric',
+          value: [
             {
               id: 'accuracy',
               score_ranges: [
@@ -1127,7 +1152,7 @@ describe('parseGraders - score_ranges shorthand map', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    if (config?.type === 'llm-grader') {
+    if (config?.type === 'llm-rubric') {
       expect(config.rubrics?.[0]?.score_ranges).toHaveLength(4);
     }
   });
@@ -2129,10 +2154,18 @@ describe('parseGraders - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required with min_score on llm-grader evaluator', async () => {
+  it('parses required with min_score on llm-rubric evaluator', async () => {
     const evaluators = await parseGraders(
       {
-        assert: [{ metric: 'grader', type: 'llm-grader', required: true, min_score: 0.7 }],
+        assert: [
+          {
+            metric: 'grader',
+            type: 'llm-rubric',
+            value: 'Judge whether it is helpful',
+            required: true,
+            min_score: 0.7,
+          },
+        ],
       },
       undefined,
       [tempDir],
@@ -2201,7 +2234,7 @@ describe('parseGraders - assert-set grouping', () => {
   beforeAll(async () => {
     tempDir = path.join(os.tmpdir(), `agentv-test-assert-set-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
-    // Create dummy prompt files for llm-grader members (must include required template fields)
+    // Create dummy prompt files for llm-rubric members (must include required template fields)
     await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ output }}');
     await writeFile(path.join(tempDir, 'quality.md'), 'Evaluate quality of {{ output }}');
   });
@@ -2218,8 +2251,8 @@ describe('parseGraders - assert-set grouping', () => {
             metric: 'combined',
             type: 'assert-set',
             assert: [
-              { metric: 'safety', type: 'llm-grader', prompt: './safety.md' },
-              { metric: 'quality', type: 'llm-grader', prompt: './quality.md' },
+              { metric: 'safety', type: 'llm-rubric', prompt: './safety.md' },
+              { metric: 'quality', type: 'llm-rubric', prompt: './quality.md' },
             ],
             threshold: 0.7,
           },
@@ -2482,7 +2515,14 @@ describe('parseGraders - file:// prefix prompt resolution', () => {
   it('file:// prefix resolves existing file', async () => {
     const evaluators = await parseGraders(
       {
-        assert: [{ metric: 'quality', type: 'llm-grader', prompt: 'file://grader.md' }],
+        assert: [
+          {
+            metric: 'quality',
+            type: 'llm-rubric',
+            value: 'Judge the answer quality',
+            prompt: 'file://grader.md',
+          },
+        ],
       },
       undefined,
       [tempDir],
@@ -2498,7 +2538,7 @@ describe('parseGraders - file:// prefix prompt resolution', () => {
     await expect(
       parseGraders(
         {
-          assert: [{ metric: 'missing', type: 'llm-grader', prompt: 'file://nonexistent.md' }],
+          assert: [{ metric: 'missing', type: 'llm-rubric', prompt: 'file://nonexistent.md' }],
         },
         undefined,
         [tempDir],
@@ -2510,7 +2550,7 @@ describe('parseGraders - file:// prefix prompt resolution', () => {
   it('bare path is always treated as inline text even if file exists', async () => {
     const evaluators = await parseGraders(
       {
-        assert: [{ metric: 'quality', type: 'llm-grader', prompt: 'grader.md' }],
+        assert: [{ metric: 'quality', type: 'llm-rubric', prompt: 'grader.md' }],
       },
       undefined,
       [tempDir],

@@ -74,7 +74,7 @@ v4.42.4 docs and schema used `assertions` for suite-level and per-test graders:
 ```yaml
 assertions:
   - name: correctness
-    type: llm-grader
+    type: llm-rubric
     prompt: ./graders/correctness.md
 
 tests:
@@ -958,7 +958,7 @@ assert:
 - `type: g-eval` -> `type: llm-rubric`.
 - `type: code-grader`, `code-judge`, `code_grader`, or `code_judge` ->
   `type: script`.
-- `type: llm_judge` or `llm_grader` -> `type: llm-grader`.
+- `type: llm_judge` or `llm_grader` -> `type: llm-rubric`.
 - Convert multi-word snake_case deterministic types to kebab-case:
   `is_json` -> `is-json`, `contains_all` -> `contains-all`,
   `starts_with` -> `starts-with`, and so on.
@@ -987,9 +987,9 @@ v4.42.4 LLM grader docs allowed both:
 
 ```yaml
 assertions:
-  - type: llm-grader
+  - type: llm-rubric
     prompt: ./graders/correctness.md
-  - type: llm-grader
+  - type: llm-rubric
     prompt: file://graders/correctness.md
 ```
 

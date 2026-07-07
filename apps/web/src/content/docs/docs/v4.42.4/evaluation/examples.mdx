@@ -91,7 +91,7 @@ tests:
         command: [uv, run, validate_json.py]
         cwd: ./graders
       - name: content_evaluator
-        type: llm-grader
+        type: llm-rubric
         prompt: ./graders/semantic_correctness.md
 
     input: |-
@@ -108,7 +108,7 @@ tests:
 
 ## File Output Preprocessing
 
-Convert a binary file output into text before the `llm-grader` sees it:
+Convert a binary file output into text before the `llm-rubric` sees it:
 
 ```yaml
 description: Grade spreadsheet output via a preprocessor
@@ -183,15 +183,15 @@ assertions:
     threshold: 0.6
     assertions:
       - name: grader-gpt-5-mini
-        type: llm-grader
+        type: llm-rubric
         target: grader_gpt_5_mini
         prompt: ../prompts/grader-pass-fail-v1.md
       - name: grader-claude-haiku
-        type: llm-grader
+        type: llm-rubric
         target: grader_claude_haiku
         prompt: ../prompts/grader-pass-fail-v1.md
       - name: grader-gemini-flash
-        type: llm-grader
+        type: llm-rubric
         target: grader_gemini_flash
         prompt: ../prompts/grader-pass-fail-v1.md
 ```

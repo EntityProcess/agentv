@@ -604,6 +604,35 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('rejects public llm-grader assertions with migration guidance', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assert: [
+            {
+              type: 'llm-grader',
+              prompt: 'Judge whether the answer is helpful',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const messages = collectIssueMessages(result.error.issues);
+      expect(
+        messages.some(
+          (message) =>
+            message.includes("Authored assertion type 'llm-grader' has been removed") &&
+            message.includes("'llm-rubric'") &&
+            message.includes("'agent-rubric'"),
+        ),
+      ).toBe(true);
+    }
+  });
+
   it('rejects stale skill-trigger assertions with migration guidance', () => {
     const positive = EvalFileSchema.safeParse({
       tests: [

@@ -12,8 +12,8 @@ tests:
         command: node grader-score-1.js
         weight: 1
       - metric: relevance
-        type: llm-grader
-        prompt: Did the response echo the input?
+        type: llm-rubric
+        value: Did the response echo the input?
         weight: 2
     vars:
       input: hello world

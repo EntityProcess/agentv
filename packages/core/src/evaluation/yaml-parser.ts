@@ -2907,7 +2907,11 @@ function collectSingleGraderSourceReferences(
     }
   }
 
-  if (evaluator.type === 'llm-grader') {
+  if (
+    evaluator.type === 'llm-grader' ||
+    evaluator.type === 'llm-rubric' ||
+    evaluator.type === 'agent-rubric'
+  ) {
     const resolvedPromptPath = evaluator.resolvedPromptPath ?? evaluator.promptPath;
     if (resolvedPromptPath) {
       references.push({

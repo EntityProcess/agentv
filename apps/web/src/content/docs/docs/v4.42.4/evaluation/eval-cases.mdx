@@ -86,7 +86,7 @@ tests:
       target: gpt4_target
     assertions:
       - name: depth_check
-        type: llm-grader
+        type: llm-rubric
         prompt: ./graders/depth.md
 ```
 
@@ -111,7 +111,7 @@ tests:
       skip_defaults: true
     assertions:
       - name: custom_eval
-        type: llm-grader
+        type: llm-rubric
     # Does NOT get latency_check
 ```
 
@@ -330,14 +330,14 @@ The `criteria` field is a **data field** that describes what the response should
 
 ### No `assertions` — implicit LLM grader
 
-When a test has no `assertions` field, a default `llm-grader` grader runs automatically and uses `criteria` as the evaluation prompt:
+When a test has no `assertions` field, a default `llm-rubric` grader runs automatically and uses `criteria` as the evaluation prompt:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Assistant correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assertions → default llm-grader evaluates against criteria
+    # No assertions → default llm-rubric evaluates against criteria
 ```
 
 Suite-level `preprocessors` also apply to this implicit grader. That matters when the agent output is a `ContentFile` block rather than plain text:
@@ -355,13 +355,13 @@ tests:
 
 ### `assertions` present — explicit graders only
 
-When `assertions` is defined, only the declared graders run. No implicit grader is added. Graders that are declared (such as `llm-grader`, `code-grader`, or `rubrics`) receive `criteria` as input automatically.
+When `assertions` is defined, only the declared graders run. No implicit grader is added. Graders that are declared (such as `llm-rubric`, `script`, or `rubrics`) receive `criteria` as input automatically.
 
 If `assertions` contains only deterministic graders (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
 
 ```
 Warning: Test 'my-test': criteria is defined but no grader in assertions
-will evaluate it. Add 'type: llm-grader' to assertions, or remove criteria
+will evaluate it. Add 'type: llm-rubric' to assertions, or remove criteria
 if it is documentation-only.
 ```
 
@@ -373,7 +373,7 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-grader        # explicit — receives criteria automatically
+      - type: llm-rubric        # explicit — receives criteria automatically
       - type: contains
         value: "fix"
 ```
@@ -390,7 +390,7 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-grader
+      - type: llm-rubric
         preprocessors:
           - type: xlsx
             command: ["bun", "run", "scripts/preprocessors/xlsx-to-json.ts"]

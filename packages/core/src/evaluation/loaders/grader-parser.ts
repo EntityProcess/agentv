@@ -49,8 +49,7 @@ function removedGraderReplacement(type: string): string | undefined {
     code_grader: 'script',
     code_judge: 'script',
     composite: 'assert-set',
-    llm_judge: 'llm-grader',
-    llm_grader: 'llm-grader',
+    llm_judge: 'llm-rubric',
     tool_trajectory: 'tool-trajectory',
     field_accuracy: 'field-accuracy',
     token_usage: 'token-usage',
@@ -64,6 +63,14 @@ function removedGraderReplacement(type: string): string | undefined {
     is_json: 'is-json',
   };
   return replacements[type];
+}
+
+function removedPublicLlmGraderMessage(type: string): string | undefined {
+  const normalizedType = type.replace(/_/g, '-');
+  if (normalizedType !== 'llm-grader' && normalizedType !== 'llm-judge') {
+    return undefined;
+  }
+  return "Use 'llm-rubric' for free-form rubric checks or 'agent-rubric' for agentic rubric checks.";
 }
 
 const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
@@ -653,6 +660,10 @@ async function parseGraderList(
           `Unsupported grader '${rawType}' in '${evalId}'` +
             `${rawName ? ` for evaluator '${rawName}'` : ''}. ${staleMessage}`,
         );
+      }
+      const llmGraderMessage = removedPublicLlmGraderMessage(normalizedType);
+      if (llmGraderMessage) {
+        throw new Error(`Unsupported grader '${rawType}' in '${evalId}'. ${llmGraderMessage}`);
       }
       const replacement = removedGraderReplacement(normalizedType);
       if (replacement) {

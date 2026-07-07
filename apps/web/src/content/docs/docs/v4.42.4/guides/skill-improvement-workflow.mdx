@@ -234,7 +234,7 @@ tests:
         content: "Review this Python function for bugs:..."
     assertions:
       - name: assertion-1
-        type: llm-grader
+        type: llm-rubric
         prompt: "Identifies the division by zero risk"
       # Replace with type: contains for deterministic checks:
       # - type: contains
@@ -242,7 +242,7 @@ tests:
 ```
 
 After converting, you can:
-- Replace `llm-grader` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
+- Replace `llm-rubric` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
 - Add `workspace` configuration for file-system isolation
 - Use `code-grader` for custom scoring logic
 - Define `tool-trajectory` assertions to check tool usage patterns

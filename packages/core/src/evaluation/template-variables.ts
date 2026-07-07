@@ -10,8 +10,8 @@
  *   - {{ rubric }}          — rubric data, as structured JSON when available or criteria text otherwise
  *   - {{ metadata }}        — per-test metadata as formatted JSON
  *   - {{ metadata_json }}   — per-test metadata as compact JSON
- *   - {{ rubrics }}        — llm-grader rubrics as formatted JSON
- *   - {{ rubrics_json }}   — llm-grader rubrics as compact JSON
+ *   - {{ rubrics }}        — rubric rows as formatted JSON
+ *   - {{ rubrics_json }}   — rubric rows as compact JSON
  *   - {{ file_changes }}    — file diff (if available)
  *   - {{ tool_calls }}     — formatted summary of tool calls from agent execution
  *

@@ -95,6 +95,9 @@ function staleToolTrajectoryMessage(value: Record<string, unknown>): string {
 function staleAuthoredAssertionMessage(value: Record<string, unknown>): string | undefined {
   if (typeof value.type !== 'string') return undefined;
   const type = value.type.replace(/_/g, '-');
+  if (type === 'llm-grader' || type === 'llm-judge') {
+    return "Authored assertion type 'llm-grader' has been removed. Use 'llm-rubric' for free-form rubric checks or 'agent-rubric' for agentic rubric checks.";
+  }
   if (type === 'skill-trigger') return staleSkillTriggerMessage(value);
   if (type === 'tool-trajectory') return staleToolTrajectoryMessage(value);
   return undefined;
@@ -190,17 +193,6 @@ const ScriptGraderSchema = EvaluatorCommonSchema.extend({
   cwd: z.string().optional(),
   target: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
   config: z.record(z.unknown()).optional(),
-});
-
-const LlmGraderSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('llm-grader'),
-  prompt: PromptSchema.optional(),
-  rubrics: z.array(RubricItemSchema).optional(),
-  model: z.string().optional(),
-  provider: z.string().optional(),
-  config: z.record(z.unknown()).optional(),
-  max_steps: z.number().int().min(1).max(50).optional(),
-  temperature: z.number().min(0).max(2).optional(),
 });
 
 const IncludeSchema = z
@@ -340,7 +332,6 @@ const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
 /** Union of all grader types */
 const EvaluatorSchema = z.union([
   ScriptGraderSchema,
-  LlmGraderSchema,
   PromptfooAssertionSchema,
   IncludeSchema,
   ToolTrajectorySchema,

@@ -46,10 +46,12 @@ tests:
     criteria: ok
     assert:
       - metric: prompt-file
-        type: llm-grader
+        type: llm-rubric
+        value: Check the answer with the prompt file.
         prompt: file://graders/prompt.md
       - metric: prompt-script
-        type: llm-grader
+        type: agent-rubric
+        value: Check the answer with the prompt script.
         prompt:
           command:
             - bun
@@ -110,7 +112,7 @@ tests:
     );
     expect(promptScriptDefinition?.definition).toMatchObject({
       name: 'prompt-script',
-      type: 'llm-grader',
+      type: 'agent-rubric',
       config: {
         secret_token: '[redacted]',
         apiKey: '[redacted]',

@@ -283,7 +283,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('Output is valid JSON');
   });
 
-  it('converts llm-grader prompt to NL', () => {
+  it('converts llm-rubric text to NL', () => {
     const suite = {
       tests: [
         {
@@ -291,7 +291,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           input: 'test',
           assert: [
             { type: 'skill-used', value: 's' },
-            { type: 'llm-grader', prompt: 'The answer is clear and concise' },
+            { type: 'llm-rubric', value: 'The answer is clear and concise' },
           ],
         },
       ],
@@ -301,7 +301,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('The answer is clear and concise');
   });
 
-  it('converts llm-grader with rubrics to multiple assertions (rubrics variant)', () => {
+  it('converts llm-rubric with structured values to multiple assertions', () => {
     const suite = {
       tests: [
         {
@@ -310,8 +310,8 @@ describe('transpileEvalYaml — NL assertions', () => {
           assert: [
             { type: 'skill-used', value: 's' },
             {
-              type: 'llm-grader',
-              rubrics: [
+              type: 'llm-rubric',
+              value: [
                 { id: 'r1', outcome: 'Correct result returned' },
                 { id: 'r2', outcome: 'No unnecessary steps' },
               ],
@@ -326,7 +326,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('No unnecessary steps');
   });
 
-  it('converts llm-grader with rubrics to multiple assertions', () => {
+  it('rejects public llm-grader assertions with migration guidance', () => {
     const suite = {
       tests: [
         {
@@ -336,7 +336,8 @@ describe('transpileEvalYaml — NL assertions', () => {
             { type: 'skill-used', value: 's' },
             {
               type: 'llm-grader',
-              rubrics: [
+              prompt: 'The answer is clear and concise',
+              value: [
                 { id: 'r1', outcome: 'Response is accurate' },
                 { id: 'r2', outcome: 'Formatting is correct' },
               ],
@@ -345,10 +346,9 @@ describe('transpileEvalYaml — NL assertions', () => {
         },
       ],
     };
-    const { files } = transpileEvalYaml(suite);
-    const evals = files.get('s')?.evals;
-    expect(evals[0].assertions).toContain('Response is accurate');
-    expect(evals[0].assertions).toContain('Formatting is correct');
+    expect(() => transpileEvalYaml(suite)).toThrow(
+      "Authored assertion type 'llm-grader' has been removed",
+    );
   });
 
   it('converts tool-trajectory to NL', () => {
