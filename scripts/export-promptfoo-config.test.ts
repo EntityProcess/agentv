@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import YAML from 'yaml';
@@ -12,6 +12,14 @@ const PROMPTFOO_REFERENCE_CLONE_COMMIT = '6bfc5a0c7f16f9c4717ac731d276b578e63d07
 
 function outputPath(name: string): string {
   return path.join(mkdtempSync(path.join(tmpdir(), 'agentv-promptfoo-export-')), name);
+}
+
+function writeAgentvConfig(content: string): { readonly input: string; readonly output: string } {
+  const dir = mkdtempSync(path.join(tmpdir(), 'agentv-promptfoo-export-'));
+  const input = path.join(dir, 'input.agentv.yaml');
+  const output = path.join(dir, 'promptfooconfig.yaml');
+  writeFileSync(input, content, 'utf8');
+  return { input, output };
 }
 
 function parseYamlFile(filePath: string): Record<string, unknown> {
@@ -96,6 +104,121 @@ describe('exportPromptfooConfig', () => {
       id: 'openai:codex-sdk',
       label: 'codex-sdk-direct',
     });
+  });
+
+  it('preserves Promptfoo-compatible provider maps and inputs', () => {
+    const { input, output } = writeAgentvConfig(`providers:
+  - openai:gpt-4:
+      label: gpt4-map
+      config:
+        temperature: 0
+      inputs:
+        prompt: User prompt text
+  - id: openai:responses:gpt-5.4
+    label: responses-object
+    inputs:
+      prompt:
+        type: text
+        description: User prompt text
+prompts:
+  - "{{ prompt }}"
+tests:
+  - vars:
+      prompt: hello
+`);
+
+    exportPromptfooConfig({ inputPath: input, outputPath: output });
+
+    const exported = parseYamlFile(output);
+    expect(exported.providers).toEqual([
+      {
+        'openai:gpt-4': {
+          label: 'gpt4-map',
+          config: { temperature: 0 },
+          inputs: { prompt: 'User prompt text' },
+        },
+      },
+      {
+        id: 'openai:responses:gpt-5.4',
+        label: 'responses-object',
+        inputs: {
+          prompt: {
+            type: 'text',
+            description: 'User prompt text',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('rejects AgentV-only provider runtime settings that cannot be lowered', () => {
+    const { input, output } = writeAgentvConfig(`providers:
+  - id: openai:gpt-4
+    label: sandboxed
+    runtime: sandbox
+tests:
+  - vars: {}
+`);
+
+    expect(() => exportPromptfooConfig({ inputPath: input, outputPath: output })).toThrow(
+      PromptfooExportDiagnostic,
+    );
+    try {
+      exportPromptfooConfig({ inputPath: input, outputPath: output });
+    } catch (error) {
+      expect(error).toBeInstanceOf(PromptfooExportDiagnostic);
+      expect((error as PromptfooExportDiagnostic).code).toBe('unsupported_provider_runtime');
+      expect((error as Error).message).toContain('providers[].runtime is AgentV-only');
+    }
+  });
+
+  it('rejects AgentV-only provider-local environment and hooks', () => {
+    const providerEnvironment = writeAgentvConfig(`providers:
+  - id: openai:gpt-4
+    label: with-env
+    environment:
+      type: host
+      workdir: ./workspace
+tests:
+  - vars: {}
+`);
+    const providerHooks = writeAgentvConfig(`providers:
+  - openai:gpt-4:
+      label: with-hooks
+      hooks:
+        before_each:
+          command: ["echo", "setup"]
+tests:
+  - vars: {}
+`);
+
+    expect(() =>
+      exportPromptfooConfig({
+        inputPath: providerEnvironment.input,
+        outputPath: providerEnvironment.output,
+      }),
+    ).toThrow(PromptfooExportDiagnostic);
+    try {
+      exportPromptfooConfig({
+        inputPath: providerEnvironment.input,
+        outputPath: providerEnvironment.output,
+      });
+    } catch (error) {
+      expect(error).toBeInstanceOf(PromptfooExportDiagnostic);
+      expect((error as PromptfooExportDiagnostic).code).toBe('unsupported_provider_environment');
+      expect((error as Error).message).toContain('provider-local testbed setup');
+    }
+
+    expect(() =>
+      exportPromptfooConfig({ inputPath: providerHooks.input, outputPath: providerHooks.output }),
+    ).toThrow(PromptfooExportDiagnostic);
+    try {
+      exportPromptfooConfig({ inputPath: providerHooks.input, outputPath: providerHooks.output });
+    } catch (error) {
+      expect(error).toBeInstanceOf(PromptfooExportDiagnostic);
+      expect((error as PromptfooExportDiagnostic).code).toBe('unsupported_provider_hooks');
+      expect((error as Error).message).toContain('AgentV-only provider hooks');
+    }
   });
 
   it('lowers agentv:codex-cli to a generated Promptfoo file provider and preserves label', () => {

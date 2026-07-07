@@ -295,19 +295,49 @@ tests:
   - id: test-2
 ```
 
-The string is a configured provider `label` or `id`. Use object form when an
-eval needs a local provider variant:
+The string is usually a configured provider `label` or `id`. Promptfoo-style
+provider spec strings such as `openai:gpt-4.1-mini` are also accepted and lower
+to an inline provider definition. Use object form when an eval needs a local
+provider variant:
 
 ```yaml
 providers:
   - id: codex-app-server
     label: codex-high-reasoning
-  runtime: host
-  config:
-    command: ["codex", "app-server"]
-    model: gpt-5-codex
-    reasoning_effort: high
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+      reasoning_effort: high
 ```
+
+AgentV accepts the Promptfoo provider declaration layer where the semantics
+match: strings, object form, provider maps, and `inputs`. In object form, `id`
+is the backend/spec and `label` is the stable AgentV result and selection
+identity.
+
+```yaml
+providers:
+  - openai:gpt-4.1-mini
+  - openai:gpt-4:
+      label: gpt4-low-temp
+      config:
+        temperature: 0
+      inputs:
+        prompt: User prompt text
+  - id: openai:responses:gpt-5.4
+    label: gpt5-responses
+    inputs:
+      prompt:
+        type: text
+        description: User prompt text
+```
+
+`runtime`, provider-local `environment`, and provider `hooks` are AgentV
+extensions. Direct Promptfoo runs do not execute those fields. A Promptfoo
+export path must either lower a supported AgentV extension into Promptfoo
+providers/extensions or reject the config with a clear diagnostic instead of
+silently dropping runtime or testbed behavior.
 
 Use `defaults.grader` for the project default grader. `default_test.options.provider`
 and `tests[].options.provider` can choose a grader provider for LLM-backed
@@ -443,7 +473,6 @@ Provider hooks can be scoped to an eval-local provider object:
 providers:
   - id: codex-app-server
     label: codex-with-skills
-    extends: default
     hooks:
       before_each:
         command: ["setup-plugins.sh", "skills"]

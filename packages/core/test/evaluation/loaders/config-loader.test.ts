@@ -1064,13 +1064,21 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
     ]);
   });
 
-  it('preserves colon provider specs as selection identity and lowers backend config', () => {
+  it('lowers Promptfoo provider string specs and maps to inline provider refs', () => {
     const suite: JsonObject = {
       providers: [
         'openai:gpt-4.1-mini',
         {
+          'openai:gpt-4': {
+            label: 'gpt4-map',
+            config: { temperature: 0 },
+            inputs: { prompt: 'User prompt text' },
+          },
+        },
+        {
           id: 'openai:responses:gpt-5.4',
           label: 'gpt5-responses',
+          inputs: { prompt: 'User prompt text' },
         },
         {
           id: 'anthropic:messages:claude-sonnet-4-6',
@@ -1097,6 +1105,7 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
 
     expect(extractTargetsFromSuite(suite)).toEqual([
       'openai:gpt-4.1-mini',
+      'gpt4-map',
       'gpt5-responses',
       'anthropic:messages:claude-sonnet-4-6',
       'exec:node ./provider.js',
@@ -1106,7 +1115,32 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       'openai:codex-desktop',
     ]);
     expect(extractTargetRefsFromSuite(suite)).toEqual([
-      { name: 'openai:gpt-4.1-mini' },
+      {
+        name: 'openai:gpt-4.1-mini',
+        id: 'openai:gpt-4.1-mini',
+        label: 'openai:gpt-4.1-mini',
+        definition: expect.objectContaining({
+          id: 'openai:gpt-4.1-mini',
+          name: 'openai:gpt-4.1-mini',
+          label: 'openai:gpt-4.1-mini',
+          provider: 'openai',
+          model: 'gpt-4.1-mini',
+        }),
+      },
+      {
+        name: 'gpt4-map',
+        id: 'openai:gpt-4',
+        label: 'gpt4-map',
+        definition: expect.objectContaining({
+          id: 'gpt4-map',
+          name: 'gpt4-map',
+          label: 'gpt4-map',
+          provider: 'openai',
+          model: 'gpt-4',
+          temperature: 0,
+          inputs: { prompt: 'User prompt text' },
+        }),
+      },
       {
         name: 'gpt5-responses',
         id: 'openai:responses:gpt-5.4',
@@ -1118,6 +1152,7 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
           provider: 'openai',
           model: 'gpt-5.4',
           api_format: 'responses',
+          inputs: { prompt: 'User prompt text' },
         }),
       },
       {

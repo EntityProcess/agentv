@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { isPlainConfigObject } from '../../config-overlays.js';
-import { normalizeProviderDefinition } from '../providers/targets.js';
+import { expandProviderDefinitionEntries } from '../providers/targets.js';
 import { parseYamlValue } from '../yaml-loader.js';
 
 const FILE_PROTOCOL = 'file://';
@@ -214,12 +214,17 @@ function parseArray(value: unknown, location: string): readonly unknown[] {
 }
 
 function parseProviders(value: unknown, location: string): readonly NormalizedTargetConfig[] {
-  return parseArray(value, location).map((entry, index) =>
-    parseProvider(entry, `${location}[${index}]`),
-  );
+  return expandProviderDefinitionEntries(parseArray(value, location), {
+    location,
+    stringMode: 'all',
+  }).map((entry) => parseProvider(entry.rawDefinition, entry.definition, `${location}`));
 }
 
-function parseProvider(value: unknown, location: string): NormalizedTargetConfig {
+function parseProvider(
+  value: unknown,
+  definition: ReturnType<typeof expandProviderDefinitionEntries>[number]['definition'],
+  location: string,
+): NormalizedTargetConfig {
   if (!isPlainConfigObject(value)) {
     throw new Error(`Invalid ${location}: provider must be an object.`);
   }
@@ -229,7 +234,6 @@ function parseProvider(value: unknown, location: string): NormalizedTargetConfig
     }
   }
 
-  const definition = normalizeProviderDefinition(value, { location });
   const id = definition.name;
   const provider = readRequiredString(definition.provider, `${location}.id`);
   if (AMBIGUOUS_PROVIDER_ALIASES.has(provider)) {

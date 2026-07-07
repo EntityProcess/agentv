@@ -699,6 +699,89 @@ export interface NormalizeProviderDefinitionOptions {
   readonly location?: string;
 }
 
+export type ExpandedProviderDefinitionEntry = {
+  readonly rawId: string;
+  readonly rawDefinition: Record<string, unknown>;
+  readonly definition: ProviderDefinition;
+};
+
+export function isProviderSpecString(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.startsWith('package:') || trimmed.startsWith('file://') || trimmed.includes(':');
+}
+
+export function expandProviderDefinitionEntries(
+  entries: readonly unknown[],
+  options: {
+    readonly location?: string;
+    readonly stringMode?: 'all' | 'spec-only';
+  } = {},
+): readonly ExpandedProviderDefinitionEntry[] {
+  const location = options.location ?? 'providers';
+  const stringMode = options.stringMode ?? 'all';
+  const expanded: ExpandedProviderDefinitionEntry[] = [];
+
+  entries.forEach((entry, index) => {
+    const entryLocation = `${location}[${index}]`;
+    if (typeof entry === 'string') {
+      const id = entry.trim();
+      if (id.length === 0) {
+        throw new Error(`Invalid ${entryLocation}: provider string must be non-empty.`);
+      }
+      if (stringMode === 'spec-only' && !isProviderSpecString(id)) {
+        return;
+      }
+      const rawDefinition = { id };
+      expanded.push({
+        rawId: id,
+        rawDefinition,
+        definition: normalizeProviderDefinition(rawDefinition, { location: entryLocation }),
+      });
+      return;
+    }
+
+    if (!isRecord(entry)) {
+      throw new Error(`Invalid ${entryLocation}: provider must be a string or object.`);
+    }
+
+    if (typeof entry.id === 'string' && entry.id.trim().length > 0) {
+      expanded.push({
+        rawId: entry.id.trim(),
+        rawDefinition: entry,
+        definition: normalizeProviderDefinition(entry, { location: entryLocation }),
+      });
+      return;
+    }
+
+    const mapEntries = Object.entries(entry);
+    if (mapEntries.length === 0) {
+      throw new Error(`Invalid ${entryLocation}: provider map must not be empty.`);
+    }
+
+    for (const [providerId, providerOptions] of mapEntries) {
+      if (providerId.trim().length === 0) {
+        throw new Error(`Invalid ${entryLocation}: provider map key must be non-empty.`);
+      }
+      if (!isRecord(providerOptions)) {
+        throw new Error(
+          `Invalid ${entryLocation}.${providerId}: provider map value must be an object.`,
+        );
+      }
+      const { id: _ignoredId, ...optionsWithoutId } = providerOptions;
+      const rawDefinition = { ...optionsWithoutId, id: providerId };
+      expanded.push({
+        rawId: providerId,
+        rawDefinition,
+        definition: normalizeProviderDefinition(rawDefinition, {
+          location: `${entryLocation}.${providerId}`,
+        }),
+      });
+    }
+  });
+
+  return expanded;
+}
+
 function normalizePublicProviderId(providerId: string): {
   readonly provider: string;
   readonly config: Record<string, unknown>;
