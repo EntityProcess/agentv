@@ -18,6 +18,12 @@ language is also stale unless it refers to an explicit sampling metric with a
 real `k`; use `pass_rate`, `pass_count`, `sample_count`, and `passed`/`pass_any`
 otherwise.
 
+Supersession note (2026-07-07): Bead `av-s96i` supersedes this plan's decision
+to prefer AgentV's repeat object over Promptfoo's integer repeat. Current public
+authoring uses numeric `evaluate_options.repeat: N` only. Strategy, early-exit,
+cost-limit, and fatal aggregate policy surfaces are historical or future-work
+discussion, not current implementation guidance.
+
 Sources analyzed (all cloned locally, read-only):
 - promptfoo v0.121.17 — `/home/christso/projects/promptfoo-clone` (authoring format — the thing we clone)
 - Margin-Lab/evals — `/home/christso/projects/margin-lab-evals` (runner, I/O contracts, workspace, analytics)

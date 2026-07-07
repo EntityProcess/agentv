@@ -13,6 +13,12 @@ child_beads:
 
 # feat: Add repeat runs and flaky eval handling
 
+Supersession note (2026-07-07): Bead `av-s96i` supersedes this plan's public
+repeat policy authoring. Current public docs and examples must use
+Promptfoo-style numeric `evaluate_options.repeat: N` only. The strategy,
+early-exit, cost-limit, and fatal aggregate gate-policy surfaces described here
+are historical context or future work, not current public authoring guidance.
+
 ## Summary
 
 AgentV should make repeat runs a first-class reliability primitive for stochastic model behavior, flaky verifier or infrastructure outcomes, benchmark reporting, and drift analysis. The default CI path stays simple: one run per case, threshold/pass-fail gating as today. When users opt into repeated attempts, AgentV records every attempt, reports aggregate reliability statistics, and changes CI behavior only when an explicit repeat-run gate policy is configured.

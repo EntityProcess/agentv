@@ -38,10 +38,10 @@ summary should carry that metadata explicitly.
 
 Artifact-format v2 phase 1 removes that path dependency. The active schema
 direction also treats `experiment` as a string metadata/run-grouping label, not
-as an object wrapper for runtime policy. Runtime fields such as `target`,
-`runs`, `early_exit`, `timeout_seconds`, `budget_usd`, and `threshold` belong at
-the eval root or target object as the schema defines them; this ADR does not
-duplicate that schema migration.
+as an object wrapper for runtime policy. Runtime fields such as provider
+selection, numeric repeat count, `timeout_seconds`, `budget_usd`, and
+`threshold` belong at the eval root or target object as the schema defines them;
+this ADR does not duplicate that schema migration.
 
 ## Decision
 
@@ -163,9 +163,9 @@ local namespaces for rebuildable state.
 ## Non-Goals
 
 - Flattening or renaming per-case `run-N/` attempt folders.
-- Completing the schema-v2 repeat naming migration. User-facing docs should
-  prefer `pass_any` and `pass_all` when they mention repeat strategies, but that
-  schema migration is tracked separately.
+- Completing the schema-v2 repeat naming migration beyond `sample-N/` folders.
+  Current public authoring uses numeric `evaluate_options.repeat` only; fatal
+  post-run aggregate policy is future work.
 - Moving Dashboard/search indexes into a committed run bundle.
 - Projecting AgentV-owned runs, transcripts, datasets, experiments, or indexes
   into Phoenix.

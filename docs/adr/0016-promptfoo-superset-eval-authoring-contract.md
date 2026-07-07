@@ -47,6 +47,11 @@ Promptfoo are limited to `environment`, AgentV refs, and built-in AgentV
 providers; full Promptfoo compatibility for those differences is by
 `agentv export promptfoo`.
 
+Status note (2026-07-07): Bead `av-s96i` supersedes this ADR's earlier repeat
+object decision. Public repeat authoring now follows Promptfoo's numeric
+`evaluate_options.repeat: N` shape. Fatal post-run aggregate policy is future
+work, not part of the repeat authoring surface.
+
 ## Context
 
 AgentV's eval-authoring surface diverged from industry primitives. We are re-basing
@@ -126,8 +131,7 @@ keep AgentV's only where its semantics are genuinely better.**
    unless the author separately places it in `vars`). A specific grader may use
    it as a strict target, semantic reference, structured expected object, or
    supporting context, but the field itself is not an active assertion.
-   `repeat: { count, strategy, early_exit }` (map promptfoo
-   `repeat:int` → `count`+`pass_all`); executable `gate` release policy (alongside per-test
+   numeric `repeat` sample counts; executable `gate` release policy (alongside per-test
    `threshold`); `imports`/`select`; `depends_on`. `experiment` is authored as `tags.experiment` — a plain tag with **no structural privilege** (not a bucket/field/storage path; not a privileged grouping key; tags alphabetical; default compare key is a user preference). `--experiment X` = sugar for `--tag experiment=X`. Its **value** is auto-defaulted to the eval/suite name when unset so runs are always groupable (ADR-0009 derivation) — a default value, not a privileged key (ADR-0017).
 10. **Coding-agent testbed setup is a declarative `environment`, not a
     lifecycle extension and not target identity.** AgentV remains

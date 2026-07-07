@@ -5,6 +5,8 @@ Date: 2026-07-01
 ## Status
 
 Accepted, then **superseded** (eval-authoring portions) by [ADR 0016](0016-promptfoo-superset-eval-authoring-contract.md) as part of the promptfoo-superset restructure (2026-07-02).
+The repeat object shown below is also superseded by Bead `av-s96i`; current
+public authoring uses Promptfoo-style numeric `evaluate_options.repeat` only.
 
 Supersedes the eval-authoring placement portions of
 [ADR 0002](0002-keep-harbor-benchmark-execution-behind-runner-boundary.md),
@@ -56,10 +58,7 @@ name: code-generation-quality
 experiment: with-skills
 target: copilot-sdk
 evaluate_options:
-  repeat:
-    count: 3
-    strategy: pass_any
-    early_exit: false
+  repeat: 3
 default_test:
   threshold: 0.8
 gate:

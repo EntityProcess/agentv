@@ -27,9 +27,7 @@ providers:
       reasoning_effort: high
 timeout_seconds: 720
 evaluate_options:
-  repeat:
-    count: 4
-    strategy: pass_any
+  repeat: 4
   budget_usd: 2.00
   max_concurrency: 3
 
@@ -120,9 +118,7 @@ providers:
   - agent
 threshold: 0.8
 evaluate_options:
-  repeat:
-    count: 3
-    strategy: pass_any
+  repeat: 3
 timeout_seconds: 300
 tags:
   area: agentic
@@ -161,7 +157,7 @@ target-specific runner state.
 | Configure an agent runner or provider variant | `providers` entry or `providers.yaml` |
 | Choose the provider | top-level `providers` or CLI `--provider` |
 | Override the provider's default model | `providers[].config.model` |
-| Configure repeat policy, budget, concurrency, timeout, threshold | `evaluate_options.repeat`, `evaluate_options.budget_usd`, `evaluate_options.max_concurrency`, `timeout_seconds`, `threshold` |
+| Configure repeat sample count, budget, concurrency, timeout, threshold | `evaluate_options.repeat`, `evaluate_options.budget_usd`, `evaluate_options.max_concurrency`, `timeout_seconds`, `threshold` |
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
 ```yaml
@@ -176,9 +172,7 @@ providers:
       before_each:
         command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
 evaluate_options:
-  repeat:
-    count: 3
-    strategy: pass_any
+  repeat: 3
 ```
 
 Existing local workspace paths are machine-local bindings: pass
@@ -197,25 +191,10 @@ evaluate_options:
   repeat: 3
 ```
 
-Use object form when you need richer AgentV behavior:
-
-```yaml
-evaluate_options:
-  repeat:
-    count: 3
-    strategy: pass_any
-    early_exit: true
-    cost_limit_usd: 1.00
-```
-
-`evaluate_options.repeat.strategy` controls sample aggregation. `pass_any`
-treats the case as successful when any completed sample passes; `pass_all`
-requires every completed sample to pass. `mean` and `confidence_interval`
-aggregate scores where supported today. `evaluate_options.repeat.early_exit` is
-only a scheduling and cost optimization: `pass_any` may stop at the first pass,
-and `pass_all` may stop at the first fail. Leave it unset or `false` when you
-want complete variance data. Per-case `tests[].options.repeat` overrides the
-global repeat count or object for that case.
+Repeat authoring only sets the sample count. A fatal post-run aggregate policy
+surface is future work; until that exists, parse the run bundle externally when
+CI needs aggregate gating across samples. Per-case `tests[].options.repeat`
+overrides the global repeat count for that case.
 
 ## Result Layout
 

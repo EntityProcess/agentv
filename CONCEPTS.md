@@ -102,15 +102,15 @@ env:
 
 **Repeat run** — A configured request to execute the same eval case and target more than once in the same run bundle. Repeat runs measure stochastic reliability, verifier stability, and drift; they are not the default CI path.
 
-**Attempt** — One concrete execution inside a repeat run. Attempts keep their own score, status, metrics, trace, transcript, logs, and artifacts so aggregate results never hide individual evidence.
+**Repeat sample** — One concrete execution inside a repeat run. Samples keep their own score, status, metrics, trace, transcript, logs, and artifacts so aggregate results never hide individual evidence.
 
-**Pass rate** — Assertion or expectation pass rate inside a grading result: passed assertions or expectations divided by total assertions or expectations. AgentV does not use `pass_rate` for repeat-attempt success frequency.
+**Pass rate** — Assertion or expectation pass rate inside a grading result: passed assertions or expectations divided by total assertions or expectations. AgentV does not use `pass_rate` for repeat-sample success frequency.
 
-**Attempt success rate** — Repeat-run reliability metric equal to successful counted attempts divided by counted attempts. This is distinct from `pass_rate`, which is reserved for assertion or expectation pass rate within a grading result.
+**Sample success rate** — Repeat-run reliability metric equal to successful counted samples divided by counted samples. This is distinct from `pass_rate`, which is reserved for assertion or expectation pass rate within a grading result.
 
-**Gate policy** — The explicit rule that decides whether repeated attempts pass CI, such as `all_attempts_successful`, `any_attempt_successful`, `attempt_success_rate_at_least`, or `mean_pass_rate_at_least`. Without a repeat-run gate policy, AgentV preserves the normal single-run gate behavior and treats repeat statistics as report data.
+**Aggregate gate policy** — Future fatal post-run policy surface for deciding whether repeated samples pass CI. Until AgentV deliberately designs that surface, repeat configuration only sets the numeric sample count and users can parse run bundles externally for aggregate gating.
 
-**Flaky eval outcome** — A repeat-run aggregate whose attempts disagree, or whose failure classification points at verifier, infrastructure, or timeout instability rather than a stable model-quality failure.
+**Flaky eval outcome** — A repeat-run aggregate whose samples disagree, or whose failure classification points at verifier, infrastructure, or timeout instability rather than a stable model-quality failure.
 
 ## Release Channels
 

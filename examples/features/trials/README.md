@@ -14,14 +14,11 @@ samples.
 bun agentv eval examples/features/trials/evals/suite.yaml
 ```
 
-Edit `evaluate_options.repeat.count` to change how many samples AgentV records
-for each case:
+Edit `evaluate_options.repeat` to change how many samples AgentV records for
+each case:
 
 ```yaml
 evaluate_options:
-  repeat:
-    count: 2
-    strategy: pass_any
-    early_exit: false
+  repeat: 2
   budget_usd: 1.00
 ```

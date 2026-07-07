@@ -21,6 +21,9 @@ Superseded for the current eval authoring contract by
 [ADR 0016](0016-promptfoo-superset-eval-authoring-contract.md): `tests`,
 `prompts`/`vars`, `assert`, direct `input`, `target`/`targets`, and
 `evaluate_options` are the current promptfoo-aligned authoring surface.
+The repeat object examples in this ADR are also superseded by Bead `av-s96i`:
+current public authoring uses Promptfoo-style numeric `evaluate_options.repeat`
+only.
 
 The "Suite And Test Import Surface" section below is historical. Its
 `imports.suites` / `imports.tests` design is superseded by av-kfik.43 and the
@@ -85,10 +88,7 @@ target:
 timeout_seconds: 900
 threshold: 0.8
 evaluate_options:
-  repeat:
-    count: 3
-    strategy: pass_any
-    early_exit: false
+  repeat: 3
   budget_usd: 2.00
 
 tests:
@@ -122,7 +122,7 @@ The old experiment runtime fields are ported into the parent eval file:
 
 - target or target matrix
 - thresholds
-- repeated run count through `evaluate_options.repeat.count`
+- repeated sample count through numeric `evaluate_options.repeat`
 - timeout
 - budget
 - other run-time controls that do not define the task itself
@@ -166,8 +166,8 @@ must stay with the lifecycle surface that actually owns that work:
   discovery files, provider-specific config, and target-specific harness setup
   belong here.
 - Top-level `target` selects the system under test. Top-level `policy` selects
-  runtime and gating controls: repeat strategy, threshold, timeout, budget, and
-  early-exit behavior. Workspace lifetime stays under
+  runtime and gating controls such as repeat count, threshold, timeout, and
+  budget. Workspace lifetime stays under
   `workspace.scope`, and Docker/container binding stays under
   `workspace.docker`.
 
