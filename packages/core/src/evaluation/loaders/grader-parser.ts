@@ -238,6 +238,7 @@ export async function parseGraders(
 ): Promise<readonly GraderConfig[] | undefined> {
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
+  const inheritedAssertionConfig = inheritedAssertionConfigFromOptions(rawEvalCase.options);
 
   // Case-level graders priority: assert > execution assert.
   const caseEvaluators =
@@ -255,7 +256,7 @@ export async function parseGraders(
     evalId,
     defaultPreprocessors,
     defaultRubricPrompt,
-    undefined,
+    inheritedAssertionConfig,
     inheritedGraderTarget,
   );
   // Parse root-level evaluators (appended after case-level)
@@ -265,7 +266,7 @@ export async function parseGraders(
     evalId,
     defaultPreprocessors,
     defaultRubricPrompt,
-    undefined,
+    inheritedAssertionConfig,
     inheritedGraderTarget,
   );
 
@@ -1872,19 +1873,43 @@ function withInheritedAssertionConfig(
   inheritedConfig?: JsonObject,
 ): JsonObject {
   const ownConfig = isJsonObject(rawEvaluator.config) ? rawEvaluator.config : undefined;
-  if (!inheritedConfig && !ownConfig) {
+  const inheritedProvider =
+    typeof inheritedConfig?.provider === 'string' && inheritedConfig.provider.trim().length > 0
+      ? inheritedConfig.provider.trim()
+      : undefined;
+  const inheritedConfigWithoutProvider = inheritedConfig
+    ? Object.fromEntries(Object.entries(inheritedConfig).filter(([key]) => key !== 'provider'))
+    : undefined;
+  const inheritedConfigForConfig =
+    inheritedConfigWithoutProvider && Object.keys(inheritedConfigWithoutProvider).length > 0
+      ? inheritedConfigWithoutProvider
+      : undefined;
+  if (!inheritedConfigForConfig && !ownConfig && inheritedProvider === undefined) {
     return rawEvaluator;
   }
 
   const mergedConfig = {
-    ...(inheritedConfig ?? {}),
+    ...(inheritedConfigForConfig ?? {}),
     ...(ownConfig ?? {}),
   };
 
   return {
     ...rawEvaluator,
-    config: mergedConfig,
+    ...(rawEvaluator.provider === undefined && inheritedProvider !== undefined
+      ? { provider: inheritedProvider }
+      : {}),
+    ...(Object.keys(mergedConfig).length > 0 ? { config: mergedConfig } : {}),
   };
+}
+
+function inheritedAssertionConfigFromOptions(
+  options: JsonValue | undefined,
+): JsonObject | undefined {
+  if (!isJsonObject(options)) {
+    return undefined;
+  }
+  const provider = typeof options.provider === 'string' ? options.provider.trim() : '';
+  return provider.length > 0 ? { provider } : undefined;
 }
 
 interface ParsedPromptField {

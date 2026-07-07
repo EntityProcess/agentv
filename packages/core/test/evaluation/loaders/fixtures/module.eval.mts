@@ -1,6 +1,6 @@
 const config = {
   name: 'module-mts-config',
-  target: 'mock-target',
+  providers: ['mock-provider'],
   prompts: ['{{ input }}'],
   tests: [
     {

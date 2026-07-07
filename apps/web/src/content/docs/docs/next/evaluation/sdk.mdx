@@ -97,13 +97,28 @@ import { graders, type EvalConfig } from '@agentv/sdk';
 
 const config: EvalConfig = {
   name: 'hello-suite',
-  providers: ['mock-sdk'],
+  providers: [
+    { id: 'mock', label: 'mock-sdk', config: { response: 'Hello from the mock provider' } },
+    { id: 'openai:gpt-5-mini', label: 'grader-provider' },
+  ],
+  defaults: {
+    provider: 'mock-sdk',
+    grader: 'grader-provider',
+  },
+  defaultTest: {
+    options: {
+      provider: 'grader-provider',
+    },
+  },
   prompts: ['{{ task }}'],
   tests: [
     {
       id: 'hello',
       vars: { task: 'Say hello' },
       inputFiles: ['../fixtures/per-test-note.md'],
+      options: {
+        provider: 'grader-provider',
+      },
       assert: [graders.contains('Hello')],
     },
   ],
@@ -119,6 +134,8 @@ Useful companion helpers:
 - `defineEval(config)` is a thin optional helper over the same `EvalConfig` shape.
 
 The durable authored field remains `assert`. TypeScript eval config authoring does not introduce a second YAML vocabulary.
+
+TypeScript eval configs use the same provider surface as YAML: top-level `providers` defines both systems under test and reusable grader providers, `providers[].id` names the backend/spec, `providers[].label` is the stable AgentV identity, and `defaults.provider` / `defaults.grader` select the default candidate and grader. Per-test grader provider selection belongs in `defaultTest.options.provider`, `tests[].options.provider`, or assertion-level `provider`.
 
 ## Built-In Grader Helpers
 

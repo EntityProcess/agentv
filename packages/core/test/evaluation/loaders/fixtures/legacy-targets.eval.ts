@@ -1,9 +1,10 @@
-export const config = {
+export default {
+  name: 'legacy-targets',
+  targets: ['mock-target'],
   prompts: ['{{ input }}'],
-  providers: ['mock-provider'],
   tests: [
     {
-      id: 'named-config',
+      id: 'legacy-targets',
       vars: { input: 'Say hello' },
       assert: [{ type: 'contains', value: 'hello' }],
     },

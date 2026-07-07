@@ -1,11 +1,14 @@
-import type { EvalConfig } from '../../../../src/evaluation/evaluate.js';
-
-const config: EvalConfig = {
-  metadata: {
-    name: 'default-export-suite',
-    tags: ['sdk', 'typescript'],
-  },
+const config = {
+  name: 'default-export-suite',
+  tags: ['sdk', 'typescript'],
   prompts: ['{{ input }}'],
+  providers: [
+    {
+      id: 'mock',
+      label: 'inline-provider',
+      config: { response: 'hello there' },
+    },
+  ],
   tests: [
     {
       id: 'greeting',
@@ -13,11 +16,8 @@ const config: EvalConfig = {
       assert: [{ type: 'contains', value: 'hello' }],
     },
   ],
-  cache: false,
-  cachePath: '.agentv/ts-eval-cache',
   budgetUsd: 1.5,
   threshold: 0.9,
-  target: { name: 'inline-target', provider: 'mock', response: 'hello there' },
 };
 
 export default config;

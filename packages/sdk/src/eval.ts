@@ -34,6 +34,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   outputPath: 'output_path',
   readOnly: 'read_only',
   reasoningEffort: 'reasoning_effort',
+  rubricPrompt: 'rubric_prompt',
   scoreRange: 'score_range',
   scoreRanges: 'score_ranges',
   skipDefaults: 'skip_defaults',
@@ -74,6 +75,7 @@ export interface EvalMessage {
 
 export interface EvalAssertionConfig {
   readonly type: string;
+  readonly provider?: string | true | object;
   readonly [key: string]: unknown;
 }
 
@@ -151,15 +153,40 @@ export interface EvalProviderConfig {
   readonly prompts?: unknown;
   readonly transform?: unknown;
   readonly delay?: number;
+  readonly inputs?: unknown;
   readonly env?: Readonly<Record<string, string>>;
   readonly reasoningEffort?: string;
   readonly hooks?: EvalLifecycleHooks;
   readonly [key: string]: unknown;
 }
 
+export type EvalProviderMap = Readonly<
+  Record<
+    string,
+    Omit<EvalProviderConfig, 'id'> | EvalProviderRef | Readonly<Record<string, unknown>>
+  >
+>;
+
+export type EvalProviderEntry = string | EvalProviderRef | EvalProviderConfig | EvalProviderMap;
+
 export interface EvalDefaultsConfig {
   readonly provider?: string;
   readonly grader?: string;
+  readonly [key: string]: unknown;
+}
+
+export interface EvalTestOptions {
+  readonly provider?: string;
+  readonly transform?: unknown;
+  readonly repeat?: EvalRepeat;
+  readonly rubricPrompt?: unknown;
+  readonly [key: string]: unknown;
+}
+
+export interface EvalDefaultTest {
+  readonly vars?: Readonly<Record<string, unknown>>;
+  readonly assert?: readonly (string | EvalAssertionConfig)[];
+  readonly options?: EvalTestOptions;
   readonly [key: string]: unknown;
 }
 
@@ -174,7 +201,7 @@ export type EvalRepeat = EvalTrials;
 
 export interface EvalExecution {
   readonly provider?: string;
-  readonly providers?: readonly (string | EvalProviderRef | EvalProviderConfig)[];
+  readonly providers?: readonly EvalProviderEntry[];
   readonly assert?: readonly EvalAssertionConfig[];
   readonly skipDefaults?: boolean;
   readonly cache?: boolean;
@@ -198,6 +225,7 @@ export interface EvalTest {
   readonly inputFiles?: readonly string[];
   readonly expectedOutput?: string | Readonly<Record<string, unknown>> | readonly EvalMessage[];
   readonly assert?: readonly EvalAssertionConfig[];
+  readonly options?: EvalTestOptions;
   readonly execution?: EvalExecution;
   readonly environment?: EvalEnvironment | string;
   readonly metadata?: Readonly<Record<string, unknown>>;
@@ -236,9 +264,9 @@ export interface EvalConfig {
   readonly requires?: EvalRequires;
   readonly inputFiles?: readonly string[];
   readonly prompts?: unknown;
-  readonly providers?: readonly (string | EvalProviderRef | EvalProviderConfig)[];
+  readonly providers?: readonly EvalProviderEntry[];
   readonly defaults?: EvalDefaultsConfig;
-  readonly defaultTest?: Readonly<Record<string, unknown>>;
+  readonly defaultTest?: EvalDefaultTest | string;
   readonly tests: readonly EvalTest[] | string;
   /**
    * @deprecated A top-level `experiment` label no longer sets the run's
@@ -337,6 +365,11 @@ function validateTopLevelRuntimeFields(definition: EvalConfig): void {
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'preprocessors')) {
     throw new Error(
       "defineEval() does not accept top-level 'preprocessors'. Use defaultTest.options.transform or assertion-level transform instead.",
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'graders')) {
+    throw new Error(
+      "defineEval() no longer accepts top-level 'graders'. Put grader providers in 'providers' and select them with defaults.grader, defaultTest.options.provider, tests[].options.provider, or assertion provider.",
     );
   }
   if (

@@ -30,6 +30,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   budgetUsd: 'budget_usd',
   conversationId: 'conversation_id',
   costLimitUsd: 'cost_limit_usd',
+  defaultTest: 'default_test',
   dependsOn: 'depends_on',
   earlyExit: 'early_exit',
   expectedOutput: 'expected_output',
@@ -45,6 +46,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   outputPath: 'output_path',
   readOnly: 'read_only',
   reasoningEffort: 'reasoning_effort',
+  rubricPrompt: 'rubric_prompt',
   skipDefaults: 'skip_defaults',
   timeoutMs: 'timeout_ms',
   timeoutSeconds: 'timeout_seconds',
@@ -193,10 +195,7 @@ function isProgrammaticEvalConfig(value: unknown): value is ProgrammaticEvalConf
 
 function lowerTypeScriptEvalConfig(config: Record<string, unknown>): Record<string, unknown> {
   const lowered = lowerEvalYamlValue(config) as Record<string, unknown>;
-  const { budget_usd: budgetUsd, repeat, target, ...withoutRuntimeAliases } = lowered;
-  if (target !== undefined && withoutRuntimeAliases.providers === undefined) {
-    withoutRuntimeAliases.providers = [target];
-  }
+  const { budget_usd: budgetUsd, repeat, ...withoutRuntimeAliases } = lowered;
   if (budgetUsd === undefined && repeat === undefined) {
     return withoutRuntimeAliases;
   }

@@ -5,6 +5,7 @@ import {
   isTypeScriptEvalConfigFileName,
   loadTsEvalFile,
 } from '../../../src/evaluation/loaders/ts-eval-loader.js';
+import type { LlmRubricGraderConfig } from '../../../src/evaluation/types.js';
 import { loadTestSuite, loadTests } from '../../../src/evaluation/yaml-parser.js';
 
 const fixtureDir = path.join(import.meta.dir, 'fixtures');
@@ -54,11 +55,20 @@ describe('loadTsEvalFile', () => {
     expect(suite.tests[0].suite).toBe('default-export-suite');
     expect(suite.tests[0].category).toBe('sdk');
     expect(suite.metadata?.tags).toEqual(['sdk', 'typescript']);
-    expect(suite.cacheConfig?.enabled).toBe(false);
-    expect(suite.cacheConfig?.cachePath).toBe('.agentv/ts-eval-cache');
     expect(suite.budgetUsd).toBe(1.5);
     expect(suite.threshold).toBe(0.9);
-    expect(suite.inlineTarget?.name).toBe('inline-target');
+    expect(suite.targetRefs).toEqual([
+      {
+        name: 'inline-provider',
+        id: 'mock',
+        label: 'inline-provider',
+        definition: expect.objectContaining({
+          name: 'inline-provider',
+          provider: 'mock',
+          response: 'hello there',
+        }),
+      },
+    ]);
   });
 
   it('materializes *.eval.ts default exports with relative imports', async () => {
@@ -67,7 +77,7 @@ describe('loadTsEvalFile', () => {
     expect(suite.tests).toHaveLength(1);
     expect(suite.tests[0].id).toBe('relative-import');
     expect(suite.tests[0].input).toEqual([{ role: 'user', content: 'Say hello' }]);
-    expect(suite.targetRefs).toEqual([{ name: 'mock-target' }]);
+    expect(suite.targetRefs).toEqual([{ name: 'mock-provider' }]);
     expect(suite.budgetUsd).toBe(1);
     expect(suite.experimentConfig?.repeat?.count).toBe(2);
     expect(suite.tags).toEqual({ experiment: 'ts-config', group: 'loader' });
@@ -95,17 +105,40 @@ describe('loadTsEvalFile', () => {
       },
     );
 
-    expect(suite.tests).toHaveLength(1);
+    expect(suite.tests).toHaveLength(2);
     expect(suite.tests[0].suite).toBe('sdk-define-eval-suite');
     expect(suite.tests[0].workspace?.hooks?.before_all?.command).toEqual(['echo', 'suite-setup']);
     expect(suite.tests[0].workspace?.hooks?.before_each?.command).toEqual(['echo', 'case-setup']);
     expect(suite.tests[0].workspace?.hooks?.before_each?.timeout_ms).toBe(1_000);
-    expect(suite.targetRefs).toEqual([{ name: 'mock-target' }]);
-    expect(suite.targets).toEqual(['mock-target']);
+    expect(suite.targetRefs?.map((ref) => ref.name)).toEqual(['sdk-provider', 'grader-provider']);
+    expect(suite.targets).toEqual(['sdk-provider', 'grader-provider']);
     expect(suite.workers).toBeUndefined();
     expect(suite.budgetUsd).toBe(2);
     expect(suite.threshold).toBe(0.75);
     expect(suite.metadata?.tags).toEqual(['sdk', 'typescript', 'yaml']);
+    const firstCaseRubrics = suite.tests[0].assertions?.filter(
+      (assertion): assertion is LlmRubricGraderConfig => assertion.type === 'llm-rubric',
+    );
+    expect(firstCaseRubrics?.map((assertion) => assertion.target)).toEqual([
+      'test-grader',
+      'assertion-grader',
+    ]);
+    const defaultCaseRubrics = suite.tests[1].assertions?.filter(
+      (assertion): assertion is LlmRubricGraderConfig => assertion.type === 'llm-rubric',
+    );
+    expect(defaultCaseRubrics?.map((assertion) => assertion.target)).toEqual(['grader-provider']);
+  });
+
+  it('rejects stale target-era authoring in YAML-aligned TypeScript evals', async () => {
+    await expect(
+      loadTestSuite(path.join(fixtureDir, 'legacy-target.eval.ts'), fixtureDir),
+    ).rejects.toThrow(/Top-level 'target'.*providers/);
+    await expect(
+      loadTestSuite(path.join(fixtureDir, 'legacy-targets.eval.ts'), fixtureDir),
+    ).rejects.toThrow(/Top-level 'targets'.*providers/);
+    await expect(
+      loadTestSuite(path.join(fixtureDir, 'legacy-graders.eval.ts'), fixtureDir),
+    ).rejects.toThrow(/top-level 'graders'.*providers/);
   });
 
   it('routes TypeScript evals through loadTests', async () => {
