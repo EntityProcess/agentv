@@ -10,7 +10,7 @@ import {
   resolveProviderDefinitionEnvironments,
 } from '@agentv/core';
 import { validateTargetsFile } from '@agentv/core/evaluation/validation';
-import { discoverTargetsFile } from '../../utils/targets.js';
+import { discoverProvidersFile } from '../../utils/providers.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
@@ -134,7 +134,7 @@ async function readProviderCatalog(options: {
       'No provider catalog configured. Add `providers:` to .agentv/config.yaml, use `providers: file://providers.yaml`, or pass --providers <path>.',
     );
   }
-  const targetsFilePath = await discoverTargetsFile({
+  const targetsFilePath = await discoverProvidersFile({
     explicitPath: options.explicitTargetsPath,
     testFilePath: options.testFilePath,
     repoRoot: options.repoRoot,

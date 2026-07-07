@@ -27,7 +27,7 @@ import { listProviderLabels, readProviderDefinitions } from '@agentv/core';
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
 
-import { PROVIDER_FILE_CANDIDATES } from '../../utils/targets.js';
+import { PROVIDER_FILE_CANDIDATES } from '../../utils/providers.js';
 import { discoverEvalFiles } from '../eval/discover.js';
 import {
   RESULT_INDEX_FILENAME,

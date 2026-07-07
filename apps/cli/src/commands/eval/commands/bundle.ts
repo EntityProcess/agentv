@@ -8,7 +8,7 @@ import {
 } from '@agentv/core';
 import { array, command, multioption, option, optional, positional, string } from 'cmd-ts';
 
-import { discoverTargetsFile } from '../../../utils/targets.js';
+import { discoverProvidersFile } from '../../../utils/providers.js';
 import { loadEnvFromHierarchy } from '../env.js';
 import { findRepoRoot, resolveEvalPaths } from '../shared.js';
 import { readTestSuiteTarget } from '../targets.js';
@@ -216,7 +216,7 @@ export const evalBundleCommand = command({
       definitions = [suite.inlineTarget];
       targetNames = unique(args.provider.length > 0 ? args.provider : [suite.inlineTarget.name]);
     } else {
-      const targetsFilePath = await discoverTargetsFile({
+      const targetsFilePath = await discoverProvidersFile({
         explicitPath: args.providers,
         testFilePath: evalFilePath,
         repoRoot,
