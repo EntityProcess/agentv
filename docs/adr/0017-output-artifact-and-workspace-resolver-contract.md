@@ -385,14 +385,14 @@ semantics.
    fields such as `context`, `dockerfile`, `image`, `workdir`, and future scoped
    resource/mount/secrets fields.
 3. **`environment.workdir` defines cwd.** AgentV passes the resolved workdir to
-   target providers and graders/test scripts unless a later scoped feature
-   explicitly overrides it. Target configs may still expose provider-specific
-   knobs, but the canonical testbed cwd comes from the environment recipe.
+   providers and graders/test scripts unless a later scoped feature explicitly
+   overrides it. Provider configs may still expose provider-specific knobs, but
+   the canonical testbed cwd comes from the environment recipe.
 4. **`environment.setup` materializes testbed state.** Setup is declarative data
    plus an argv `command`: repos, archives, patches, generated fixtures,
    installed dependencies, services, and other case state. Shell behavior is
    explicit by authoring an argv such as `["bash", "-lc", "..."]`. Setup runs
-   before target execution and before ordinary promptfoo lifecycle hooks.
+   before provider execution and before ordinary promptfoo lifecycle hooks.
 5. **Top-level `env` remains promptfoo-compatible.** It is for provider/eval env
    overrides and load-time `{{ env.VAR }}` rendering. Do not move it under
    `environment`. If `environment.env` is implemented, it means variables scoped
@@ -400,10 +400,12 @@ semantics.
 6. **Promptfoo `extensions` remain lifecycle hooks.** They can customize eval
    flow, but they are not the canonical testbed setup contract because hidden
    hook code is weaker for review, validation, sharing, and cwd semantics.
-7. **Targets select agents/providers.** `targets[].id` is stable AgentV target
-   identity, `targets[].provider` names the adapter/control boundary, and
-   `targets[].runtime` remains placement/transport. Targets do not own
-   Docker/testbed setup by default.
+7. **Providers select agents/runtimes.** Superseded by ADR 0019 for public
+   authoring: systems under test are authored under top-level `providers`.
+   `providers[].id` names the backend/spec string, `providers[].label` is the
+   stable AgentV selection/result identity, and `providers[].runtime` remains
+   placement/transport for AgentV-native provider entries. Provider entries do
+   not own Docker/testbed setup by default.
 8. **`workspace` is not the public coding-agent benchmark contract.** The
    original `workspace.repos`, `workspace.scope`, `workspace.docker`, and
    `workspace.template` names are superseded where they meant authored testbed
@@ -413,10 +415,10 @@ semantics.
    authored testbed primitive.
 
 The invariants matter more than the mechanism: testbed setup is declared as
-data; materialization precedes target execution and normal lifecycle hooks; cwd
-is explicit; provider/target identity remains separate from testbed setup; and
-run bundles can snapshot the resolved recipe, setup inputs, and resolved
-workdir as provenance.
+data; materialization precedes provider execution and normal lifecycle hooks;
+cwd is explicit; provider identity remains separate from testbed setup; and run
+bundles can snapshot the resolved recipe, setup inputs, and resolved workdir as
+provenance.
 
 ### Note: SWE-bench `FAIL_TO_PASS` / `PASS_TO_PASS`
 

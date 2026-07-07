@@ -34,7 +34,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Environment** — The AgentV-authored testbed recipe for coding-agent evals. It prepares the host or Docker state an agent will inspect or modify: repositories, archives, patches, generated fixtures, services, dependency setup, and cwd. `environment` can be inline or loaded with `file://`, with shared `file://` recipes as the canonical reusable form. Initial `environment.type` values are `host` and `docker`. Promptfoo does not define this primitive; it is an AgentV extension to promptfoo-compatible eval authoring. Promptfoo export may lower a host/filesystem subset into generated extensions and provider workdir config; Docker environment export is unsupported until a faithful runner boundary exists.
 
-**Workdir** — The current working directory inside an environment. `environment.workdir` is the cwd passed to target providers and graders/test scripts unless a later scoped feature explicitly overrides it. Host workdirs are local paths such as `./workspaces/bottle`; Docker workdirs are container paths such as `/app`.
+**Workdir** — The current working directory inside an environment. `environment.workdir` is the cwd passed to providers and graders/test scripts unless a later scoped feature explicitly overrides it. Host workdirs are local paths such as `./workspaces/bottle`; Docker workdirs are container paths such as `/app`.
 
 **Top-level `env`** — Promptfoo-compatible provider/eval environment-variable overrides and load-time template inputs such as `OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"`. Top-level `env` is not the testbed recipe and must not be moved under `environment`.
 

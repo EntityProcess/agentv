@@ -104,13 +104,13 @@ Do not add competing top-level fields such as `isolation`, `sandbox`,
 `profile`, `install`, `container`, `environment`, `executable`, `binary`,
 `args`, or `arguments` for this contract. Process/protocol providers use
 `config.command` as a non-empty argv array. Authored eval concurrency belongs
-under `evaluate_options.max_concurrency`, not inside a target definition.
+under `evaluate_options.max_concurrency`, not inside a provider entry.
 Grader selection belongs to `defaults.grader`, CLI overrides, or
 evaluator-level provider selection, not to the system-under-test provider.
 
-`environment` is valid as an AgentV eval/test/case recipe field outside target
+`environment` is valid as an AgentV eval/test/case recipe field outside provider
 definitions. It prepares the host or Docker testbed and defines
-`environment.workdir`; the target runtime then decides how the selected
+`environment.workdir`; the provider runtime then decides how the selected
 provider/agent is invoked against that prepared cwd. `environment` does not
 replace `providers[].id`, `providers[].label`, or `providers[].runtime`.
 Docker/testbed setup belongs to the environment driver by default, not to each
@@ -159,8 +159,8 @@ and app-server transports run against the host-installed agent/profile. SDK
 transports also run on the host, but through the AgentV child-runner process
 described above.
 
-The current implementation supports Docker sandbox execution for generic
-`provider: cli`. Sandbox-aware coding-agent providers are future work. When a
+The current implementation supports Docker sandbox execution for generic CLI
+providers. Sandbox-aware coding-agent providers are future work. When a
 coding-agent provider is authored with `runtime.mode: sandbox` before a
 sandbox-aware runner exists, AgentV should return a deliberate
 `target_execution` error envelope rather than pretending the target ran or
@@ -188,16 +188,16 @@ crashes or prevent final run-bundle artifacts from being written.
 
 ### Replay and Log Providers
 
-`provider: copilot-log` is removed from the authored live target surface before
-beta. AgentV should not add `codex-log`, `claude-log`, `pi-log`, or other
-provider-specific log target providers.
+Provider-specific log entries such as `copilot-log` are removed from the
+authored live provider surface before beta. AgentV should not add `codex-log`,
+`claude-log`, `pi-log`, or other provider-specific log providers.
 
 Provider-native logs remain useful as raw provenance and import inputs. Copilot
 `events.jsonl` parsing should feed import/normalization into a
 provider-agnostic recorded trajectory replay contract. Replay is an
 eval/orchestrator mode or generic replay target over AgentV trajectory artifacts,
-not a live coding-agent runtime provider. Live Copilot targets remain
-`copilot-cli` and `copilot-sdk`.
+not a live coding-agent runtime provider. Live Copilot providers remain
+`agentv:copilot-cli` and `agentv:copilot-sdk`.
 
 This aligns with ADR 0008: raw native transcripts are preserved for debugging
 and parser improvement, while normalized AgentV transcript/trajectory artifacts
@@ -211,9 +211,9 @@ are the durable input to grading, Dashboard inspection, and replay.
 - SDK providers stay available when SDK-native events or controls are worth the
   extra complexity, but SDK dependency failures do not take down the parent CLI.
 - `runtime: host` remains lightweight and zero-infra; stronger profile/sandbox
-  isolation can be added without changing target identity semantics.
-- Generic Docker sandbox support through `provider: cli` remains valid, while
-  sandbox-aware coding-agent adapters are deliberately deferred.
+  isolation can be added without changing provider identity semantics.
+- Generic Docker sandbox support for CLI providers remains valid, while
+  sandbox-aware coding-agent providers are deliberately deferred.
 - Offline grading/replay gets one provider-agnostic path instead of one
   provider-specific `*-log` target surface per backend.
 
@@ -231,7 +231,7 @@ artifact writing.
 
 Rejected. SDKs can expose useful events, but the default AgentV path should
 match the real installed CLI/profile where possible and keep the product
-zero-infra. SDK providers are explicit advanced targets.
+zero-infra. SDK providers are explicit advanced paths.
 
 ### Copy Promptfoo provider naming wholesale
 
@@ -246,17 +246,17 @@ Rejected. Runtime placement is cross-provider orchestration state. It belongs in
 `runtime`, not in every provider's `config` with different names and precedence
 rules.
 
-### Treat provider logs as live target providers
+### Treat provider logs as live providers
 
 Rejected. Passive logs do not run an agent and should not satisfy live
 host-runtime dogfood. They are import/replay sources. Keeping them out of
-authored live target YAML avoids a family of `*-log` providers and preserves a
+authored live provider YAML avoids a family of `*-log` providers and preserves a
 single normalized replay contract.
 
 ## Non-Goals
 
 - Implementing or validating the full live provider matrix.
 - Implementing profile-mode or sandbox-aware coding-agent provider runners.
-- Replacing the generic `provider: cli` sandbox path.
+- Replacing the generic CLI provider sandbox path.
 - Designing the full provider-agnostic replay cassette contract.
 - Adding compatibility aliases for removed beta-only target provider names.

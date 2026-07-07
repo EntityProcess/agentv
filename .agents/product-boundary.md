@@ -64,7 +64,7 @@ Prefer these extension points before adding a built-in:
 - plain assertion strings for simple semantic rubric checks
 - `llm-rubric` for promptfoo-compatible free-form rubric checks
 - `g-eval` for structured or multi-criteria rubric judging
-- config-level grader targets selected through `defaults.grader` or assertion-level target selection, not target-level grader configuration
+- config-level grader providers selected through `defaults.grader` or assertion-level provider selection, not system-under-test provider configuration
 - CLI wrappers that consume AgentV JSON or JSONL output for post-processing such as aggregation, comparison, or reporting
 
 Ask: can this be achieved with existing primitives plus a plugin or wrapper? If yes, it should not be a built-in. That includes niche config overrides for existing graders.
@@ -108,7 +108,7 @@ Research those references from local cloned repositories first when a clone is a
 
 Treat these as reference inputs, not dependencies. AgentV should adopt the shared lowest common denominator when it fits the repo-native artifact model, and document any intentional divergence in the relevant plan, ADR, or contract docs.
 
-Do not copy another framework's schema baggage just because the framework is credible. When a peer contract carries historical constraints, overloaded field names, or compatibility aliases, prefer a cleaner AgentV contract if it preserves the core user need. Document the reason for diverging so future workers do not "realign" it back to the peer shape. For target/provider contracts, keep identity and backend/control boundary separate: use a stable AgentV `id` for the target registry key when `provider` already names the adapter/backend kind. Promptfoo's `label` is useful evidence but should not be copied as target identity merely because Promptfoo uses `id` for provider/backend specs.
+Do not copy another framework's schema baggage just because the framework is credible. When a peer contract carries historical constraints, overloaded field names, or compatibility aliases, prefer a cleaner AgentV contract if it preserves the core user need. Document the reason for diverging so future workers do not "realign" it back to the peer shape. For the provider surface, ADR 0019 is the current exception: AgentV follows Promptfoo's `providers`/`id`/`label` shape so the uncommon AgentV differences stay concentrated in `environment`, refs, built-in AgentV providers, artifacts, and Dashboard behavior.
 
 ### 5. YAGNI - You Aren't Gonna Need It
 
