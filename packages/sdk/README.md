@@ -206,7 +206,7 @@ const config: EvalConfig = {
         graders.llmRubric(undefined, {
           metric: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
-          target: 'grader-target',
+          provider: 'grader-provider',
         }),
         graders.scriptGrader(['bun', 'run', 'graders/check.ts'], { metric: 'scripted-check' }),
       ],
@@ -227,7 +227,7 @@ import { graders, type EvalConfig } from '@agentv/sdk';
 function ragFaithfulness() {
   return graders.llmRubric(undefined, {
     metric: 'rag-faithfulness',
-    target: 'grader-target',
+    provider: 'grader-provider',
     prompt: 'Grade whether the answer is supported by the provided context.',
   });
 }

@@ -8,10 +8,23 @@ slug: docs/reference/promptfoo-parity
 
 AgentV uses a similar eval config contract to Promptfoo for ordinary authored
 evals: prompt matrices, test rows, vars, default test data, assertions, and
-target matrices all use the same broad shape. AgentV keeps the wire format
-`snake_case`, keeps target identity separate from provider/backend selection,
+provider matrices all use the same broad shape. AgentV is a
+Promptfoo-compatible superset at the provider declaration layer, not a promise
+that every AgentV config executes unchanged in Promptfoo. AgentV keeps the wire
+format `snake_case`, keeps provider selection identity explicit with `label`,
 and adds repo-native environment recipes and artifact fields for agent
 evaluation.
+
+Promptfoo-shaped `providers` entries can be strings such as
+`openai:gpt-4.1-mini`, complete package provider strings such as
+`package:@agentv/promptfoo-providers:CodexCliProvider` or
+`package:@agentv/promptfoo-providers/codex-cli:Provider`, provider option
+objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`,
+and `inputs`, or provider maps such as
+`{ "openai:gpt-4": { label, config } }`. AgentV-only fields such as top-level
+`environment` and provider-local runtime/testbed overlays are AgentV semantics;
+Promptfoo may ignore or strip unknown keys and will not execute AgentV
+environment setup without a transpiler or wrapper.
 
 Use this matrix when translating a Promptfoo-style normal eval into AgentV YAML.
 It documents which surfaces align directly, which AgentV surfaces are cleaner
@@ -32,7 +45,7 @@ implements equivalent semantics directly.
 
 | Surface | Promptfoo shape | AgentV shape | Decision | Notes |
 | --- | --- | --- | --- | --- |
-| TypeScript config file | `promptfooconfig.ts` default export typed as Promptfoo `UnifiedConfig`. | Explicit `*.eval.ts` or `*.eval.mts` default export typed as `EvalConfig` from `@agentv/sdk`. | Keep AgentV divergence | AgentV does not accept `promptfooconfig.ts` by default because the config semantics intentionally diverge: top-level `providers` is not an AgentV runtime alias, and AgentV keeps `target`/`targets`, `environment`, `evaluate_options`, and `assert` as its supported contract. Directory discovery includes explicit `*.eval.ts` and `*.eval.mts` config files, but not arbitrary helper `.ts` files. |
+| TypeScript config file | `promptfooconfig.ts` default export typed as Promptfoo `UnifiedConfig`. | Explicit `*.eval.ts` or `*.eval.mts` default export typed as `EvalConfig` from `@agentv/sdk`. | Keep AgentV divergence | AgentV does not accept `promptfooconfig.ts` by default because the config semantics intentionally diverge beyond provider declarations. Directory discovery includes explicit `*.eval.ts` and `*.eval.mts` config files, but not arbitrary helper `.ts` files. |
 | Prompt matrix | Top-level `prompts` rendered with each test's `vars`. | Top-level `prompts` rendered with `tests[].vars` and `default_test.vars`. | Align with Promptfoo | This is the canonical Promptfoo-compatible input shape in AgentV. Prompt entries can be inline strings, chat arrays, files, or generated prompt functions. |
 | Test rows | `tests` can be inline rows or a case-file reference; rows carry `vars`, `assert`, metadata, prompt/provider filters, and expected data through vars or assertion values. | `tests` can be inline rows or a raw-case path; rows carry `vars`, `assert`, metadata, optional environment overrides, and run overrides. | Align with Promptfoo | AgentV uses field-local file refs such as `tests: file://...`, `prompts: file://...`, and `default_test: file://...`; coding-agent testbeds use `environment: file://...`. There is no separate imports table. |
 | Variables | `tests[].vars` plus `defaultTest.vars`; prompt templates can reference top-level var names. | `tests[].vars` plus `default_test.vars`; templates can use `{{ name }}` or `{{ vars.name }}`. | Align with Promptfoo | Per-test vars override default vars by key. |
@@ -42,9 +55,9 @@ implements equivalent semantics directly.
 | Deprecated `postprocess` | Older Promptfoo configs may still mention `postprocess`. | Rejected. | Removed/rejected surface | Use `transform`. AgentV intentionally does not adopt Promptfoo's deprecated `postprocess` spelling. |
 | Evaluate options | `evaluateOptions` for runtime controls. | `evaluate_options` for runtime controls. | Align with Promptfoo | AgentV uses `evaluate_options.repeat`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency`. |
 | Authored concurrency | Common Promptfoo usage includes runtime options such as `maxConcurrency`. | `evaluate_options.max_concurrency`. | Keep AgentV divergence | Do not author `execution.max_concurrency` or top-level `workers` in eval YAML. CLI `--workers` remains an operator override. |
-| Target selection | Promptfoo normal evals use `providers`; `targets` can alias providers in unified config. | Use top-level `target` for one system under test or top-level `targets` for a target matrix. | Keep AgentV divergence | AgentV reserves `provider` for the backend/adapter kind inside a target object. Top-level `providers` is rejected to avoid overloading that term. |
-| Target object identity | Provider options often use `id` for backend/provider spec and optional `label` for display or matching. | Target objects use stable `id` for target identity, `provider` for backend kind, optional `runtime`, and `config` for provider settings. | Keep AgentV divergence | AgentV does not copy Promptfoo's `label`/`id` baggage because `provider` already names the backend boundary. |
-| Provider-prompt mapping | `providerPromptMap` maps provider identities to prompt subsets. | Rejected. Use explicit AgentV composition: separate eval suites/files for target-specific prompt subsets, top-level `prompts` plus `tests`/`default_test.vars`, `target`/`targets` or CLI `--target`, and tags/run metadata for grouping. | Removed/rejected surface | AgentV avoids inheriting Promptfoo provider identity baggage. Do not author `providerPromptMap` or `provider_prompt_map`. |
+| Provider selection | Promptfoo normal evals use `providers`; `targets` can alias providers in unified config. | Use top-level `providers` for one or more systems under test. | Align with Promptfoo | Old AgentV `target`/`targets` authoring is hard-rejected. Use CLI `--provider`/`--providers` for runtime selection. |
+| Provider declarations | Provider entries can be strings, complete package provider strings such as `package:@agentv/promptfoo-providers:CodexCliProvider` or `package:@agentv/promptfoo-providers/codex-cli:Provider`, provider option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, or provider maps such as `{ "openai:gpt-4": { label, config } }`. | AgentV accepts the same provider declaration layer; `id` is the backend/spec and `label` is the stable AgentV selection and result identity. | Align with Promptfoo | Package provider strings must include the exported class/function segment after the final colon. AgentV-only fields such as `runtime` and provider-local testbed/runtime overlays are AgentV semantics. Promptfoo may ignore or strip unknown keys and will not execute AgentV environment setup without a transpiler or wrapper. |
+| Provider-prompt mapping | `providerPromptMap` maps provider identities to prompt subsets. | Rejected. Use explicit AgentV composition: separate eval suites/files for provider-specific prompt subsets, top-level `prompts` plus `tests`/`default_test.vars`, `providers` or CLI `--provider`, and tags/run metadata for grouping. | Removed/rejected surface | Do not author `providerPromptMap` or `provider_prompt_map`. |
 | Direct authored input | Promptfoo prompt authoring normally goes through `prompts` plus vars. | Top-level `input` and inline `tests[].input` are removed from normal authored eval YAML. External raw-case imports may still carry internal input rows for compatibility. | Removed AgentV extension | Author prompt text, chat/system/user messages, and file-backed prompt content as `prompts`; put row data in `tests[].vars` and shared defaults in `default_test.vars`. |
 | Authored preprocessors | Not Promptfoo's canonical output-shaping surface. | Rejected in current authored YAML. | Removed/rejected surface | Use `transform` at `default_test.options`, `tests[].options`, or the assertion that needs the shaped output. Historical versioned docs may still show old preprocessor examples. |
 | Suite assertions | `assert` entries can be strings or typed assertion objects. | `assert` entries can be strings, typed assertion objects, script graders, or AgentV extension graders. | Align with Promptfoo | Plain strings become semantic rubric checks. Use `assert`, not `assertions`, in current authored eval YAML. |
@@ -61,13 +74,14 @@ implements equivalent semantics directly.
 | Compare command | Promptfoo has its own result comparison surfaces. | `agentv results compare <baseline-index.jsonl> <candidate-index.jsonl>`. | Keep AgentV extension | Compare consumes completed AgentV run indexes such as `.agentv/results/<run_id>/.internal/index.jsonl`. |
 | CLI runtime filters | Promptfoo exposes filters such as prompt/provider/test subset flags. | AgentV supports its current CLI filters and selection fields; full Promptfoo runtime-filter parity is future work. | Defer/future-scope | Prefer current AgentV CLI flags and authored selection fields until runtime-filter parity lands. |
 | Wire-format casing | Promptfoo config uses camelCase fields such as `defaultTest` and `evaluateOptions`. | AgentV YAML, JSONL, artifacts, and CLI JSON use `snake_case`; internal TypeScript uses `camelCase`. | Keep AgentV divergence | Translate only at process boundaries. New public wire fields should be `snake_case`. |
-| Hard-rejected stale AgentV fields | Not applicable to Promptfoo. | Removed AgentV-era fields such as top-level `execution`, `execution.target`, `execution.targets`, top-level `budget_usd`, top-level `repeat`/`runs`, and `composite` are rejected. | Keep AgentV divergence | Use top-level `target`/`targets`, `evaluate_options`, `evaluate_options.repeat`, and `assert-set`. Migration guidance lives in the eval migration skill reference. |
+| Hard-rejected stale AgentV fields | Not applicable to Promptfoo. | Removed AgentV-era fields such as top-level `target`, `targets`, `execution`, `execution.target`, `execution.targets`, top-level `budget_usd`, top-level `repeat`/`runs`, and `composite` are rejected. | Keep AgentV divergence | Use top-level `providers`, `evaluate_options`, `evaluate_options.repeat`, and `assert-set`. Migration guidance lives in the eval migration skill reference. |
 
 ## Canonical Prompt-Compatible Shape
 
 ```yaml
 description: Release-note summarization
-target: local-mini
+providers:
+  - local-mini
 
 prompts:
   - id: direct
@@ -107,12 +121,12 @@ tests:
 description: Repo-native direct task suite
 environment: file://.agentv/environments/local-python.yaml
 
-targets:
-  - id: codex-host
-    provider: codex-cli
+providers:
+  - id: codex-cli
+    label: codex-host
     runtime: host
-  - id: claude-host
-    provider: claude-cli
+  - id: claude-cli
+    label: claude-host
     runtime: host
 
 prompts:

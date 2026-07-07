@@ -234,7 +234,8 @@ export default defineAssertion(({ output }) => {
 name: custom-assertion-demo
 description: Demonstrates custom assertions with convention discovery
 
-target: default
+providers:
+  - default
 
 prompts:
   - "{{ input }}"

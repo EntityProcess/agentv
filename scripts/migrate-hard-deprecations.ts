@@ -20,6 +20,7 @@ const LEGACY_ENV_PATTERN = /\$\{\{\s*([A-Z_][A-Z0-9_]*)\s*\}\}/g;
 const PREPROCESSOR_MEDIA_TYPES: Readonly<Record<string, readonly string[]>> = {
   xlsx: ['xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx'],
 };
+const MODEL_GRADED_ASSERTION_TYPES = new Set(['llm-rubric', 'g-eval']);
 const TEST_TS_FILES = [
   'apps/cli/test/commands/eval/artifact-writer.test.ts',
   'apps/cli/test/commands/eval/bundle.test.ts',
@@ -289,6 +290,7 @@ function migrateAssertions(assertions: unknown): boolean {
     if (!isObject(assertion)) continue;
 
     changed = migrateAssertions(assertion.assert) || changed;
+    changed = migrateAssertionProviderSurface(assertion) || changed;
     changed = migrateAssertionTransform(assertion) || changed;
     changed = migrateSkillTriggerAssertion(assertion) || changed;
 
@@ -300,6 +302,157 @@ function migrateAssertions(assertions: unknown): boolean {
     }
   }
   return changed;
+}
+
+function warnManualReview(filePath: string, message: string): void {
+  console.warn(`[manual review] ${filePath}: ${message}`);
+}
+
+function rewriteTargetsFileRef(value: string): string {
+  return value.replace(/(^|\/)targets\.ya?ml$/i, (match) => {
+    if (match.endsWith('.yml')) {
+      return match.replace(/targets\.yml$/i, 'providers.yml');
+    }
+    return match.replace(/targets\.yaml$/i, 'providers.yaml');
+  });
+}
+
+function migrateProviderDefinition(entry: JsonObject, filePath: string): boolean {
+  let changed = false;
+  const stableId = typeof entry.id === 'string' ? entry.id : undefined;
+  const backendId = typeof entry.provider === 'string' ? entry.provider : undefined;
+
+  if (backendId !== undefined) {
+    if (stableId !== undefined && entry.label === undefined) {
+      entry.label = stableId;
+      changed = true;
+    } else if (stableId !== undefined && entry.label !== stableId) {
+      warnManualReview(
+        filePath,
+        `provider entry ${stableId} already has label ${String(entry.label)}; old targets[].id was not copied over label`,
+      );
+    }
+    entry.id = backendId;
+    Reflect.deleteProperty(entry, 'provider');
+    changed = true;
+  }
+
+  if (Object.hasOwn(entry, 'grader_target')) {
+    warnManualReview(
+      filePath,
+      `provider ${String(entry.label ?? entry.id ?? '<unknown>')} still has grader_target; move grader selection to defaults.grader, test options.provider, or assertion provider`,
+    );
+  }
+  if (Object.hasOwn(entry, 'use_target')) {
+    warnManualReview(
+      filePath,
+      `provider ${String(entry.label ?? entry.id ?? '<unknown>')} still has use_target; review provider delegation manually`,
+    );
+  }
+  if (Object.hasOwn(entry, 'name')) {
+    warnManualReview(
+      filePath,
+      `provider ${String(entry.name)} uses legacy name; review whether it should become label`,
+    );
+  }
+
+  return changed;
+}
+
+function migrateProvidersList(value: unknown, filePath: string): boolean {
+  if (typeof value === 'string') {
+    return false;
+  }
+  if (!Array.isArray(value)) return false;
+  let changed = false;
+  for (let index = 0; index < value.length; index++) {
+    const entry = value[index];
+    if (typeof entry === 'string') {
+      const next = rewriteTargetsFileRef(entry);
+      if (next !== entry) {
+        value[index] = next;
+        changed = true;
+      }
+    } else if (isObject(entry)) {
+      changed = migrateProviderDefinition(entry, filePath) || changed;
+    }
+  }
+  return changed;
+}
+
+function migrateProviderSurface(value: JsonObject, filePath: string): boolean {
+  let changed = false;
+  const basename = path.basename(filePath).toLowerCase();
+
+  if (
+    (basename === 'defaults.yaml' || basename === 'defaults.yml') &&
+    Object.hasOwn(value, 'target')
+  ) {
+    if (value.provider === undefined) {
+      value.provider = clone(value.target);
+    } else {
+      warnManualReview(
+        filePath,
+        'defaults already has provider; legacy target was removed without overwriting it',
+      );
+    }
+    Reflect.deleteProperty(value, 'target');
+    return true;
+  }
+
+  if (typeof value.targets === 'string') {
+    value.providers = rewriteTargetsFileRef(value.targets);
+    Reflect.deleteProperty(value, 'targets');
+    changed = true;
+  } else if (Array.isArray(value.targets)) {
+    value.providers = clone(value.targets);
+    Reflect.deleteProperty(value, 'targets');
+    changed = true;
+  }
+  if (isObject(value.target)) {
+    value.providers = [clone(value.target)];
+    Reflect.deleteProperty(value, 'target');
+    changed = true;
+  } else if (typeof value.target === 'string') {
+    value.providers = [value.target];
+    Reflect.deleteProperty(value, 'target');
+    changed = true;
+  }
+
+  if (changed || value.providers !== undefined) {
+    changed = migrateProvidersList(value.providers, filePath) || changed;
+  }
+
+  if (isObject(value.defaults) && Object.hasOwn(value.defaults, 'target')) {
+    if (value.defaults.provider === undefined) {
+      value.defaults.provider = clone(value.defaults.target);
+    } else {
+      warnManualReview(
+        filePath,
+        'defaults already has provider; legacy defaults.target was removed without overwriting it',
+      );
+    }
+    Reflect.deleteProperty(value.defaults, 'target');
+    changed = true;
+  }
+
+  return changed;
+}
+
+function migrateAssertionProviderSurface(assertion: JsonObject): boolean {
+  if (!Object.hasOwn(assertion, 'target')) return false;
+  const assertionType = normalizedAssertionType(assertion);
+  if (assertion.provider === undefined) {
+    assertion.provider = clone(assertion.target);
+  }
+  Reflect.deleteProperty(assertion, 'target');
+  if (assertionType !== undefined && !MODEL_GRADED_ASSERTION_TYPES.has(assertionType)) {
+    warnManualReview(
+      '<inline assertion>',
+      `rewrote assertion target to provider on non-model-graded assertion type ${assertionType}`,
+    );
+  }
+  return true;
 }
 
 function migrateSuitePreprocessors(suite: JsonObject): boolean {
@@ -674,6 +827,7 @@ function migrateYamlValue(
   let changed = false;
   changed = migrateLegacyEnvReferences(value) || changed;
   changed = migrateDeprecatedArtifactKeys(value) || changed;
+  changed = migrateProviderSurface(value, filePath) || changed;
   changed = migrateExecutionConcurrency(value) || changed;
   changed = migrateWorkspace(value.workspace) || changed;
   changed =
@@ -748,6 +902,9 @@ function migrateYamlSnippet(source: string, filePath: string): string | undefine
     !source.includes('execution:') &&
     !source.includes('preprocessors:') &&
     !source.includes('postprocess:') &&
+    !source.includes('target:') &&
+    !source.includes('targets:') &&
+    !source.includes('grader_target:') &&
     !source.includes('timing_path:') &&
     !source.includes('manifest_path:') &&
     !source.includes('isolation:') &&

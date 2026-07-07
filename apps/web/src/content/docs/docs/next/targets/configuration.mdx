@@ -1,34 +1,34 @@
 ---
-title: Targets Configuration
-description: Configure targets for providers and agents
+title: Providers Configuration
+description: Configure providers for models and agents
 sidebar:
   order: 1
 slug: docs/targets/configuration
 ---
 
-Targets define which agent or LLM provider to evaluate. AgentV uses one
+Providers define which agent or LLM backend to evaluate. AgentV uses one
 composable config graph across project manifests and eval files:
 
 - `.agentv/config.yaml` is the project-local discovery and composition root. It
-  can hold targets, tests, defaults, execution policy, results settings, and
+  can hold providers, tests, defaults, execution policy, results settings, and
   repo-local project policy.
 - `$AGENTV_HOME/config.yaml` is the user/operator config. Use it for defaults
   that apply across projects, project registry data, default result locations,
   and provider defaults that should not be copied into each repo.
 - `eval.yaml` is a focused, shareable slice of the same graph. Use it for a
-  suite-specific target, grader, tests, evaluator settings, or run controls
+  suite-specific provider, grader, tests, evaluator settings, or run controls
   that should travel with the eval.
 
 Any supported top-level field can stay inline or become a direct field
-reference such as `targets: file://targets.yaml`. Both forms normalize to the
+reference such as `providers: file://providers.yaml`. Both forms normalize to the
 same config graph.
 
 ## Structure
 
 ```yaml
-targets:
-  - id: local-openai
-    provider: openai
+providers:
+  - id: openai
+    label: local-openai
     runtime: host
     config:
       api_format: chat
@@ -36,57 +36,57 @@ targets:
       api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
       model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
 
-  - id: codex-local
-    provider: codex-app-server
+  - id: codex-app-server
+    label: codex-local
     runtime: host
     config:
       command: ["codex", "app-server"]
       model: gpt-5-codex
 
-  - id: openai-grader
-    provider: openai
+  - id: openai
+    label: openai-grader
     runtime: host
     config:
       model: gpt-5-mini
 
 defaults:
-  target: codex-local
+  provider: codex-local
   grader: openai-grader
 ```
 
-Use `id` for the stable AgentV target identity. `provider` selects the adapter
-or control boundary. `runtime` describes where the provider runs; use `host` as
+Use `id` for the provider backend/spec and `label` for the stable AgentV
+selection identity. `runtime` describes where the provider runs; use `host` as
 the shorthand for the current machine, or object form when you need
 `mode: host | profile | sandbox` plus runtime-specific settings. Provider
 settings belong under `config`. Process-backed coding-agent providers use
 `config.command` as a non-empty argv array.
 
-A grader is not a separate kind of entity — it is a target selected for a
+A grader is not a separate kind of entity — it is a provider selected for a
 grading role, either through `defaults.grader` (shown above) or an
-assertion-level target override. There is no separate `graders:` list;
-authoring one is a hard error telling you to move each entry into `targets`.
+assertion-level `provider` override. There is no separate `graders:` list;
+authoring one is a hard error telling you to move each entry into `providers`.
 
 ## Runtime Modes
 
-Use `runtime: host` when you want AgentV to run the target exactly as it is
+Use `runtime: host` when you want AgentV to run the provider exactly as it is
 installed on the current machine. This is the best fit for local research,
 subscription-auth workflows, and evaluating the same CLI profile an engineer
 uses manually.
 
-Use `runtime.mode: profile` when the target still runs as a host process but
+Use `runtime.mode: profile` when the provider still runs as a host process but
 should use an isolated home/config directory, such as a dedicated `CODEX_HOME`
 or `HOME`.
 
-Use `runtime.mode: sandbox` when the target should run inside a separate
+Use `runtime.mode: sandbox` when the provider should run inside a separate
 execution substrate. The built-in sandbox runner currently supports Docker for
-`provider: cli`; provider-specific coding-agent adapters such as `codex-cli`,
-`claude-cli`, `copilot-cli`, and `pi-cli` return a structured unsupported target
+`id: cli`; coding-agent adapters such as `codex-cli`, `claude-cli`,
+`copilot-cli`, and `pi-cli` return a structured unsupported provider
 error until their transcript parsers are wired through sandbox-aware runners.
 
 ```yaml
-targets:
-  - id: codex-sandbox
-    provider: codex-cli
+providers:
+  - id: codex-cli
+    label: codex-sandbox
     runtime:
       mode: sandbox
       engine: docker
@@ -110,9 +110,9 @@ targets:
 ```
 
 Sandbox mode does not inherit host credentials by default. Mount only the
-workspace, results, cache, or credential paths the target needs, and pass only
+workspace, results, cache, or credential paths the provider needs, and pass only
 the environment variables and secrets listed under `runtime.env` and
-`runtime.secrets`. Install the target CLI by using an image that already
+`runtime.secrets`. Install the provider CLI by using an image that already
 contains it or by adding explicit setup under `runtime.setup`; locate the CLI
 with `config.command`.
 
@@ -125,16 +125,16 @@ local subscription profile is the point of the evaluation.
 Inline and decomposed forms are equivalent. This single-file config:
 
 ```yaml
-targets:
-  - id: codex-local
-    provider: codex-app-server
+providers:
+  - id: codex-app-server
+    label: codex-local
     runtime: host
     config:
       command: ["codex", "app-server"]
       model: gpt-5-codex
 
-  - id: openai-grader
-    provider: openai
+  - id: openai
+    label: openai-grader
     runtime: host
     config:
       model: gpt-5-mini
@@ -148,32 +148,32 @@ tests:
       input: Fix the failing test.
 
 defaults:
-  target: codex-local
+  provider: codex-local
   grader: openai-grader
 ```
 
 can be decomposed like this:
 
 ```yaml
-targets: file://targets.yaml
+providers: file://providers.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
 
-Referenced field files contain the field value directly. `targets.yaml` contains
-a bare array, not an object wrapped in `targets:`:
+Referenced field files contain the field value directly. `providers.yaml` contains
+a bare array, not an object wrapped in `providers:`:
 
 ```yaml
-# .agentv/targets.yaml
-- id: codex-local
-  provider: codex-app-server
+# .agentv/providers.yaml
+- id: codex-app-server
+  label: codex-local
   runtime: host
   config:
     command: ["codex", "app-server"]
     model: gpt-5-codex
 
-- id: openai-grader
-  provider: openai
+- id: openai
+  label: openai-grader
   runtime: host
   config:
     model: gpt-5-mini
@@ -181,7 +181,7 @@ a bare array, not an object wrapped in `targets:`:
 
 ```yaml
 # .agentv/defaults.yaml
-target: codex-local
+provider: codex-local
 grader: openai-grader
 ```
 
@@ -195,9 +195,9 @@ exported process environment variables directly, and it also loads `.env` files 
 eval directory hierarchy when present:
 
 ```yaml
-targets:
-  - id: my-target
-    provider: anthropic
+providers:
+  - id: anthropic
+    label: my-provider
     runtime: host
     config:
       api_key: "{{ env.ANTHROPIC_API_KEY }}"
@@ -274,30 +274,31 @@ command to `env_from` (or a `.env` file plus `env_path`) instead.
 | `vscode` | Agent | VS Code with Copilot |
 | `vscode-insiders` | Agent | VS Code Insiders |
 | `cli` | Agent | Any CLI command — see [CLI Provider](/docs/targets/cli-provider) |
-| `mock` | Testing | Explicit mock target for examples and tests |
+| `mock` | Testing | Explicit mock provider for examples and tests |
 
-## Referencing Targets in Evals
+## Referencing Providers in Evals
 
-Select the system under test with `defaults.target`, top-level `target`, or CLI
-`--target`, depending on the command flow. Test cases do not choose targets;
-split target-specific cases into separate eval suites, select them with
-tags/filters, or run the same eval with different `--target` values.
+Select the system under test with `defaults.provider`, top-level `providers`, or
+CLI `--provider`, depending on the command flow. Test cases do not choose
+providers; split provider-specific cases into separate eval suites, select them
+with tags/filters, or run the same eval with different `--provider` values.
 
 ```yaml
-target: local-openai
+providers:
+  - local-openai
 
 tests:
   - id: test-1
   - id: test-2
 ```
 
-The string is a configured target `id`. Use object form when an eval needs a
-local target variant:
+The string is a configured provider `label` or `id`. Use object form when an
+eval needs a local provider variant:
 
 ```yaml
-target:
-  id: codex-high-reasoning
-  provider: codex-app-server
+providers:
+  - id: codex-app-server
+    label: codex-high-reasoning
   runtime: host
   config:
     command: ["codex", "app-server"]
@@ -306,7 +307,7 @@ target:
 ```
 
 Use `defaults.grader` for the project default grader. A specific evaluator can
-still choose its own grader target when the evaluator supports that override.
+still choose its own grader provider when the evaluator supports that override.
 
 ### Environment And Lifecycle Extensions
 
@@ -314,7 +315,7 @@ Use `environment` for the authored coding-agent testbed recipe: host or Docker
 placement, workdir, setup argv, fixtures, services, and repository
 materialization scripts. Use top-level `extensions` for Promptfoo-style
 lifecycle callbacks and instrumentation that run after the environment is
-prepared. Use target hooks only for runner-specific setup.
+prepared. Use provider hooks only for runner-specific setup.
 
 ```yaml
 extensions:
@@ -339,16 +340,16 @@ environment:
 | Field | Description |
 |-------|-------------|
 | `environment.type` | `host` or `docker` |
-| `environment.workdir` | Cwd used by targets and graders inside the prepared testbed |
+| `environment.workdir` | Cwd used by providers and graders inside the prepared testbed |
 | `environment.setup.command` | Non-empty argv setup command; use `["bash", "-lc", "..."]` for shell behavior |
 | Top-level `env` | Provider/eval variables and template inputs |
 | `extensions[]` | `file://...:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, or `agentv:agent-rules` |
 
 **Lifecycle order:** resolve environment → prepare host or Docker testbed →
-`environment.setup.command` → `extensions.beforeAll` → target
-`hooks.before_all` → git baseline → (`extensions.beforeEach` → target
-`hooks.before_each` → agent runs → file changes captured → target
-`hooks.after_each` → `extensions.afterEach`) × N tests → target
+`environment.setup.command` → `extensions.beforeAll` → provider
+`hooks.before_all` → git baseline → (`extensions.beforeEach` → provider
+`hooks.before_each` → agent runs → file changes captured → provider
+`hooks.after_each` → `extensions.afterEach`) × N tests → provider
 `hooks.after_all` → `extensions.afterAll` → cleanup
 
 **Error handling:**
@@ -418,48 +419,51 @@ CLI overrides:
 
 ### cwd
 
-Use `cwd` on a target to run in an existing directory (shared across tests). If not set, the eval file's directory is used as the working directory.
+Use `cwd` on a provider to run in an existing directory (shared across tests).
+If not set, the eval file's directory is used as the working directory.
 
-## Target Hooks
+## Provider Hooks
 
-Eval files can define per-target hooks that run setup/teardown scripts to
-customize each target variant. This enables comparing different harness
+Eval files can define per-provider hooks that run setup/teardown scripts to
+customize each provider variant. This enables comparing different harness
 configurations, such as baseline vs with-plugins, in a single eval file.
 
-Targets do not declare testbed setup. The shared `environment` prepares the
-world so every target runs against the same files, fixtures, cwd, and services.
-Target hooks customize the harness under evaluation, such as enabling wrappers
+Providers do not declare testbed setup. The shared `environment` prepares the
+world so every provider runs against the same files, fixtures, cwd, and services.
+Provider hooks customize the harness under evaluation, such as enabling wrappers
 or changing provider-local config.
 
-Target hooks can be scoped to an eval-local target object:
+Provider hooks can be scoped to an eval-local provider object:
 
 ```yaml
-target:
-  extends: default
-  hooks:
-    before_each:
-      command: ["setup-plugins.sh", "skills"]
+providers:
+  - id: codex-app-server
+    label: codex-with-skills
+    extends: default
+    hooks:
+      before_each:
+        command: ["setup-plugins.sh", "skills"]
 ```
 
 ### Hook execution order
 
-Target hooks run after environment setup and lifecycle extensions on setup.
-Teardown runs target hooks before lifecycle extensions:
+Provider hooks run after environment setup and lifecycle extensions on setup.
+Teardown runs provider hooks before lifecycle extensions:
 
 1. Extension `beforeAll`
-2. **Target `before_all`**
+2. **Provider `before_all`**
 3. For each test:
    - Extension `beforeEach`
-   - **Target `before_each`**
+   - **Provider `before_each`**
    - Test executes
-   - **Target `after_each`**
+   - **Provider `after_each`**
    - Extension `afterEach`
-4. **Target `after_all`**
+4. **Provider `after_all`**
 5. Extension `afterAll`
 
 ### Hook schema
 
-Target hooks follow the same command schema as lifecycle hook commands:
+Provider hooks follow the same command schema as lifecycle hook commands:
 
 ```yaml
 hooks:

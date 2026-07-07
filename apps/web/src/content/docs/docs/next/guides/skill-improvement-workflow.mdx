@@ -91,10 +91,10 @@ Start with 5–10 focused test cases. You can always add more as you discover ed
 Run the evaluation **without** the skill loaded to establish a baseline:
 
 ```bash
-agentv eval evals.json --target baseline
+agentv eval evals.json --provider baseline
 
 agentv convert evals.json --out EVAL.yaml
-agentv eval EVAL.yaml --target baseline --output .agentv/results/baseline
+agentv eval EVAL.yaml --provider baseline --output .agentv/results/baseline
 ```
 
 This produces a run bundle under `.agentv/results/baseline` showing how the
@@ -113,7 +113,7 @@ drafts/
     SKILL.md
 
 # Baseline run won't pick it up
-agentv eval EVAL.yaml --target baseline --output .agentv/results/baseline
+agentv eval EVAL.yaml --provider baseline --output .agentv/results/baseline
 ```
 
 ## Step 3: Run Candidate Evaluation
@@ -121,7 +121,7 @@ agentv eval EVAL.yaml --target baseline --output .agentv/results/baseline
 Run the same evaluation **with** the skill loaded:
 
 ```bash
-agentv eval EVAL.yaml --target candidate --output .agentv/results/candidate
+agentv eval EVAL.yaml --provider candidate --output .agentv/results/candidate
 ```
 
 Or grade existing sessions offline (no API keys required):
@@ -200,7 +200,7 @@ Loop back to Step 3 with the improved skill:
 
 ```bash
 # Run the improved candidate
-agentv eval EVAL.yaml --target candidate --output .agentv/results/candidate
+agentv eval EVAL.yaml --provider candidate --output .agentv/results/candidate
 
 # Compare against the previous baseline
 agentv results compare .agentv/results/baseline/.internal/index.jsonl .agentv/results/candidate/.internal/index.jsonl
@@ -220,7 +220,7 @@ Keep your baseline stable across iterations. Only re-run the baseline when the t
 When `evals.json` is your starting point, you can run it directly for quick checks. Convert it to EVAL.yaml before using AgentV's workspace isolation, script graders, trajectory assertions, or multi-turn conversations:
 
 ```bash
-agentv eval evals.json --target claude
+agentv eval evals.json --provider claude
 agentv convert evals.json -o EVAL.yaml
 ```
 
@@ -271,13 +271,13 @@ If you've been using the Agent Skills skill-creator workflow, keep `evals.json` 
 
 | Skill-Creator | AgentV | Notes |
 |--------------|--------|-------|
-| `evals.json` | `agentv eval evals.json --target claude` | Built-in read adapter for Agent Skills datasets |
+| `evals.json` | `agentv eval evals.json --provider claude` | Built-in read adapter for Agent Skills datasets |
 | `evals.json` | `agentv convert evals.json --out EVAL.yaml` | Adapter conversion into editable AgentV YAML |
-| `claude -p "prompt"` | `agentv eval EVAL.yaml --target claude` | Same cases, richer engine after conversion |
+| `claude -p "prompt"` | `agentv eval EVAL.yaml --provider claude` | Same cases, richer engine after conversion |
 | `grading.json` (read) | `<test-id>/grading.json` (write) | Same per-test schema, AgentV writes one grading file per test case |
 | `summary.json` (read) | `<output>/summary.json` (write) | AgentV writes the canonical run summary; convert it in a wrapper if another tool needs a narrower compatibility shape |
 | n/a | `index.jsonl` (write) | AgentV-specific per-test manifest for filtering, retry, and replay workflows |
-| with-skill vs without-skill | `--target baseline --target candidate` | Structured comparison |
+| with-skill vs without-skill | `--provider baseline --provider candidate` | Structured comparison |
 | Native AgentV authoring | EVAL.yaml | Adds workspace, script graders, targets, repeat runs, and artifacts |
 
 **Key takeaway:** You do not need to hand-rewrite `evals.json`. AgentV can run it through a read adapter, and conversion is available when you want editable AgentV YAML.
@@ -296,7 +296,7 @@ agentv pipeline run evals/my-eval.yaml --experiment with_skills
 
 Both runs use the same eval file and produce separate run directories. The experiment label is recorded in `manifest.json` and `index.jsonl`, making it easy to filter and compare in dashboards.
 
-This replaces the need for separate `--target baseline` / `--target candidate` configurations when the only difference between runs is the environment setup (skills, config, etc.) rather than the target harness.
+This replaces the need for separate `--provider baseline` / `--provider candidate` configurations when the only difference between runs is the environment setup (skills, config, etc.) rather than the target harness.
 
 ## Baseline Comparison Best Practices
 

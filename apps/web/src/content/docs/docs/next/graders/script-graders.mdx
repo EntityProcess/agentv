@@ -453,7 +453,8 @@ environment:
   type: host
   workdir: ./workspace-template
 
-target: my_agent
+providers:
+  - my_agent
 prompts:
   - "{{ input }}"
 

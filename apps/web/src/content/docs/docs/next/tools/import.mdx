@@ -109,7 +109,7 @@ The transcript providers share the same core flags:
 | `--list` | List available sessions instead of importing |
 | `--output, -o <path>` | Custom output file path |
 | `--test-id <id>` | Set the transcript `test_id` to match an eval test id |
-| `--target <id>` | Set the transcript `target` / replay `source_target` value |
+| `--provider <id>` | Set the transcript `target` / replay `source_target` value |
 
 Provider-specific flags:
 
@@ -166,10 +166,10 @@ do not require those legacy log pointers.
 Agent Skills `evals.json` is handled by a built-in eval read adapter, not `agentv import`:
 
 ```bash
-agentv eval evals.json --target claude
+agentv eval evals.json --provider claude
 
 agentv convert evals.json --out EVAL.yaml
-agentv eval EVAL.yaml --target claude
+agentv eval EVAL.yaml --provider claude
 ```
 
 Use [Convert](/docs/tools/convert/) to import the definition into editable YAML
@@ -209,7 +209,7 @@ agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-4c4f9e4e.
 You can also use the same normalized transcript rows through a replay target:
 
 ```yaml
-targets:
+providers:
   - id: recorded-agent
     provider: replay
     transcripts: .agentv/transcripts/claude-4c4f9e4e.jsonl
@@ -251,7 +251,7 @@ uv run scripts/import-huggingface.py \
   --output /tmp/swebench-eval/
 
 # Run with a coding agent target
-agentv eval /tmp/swebench-eval/*.EVAL.yaml --target codex-cli
+agentv eval /tmp/swebench-eval/*.EVAL.yaml --provider codex-cli
 ```
 
 The Docker environment spins up the pre-built SWE-bench image, prepares the

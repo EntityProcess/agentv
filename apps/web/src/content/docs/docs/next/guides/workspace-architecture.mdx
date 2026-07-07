@@ -6,9 +6,9 @@ sidebar:
 slug: docs/guides/workspace-architecture
 ---
 
-AgentV combines Promptfoo-compatible eval authoring with AgentV-owned
-`environment` recipes for coding-agent testbeds. Use `prompts`, `tests`,
-`vars`, `default_test`, `assert`, `targets`, top-level `env`, and
+AgentV combines Promptfoo-compatible provider/prompt/test matrix authoring with
+AgentV-owned `environment` recipes for coding-agent testbeds. Use `prompts`,
+`tests`, `vars`, `default_test`, `assert`, `providers`, top-level `env`, and
 `extensions` for the Promptfoo-shaped eval matrix. Use `environment` for the
 host or Docker state a coding agent should inspect or modify.
 
@@ -53,27 +53,27 @@ environment:
 | `environment.env` | Recipe-scoped process environment for the host or container testbed when a recipe needs it. It is distinct from top-level `env`. |
 | `extensions` | Promptfoo-style lifecycle callbacks and instrumentation. They can customize flow, but they are not the canonical testbed materialization contract. |
 
-## Targets Stay Separate
+## Providers Stay Separate
 
-Targets select the system under test. The environment prepares the world those
-targets run against. This separation lets Codex, Claude, Copilot, and Pi see
+Providers select the system under test. The environment prepares the world those
+providers run against. This separation lets Codex, Claude, Copilot, and Pi see
 the same repo state, fixtures, cwd, and setup output.
 
 ```yaml
 environment: file://.agentv/environments/local-python.yaml
 
-targets:
-  - id: codex-host
-    provider: codex-cli
+providers:
+  - id: codex-cli
+    label: codex-host
     runtime: host
-  - id: claude-host
-    provider: claude-cli
+  - id: claude-cli
+    label: claude-host
     runtime: host
-  - id: copilot-host
-    provider: copilot-cli
+  - id: copilot-cli
+    label: copilot-host
     runtime: host
-  - id: pi-host
-    provider: pi-cli
+  - id: pi-cli
+    label: pi-host
     runtime: host
 
 prompts:

@@ -14,15 +14,15 @@ Because the contract is "we invoke a command and read a file," almost any useful
 
 ```yaml
 # .agentv/config.yaml
-targets:
-  - id: my-agent
-    provider: cli
+providers:
+  - id: cli
+    label: my-agent
     runtime: host
     config:
       command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
 
-  - id: azure-grader
-    provider: azure
+  - id: azure
+    label: azure-grader
     runtime: host
     config:
       endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
@@ -30,7 +30,7 @@ targets:
       model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
 
 defaults:
-  target: my-agent
+  provider: my-agent
   grader: azure-grader
 ```
 
@@ -84,7 +84,7 @@ echo "Hello, world!" > {OUTPUT_FILE}
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `id` | string | yes | — | AgentV target identity used by eval `target`, CLI `--target`, and comparisons. |
+| `label` | string | recommended | — | Stable AgentV identity used by `defaults.provider`, CLI `--provider`, and comparisons. |
 | `provider` | literal `"cli"` | yes | — | Selects this provider. |
 | `runtime` | string or object | no | `host` | Target runtime placement. |
 | `config.command` | string | yes | — | Shell command template. |
@@ -101,7 +101,7 @@ echo "Hello, world!" > {OUTPUT_FILE}
 For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `batch_requests: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
 
 ```yaml
-targets:
+providers:
   - id: batched-agent
     provider: cli
     runtime: host
@@ -120,7 +120,7 @@ AgentV has no dedicated "oracle" feature because the `cli` provider already comp
 
 ```yaml
 # .agentv/config.yaml
-targets:
+providers:
   - id: my-agent
     provider: cli
     runtime: host
@@ -148,10 +148,10 @@ defaults:
 ```bash
 # While iterating on your grader, run the oracle first.
 # If it doesn't score 100%, fix the grader before trusting any agent results.
-agentv eval my.EVAL.yaml --target oracle
+agentv eval my.EVAL.yaml --provider oracle
 
 # Then run the real target.
-agentv eval my.EVAL.yaml --target my-agent
+agentv eval my.EVAL.yaml --provider my-agent
 ```
 
 A few practical notes:

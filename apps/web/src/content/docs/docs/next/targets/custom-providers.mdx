@@ -89,7 +89,7 @@ registry.register('my-provider', (target: ResolvedTarget): Provider => {
 
 The `register()` method takes two arguments:
 
-1. **kind** (`string`) -- A unique identifier for your provider. This is the value used in `provider:` in targets.yaml.
+1. **kind** (`string`) -- A unique identifier for your provider. This is the value used in `provider:` in providers.yaml.
 2. **factory** (`ProviderFactoryFn`) -- A function that receives a `ResolvedTarget` and returns a `Provider` instance.
 
 The factory function signature:
@@ -177,7 +177,7 @@ Then reference it in your targets file:
 
 ```yaml
 # .agentv/config.yaml
-targets:
+providers:
   - id: my-http-agent
     provider: http-agent
     runtime: host
@@ -202,7 +202,7 @@ Custom provider kinds are not validated against the built-in provider list. When
 
 ## CLI Providers vs Native Providers
 
-AgentV supports two approaches for custom targets:
+AgentV supports two approaches for custom providers:
 
 | Aspect | CLI Provider | Native TypeScript Provider |
 |--------|-------------|---------------------------|
@@ -221,7 +221,7 @@ Use `provider: cli` when:
 - You want zero TypeScript code
 
 ```yaml
-targets:
+providers:
   - id: python-agent
     provider: cli
     runtime: host

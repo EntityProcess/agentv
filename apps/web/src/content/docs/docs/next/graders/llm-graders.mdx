@@ -12,7 +12,7 @@ LLM graders use a language model to evaluate agent responses against custom crit
 
 Put semantic grading requirements in `assert`. Plain strings are
 handled by the built-in `llm-rubric` rubric grader. Use `type: llm-rubric` when you
-need a custom prompt, target, or grader-specific transform:
+need a custom prompt, provider, or grader-specific transform:
 
 ```yaml
 prompts:
@@ -41,10 +41,10 @@ assert:
   - name: semantic_check
     type: llm-rubric
     prompt: file://graders/correctness.md
-    target: grader_gpt_5_mini   # optional: route this grader to a named LLM target
+    provider: grader_gpt_5_mini   # optional: route this grader to a named LLM provider
 ```
 
-Use `target:` when you want different `llm-rubric` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
+Use `provider:` when you want different `llm-rubric` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
 
 ## Prompt Files
 
@@ -126,7 +126,7 @@ tests:
             outcome: Uses the provided ticker and company.
 ```
 
-## Per-Grader Target
+## Per-Grader Provider
 
 By default, an `llm-rubric` uses `defaults.grader` from the resolved config graph.
 Override it per assertion when you need multiple grader models in one run:
@@ -135,16 +135,16 @@ Override it per assertion when you need multiple grader models in one run:
 assert:
   - name: grader-gpt
     type: llm-rubric
-    target: grader_gpt_5_mini
+    provider: grader_gpt_5_mini
     prompt: ./prompts/pass-fail.md
   - name: grader-haiku
     type: llm-rubric
-    target: grader_claude_haiku
+    provider: grader_claude_haiku
     prompt: ./prompts/pass-fail.md
 ```
 
-Each `target:` value must match a target `id` from `.agentv/config.yaml` or
-from an eval-local `targets` entry.
+Each `provider:` value must match a provider `label` or backend `id` from
+`.agentv/config.yaml` or from an eval-local `providers` entry.
 
 ### TypeScript Template
 

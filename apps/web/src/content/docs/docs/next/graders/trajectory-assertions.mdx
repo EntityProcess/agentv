@@ -120,7 +120,8 @@ assert:
 
 ```yaml
 description: Validate research agent tool usage
-target: codex_agent
+providers:
+  - codex_agent
 
 prompts:
   - "{{ task }}"
@@ -165,7 +166,8 @@ tests:
 
 ```yaml
 description: Validate a strict data pipeline
-target: pipeline_agent
+providers:
+  - pipeline_agent
 
 prompts:
   - "{{ task }}"

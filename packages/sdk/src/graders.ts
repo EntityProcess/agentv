@@ -68,7 +68,7 @@ export interface LlmRubricGraderConfig extends EvalAssertionConfig, GraderCommon
   readonly type: 'llm-rubric';
   readonly value?: unknown;
   readonly prompt?: string | GraderPromptScriptConfig;
-  readonly target?: string;
+  readonly provider?: string;
   readonly config?: Readonly<Record<string, unknown>>;
   readonly maxSteps?: number;
   readonly temperature?: number;
@@ -82,7 +82,7 @@ export interface GraderPromptScriptConfig {
 export interface LlmGraderOptions extends GraderHelperOptions {
   readonly prompt?: string | GraderPromptScriptConfig;
   readonly rubrics?: readonly GraderRubric[];
-  readonly target?: string;
+  readonly provider?: string;
   readonly config?: Readonly<Record<string, unknown>>;
   readonly maxSteps?: number;
   readonly temperature?: number;
@@ -92,19 +92,19 @@ export interface LlmGraderConfig extends EvalAssertionConfig, GraderCommonConfig
   readonly type: 'llm-grader';
   readonly prompt?: string | GraderPromptScriptConfig;
   readonly rubrics?: readonly GraderRubric[];
-  readonly target?: string;
+  readonly provider?: string;
   readonly config?: Readonly<Record<string, unknown>>;
   readonly maxSteps?: number;
   readonly temperature?: number;
 }
 
-export interface ScriptGraderTargetOptions {
+export interface ScriptGraderProviderOptions {
   readonly maxCalls?: number;
 }
 
 export interface ScriptGraderOptions extends GraderHelperOptions {
   readonly cwd?: string;
-  readonly target?: true | ScriptGraderTargetOptions;
+  readonly provider?: true | ScriptGraderProviderOptions;
   readonly config?: Readonly<Record<string, unknown>>;
 }
 
@@ -112,12 +112,15 @@ export interface ScriptGraderConfig extends EvalAssertionConfig, GraderCommonCon
   readonly type: 'script';
   readonly command: GraderCommand;
   readonly cwd?: string;
-  readonly target?: true | ScriptGraderTargetOptions;
+  readonly provider?: true | ScriptGraderProviderOptions;
   readonly config?: Readonly<Record<string, unknown>>;
 }
 
-/** @deprecated Use ScriptGraderTargetOptions. */
-export type CodeGraderTargetOptions = ScriptGraderTargetOptions;
+/** @deprecated Use ScriptGraderProviderOptions. */
+export type ScriptGraderTargetOptions = ScriptGraderProviderOptions;
+
+/** @deprecated Use ScriptGraderProviderOptions. */
+export type CodeGraderTargetOptions = ScriptGraderProviderOptions;
 
 /** @deprecated Use ScriptGraderOptions. */
 export type CodeGraderOptions = ScriptGraderOptions;
@@ -190,7 +193,7 @@ export function llmRubricGrader(
   valueOrCriteria?: string | readonly GraderRubricCriterion[] | Readonly<Record<string, unknown>>,
   options: GraderHelperOptions & {
     readonly prompt?: string | GraderPromptScriptConfig;
-    readonly target?: string;
+    readonly provider?: string;
     readonly config?: Readonly<Record<string, unknown>>;
     readonly maxSteps?: number;
     readonly temperature?: number;
@@ -201,7 +204,7 @@ export function llmRubricGrader(
       type: 'llm-rubric',
       ...(valueOrCriteria !== undefined ? { value: valueOrCriteria } : {}),
       ...(options.prompt !== undefined ? { prompt: options.prompt } : {}),
-      ...(options.target !== undefined ? { target: options.target } : {}),
+      ...(options.provider !== undefined ? { provider: options.provider } : {}),
       ...(options.config !== undefined ? { config: options.config } : {}),
       ...(options.maxSteps !== undefined ? { maxSteps: options.maxSteps } : {}),
       ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
@@ -216,7 +219,7 @@ export function llmGrader(options: LlmGraderOptions = {}): LlmGraderConfig {
       type: 'llm-grader',
       ...(options.prompt !== undefined ? { prompt: options.prompt } : {}),
       ...(options.rubrics !== undefined ? { rubrics: options.rubrics } : {}),
-      ...(options.target !== undefined ? { target: options.target } : {}),
+      ...(options.provider !== undefined ? { provider: options.provider } : {}),
       ...(options.config !== undefined ? { config: options.config } : {}),
       ...(options.maxSteps !== undefined ? { maxSteps: options.maxSteps } : {}),
       ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
@@ -242,7 +245,7 @@ export function scriptGrader(
       type: 'script',
       command,
       ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
-      ...(options.target !== undefined ? { target: options.target } : {}),
+      ...(options.provider !== undefined ? { provider: options.provider } : {}),
       ...(options.config !== undefined ? { config: options.config } : {}),
     },
     options,

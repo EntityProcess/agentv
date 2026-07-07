@@ -26,7 +26,7 @@ agentv validate "evals/**/*.yaml" "evals/**/*.ts"
 - YAML/JSONL syntax and TypeScript config default exports
 - Required fields: `id`, input data (`input` or prompt matrix `vars`), and at least one grader under `assert`
 - Grader references (command paths, prompt files)
-- Target references match entries in `targets.yaml`
+- Target references match entries in `providers.yaml`
 - Rubric structure and field types
 
 For TypeScript eval configs, `agentv validate` imports and materializes the file

@@ -127,10 +127,10 @@ Compare different model versions:
 
 ```bash
 # Run baseline evaluation
-agentv eval evals/*.yaml --target gpt-4 --output .agentv/results/baseline
+agentv eval evals/*.yaml --provider gpt-4 --output .agentv/results/baseline
 
 # Run candidate evaluation
-agentv eval evals/*.yaml --target gpt-4o --output .agentv/results/candidate
+agentv eval evals/*.yaml --provider gpt-4o --output .agentv/results/candidate
 
 # Compare results
 agentv results compare .agentv/results/baseline/.internal/index.jsonl .agentv/results/candidate/.internal/index.jsonl
