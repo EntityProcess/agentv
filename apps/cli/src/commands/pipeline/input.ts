@@ -43,7 +43,7 @@ import { command, option, optional, positional, string } from 'cmd-ts';
 
 import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
-import { selectTarget } from '../eval/targets.js';
+import { selectProvider } from '../eval/targets.js';
 
 export const evalInputCommand = command({
   name: 'input',
@@ -120,17 +120,17 @@ export const evalInputCommand = command({
     let subagentModeAllowed = true;
 
     try {
-      const selection = await selectTarget({
+      const selection = await selectProvider({
         testFilePath: resolvedEvalPath,
         repoRoot,
         cwd: evalDir,
-        cliTargetName: provider,
-        explicitTargetsPath: providers,
+        cliProviderLabel: provider,
+        explicitProvidersPath: providers,
         env: process.env,
       });
 
-      targetName = selection.targetName;
-      const resolved = selection.resolvedTarget;
+      targetName = selection.providerLabel;
+      const resolved = selection.resolvedProvider;
       subagentModeAllowed = resolved.subagentModeAllowed !== false;
 
       if (resolved.kind === 'cli') {

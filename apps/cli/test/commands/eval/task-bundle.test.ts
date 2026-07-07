@@ -91,8 +91,8 @@ describe('materializeTaskBundle', () => {
 
     const paths = await materializeTaskBundle({
       test,
-      targetName: 'selected',
-      targetDefinitions: [
+      providerLabel: 'selected',
+      providerDefinitions: [
         {
           name: 'selected',
           provider: 'mock',

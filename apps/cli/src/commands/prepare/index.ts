@@ -21,7 +21,7 @@ import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
 
 import { loadEnvFromHierarchy } from '../eval/env.js';
 import { findRepoRoot } from '../eval/shared.js';
-import { selectMultipleTargets } from '../eval/targets.js';
+import { selectMultipleProviders } from '../eval/targets.js';
 
 type SetupStepStatus = 'ok' | 'skipped' | 'warning';
 
@@ -261,18 +261,18 @@ async function selectPrepareTarget(options: {
   readonly evalPath: string;
   readonly repoRoot: string;
   readonly target: string;
-  readonly targetRefs?: readonly EvalTargetRef[];
+  readonly providerRefs?: readonly EvalTargetRef[];
 }): Promise<{
   readonly resolvedTarget: ResolvedProviderBackend;
   readonly targetHooks?: TargetHooksConfig;
 }> {
-  const selections = await selectMultipleTargets({
+  const selections = await selectMultipleProviders({
     testFilePath: options.evalPath,
     repoRoot: options.repoRoot,
     cwd: process.cwd(),
     env: process.env,
-    targetNames: [options.target],
-    targetRefs: options.targetRefs,
+    providerLabels: [options.target],
+    providerRefs: options.providerRefs,
   });
   const selection = selections[0];
   if (!selection) {
@@ -280,10 +280,10 @@ async function selectPrepareTarget(options: {
   }
   return {
     resolvedTarget: {
-      ...selection.resolvedTarget,
+      ...selection.resolvedProvider,
       name: options.target,
     } as ResolvedProviderBackend,
-    ...(selection.targetHooks !== undefined && { targetHooks: selection.targetHooks }),
+    ...(selection.providerHooks !== undefined && { targetHooks: selection.providerHooks }),
   };
 }
 
@@ -307,7 +307,7 @@ async function prepareAttempt(options: {
     throw new Error(`Test ID '${options.testId}' not found in ${evalPath}`);
   }
 
-  const targetRefs =
+  const providerRefs =
     suite.targetSpec?.hooks !== undefined && suite.targetSpec.name === options.target
       ? [
           ...(suite.targetRefs ?? []),
@@ -318,7 +318,7 @@ async function prepareAttempt(options: {
     evalPath,
     repoRoot,
     target: options.target,
-    targetRefs,
+    providerRefs,
   });
 
   const prepared = await prepareEvalWorkspace({

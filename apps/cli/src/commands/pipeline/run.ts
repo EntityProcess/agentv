@@ -23,7 +23,7 @@ import { command, number, oneOf, option, optional, positional, string } from 'cm
 
 import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
-import { selectTarget } from '../eval/targets.js';
+import { selectProvider } from '../eval/targets.js';
 import type { GraderTask } from './grade.js';
 import { runScriptGraders } from './grade.js';
 
@@ -162,19 +162,19 @@ export const evalRunCommand = command({
     let targetWorkers: number | undefined;
 
     try {
-      const selection = await selectTarget({
+      const selection = await selectProvider({
         testFilePath: resolvedEvalPath,
         repoRoot,
         cwd: evalDir,
-        cliTargetName: provider,
-        explicitTargetsPath: providers,
+        cliProviderLabel: provider,
+        explicitProvidersPath: providers,
         env: process.env,
       });
-      targetName = selection.targetName;
-      targetWorkers = selection.resolvedTarget.workers;
-      if (selection.resolvedTarget.kind === 'cli') {
+      targetName = selection.providerLabel;
+      targetWorkers = selection.resolvedProvider.workers;
+      if (selection.resolvedProvider.kind === 'cli') {
         targetKind = 'cli';
-        const config = selection.resolvedTarget.config;
+        const config = selection.resolvedProvider.config;
         targetInfo = {
           kind: 'cli',
           command: config.command,

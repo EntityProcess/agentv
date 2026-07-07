@@ -530,8 +530,8 @@ export const runsRerunCommand = command({
     const result = await runEvalCommand({
       testFiles: selected.map((bundle) => bundle.evalPath),
       rawOptions: {
-        target: targetOverrides,
-        targets: args.targets ? path.resolve(cwd, args.targets) : undefined,
+        provider: targetOverrides,
+        providers: args.targets ? path.resolve(cwd, args.targets) : undefined,
         output: outputDir,
         experiment: args.experiment ?? 'rerun',
         workers: args.workers,

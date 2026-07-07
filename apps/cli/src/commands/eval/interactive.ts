@@ -331,7 +331,7 @@ async function executeConfig(
 ): Promise<void> {
   const cwd = process.cwd();
   const rawOptions: Record<string, unknown> = {
-    target: config.target,
+    provider: config.target,
     workers: config.workers,
     cache: config.cache,
     ...(opts?.resumeOutputDir ? { output: opts.resumeOutputDir, resume: true } : {}),
@@ -382,7 +382,7 @@ async function promptRetryErrors(config: InteractiveConfig, outputPath: string):
   console.log(`\n${ANSI_DIM}Retrying execution errors...${ANSI_RESET}\n`);
 
   const rawOptions: Record<string, unknown> = {
-    target: config.target,
+    provider: config.target,
     workers: config.workers,
     cache: config.cache,
     retryErrors: outputPath,
