@@ -1308,6 +1308,7 @@ async function prepareFileMetadata(params: {
   readonly repoRoot: string;
   readonly cwd: string;
   readonly options: NormalizedOptions;
+  readonly providerCatalogPath?: string;
   readonly suiteFilter?: string | readonly string[];
 }): Promise<{
   readonly options: NormalizedOptions;
@@ -1326,7 +1327,7 @@ async function prepareFileMetadata(params: {
     target: import('@agentv/core').ResolvedTarget,
   ) => import('@agentv/core').Provider;
 }> {
-  const { testFilePath, repoRoot, cwd, options, suiteFilter } = params;
+  const { testFilePath, repoRoot, cwd, options, providerCatalogPath, suiteFilter } = params;
 
   await ensureFileExists(testFilePath, 'Test file');
   await loadEnvFromHierarchy({
@@ -1348,6 +1349,7 @@ async function prepareFileMetadata(params: {
     experimentOptions.workers === undefined && suite.workers !== undefined
       ? { ...experimentOptions, workers: suite.workers }
       : experimentOptions;
+  const effectiveProviderCatalogPath = effectiveOptions.targetsPath ?? providerCatalogPath;
   const testCases =
     suiteFilter && effectiveOptions.filter
       ? suite.tests.filter((testCase) =>
@@ -1473,7 +1475,8 @@ async function prepareFileMetadata(params: {
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: effectiveOptions.targetsPath,
+        explicitTargetsPath: effectiveProviderCatalogPath,
+        requireExplicitProviderCatalog: true,
         allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
         env: process.env,
         targetNames,
@@ -1493,7 +1496,8 @@ async function prepareFileMetadata(params: {
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: effectiveOptions.targetsPath,
+        explicitTargetsPath: effectiveProviderCatalogPath,
+        requireExplicitProviderCatalog: true,
         allowLegacyTargetFiles: effectiveOptions.allowLegacyTargetFiles,
         cliTargetName:
           targetSource === 'cli'
@@ -1830,6 +1834,7 @@ export async function runEvalCommand(
   if (yamlConfig?.defaults?.grader) {
     options = { ...options, defaultGraderTarget: yamlConfig.defaults.grader };
   }
+  const providerCatalogPath = yamlConfig?.providerCatalogPath;
   const resolvedExperiment = resolveExperimentForRun(options.experiment);
   const evalPathInputs = input.testFiles.length > 0 ? [...input.testFiles] : [];
   if (evalPathInputs.length === 0 && process.stdin.isTTY) {
@@ -2106,6 +2111,7 @@ export async function runEvalCommand(
       repoRoot,
       cwd,
       options,
+      providerCatalogPath,
       suiteFilter: undefined,
     });
     fileMetadata.set(testFilePath, meta);

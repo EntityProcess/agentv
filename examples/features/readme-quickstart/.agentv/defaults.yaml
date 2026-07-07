@@ -1,2 +1,2 @@
-target: local-openai
+provider: local-openai
 grader: local-openai-grader

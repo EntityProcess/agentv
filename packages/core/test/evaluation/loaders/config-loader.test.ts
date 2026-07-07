@@ -104,6 +104,57 @@ describe('loadConfig', () => {
     }
   });
 
+  it('records the provider catalog path for project config file refs', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-provider-path-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      const providersPath = path.join(localConfigDir, 'providers.yaml');
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        ['providers: file://providers.yaml', ''].join('\n'),
+      );
+      writeFileSync(providersPath, ['- id: openai', '  label: grader', ''].join('\n'));
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+
+      expect(config?.providerCatalogPath).toBe(providersPath);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps base provider catalog refs relative to config.yaml when config.local.yaml omits providers', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-provider-path-local-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      const providersPath = path.join(localConfigDir, 'providers.yaml');
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        ['providers: file://providers.yaml', ''].join('\n'),
+      );
+      writeFileSync(
+        path.join(localConfigDir, 'config.local.yaml'),
+        ['execution:', '  keep_workspaces: true', ''].join('\n'),
+      );
+      writeFileSync(providersPath, ['- id: openai', '  label: grader', ''].join('\n'));
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+
+      expect(config?.providerCatalogPath).toBe(providersPath);
+      expect(config?.execution?.keep_workspaces).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('normalizes split file refs the same as inline fields', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-split-'));
     try {

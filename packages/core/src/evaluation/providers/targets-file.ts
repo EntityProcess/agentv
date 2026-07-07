@@ -11,7 +11,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function extractProvidersArray(parsed: Record<string, unknown>, absolutePath: string): unknown[] {
+function extractProvidersArray(parsed: unknown, absolutePath: string): unknown[] {
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+  if (!isRecord(parsed)) {
+    throw new Error(
+      `providers catalog at ${absolutePath} must be a YAML array or an object with a 'providers' field`,
+    );
+  }
   if (parsed.targets !== undefined) {
     throw new Error(
       `Provider catalog at ${absolutePath} uses removed 'targets'. Use 'providers'; map targets[].id to providers[].label and targets[].provider to providers[].id.`,
@@ -61,12 +69,6 @@ export async function readTargetDefinitions(
 
   const raw = await readFile(absolutePath, 'utf8');
   const parsed = parseYamlValue(raw);
-
-  if (!isRecord(parsed)) {
-    throw new Error(
-      `providers catalog at ${absolutePath} must be a YAML object with a 'providers' field`,
-    );
-  }
 
   const providers = extractProvidersArray(parsed, absolutePath);
   const definitions = providers.map((entry, index) =>

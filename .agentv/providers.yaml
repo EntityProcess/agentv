@@ -1,0 +1,199 @@
+# AgentV Evaluation Providers
+# Consolidated from root, examples/features, and examples/showcase.
+# Referenced by .agentv/config.yaml as the project provider catalog.
+#
+# default/agent/llm/grader are concrete provider labels, not env-var-driven aliases:
+# AgentV removed the `use_target` indirection field with no replacement, so a
+# provider label can no longer redirect to "whichever provider another provider names".
+# These four mirror the local AGENT_TARGET/LLM_TARGET/GRADER_TARGET selection
+# (copilot-cli / azure / azure) so `providers: [llm]` etc. across examples/ keep
+# resolving. To switch the active provider, edit the definitions below
+# directly (or point examples at a different concrete provider label) instead of
+# changing an env var.
+
+# ── Default provider ────────────────────────────────────────────────
+# Evals without an explicit provider resolve to "default" by convention.
+- id: copilot-cli
+  label: default
+  model: "{{ env.COPILOT_MODEL }}"
+  stream_log: raw
+
+- id: copilot-cli
+  label: agent
+  model: "{{ env.COPILOT_MODEL }}"
+  stream_log: raw
+
+# ── LLM provider (text generation, no agent binary needed) ──────────
+- id: azure
+  label: llm
+  endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+  api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+  model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+  version: "{{ env.AZURE_OPENAI_API_VERSION }}"
+
+# ── Grader (LLM-as-judge) ──────────────────────────────────────────
+- id: azure
+  label: grader
+  endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+  api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+  model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+  version: "{{ env.AZURE_OPENAI_API_VERSION }}"
+
+# ── Named agent providers ─────────────────────────────────────────
+- id: copilot-cli
+  label: copilot
+  model: "{{ env.COPILOT_MODEL }}"
+  stream_log: raw
+
+- id: copilot-sdk
+  label: copilot-sdk
+  model: "{{ env.COPILOT_MODEL }}"
+  stream_log: raw
+
+- id: copilot-sdk
+  label: copilot-sdk-azure
+  model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+  subprovider: azure
+  base_url: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+  api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+  stream_log: raw
+
+- id: claude-cli
+  label: claude
+
+- id: claude-sdk
+  label: claude-sdk
+
+- id: pi-cli
+  label: pi
+  subprovider: openrouter
+  model: "{{ env.OPENROUTER_MODEL }}"
+  api_key: "{{ env.OPENROUTER_API_KEY }}"
+
+- id: pi-coding-agent
+  label: pi-sdk
+  subprovider: openai
+  base_url: "{{ env.OPENAI_ENDPOINT }}"
+  api_key: "{{ env.OPENAI_API_KEY }}"
+  model: gpt-5.5
+  thinking: low
+  stream_log: raw
+
+
+- id: pi-cli
+  label: pi-azure
+  subprovider: azure
+  base_url: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+  model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+  api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+
+- id: pi-coding-agent
+  label: pi-sdk-azure
+  subprovider: azure
+  base_url: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+  model: gpt-5.5
+  api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+  thinking: low
+  stream_log: raw
+
+- id: agentv:codex-cli
+  label: codex
+  command: ["{{ env.CODEX_EXECUTABLE }}"]
+  model: "{{ env.CODEX_MODEL }}"
+  reasoning_effort: "{{ env.CODEX_REASONING_EFFORT }}"
+  cwd: "{{ env.CODEX_WORKSPACE_DIR }}"
+  log_dir: "{{ env.CODEX_LOG_DIR }}"
+  stream_log: raw
+
+# ── LLM providers (direct model access) ───────────────────────────
+- id: openai
+  label: gh-models
+  base_url: https://models.github.ai/inference
+  api_key: "{{ env.GH_MODELS_TOKEN }}"
+  model: "{{ env.GH_MODELS_MODEL }}"
+
+# Single Azure provider. Always uses Azure's Responses API
+# (`/openai/v1/responses`); the api version defaults to `v1` and can be
+# overridden via AZURE_OPENAI_API_VERSION. Chat-completions-only Azure
+# deployments must use `provider: openai` with a deployment-scoped
+# `base_url` instead.
+- id: azure
+  label: azure
+  endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+  api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+  model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
+  version: "{{ env.AZURE_OPENAI_API_VERSION }}"
+
+- id: gemini
+  label: gemini
+  api_key: "{{ env.GOOGLE_GENERATIVE_AI_API_KEY }}"
+  model: "{{ env.GEMINI_MODEL_NAME }}"
+
+- id: openai
+  label: openai
+  endpoint: "{{ env.OPENAI_ENDPOINT }}"
+  api_key: "{{ env.OPENAI_API_KEY }}"
+  model: "{{ env.OPENAI_MODEL }}"
+
+# Local OpenAI-compatible endpoint. Useful for dogfood against a local proxy
+# without changing provider-specific labels.
+- id: openai
+  label: local-openai
+  base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+  api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+  model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+
+- id: openai
+  label: local-openai-grader
+  base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+  api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+  model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+
+- id: pi-cli
+  label: pi-cli-openai
+  subprovider: openai
+  base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+  api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+  model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+  thinking: low
+  stream_log: raw
+
+- id: openai:codex-sdk
+  label: codex-sdk-openai
+  base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+  api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+  model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+  api_format: responses
+  reasoning_effort: low
+  stream_log: raw
+
+- id: copilot-sdk
+  label: copilot-sdk-openai
+  subprovider: openai
+  base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+  api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+  model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+  stream_log: raw
+
+- id: openrouter
+  label: openrouter
+  api_key: "{{ env.OPENROUTER_API_KEY }}"
+  model: "{{ env.OPENROUTER_MODEL }}"
+
+# ── MiMo (Xiaomi) via OpenRouter ───────────────────────────────────
+- id: openrouter
+  label: mimo
+  api_key: "{{ env.OPENROUTER_API_KEY }}"
+  model: xiaomi/mimo-v2.5-pro
+
+- id: openrouter
+  label: mimo-flash
+  api_key: "{{ env.OPENROUTER_API_KEY }}"
+  model: xiaomi/mimo-v2-flash
+
+- id: openai
+  label: mimo-direct
+  base_url: https://token-plan-sgp.xiaomimimo.com/v1
+  api_key: "{{ env.XIAOMI_MIMO_API_KEY }}"
+  model: xiaomi/mimo-v2.5-pro
+  max_output_tokens: 131072

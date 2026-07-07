@@ -97,6 +97,7 @@ export interface TargetSelectionOptions {
   readonly repoRoot: string;
   readonly cwd: string;
   readonly explicitTargetsPath?: string;
+  readonly requireExplicitProviderCatalog?: boolean;
   readonly allowLegacyTargetFiles?: boolean;
   readonly cliTargetName?: string;
   readonly cliTargetNames?: readonly string[];
@@ -104,6 +105,28 @@ export interface TargetSelectionOptions {
   readonly fileTargetSpec?: EvalTargetSpec;
   readonly modelOverride?: string;
   readonly env: NodeJS.ProcessEnv;
+}
+
+async function resolveProviderCatalogPath(options: {
+  readonly explicitTargetsPath?: string;
+  readonly requireExplicitProviderCatalog?: boolean;
+  readonly testFilePath: string;
+  readonly repoRoot: string;
+  readonly cwd: string;
+  readonly allowLegacyTargetFiles?: boolean;
+}): Promise<string> {
+  if (!options.explicitTargetsPath && options.requireExplicitProviderCatalog) {
+    throw new Error(
+      'No provider catalog configured. Add `providers: file://providers.yaml` to .agentv/config.yaml or pass --providers <path>.',
+    );
+  }
+  return discoverTargetsFile({
+    explicitPath: options.explicitTargetsPath,
+    testFilePath: options.testFilePath,
+    repoRoot: options.repoRoot,
+    cwd: options.cwd,
+    allowLegacyTargetFiles: options.allowLegacyTargetFiles,
+  });
 }
 
 function pickTargetName(options: {
@@ -165,14 +188,16 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     repoRoot,
     cwd,
     explicitTargetsPath,
+    requireExplicitProviderCatalog,
     allowLegacyTargetFiles,
     cliTargetName,
     modelOverride,
     env,
   } = options;
 
-  const targetsFilePath = await discoverTargetsFile({
-    explicitPath: explicitTargetsPath,
+  const targetsFilePath = await resolveProviderCatalogPath({
+    explicitTargetsPath,
+    requireExplicitProviderCatalog,
     testFilePath,
     repoRoot,
     cwd,
@@ -263,6 +288,7 @@ export async function selectMultipleTargets(
     repoRoot,
     cwd,
     explicitTargetsPath,
+    requireExplicitProviderCatalog,
     allowLegacyTargetFiles,
     env,
     targetNames,
@@ -284,8 +310,9 @@ export async function selectMultipleTargets(
     }
   }
 
-  const targetsFilePath = await discoverTargetsFile({
-    explicitPath: explicitTargetsPath,
+  const targetsFilePath = await resolveProviderCatalogPath({
+    explicitTargetsPath,
+    requireExplicitProviderCatalog,
     testFilePath,
     repoRoot,
     cwd,

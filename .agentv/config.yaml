@@ -2,6 +2,12 @@ $schema: agentv-config-v2
 
 # Repository AgentV configuration.
 
+providers: file://providers.yaml
+
+defaults:
+  provider: default
+  grader: grader
+
 # Discover the current example suite names during interactive eval selection.
 # Legacy *.eval.yaml fixtures remain discoverable for compatibility coverage.
 eval_patterns:

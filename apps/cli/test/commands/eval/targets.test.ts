@@ -21,16 +21,8 @@ describe('eval target selection', () => {
   it('resolves authored provider labels through providers.yaml', async () => {
     const agentvDir = path.join(tempDir, '.agentv');
     await mkdir(agentvDir, { recursive: true });
-    await writeFile(
-      path.join(agentvDir, 'providers.yaml'),
-      [
-        '$schema: agentv-targets-v2.2',
-        'providers:',
-        '  - id: mock',
-        '    label: openai:gpt-5.4-mini',
-        '',
-      ].join('\n'),
-    );
+    const providersPath = path.join(agentvDir, 'providers.yaml');
+    await writeFile(providersPath, ['- id: mock', '  label: openai:gpt-5.4-mini', ''].join('\n'));
     const evalPath = path.join(tempDir, 'target-label.eval.yaml');
     await writeFile(
       evalPath,
@@ -53,6 +45,7 @@ describe('eval target selection', () => {
       testFilePath: evalPath,
       repoRoot: tempDir,
       cwd: tempDir,
+      explicitTargetsPath: providersPath,
       env: {},
       targetNames: suite.targets ?? [],
       targetRefs: suite.targetRefs,
@@ -65,16 +58,13 @@ describe('eval target selection', () => {
     expect(selections[0]?.resolvedTarget.kind).toBe('mock');
   });
 
-  it('prefers providers.yaml over legacy targets.yaml during provider discovery', async () => {
+  it('uses an explicit providers.yaml catalog path', async () => {
     const agentvDir = path.join(tempDir, '.agentv');
     await mkdir(agentvDir, { recursive: true });
+    const providersPath = path.join(agentvDir, 'providers.yaml');
     await writeFile(
-      path.join(agentvDir, 'providers.yaml'),
-      ['providers:', '  - id: mock', '    label: modern', '    response: modern', ''].join('\n'),
-    );
-    await writeFile(
-      path.join(agentvDir, 'targets.yaml'),
-      ['providers:', '  - id: mock', '    label: legacy', '    response: legacy', ''].join('\n'),
+      providersPath,
+      ['- id: mock', '  label: modern', '  response: modern', ''].join('\n'),
     );
     const evalPath = path.join(tempDir, 'provider-discovery.eval.yaml');
     await writeFile(
@@ -86,6 +76,7 @@ describe('eval target selection', () => {
         '  - "{{ input }}"',
         'tests:',
         '  - id: provider-case',
+        '    criteria: ok',
         '    vars:',
         '      input: hello',
       ].join('\n'),
@@ -96,6 +87,7 @@ describe('eval target selection', () => {
       testFilePath: evalPath,
       repoRoot: tempDir,
       cwd: tempDir,
+      explicitTargetsPath: providersPath,
       env: {},
       targetNames: suite.targets ?? [],
       targetRefs: suite.targetRefs,
@@ -104,6 +96,44 @@ describe('eval target selection', () => {
 
     expect(selections[0]?.targetName).toBe('modern');
     expect(selections[0]?.resolvedTarget.config.response).toBe('modern');
+  });
+
+  it('requires config or explicit provider catalog when requested', async () => {
+    const agentvDir = path.join(tempDir, '.agentv');
+    await mkdir(agentvDir, { recursive: true });
+    await writeFile(
+      path.join(agentvDir, 'providers.yaml'),
+      ['- id: mock', '  label: modern', ''].join('\n'),
+    );
+    const evalPath = path.join(tempDir, 'requires-config.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'providers:',
+        '  - modern',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: provider-case',
+        '    criteria: ok',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+    await expect(
+      selectMultipleTargets({
+        testFilePath: evalPath,
+        repoRoot: tempDir,
+        cwd: tempDir,
+        requireExplicitProviderCatalog: true,
+        env: {},
+        targetNames: suite.targets ?? [],
+        targetRefs: suite.targetRefs,
+        targetSource: 'test-file',
+      }),
+    ).rejects.toThrow(/Add `providers: file:\/\/providers\.yaml` to \.agentv\/config\.yaml/);
   });
 
   it('hard-rejects legacy targets.yaml as authored provider config', async () => {
@@ -123,6 +153,7 @@ describe('eval target selection', () => {
         '  - "{{ input }}"',
         'tests:',
         '  - id: provider-case',
+        '    criteria: ok',
         '    vars:',
         '      input: hello',
       ].join('\n'),

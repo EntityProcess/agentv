@@ -171,7 +171,7 @@ function validateComposableGraph(
   config: Record<string, unknown>,
 ): void {
   try {
-    normalizeComposableConfigGraph(config, filePath);
+    normalizeComposableConfigGraph(config, filePath, { allowExecutionDefaultFields: true });
   } catch (error) {
     addError(errors, filePath, undefined, (error as Error).message);
   }

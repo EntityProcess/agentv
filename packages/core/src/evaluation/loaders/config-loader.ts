@@ -103,6 +103,8 @@ export type AgentVConfig = {
   readonly tags?: Record<string, string>;
   /** Project directory containing `.agentv/`, for resolving relative `env_path` entries and `env_from` cwd. */
   readonly configDir?: string;
+  /** Resolved file path when top-level `providers` was authored as a file:// reference. */
+  readonly providerCatalogPath?: string;
 } & ComposableConfigGraph;
 
 /**
@@ -173,22 +175,43 @@ async function readConfigFilePair(
   projectDir: string,
 ): Promise<AgentVConfig | null> {
   const localConfigPath = getLocalConfigPath(configPath);
+  const rawBase = await readConfigObjectFile(configPath);
+  const rawLocal = await readConfigObjectFile(localConfigPath);
+  const rawProviderConfig =
+    rawLocal && Object.prototype.hasOwnProperty.call(rawLocal, 'providers') ? rawLocal : rawBase;
+  const rawProviderOwnerPath = rawProviderConfig === rawLocal ? localConfigPath : configPath;
+  const providerCatalogPath = rawProviderConfig
+    ? resolveProviderCatalogPath(rawProviderConfig.providers, rawProviderOwnerPath)
+    : undefined;
   const base = stripLocalOnlyExecutionDefaults(
-    await resolveConfigObjectFileReferences(await readConfigObjectFile(configPath), configPath),
+    await resolveConfigObjectFileReferences(rawBase, configPath),
     configPath,
   );
   const local = stripLocalOnlyExecutionDefaults(
-    await resolveConfigObjectFileReferences(
-      await readConfigObjectFile(localConfigPath),
-      localConfigPath,
-    ),
+    await resolveConfigObjectFileReferences(rawLocal, localConfigPath),
     localConfigPath,
   );
-  const rawMerged = base && local ? mergeConfigObjects(base, local) : (local ?? base);
-  if (!rawMerged) {
+  const resolvedMerged = base && local ? mergeConfigObjects(base, local) : (local ?? base);
+  if (!resolvedMerged) {
     return null;
   }
-  return parseConfigObject(rawMerged, local ? localConfigPath : configPath, repoRoot, projectDir);
+  return parseConfigObject(
+    resolvedMerged,
+    local ? localConfigPath : configPath,
+    repoRoot,
+    projectDir,
+    providerCatalogPath,
+  );
+}
+
+function resolveProviderCatalogPath(rawProviders: unknown, ownerPath: string): string | undefined {
+  if (typeof rawProviders !== 'string' || !rawProviders.startsWith('file://')) {
+    return undefined;
+  }
+  const filePath = rawProviders.slice('file://'.length);
+  return path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(path.dirname(path.resolve(ownerPath)), filePath);
 }
 
 async function resolveConfigObjectFileReferences(
@@ -206,6 +229,7 @@ function parseConfigObject(
   configPath: string,
   repoRoot: string,
   projectDir: string,
+  providerCatalogPath?: string,
 ): AgentVConfig | null {
   try {
     const parsed = interpolateEnv(rawConfig, createEvalConfigEnv(repoRoot)) as unknown;
@@ -268,6 +292,7 @@ function parseConfigObject(
       ...(graph.tests && { tests: graph.tests }),
       ...(graph.defaults && { defaults: graph.defaults }),
       configDir: projectDir,
+      ...(providerCatalogPath && { providerCatalogPath }),
     };
   } catch (error) {
     const message = (error as Error).message;

@@ -18,6 +18,12 @@ const OBJECT_FIELDS = new Set([
 ]);
 const SCALAR_OR_ARRAY_FIELDS = new Set(['eval_patterns']);
 const SCALAR_FIELDS = new Set(['required_version', '$schema']);
+const PROJECT_EXECUTION_DEFAULT_FIELDS = new Set([
+  'max_concurrency',
+  'verbose',
+  'keep_workspaces',
+  'workspace_path',
+]);
 const SUPPORTED_FILE_REF_FIELDS = new Set([
   ...ARRAY_FIELDS,
   ...OBJECT_FIELDS,
@@ -294,7 +300,7 @@ function parseExecution(
   }
   for (const key of Object.keys(execution)) {
     if (key !== 'max_concurrency') {
-      if (allowDefaultFields) {
+      if (allowDefaultFields && PROJECT_EXECUTION_DEFAULT_FIELDS.has(key)) {
         continue;
       }
       throw new Error(

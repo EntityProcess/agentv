@@ -576,11 +576,11 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     return result;
   }
 
-  if (!isObject(parsed)) {
+  if (!Array.isArray(parsed) && !isObject(parsed)) {
     errors.push({
       severity: 'error',
       filePath: absolutePath,
-      message: 'File must contain a YAML object',
+      message: 'File must contain a YAML array or an object with a providers array',
     });
     return {
       valid: false,
@@ -590,7 +590,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     };
   }
 
-  if (Array.isArray(parsed.targets)) {
+  if (isObject(parsed) && Array.isArray(parsed.targets)) {
     errors.push({
       severity: 'error',
       filePath: absolutePath,
@@ -601,9 +601,12 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   }
 
   // Validate providers array after lowering each provider to the internal target shape.
-  const providers = parsed.providers;
-  const rawTargets =
-    isObject(rawParsed) && Array.isArray(rawParsed.providers) ? rawParsed.providers : [];
+  const providers = Array.isArray(parsed) ? parsed : parsed.providers;
+  const rawTargets = Array.isArray(rawParsed)
+    ? rawParsed
+    : isObject(rawParsed) && Array.isArray(rawParsed.providers)
+      ? rawParsed.providers
+      : [];
   if (!Array.isArray(providers)) {
     errors.push({
       severity: 'error',
