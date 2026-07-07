@@ -291,6 +291,10 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 /** Removed top-level fields with migration hints. */
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   [
+    'experiment',
+    "Top-level 'experiment' has been removed from authored eval YAML. Use tags.experiment in the eval file or CLI --experiment at run time.",
+  ],
+  [
     'imports',
     "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.",
   ],
@@ -547,14 +551,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
-  if (parsed.experiment !== undefined && typeof parsed.experiment !== 'string') {
-    errors.push({
-      severity: 'error',
-      filePath: absolutePath,
-      location: 'experiment',
-      message: "Top-level 'experiment' must be a string run/result grouping label.",
-    });
-  }
 
   // Match promptfoo-style validation: unknown authored suite fields are hard
   // errors, not advisory warnings, because they otherwise silently do nothing.

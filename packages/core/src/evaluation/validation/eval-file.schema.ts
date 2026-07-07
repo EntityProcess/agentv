@@ -923,6 +923,9 @@ const TagsSchema = z.union([
 const TOP_LEVEL_IMPORTS_MESSAGE =
   "Top-level 'imports' is not supported. Run eval files directly with CLI multi-file selection and tags for grouping. For raw case files, use tests: file://... or string entries under tests. For reusable scenarios, use scenarios: [file://...]. For reusable config, use prompts: file://..., default_test: file://..., and environment: file://... for coding-agent testbeds.";
 
+const TOP_LEVEL_EXPERIMENT_MESSAGE =
+  "Top-level 'experiment' has been removed from authored eval YAML. Use tags.experiment in the eval file or CLI --experiment at run time.";
+
 // ---------------------------------------------------------------------------
 // Top-level eval file
 // ---------------------------------------------------------------------------
@@ -995,8 +998,8 @@ export const EvalFileSchemaInput: z.ZodType = z.object({
     .optional(),
   providers: EvalProvidersSchema.optional(),
   model: z.never().optional(),
-  // Run/result grouping label and flat run controls
-  experiment: z.string().min(1).optional(),
+  // Flat run controls. Group authored YAML with tags.experiment or CLI --experiment.
+  experiment: z.never({ invalid_type_error: TOP_LEVEL_EXPERIMENT_MESSAGE }).optional(),
   repeat: z.never().optional(),
   runs: z.never().optional(),
   early_exit: z.never().optional(),

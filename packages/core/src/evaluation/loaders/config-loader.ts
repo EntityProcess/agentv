@@ -430,8 +430,10 @@ function stripLocalOnlyExecutionDefaults(
 }
 
 function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
-  if (suite.experiment !== undefined && typeof suite.experiment !== 'string') {
-    throw new Error("Invalid top-level 'experiment': use a string run/result grouping label.");
+  if (suite.experiment !== undefined) {
+    throw new Error(
+      "Top-level 'experiment' has been removed from authored eval YAML. Use tags.experiment in the eval file or CLI --experiment at run time.",
+    );
   }
   if (suite.policy !== undefined) {
     throw new Error(

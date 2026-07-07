@@ -55,7 +55,8 @@ The preferred eval authoring contract is:
 
 ```yaml
 name: code-generation-quality
-experiment: with-skills
+tags:
+  experiment: with-skills
 target: copilot-sdk
 evaluate_options:
   repeat: 3
@@ -81,12 +82,13 @@ artifact routing, cache keys that should track executable behavior, or result
 comparison semantics. Source identity belongs to `eval_path` and run metadata,
 not to the display name.
 
-`experiment` remains the optional top-level string run/result grouping label.
-It names the condition being measured, such as `baseline`, `candidate`,
+The reserved `tags.experiment` key is the eval-authored run/result grouping
+label. It names the condition being measured, such as `baseline`, `candidate`,
 `with-skills`, or `without-skills`. It is not a runtime-policy object, not a
 separate artifact type, and not a storage path namespace. It should not repeat
 the suite name, category, target, provider, or model; those are separate
-dimensions in run metadata.
+dimensions in run metadata. Authored eval YAML does not expose a top-level
+`experiment` field.
 
 Top-level `description` is not part of the preferred eval authoring contract.
 Existing files that contain it may be read as legacy display metadata, but it

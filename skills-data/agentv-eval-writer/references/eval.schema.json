@@ -3100,8 +3100,7 @@
           "not": {}
         },
         "experiment": {
-          "type": "string",
-          "minLength": 1
+          "not": {}
         },
         "repeat": {
           "not": {}

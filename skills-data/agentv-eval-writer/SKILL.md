@@ -142,7 +142,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `scenarios`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `environment`, `env`, `extensions`, `assert`
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `environment`, `env`, `extensions`, `assert`
 
 **Test fields:**
 
