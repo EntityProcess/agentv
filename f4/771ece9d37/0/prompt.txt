@@ -1,0 +1,45 @@
+create orphan dogfood branch in agentv-private repo with screenshots i manually took in https://github.com/EntityProcess/agentv-private/issues/14.
+also update index.md for any recent orphan branches not included there. 
+merge your changes to remote main for the index.md
+
+---
+
+basically the key things to notice is when i click on trace, it expands into the tool calls where i can see the arguments and output of ecah tool call. also for each convesation message i can expand to the full message or collapse. THis is osmething we can adopt in a gentv.
+
+---
+
+also the user messages have grey border while the assisstant messages have bleu border and background. So the color is different between user and assistant.
+
+---
+
+alternatively keep the existing style if it's better.
+
+---
+
+can you investigate what is the existing style
+
+---
+
+can you pull latest main, spawn worker to run wta-ai-prompts-experiment, if anything needs to be fixed to work with latest agentv then fix it, and run dogfood on the transcript, and save screenshots to agentv-private repo in orphan branch for human review
+
+---
+
+The dogfood https://github.com/EntityProcess/agentv-private/blob/evidence/av-x0ym-wtg-ai-prompts-transcript-dogfood-2026-07-06/dogfood/av-x0ym-wtg-ai-prompts-transcript-dogfood-2026-07-06/screenshots/03-case-detail-online.png shows a worse design. can we make the row detail full page always, so if you click on a test it should automaticlaly go into the test case. Also can you debug why the quality failure. It wasn't 0% before.
+
+---
+
+the newest version introduced environment so we need to use that.
+
+---
+
+in regards to dogfood the style should be more conssitent. WE previously had a consistent style with the run list and run detail. please keep that style.
+see below screenshots of old version.
+https://github.com/EntityProcess/agentv-private/issues/15
+
+---
+
+what is 401 Provided authentication token is expired , is that with openai endpoint
+
+---
+
+can you try again and test the endpoint, i resarted it
