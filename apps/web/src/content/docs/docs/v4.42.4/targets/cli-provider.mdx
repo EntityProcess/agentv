@@ -1,6 +1,6 @@
 ---
 title: CLI Provider
-description: Wrap any shell command as an evaluation target
+description: Wrap any shell command as an evaluation provider
 sidebar:
   order: 4
 slug: docs/v4.42.4/targets/cli-provider
@@ -8,7 +8,7 @@ editUrl: false
 pagefind: false
 ---
 
-The `cli` provider runs an arbitrary shell command per test case and captures its output as the target's response. It's the escape hatch that lets you evaluate *anything* that exposes a command-line entry point — your own agent, a third-party CLI, a stub that prints a fixed answer, a script that calls an in-house microservice, etc.
+The `cli` provider runs an arbitrary shell command per test case and captures its output as the provider response. It's the escape hatch that lets you evaluate *anything* that exposes a command-line entry point — your own agent, a third-party CLI, a stub that prints a fixed answer, a script that calls an in-house microservice, etc.
 
 Because the contract is "we invoke a command and read a file," almost any useful composition pattern (sanity-checking your grader against a known-good answer, diffing two implementations, driving a batch mode) can be built on top without any new primitives.
 
@@ -16,23 +16,23 @@ Because the contract is "we invoke a command and read a file," almost any useful
 
 ```yaml
 # .agentv/config.yaml
-targets:
-  - id: my-agent
-    provider: cli
+providers:
+  - id: cli
+    label: my-agent
     runtime: host
     config:
       command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
 
 graders:
-  - id: azure-grader
-    provider: azure
+  - id: azure
+    label: azure-grader
     config:
       endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
       api_key: ${{ AZURE_OPENAI_API_KEY }}
       model: ${{ AZURE_DEPLOYMENT_NAME }}
 
 defaults:
-  target: my-agent
+  provider: my-agent
   grader: azure-grader
 ```
 
@@ -45,7 +45,7 @@ Before each test case, AgentV renders the `command` template and spawns it as a 
 1. **Read the input** via one of the placeholders below.
 2. **Write the response to `{OUTPUT_FILE}`** — AgentV reads *that file*, not your stdout.
 
-When the process exits successfully, AgentV parses the contents of `{OUTPUT_FILE}` and treats it as the target's response. Non-zero exits, timeouts, and unreadable output files are surfaced as test errors with the underlying stderr/exit code.
+When the process exits successfully, AgentV parses the contents of `{OUTPUT_FILE}` and treats it as the provider response. Non-zero exits, timeouts, and unreadable output files are surfaced as test errors with the underlying stderr/exit code.
 
 ### Template placeholders
 
@@ -86,9 +86,9 @@ echo "Hello, world!" > {OUTPUT_FILE}
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `id` | string | yes | — | AgentV target identity used by eval `target`, CLI `--target`, and comparisons. |
-| `provider` | literal `"cli"` | yes | — | Selects this provider. |
-| `runtime` | string or object | no | `host` | Target runtime placement. |
+| `id` | literal `"cli"` | yes | — | Selects the CLI backend/provider spec. |
+| `label` | string | yes | — | Stable AgentV selection and result identity used by eval `providers` and CLI `--provider`. |
+| `runtime` | string or object | no | `host` | Provider runtime placement. |
 | `config.command` | string | yes | — | Shell command template. |
 | `config.timeout_seconds` | number | no | — | Kill the process if it runs longer than this. |
 | `config.cwd` | string | no | eval dir | Working directory. Relative paths resolve against the eval file. |
@@ -100,12 +100,12 @@ echo "Hello, world!" > {OUTPUT_FILE}
 
 ## Batching
 
-For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `batch_requests: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
+For providers where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `batch_requests: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
 
 ```yaml
-targets:
-  - id: batched-agent
-    provider: cli
+providers:
+  - id: cli
+    label: batched-agent
     runtime: host
     config:
       batch_requests: true
@@ -118,26 +118,26 @@ targets:
 
 A common question when building a new eval: **"if my grader scores my agent poorly, is the agent wrong or is the grader wrong?"** The classical testing answer is to run a known-correct reference ("the oracle") through the same grader — if a perfect answer doesn't pass, the grader is the bug.
 
-AgentV has no dedicated "oracle" feature because the `cli` provider already composes into one. Declare a second target that prints your known-good answer into `{OUTPUT_FILE}`, run the same eval against it, and assert a perfect score:
+AgentV has no dedicated "oracle" feature because the `cli` provider already composes into one. Declare a second provider that prints your known-good answer into `{OUTPUT_FILE}`, run the same eval against it, and assert a perfect score:
 
 ```yaml
 # .agentv/config.yaml
-targets:
-  - id: my-agent
-    provider: cli
+providers:
+  - id: cli
+    label: my-agent
     runtime: host
     config:
       command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
 
-  - id: oracle
-    provider: cli
+  - id: cli
+    label: oracle
     runtime: host
     config:
       command: cp fixtures/{EVAL_ID}.expected.txt {OUTPUT_FILE}
 
 graders:
-  - id: azure-grader
-    provider: azure
+  - id: azure
+    label: azure-grader
     config:
       endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
       api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -150,29 +150,29 @@ defaults:
 ```bash
 # While iterating on your grader, run the oracle first.
 # If it doesn't score 100%, fix the grader before trusting any agent results.
-agentv eval my.EVAL.yaml --target oracle
+agentv eval my.EVAL.yaml --provider oracle
 
-# Then run the real target.
-agentv eval my.EVAL.yaml --target my-agent
+# Then run the real provider.
+agentv eval my.EVAL.yaml --provider my-agent
 ```
 
 A few practical notes:
 
-- `{EVAL_ID}` in the oracle command lets one target serve an entire eval suite — just ship one `fixtures/<id>.expected.txt` per case. Alternatively, read the expected output from wherever your rubric already keeps it.
+- `{EVAL_ID}` in the oracle command lets one provider serve an entire eval suite — just ship one `fixtures/<id>.expected.txt` per case. Alternatively, read the expected output from wherever your rubric already keeps it.
 - If the oracle doesn't reach 100%, that's the bug. Do not proceed to scoring real agents until it does.
 - If the oracle *does* reach 100%, low scores on real agents are a signal about the agent, not the grader.
-- The same composition works for other meta-tests: a "deliberately wrong" target that should score 0, a "mostly right" target pinned at a known partial score, etc.
+- The same composition works for other meta-tests: a "deliberately wrong" provider that should score 0, a "mostly right" provider pinned at a known partial score, etc.
 
-The pattern needs no special config field, no directory convention, and no flag — it's just a second target that happens to know the answer.
+The pattern needs no special config field, no directory convention, and no flag — it's just a second provider that happens to know the answer.
 
 Use this pattern instead of eval mock dry-run for grader validation. Mock
 execution was removed because fake candidate answers produced misleading
-quality failures; a reference target gives deterministic output while exercising
+quality failures; a reference provider gives deterministic output while exercising
 the real grader path.
 
 ## Debugging
 
-When a `cli` target misbehaves:
+When a `cli` provider misbehaves:
 
 1. Set `verbose: true` to see the rendered command and cwd.
 2. Set `keep_temp_files: true` and inspect `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run.

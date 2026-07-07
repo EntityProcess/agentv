@@ -14,7 +14,7 @@ Demonstrates how `default_test.options.transform` turns `ContentFile` outputs in
 
 ```bash
 # From repository root
-bun apps/cli/src/cli.ts eval examples/features/file-transforms/evals/suite.yaml --target file_output
+bun apps/cli/src/cli.ts eval examples/features/file-transforms/evals/suite.yaml --provider file_output
 ```
 
 Expected result: the eval passes because the grader sees the transformed spreadsheet text from `generated/report.xlsx`.
@@ -25,13 +25,13 @@ To run the same file-output path with a live OpenAI-compatible grader:
 LOCAL_OPENAI_PROXY_BASE_URL=http://127.0.0.1:10531/v1 \
 LOCAL_OPENAI_PROXY_API_KEY=dummy-local-key \
 LOCAL_OPENAI_PROXY_MODEL=gpt-5.4-mini \
-bun apps/cli/src/cli.ts eval examples/features/file-transforms/evals/suite.yaml --target file_output_live
+bun apps/cli/src/cli.ts eval examples/features/file-transforms/evals/suite.yaml --provider file_output_live
 ```
 
 ## Key Files
 
 - `evals/suite.yaml` - eval with `default_test.options.transform`
-- `.agentv/targets.yaml` - custom file-producing target and custom grader target
+- `.agentv/providers.yaml` - custom file-producing target and custom grader target
 - `.agentv/providers/file-output.ts` - emits a relative `ContentFile` path
 - `.agentv/providers/grader-check.ts` - passes only when transformed text reaches the grader prompt
 - `scripts/transforms/xlsx-to-csv.ts` - example spreadsheet conversion script

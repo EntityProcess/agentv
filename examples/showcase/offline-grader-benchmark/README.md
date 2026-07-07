@@ -13,7 +13,7 @@ It uses existing AgentV primitives:
 
 ```text
 offline-grader-benchmark/
-├── .agentv/targets.yaml                  # Replay target + three illustrative low-cost grader targets
+├── .agentv/providers.yaml                  # Replay target + three illustrative low-cost grader targets
 ├── README.md
 ├── evals/
 │   ├── setup-a.eval.yaml                 # Grader setup A
@@ -59,7 +59,7 @@ The example ships with three illustrative low-cost graders:
 - `grader_claude_haiku` via OpenRouter model `anthropic/claude-haiku-4.5`
 - `grader_gemini_flash` via OpenRouter model `google/gemini-3-flash-preview`
 
-Edit `.agentv/targets.yaml` if your local environment uses different deployment names or model IDs.
+Edit `.agentv/providers.yaml` if your local environment uses different deployment names or model IDs.
 
 ## No-API-key smoke test
 

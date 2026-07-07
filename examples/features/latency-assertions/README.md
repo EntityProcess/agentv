@@ -57,7 +57,7 @@ For trajectory assertions to work, providers must include tool calls:
 npx agentv validate examples/features/latency-assertions/evals/suite.yaml
 
 # With the included mock provider or a real provider that returns tool calls
-npx agentv eval examples/features/latency-assertions/evals/suite.yaml --target mock_latency_agent
+npx agentv eval examples/features/latency-assertions/evals/suite.yaml --provider mock_latency_agent
 ```
 
 ## Best Practices

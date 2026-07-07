@@ -6,13 +6,13 @@ It includes a composable `.agentv/config.yaml` that decomposes the base config
 graph into direct field refs:
 
 ```yaml
-targets: file://targets.yaml
+targets: file://providers.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
 
 Each referenced file contains that field's value directly, such as a bare target
-array in `.agentv/targets.yaml` and a bare defaults object in
+array in `.agentv/providers.yaml` and a bare defaults object in
 `.agentv/defaults.yaml`. A grader is not a separate kind of entity — it is a
 target listed under `targets` like any other, selected for the grading role
 via `defaults.grader`.

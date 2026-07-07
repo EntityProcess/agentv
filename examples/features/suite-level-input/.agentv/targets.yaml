@@ -1,3 +1,0 @@
-targets:
-  - id: llm
-    provider: mock

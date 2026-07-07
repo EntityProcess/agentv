@@ -1,9 +1,9 @@
-targets:
-  - id: mock_latency_agent
-    provider: cli
+providers:
+  - id: cli
     grader_target: grader
     command: bun run ./mock-latency-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
     healthcheck:
       command: bun run ./mock-latency-agent.ts --healthcheck
       cwd: ..
+    label: mock_latency_agent

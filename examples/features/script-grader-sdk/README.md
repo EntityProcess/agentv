@@ -44,10 +44,10 @@ From the repository root:
 
 ```bash
 cd examples/features
-bun agentv eval script-grader-sdk/evals/suite.yaml --target local_cli
+bun agentv eval script-grader-sdk/evals/suite.yaml --provider local_cli
 ```
 
-This requires a CLI target named `local_cli` configured in `.agentv/targets.yaml`.
+This requires a CLI target named `local_cli` configured in `.agentv/providers.yaml`.
 
 ## API
 

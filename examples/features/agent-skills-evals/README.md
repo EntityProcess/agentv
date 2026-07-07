@@ -11,7 +11,7 @@ agent-skills-evals/
 ├── csv-analyzer.EVAL.yaml           # Universal EVAL.yaml format
 ├── csv-analyzer.evals.json          # Transpiled output from EVAL.yaml
 ├── .agentv/
-│   └── targets.yaml                 # Echo provider for no-live-provider testing
+│   └── providers.yaml                 # Echo provider for no-live-provider testing
 └── evals/
     └── files/
         └── sales.csv                # Test fixture
@@ -88,7 +88,7 @@ This produces `csv-analyzer.evals.json` — a skill-creator-compatible file that
 agentv eval csv-analyzer.EVAL.yaml
 
 # Run against a real target
-agentv eval csv-analyzer.EVAL.yaml --target default
+agentv eval csv-analyzer.EVAL.yaml --provider default
 ```
 
 ## Skill setup
@@ -101,7 +101,7 @@ The `csv-analyzer` skill is included in this example under `.claude/skills/csv-a
 
 ```bash
 bun apps/cli/src/cli.ts eval multi-provider-skill-use.EVAL.yaml \
-  --target copilot-cli --targets ../.agentv/targets.yaml
+  --provider copilot-cli --providers ../.agentv/providers.yaml
 ```
 
 The `skill-used` and `not-skill-used` graders automatically handle each provider's tool-call format:

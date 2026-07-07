@@ -1,30 +1,27 @@
 $schema: agentv-targets-v2.2
-targets:
-  - id: file_output
-    provider: cli
+providers:
+  - id: cli
     runtime: host
     config:
       command: bun run .agentv/providers/file-output.ts {OUTPUT_FILE}
       cwd: ..
     grader_target: grader_check
-
-  - id: grader_check
-    provider: cli
+    label: file_output
+  - id: cli
     runtime: host
     config:
       command: bun run .agentv/providers/grader-check.ts {PROMPT_FILE} {OUTPUT_FILE}
       cwd: ..
-
-  - id: file_output_live
-    provider: cli
+    label: grader_check
+  - id: cli
     runtime: host
     config:
       command: bun run .agentv/providers/file-output.ts {OUTPUT_FILE}
       cwd: ..
     grader_target: local-openai-grader
-
-  - id: local-openai-grader
-    provider: openai
+    label: file_output_live
+  - id: openai
     base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
     api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
     model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+    label: local-openai-grader

@@ -1,0 +1,11 @@
+providers:
+  - id: cli
+    batch_requests: true
+    verbose: true
+    command: bun run ./scripts/batch-cli-runner.ts --eval-input ./evals/suite.yaml
+      --csv-input ./AmlScreeningInput.csv --output {OUTPUT_FILE}
+    cwd: ..
+    healthcheck:
+      command: bun run ./scripts/batch-cli-runner.ts --healthcheck
+      cwd: ..
+    label: batch_cli

@@ -81,13 +81,13 @@ compares it to the reference answer from the config row.
 # From repository root
 bun apps/cli/src/cli.ts validate examples/features/scenarios/evals/suite.yaml
 bun apps/cli/src/cli.ts eval run examples/features/scenarios/evals/suite.yaml \
-  --targets examples/features/scenarios/targets.yaml \
-  --target translation-cli
+  --providers examples/features/scenarios/providers.yaml \
+  --provider translation-cli
 ```
 
 ## Key Files
 
 - `evals/suite.yaml` - Main eval with a file-backed scenario matrix
 - `evals/scenarios/translation-matrix.yaml` - Scenario file loaded by glob
-- `targets.yaml` - Deterministic CLI target for running the example
+- `providers.yaml` - Deterministic CLI target for running the example
 - `scripts/translation-target.mjs` - Prompt-to-translation target script

@@ -12,7 +12,7 @@ Demonstrates the autoresearch optimization loop with a practical scenario.
 This example works like any other eval:
 
 ```bash
-agentv eval EVAL.yaml --experiment autoresearch-classifier --target azure
+agentv eval EVAL.yaml --experiment autoresearch-classifier --provider azure
 ```
 
 To run autoresearch, use the `agentv-bench` skill:

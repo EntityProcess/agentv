@@ -1,0 +1,7 @@
+providers:
+  - id: cli
+    command: "bash -c ' echo \"Analysis complete: 3 tests passed, 0 failed.\" >
+      report.txt && printf \"\\nexport function add(a: number, b: number):
+      number {\\n  return a + b;\\n}\\n\" >> my-lib/utils.ts && echo \"Done\" >
+      {OUTPUT_FILE} '"
+    label: mock_agent

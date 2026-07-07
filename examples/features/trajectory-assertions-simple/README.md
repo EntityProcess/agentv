@@ -15,7 +15,7 @@ Demonstrates Promptfoo-compatible trajectory assertions with different matching 
 ```bash
 # From repository root
 cd examples/features
-bun agentv eval trajectory-assertions-simple/evals/suite.yaml --target mock_agent
+bun agentv eval trajectory-assertions-simple/evals/suite.yaml --provider mock_agent
 ```
 
 ## Setup

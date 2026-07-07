@@ -4,7 +4,7 @@
  *
  * Provides Hono route handlers for:
  *   - GET  /api/eval/discover  — discover eval files in the project
- *   - GET  /api/eval/targets   — list available target names
+ *   - GET  /api/eval/targets   — list available provider labels
  *   - POST /api/eval/run       — launch an eval run as a child process
  *   - GET  /api/eval/status/:id — poll running eval status
  *   - GET  /api/eval/runs      — list active and recent Dashboard-launched runs
@@ -27,7 +27,7 @@ import { listTargetNames, readTargetDefinitions } from '@agentv/core';
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
 
-import { TARGET_FILE_CANDIDATES } from '../../utils/targets.js';
+import { PROVIDER_FILE_CANDIDATES } from '../../utils/targets.js';
 import { discoverEvalFiles } from '../eval/discover.js';
 import {
   RESULT_INDEX_FILENAME,
@@ -42,7 +42,7 @@ interface DashboardRun {
   id: string;
   status: 'starting' | 'running' | 'finished' | 'failed';
   command: string;
-  /** Target name passed via --target (if any). Stored so the run list can show it before the first result is written. */
+  /** Provider label passed via --provider (if any). Stored so the run list can show it before the first result is written. */
   target?: string;
   /** Absolute path to the run directory (e.g. .agentv/results/<run_id>). Used to correlate this in-memory run with the filesystem run when the JSONL has 0 records yet. */
   outputDir?: string;
@@ -104,14 +104,14 @@ export function getActiveRunStatus(indexJsonlPath: string): DashboardRun['status
   return undefined;
 }
 
-// ── Discover targets file from project root ──────────────────────────────
+// ── Discover providers file from project root ────────────────────────────
 
 async function discoverTargetsInProject(cwd: string): Promise<readonly string[]> {
   const repoRoot = (await findRepoRoot(cwd)) ?? cwd;
 
-  // Try to find a targets file using the standard discovery
+  // Try to find a providers file using the standard discovery
   let targetsFilePath: string | undefined;
-  for (const candidate of TARGET_FILE_CANDIDATES) {
+  for (const candidate of PROVIDER_FILE_CANDIDATES) {
     const fullPath = path.join(cwd, candidate);
     if (existsSync(fullPath)) {
       targetsFilePath = fullPath;
@@ -119,7 +119,7 @@ async function discoverTargetsInProject(cwd: string): Promise<readonly string[]>
     }
   }
   if (!targetsFilePath) {
-    for (const candidate of TARGET_FILE_CANDIDATES) {
+    for (const candidate of PROVIDER_FILE_CANDIDATES) {
       const fullPath = path.join(repoRoot, candidate);
       if (existsSync(fullPath)) {
         targetsFilePath = fullPath;
@@ -206,9 +206,9 @@ function buildCliArgs(req: RunEvalRequest, experiment?: string): string[] {
     }
   }
 
-  // Target override
+  // Provider override
   if (req.target?.trim()) {
-    args.push('--target', req.target.trim());
+    args.push('--provider', req.target.trim());
   }
 
   if (experiment && req.experiment?.trim()) {

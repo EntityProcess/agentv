@@ -131,10 +131,10 @@ The default view shows a cross-experiment, cross-target performance matrix. Numb
 Run the same eval against multiple providers or experiment variants, then open the Analytics tab:
 
 ```bash
-agentv eval my.EVAL.yaml --target azure --experiment baseline
-agentv eval my.EVAL.yaml --target azure --experiment with-caching
-agentv eval my.EVAL.yaml --target gemini --experiment baseline
-agentv eval my.EVAL.yaml --target gemini --experiment with-caching
+agentv eval my.EVAL.yaml --provider azure --experiment baseline
+agentv eval my.EVAL.yaml --provider azure --experiment with-caching
+agentv eval my.EVAL.yaml --provider gemini --experiment baseline
+agentv eval my.EVAL.yaml --provider gemini --experiment with-caching
 agentv dashboard  # Analytics tab shows 2x2 matrix
 ```
 

@@ -26,7 +26,7 @@ multi-model-benchmark/
 
 ## Prerequisites
 
-1. Configure targets in `.agentv/targets.yaml` at the repository root. The example commands use `copilot`, `claude`, and `gemini-llm` — these must be defined with valid provider credentials.
+1. Configure providers in `.agentv/providers.yaml` at the repository root. The example commands use `copilot`, `claude`, and `gemini-llm` — these must be defined with valid provider credentials.
 2. Install dependencies: `bun install`
 
 ## Running the Evaluation
@@ -37,11 +37,11 @@ From the repository root:
 # Run once per target. Use the same experiment label so Dashboard analytics
 # can group the completed runs.
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target copilot --experiment multi-model-benchmark
+  --provider copilot --experiment multi-model-benchmark
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target claude --experiment multi-model-benchmark
+  --provider claude --experiment multi-model-benchmark
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target gemini-llm --experiment multi-model-benchmark
+  --provider gemini-llm --experiment multi-model-benchmark
 ```
 
 ### Cost & Safety
@@ -53,7 +53,7 @@ To run against a single target first:
 ```bash
 # Test with one model before running the other targets
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target copilot
+  --provider copilot
 ```
 
 ## Comparing Models
@@ -104,12 +104,12 @@ Pairwise Summary:
 ### 1. Target Selection
 
 The eval file names one default target. Run the same eval with different
-`--target` values to compare models:
+`--provider` values to compare models:
 
 ```bash
-agentv eval evals/benchmark.eval.yaml --target copilot
-agentv eval evals/benchmark.eval.yaml --target claude
-agentv eval evals/benchmark.eval.yaml --target gemini-llm
+agentv eval evals/benchmark.eval.yaml --provider copilot
+agentv eval evals/benchmark.eval.yaml --provider claude
+agentv eval evals/benchmark.eval.yaml --provider gemini-llm
 ```
 
 ### 2. Weighted Graders
@@ -183,11 +183,11 @@ benchmark.eval.yaml
 
 ### Adding a model
 
-Add a new target to `.agentv/targets.yaml`, then run the same eval with `--target <name>` and the same `--experiment` label.
+Add a new target to `.agentv/providers.yaml`, then run the same eval with `--provider <name>` and the same `--experiment` label.
 
 ```bash
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target my_new_model --experiment multi-model-benchmark
+  --provider my_new_model --experiment multi-model-benchmark
 ```
 
 ### Adding a grader

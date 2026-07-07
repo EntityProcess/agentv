@@ -17,7 +17,7 @@ Demonstrates core AgentV schema features with minimal setup.
 bun agentv eval examples/features/basic/evals/suite.yaml
 
 # With specific target
-bun agentv eval examples/features/basic/evals/suite.yaml --target default
+bun agentv eval examples/features/basic/evals/suite.yaml --provider default
 ```
 
 ## Key Files

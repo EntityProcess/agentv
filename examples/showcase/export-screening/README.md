@@ -30,7 +30,7 @@ export-screening/
 │   ├── validate_risk_output.ts         # JSON validator + accuracy checker
 │   └── ci_check.ts                     # CI/CD threshold checker
 └── .agentv/
-    └── targets.yaml                    # (optional) target configuration
+    └── providers.yaml                    # (optional) target configuration
 ```
 
 ## Running the Evaluation

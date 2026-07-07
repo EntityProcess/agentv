@@ -67,9 +67,9 @@ function ensureTargetGraph(
         .map((entry) => entry.name)
         .sort()
         .join(', ');
-      const owner = requestedBy ? ` referenced by target '${requestedBy}'` : '';
+      const owner = requestedBy ? ` referenced by provider '${requestedBy}'` : '';
       throw new Error(
-        `Target '${name}'${owner} not found in ${targetsFilePath}. Available targets: ${available}`,
+        `Provider '${name}'${owner} not found in ${targetsFilePath}. Available providers: ${available}`,
       );
     }
     seen.add(name);
@@ -117,7 +117,7 @@ function definitionsWithEvalTargetSpec(
   if (!base) {
     const available = definitions.map((definition) => definition.name).join(', ');
     throw new Error(
-      `Target '${targetSpec.extends}' not found for eval-local target '${targetSpec.name}'. Available targets: ${available}`,
+      `Provider '${targetSpec.extends}' not found for eval-local provider '${targetSpec.name}'. Available providers: ${available}`,
     );
   }
   const effective = {
@@ -161,15 +161,37 @@ export const evalBundleCommand = command({
     target: multioption({
       type: array(string),
       long: 'target',
-      description: 'Target name to bundle (repeatable). Defaults to eval target(s) or default.',
+      description: '[Removed: use --provider <label>] Former provider selector',
     }),
     targets: option({
       type: optional(string),
       long: 'targets',
+      description: '[Removed: use --providers <path>] Former providers.yaml path',
+    }),
+    provider: multioption({
+      type: array(string),
+      long: 'provider',
+      description:
+        'Provider label to bundle (repeatable). Defaults to eval provider(s) or default.',
+    }),
+    providers: option({
+      type: optional(string),
+      long: 'providers',
       description: 'Path to providers.yaml (overrides discovery)',
     }),
   },
   handler: async (args) => {
+    if (args.target.length > 0) {
+      throw new Error(
+        `--target was removed from agentv eval bundle. Use --provider ${args.target[0]} instead.`,
+      );
+    }
+    if (args.targets !== undefined) {
+      throw new Error(
+        `--targets was removed from agentv eval bundle. Use --providers ${args.targets} instead.`,
+      );
+    }
+
     const cwd = process.cwd();
     const repoRoot = await findRepoRoot(cwd);
     const resolvedPaths = await resolveEvalPaths([args.evalPath], cwd);
@@ -192,10 +214,10 @@ export const evalBundleCommand = command({
     let targetNames: readonly string[];
     if (suite.inlineTarget) {
       definitions = [suite.inlineTarget];
-      targetNames = unique(args.target.length > 0 ? args.target : [suite.inlineTarget.name]);
+      targetNames = unique(args.provider.length > 0 ? args.provider : [suite.inlineTarget.name]);
     } else {
       const targetsFilePath = await discoverTargetsFile({
-        explicitPath: args.targets,
+        explicitPath: args.providers,
         testFilePath: evalFilePath,
         repoRoot,
         cwd,
@@ -209,8 +231,8 @@ export const evalBundleCommand = command({
       );
       const suiteTarget = await readTestSuiteTarget(evalFilePath);
       targetNames = unique(
-        args.target.length > 0
-          ? args.target
+        args.provider.length > 0
+          ? args.provider
           : (suite.targets ?? [suite.targetSpec?.name ?? suiteTarget ?? 'default']),
       );
       for (const targetName of targetNames) {

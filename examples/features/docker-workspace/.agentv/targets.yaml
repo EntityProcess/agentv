@@ -1,3 +1,0 @@
-targets:
-  - id: mock_agent
-    provider: mock

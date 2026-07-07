@@ -1,0 +1,4 @@
+providers:
+  - id: mock
+    response: Hello from the mock target
+    label: mock-sdk

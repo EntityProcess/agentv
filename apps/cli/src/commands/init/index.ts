@@ -116,7 +116,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   }
   console.log('\nYou can now:');
   console.log('  1. Copy .env.example to .env and add your API credentials');
-  console.log('  2. Configure targets in .agentv/targets.yaml');
+  console.log('  2. Configure providers in .agentv/providers.yaml');
   console.log('  3. Use AI skills to create and run evals');
   printSkillFirstInstructions();
 }

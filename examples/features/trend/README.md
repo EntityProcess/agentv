@@ -36,7 +36,7 @@ cp -R sample-runs/* .agentv/results/default/
 Then run:
 
 ```bash
-bun ../../../apps/cli/src/cli.ts trend --last 3 --suite code-review --target claude-sonnet
+bun ../../../apps/cli/src/cli.ts trend --last 3 --suite code-review --provider claude-sonnet
 ```
 
 Expected output:
@@ -74,7 +74,7 @@ bun ../../../apps/cli/src/cli.ts trend \
   sample-runs/2026-03-08T10-00-00-000Z \
   sample-runs/2026-03-15T10-00-00-000Z \
   --suite code-review \
-  --target claude-sonnet
+  --provider claude-sonnet
 ```
 
 ## CI Gate Example
@@ -87,7 +87,7 @@ bun ../../../apps/cli/src/cli.ts trend \
   sample-runs/2026-03-08T10-00-00-000Z \
   sample-runs/2026-03-15T10-00-00-000Z \
   --suite code-review \
-  --target claude-sonnet \
+  --provider claude-sonnet \
   --fail-on-degrading \
   --slope-threshold 0.01
 ```

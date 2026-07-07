@@ -13,7 +13,7 @@ pagefind: false
 This is the manual-attempt workflow:
 
 ```bash
-agentv prepare evals/foo.eval.yaml --test-id case-1 --target codex-cli --out /tmp/agentv-case-1
+agentv prepare evals/foo.eval.yaml --test-id case-1 --provider codex-cli --out /tmp/agentv-case-1
 ```
 
 The prepared directory contains:
@@ -73,9 +73,9 @@ Use `--response` when the final answer text should be graded independently of th
 
 ## Observability Boundary
 
-`prepare` is not a replacement for live observability. Configure live tracing in the harness or target itself:
+`prepare` is not a replacement for live observability. Configure live tracing in the harness or provider itself:
 
-- Use provider-native settings, target hooks, or environment variables to enable session logs.
+- Use provider-native settings, provider hooks, or environment variables to enable session logs.
 - Emit OpenTelemetry/OpenInference spans from the system under test or provider when you need external trace inspection.
 - For Opik, Phoenix, Langfuse, or another backend, treat their traces as external artifacts that can be imported or projected back into AgentV later.
 

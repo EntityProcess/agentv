@@ -85,11 +85,11 @@ CC-BY-SA 4.0) for the IDs we tag against.
 
 ```bash
 agentv eval examples/red-team/archetypes/customer-facing-agent/suites/pii-cross-customer-disclosure.eval.yaml \
-  --target your-support-target
+  --provider your-support-target
 
 # All suites at once
 agentv eval examples/red-team/archetypes/customer-facing-agent/suites/ \
-  --target your-support-target
+  --provider your-support-target
 ```
 
 The pack is opt-in. Copy what you need.

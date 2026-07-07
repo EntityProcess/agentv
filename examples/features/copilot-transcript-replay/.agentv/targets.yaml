@@ -1,8 +1,0 @@
-targets:
-  # Recorded Copilot trajectory replay. Import Copilot CLI events with
-  # `agentv import copilot`, or use the checked-in normalized transcript
-  # fixture below. Graders consume AgentV transcript rows, not raw events.jsonl.
-  - id: copilot-transcript-replay
-    provider: replay
-    transcripts: ../fixtures/copilot-transcript.jsonl
-    source_target: copilot-cli

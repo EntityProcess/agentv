@@ -15,7 +15,7 @@ pagefind: false
 AgentV natively supports `evals.json`. You can run Agent Skills evals directly:
 
 ```bash
-agentv eval evals.json --target claude
+agentv eval evals.json --provider claude
 ```
 
 When you need AgentV's power features (deterministic graders, assert-set scoring, multi-turn conversations, workspace isolation), you can graduate to EVAL.yaml.
@@ -46,10 +46,10 @@ Create `evals.json`:
 Run it:
 
 ```bash
-agentv eval evals.json --target claude
+agentv eval evals.json --provider claude
 ```
 
-The `--target` flag selects the agent harness. The agent evaluates itself — skills load naturally via progressive disclosure.
+The `--provider` flag selects the agent harness. The agent evaluates itself — skills load naturally via progressive disclosure.
 
 ## Field mapping
 
@@ -113,7 +113,7 @@ The rest of the bundle follows the same pattern:
 Generate the run `benchmark.json` alongside the standard result JSONL. The `benchmark.json` is automatically written to the artifact directory:
 
 ```bash
-agentv eval evals.json --target claude --output ./results
+agentv eval evals.json --provider claude --output ./results
 # benchmark.json is written to ./results/benchmark.json
 ```
 

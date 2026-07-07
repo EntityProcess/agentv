@@ -39,6 +39,7 @@ async function writeTaskBundle(options: {
   readonly testId: string;
   readonly targetsYaml: string;
   readonly legacyTaskDir?: boolean;
+  readonly legacyTargetsPath?: boolean;
 }): Promise<Record<string, unknown>> {
   const artifactDir = path.join(options.sourceRunDir, options.testId);
   const bundleDirname = options.legacyTaskDir ? 'task' : 'test';
@@ -66,7 +67,8 @@ tests:
 `,
     'utf8',
   );
-  await writeFile(path.join(bundleDir, 'providers.yaml'), options.targetsYaml, 'utf8');
+  const providersFilename = options.legacyTargetsPath ? 'targets.yaml' : 'providers.yaml';
+  await writeFile(path.join(bundleDir, providersFilename), options.targetsYaml, 'utf8');
   await writeFile(path.join(artifactDir, 'grading.json'), '{"assertions":[]}\n', 'utf8');
   await writeFile(path.join(artifactDir, 'timing.json'), '{"duration_ms":1}\n', 'utf8');
   await writeFile(path.join(outputsDir, 'answer.md'), '@[assistant]:\nCaptured answer\n', 'utf8');
@@ -74,7 +76,8 @@ tests:
   const bundlePaths = {
     [`${options.legacyTaskDir ? 'task' : 'test'}_dir`]: `${options.testId}/${bundleDirname}`,
     eval_path: `${options.testId}/${bundleDirname}/EVAL.yaml`,
-    providers_path: `${options.testId}/${bundleDirname}/providers.yaml`,
+    [options.legacyTargetsPath ? 'targets_path' : 'providers_path']:
+      `${options.testId}/${bundleDirname}/${providersFilename}`,
   };
 
   return {
@@ -93,7 +96,7 @@ tests:
 
 async function createBundleFixture(
   targetsYaml = DEFAULT_TARGETS,
-  options?: { readonly legacyTaskDir?: boolean },
+  options?: { readonly legacyTaskDir?: boolean; readonly legacyTargetsPath?: boolean },
 ): Promise<BundleFixture> {
   const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-rerun-'));
   const cwd = path.join(baseDir, 'workspace');
@@ -108,12 +111,14 @@ async function createBundleFixture(
       testId: 'case-alpha',
       targetsYaml,
       legacyTaskDir: options?.legacyTaskDir,
+      legacyTargetsPath: options?.legacyTargetsPath,
     }),
     await writeTaskBundle({
       sourceRunDir,
       testId: 'case-beta',
       targetsYaml,
       legacyTaskDir: options?.legacyTaskDir,
+      legacyTargetsPath: options?.legacyTargetsPath,
     }),
   ];
   await writeFile(
@@ -280,6 +285,24 @@ describe('agentv runs rerun', () => {
     });
   }, 30_000);
 
+  it('reruns legacy generated targets_path bundles for backward compatibility', async () => {
+    const created = await createBundleFixture(DEFAULT_TARGETS, { legacyTargetsPath: true });
+
+    const result = await runCli(created, [
+      'runs',
+      'rerun',
+      created.sourceRunDir,
+      '--test-id',
+      'case-alpha',
+      '--output',
+      created.outputDir,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    const { rows } = await readOutputBundle(created.outputDir);
+    expect(rows.map((row) => row.test_id)).toEqual(['case-alpha']);
+  }, 30_000);
+
   it('fails clearly for missing env and accepts an explicit env file', async () => {
     const created = await fixture(`providers:
   - id: cli
@@ -296,7 +319,7 @@ describe('agentv runs rerun', () => {
       '--dry-run',
     ]);
     expect(missing.exitCode).toBe(1);
-    expect(missing.stderr).toContain("Failed to resolve target 'captured'");
+    expect(missing.stderr).toContain("Failed to resolve provider 'captured'");
     expect(missing.stderr).toContain('LOCAL_AGENT_COMMAND');
 
     const withAmbientEnv = await runCli(

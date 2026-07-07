@@ -94,11 +94,11 @@ v5.4** technique pages (<https://atlas.mitre.org/>, public) for AML.T0051
 ```bash
 # A single suite against your own coding-agent target
 agentv eval examples/red-team/archetypes/coding-agent/suites/destructive-git.eval.yaml \
-  --target your-coder-target
+  --provider your-coder-target
 
 # All suites at once
 agentv eval examples/red-team/archetypes/coding-agent/suites/ \
-  --target your-coder-target
+  --provider your-coder-target
 ```
 
 The pack is opt-in. Copy what you need.

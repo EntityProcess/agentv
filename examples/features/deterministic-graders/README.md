@@ -47,7 +47,7 @@ bun run build
 
 ```bash
 # From examples/features
-bun agentv eval deterministic-graders/evals/suite.yaml --target <your-target>
+bun agentv eval deterministic-graders/evals/suite.yaml --provider <your-target>
 ```
 
 ## Standalone Test

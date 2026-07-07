@@ -401,9 +401,14 @@ export const prepareCommand = command({
       description: 'Exact test ID to prepare',
     }),
     target: option({
-      type: string,
+      type: optional(string),
       long: 'target',
-      description: 'Target name this prepared attempt is for',
+      description: '[Removed: use --provider <label>] Former provider selector',
+    }),
+    provider: option({
+      type: optional(string),
+      long: 'provider',
+      description: 'Provider label this prepared attempt is for',
     }),
     out: option({
       type: string,
@@ -416,8 +421,17 @@ export const prepareCommand = command({
       description: 'Output format: text (default) or json',
     }),
   },
-  handler: async ({ evalPath, testId, target, out, format }) => {
-    const result = await prepareAttempt({ evalPath, testId, target, outDir: out });
+  handler: async ({ evalPath, testId, target, provider, out, format }) => {
+    if (target !== undefined) {
+      throw new Error(
+        `--target was removed from agentv prepare. Use --provider ${target} instead.`,
+      );
+    }
+    if (!provider) {
+      throw new Error('--provider is required.');
+    }
+
+    const result = await prepareAttempt({ evalPath, testId, target: provider, outDir: out });
     if (format === 'json') {
       console.log(JSON.stringify(toCommandOutputWire(result), null, 2));
       return;

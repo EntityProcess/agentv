@@ -65,7 +65,7 @@ assert:
 bun agentv validate examples/features/trial-output-consistency/evals/suite.yaml
 
 # Run a specific test with a configured target
-bun agentv eval examples/features/trial-output-consistency/evals/suite.yaml --test-id high-consistency --target <your-target>
+bun agentv eval examples/features/trial-output-consistency/evals/suite.yaml --test-id high-consistency --provider <your-target>
 ```
 
 ## Extending

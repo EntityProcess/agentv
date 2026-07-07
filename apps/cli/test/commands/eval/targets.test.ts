@@ -64,4 +64,81 @@ describe('eval target selection', () => {
     expect(selections[0]?.targetLabel).toBeUndefined();
     expect(selections[0]?.resolvedTarget.kind).toBe('mock');
   });
+
+  it('prefers providers.yaml over legacy targets.yaml during provider discovery', async () => {
+    const agentvDir = path.join(tempDir, '.agentv');
+    await mkdir(agentvDir, { recursive: true });
+    await writeFile(
+      path.join(agentvDir, 'providers.yaml'),
+      ['providers:', '  - id: mock', '    label: modern', '    response: modern', ''].join('\n'),
+    );
+    await writeFile(
+      path.join(agentvDir, 'targets.yaml'),
+      ['providers:', '  - id: mock', '    label: legacy', '    response: legacy', ''].join('\n'),
+    );
+    const evalPath = path.join(tempDir, 'provider-discovery.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'providers:',
+        '  - modern',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: provider-case',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+    const selections = await selectMultipleTargets({
+      testFilePath: evalPath,
+      repoRoot: tempDir,
+      cwd: tempDir,
+      env: {},
+      targetNames: suite.targets ?? [],
+      targetRefs: suite.targetRefs,
+      targetSource: 'test-file',
+    });
+
+    expect(selections[0]?.targetName).toBe('modern');
+    expect(selections[0]?.resolvedTarget.config.response).toBe('modern');
+  });
+
+  it('hard-rejects legacy targets.yaml as authored provider config', async () => {
+    const agentvDir = path.join(tempDir, '.agentv');
+    await mkdir(agentvDir, { recursive: true });
+    await writeFile(
+      path.join(agentvDir, 'targets.yaml'),
+      ['providers:', '  - id: mock', '    label: legacy', ''].join('\n'),
+    );
+    const evalPath = path.join(tempDir, 'legacy-targets.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'providers:',
+        '  - legacy',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: provider-case',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+    await expect(
+      selectMultipleTargets({
+        testFilePath: evalPath,
+        repoRoot: tempDir,
+        cwd: tempDir,
+        env: {},
+        targetNames: suite.targets ?? [],
+        targetRefs: suite.targetRefs,
+        targetSource: 'test-file',
+      }),
+    ).rejects.toThrow(/Authored targets\.yaml files were removed.*providers\.yaml/);
+  });
 });

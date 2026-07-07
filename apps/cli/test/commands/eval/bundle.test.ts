@@ -106,7 +106,7 @@ tests: ../data/cases.yaml
     return { sourceDir, bundleDir, evalPath, sourceEvalBefore };
   }
 
-  it('bundles inherited targets, relative data, environment workdirs, and scripts into a runnable directory', async () => {
+  it('bundles inherited targets, relative data, environment workdirs, and scripts into a portable directory', async () => {
     const { sourceDir, bundleDir, evalPath, sourceEvalBefore } =
       await createPortableSourceFixture();
 
@@ -259,5 +259,59 @@ tests:
     expect(output).toContain('Cannot bundle eval');
     expect(output).toContain('environment.workdir for test "missing-template"');
     expect(output).toContain('not found');
+  }, 30_000);
+
+  it('hard-errors removed target-named bundle flags with provider guidance', async () => {
+    const sourceDir = path.join(tempDir, 'legacy-flags-source');
+    const bundleDir = path.join(tempDir, 'legacy-flags-bundle');
+    await mkdir(path.join(sourceDir, '.agentv'), { recursive: true });
+    await mkdir(path.join(sourceDir, 'evals'), { recursive: true });
+    await writeFile(
+      path.join(sourceDir, '.agentv', 'providers.yaml'),
+      `providers:
+  - id: mock
+    label: default
+`,
+      'utf8',
+    );
+    await writeFile(
+      path.join(sourceDir, 'evals', 'suite.eval.yaml'),
+      `prompts:
+  - "{{ input }}"
+tests:
+  - id: case
+    vars:
+      input: hello
+`,
+      'utf8',
+    );
+
+    const targetResult = await runCli(sourceDir, [
+      'eval',
+      'bundle',
+      'evals/suite.eval.yaml',
+      '--out',
+      bundleDir,
+      '--target',
+      'default',
+    ]);
+    expect(targetResult.exitCode).toBe(1);
+    expect(`${targetResult.stdout}\n${targetResult.stderr}`).toContain(
+      '--target was removed from agentv eval bundle. Use --provider default instead.',
+    );
+
+    const targetsResult = await runCli(sourceDir, [
+      'eval',
+      'bundle',
+      'evals/suite.eval.yaml',
+      '--out',
+      bundleDir,
+      '--targets',
+      '.agentv/targets.yaml',
+    ]);
+    expect(targetsResult.exitCode).toBe(1);
+    expect(`${targetsResult.stdout}\n${targetsResult.stderr}`).toContain(
+      '--targets was removed from agentv eval bundle. Use --providers .agentv/targets.yaml instead.',
+    );
   }, 30_000);
 });

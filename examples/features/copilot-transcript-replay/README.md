@@ -33,7 +33,7 @@ Import the session into a normalized AgentV transcript:
 agentv import copilot \
   --session-id <uuid> \
   --test-id should-not-trigger-csv-analyzer \
-  --target copilot-cli \
+  --provider copilot-cli \
   -o fixtures/copilot-transcript.jsonl
 ```
 
@@ -43,7 +43,7 @@ example runs.
 ### 2. Run the replay eval
 
 ```bash
-agentv eval evals/skill-use.EVAL.yaml --target copilot-transcript-replay
+agentv eval evals/skill-use.EVAL.yaml --provider copilot-transcript-replay
 ```
 
 The `before_all` hook syncs the agentv-dev plugin skills into the workspace.

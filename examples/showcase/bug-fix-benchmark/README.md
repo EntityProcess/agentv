@@ -40,7 +40,7 @@ Compares four configurations on identical bug fix tasks:
 agentv eval evals/bug-fixes.eval.yaml --workers 3
 
 # Override the target from the CLI
-agentv eval evals/bug-fixes.eval.yaml --target claude-baseline --workers 2
+agentv eval evals/bug-fixes.eval.yaml --provider claude-baseline --workers 2
 ```
 
 ### 2. Compare results
@@ -62,7 +62,7 @@ The eval includes a real bug from the AgentV repo:
 
 ## How Variants Work
 
-The `claude` target from the repo root `.agentv/targets.yaml` is used as the
+The `claude` target from the repo root `.agentv/providers.yaml` is used as the
 base. The eval file uses an eval-local target object with hooks:
 
 ```yaml
