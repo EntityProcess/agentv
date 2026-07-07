@@ -2438,10 +2438,69 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
 
   type CompareTestEntry = {
     test_id: string;
+    target: string;
     category?: string;
     score: number;
     passed: boolean;
     execution_status?: string;
+    answer?: string;
+    answer_path?: string;
+    output_path?: string;
+    grading_path?: string;
+    transcript_path?: string;
+    metrics_path?: string;
+    result_dir?: string;
+    duration_ms?: number;
+    token_usage?: {
+      input?: number;
+      output?: number;
+      reasoning?: number;
+    };
+  };
+
+  const readAnswerPreview = (
+    manifestPath: string,
+    relativePath: string | undefined,
+  ): string | undefined => {
+    if (!relativePath) return undefined;
+    const resolved = resolveReadableRunArtifactFile(
+      runWorkspaceDirFromManifestPath(manifestPath),
+      relativePath,
+    );
+    if (!resolved.absolutePath) return undefined;
+    try {
+      const text = readFileSync(resolved.absolutePath, 'utf8').trim();
+      const maxLength = 2000;
+      return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const toCompareTestEntry = (
+    manifestPath: string,
+    record: Awaited<ReturnType<typeof loadLightweightResultsForMeta>>[number],
+    passed: boolean,
+  ): CompareTestEntry => {
+    const target = record.target ?? 'default';
+    const answer = readAnswerPreview(manifestPath, record.answerPath ?? record.outputPath);
+    return {
+      test_id: record.testId,
+      target,
+      ...(record.category && { category: normalizeCategoryPath(record.category) }),
+      score: record.score,
+      passed,
+      execution_status: record.executionStatus,
+      ...(answer && { answer }),
+      ...(record.answerPath && { answer_path: record.answerPath }),
+      ...(record.outputPath && { output_path: record.outputPath }),
+      ...(record.gradingPath && { grading_path: record.gradingPath }),
+      ...(record.transcriptPath && { transcript_path: record.transcriptPath }),
+      ...(record.metricsPath && { metrics_path: record.metricsPath }),
+      ...(record.resultDir && { result_dir: record.resultDir }),
+      ...(record.durationMs !== undefined && { duration_ms: record.durationMs }),
+      ...(record.tokenUsage && { token_usage: record.tokenUsage }),
+    };
   };
 
   // Collect per-test-case results keyed by experiment × target (aggregated view)
@@ -2466,6 +2525,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     started_at: string;
     experiment: string;
     target: string;
+    targets: string[];
     source: 'local' | 'remote';
     eval_count: number;
     quality_count: number;
@@ -2484,6 +2544,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     try {
       const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
       const runTestMap = new Map<string, CompareTestEntry>();
+      const runTargetsSet = new Set<string>();
       let runEvalCount = 0;
       let runQualityCount = 0;
       let runPassedCount = 0;
@@ -2501,6 +2562,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         const target = r.target ?? 'default';
         experimentsSet.add(experiment);
         targetsSet.add(target);
+        runTargetsSet.add(target);
         runExperiment = experiment;
         runTarget = target;
         if (r.timestamp && r.timestamp < runStartedAt) runStartedAt = r.timestamp;
@@ -2526,23 +2588,12 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
           if (passed) entry.passedCount++;
           entry.scoreSum += r.score;
         }
-        entry.tests.push({
-          test_id: r.testId,
-          ...(r.category && { category: normalizeCategoryPath(r.category) }),
-          score: r.score,
-          passed,
-          execution_status: r.executionStatus,
-        });
+        entry.tests.push(toCompareTestEntry(m.path, r, passed));
         cellMap.set(key, entry);
 
-        // Per-run accumulation. Dedupe tests within the run by last-wins.
-        runTestMap.set(r.testId, {
-          test_id: r.testId,
-          ...(r.category && { category: normalizeCategoryPath(r.category) }),
-          score: r.score,
-          passed,
-          execution_status: r.executionStatus,
-        });
+        // Per-run accumulation. Dedupe each provider/model result within the
+        // run by last-wins while preserving the provider axis for comparison.
+        runTestMap.set(`${r.testId}::${target}`, toCompareTestEntry(m.path, r, passed));
         runEvalCount++;
         if (isExecutionError) {
           runExecutionErrorCount++;
@@ -2556,11 +2607,13 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
       if (runEvalCount === 0) continue;
 
       const runTests = [...runTestMap.values()].slice(-MAX_TESTS_PER_CELL);
+      const runTargets = [...runTargetsSet].sort();
       runEntries.push({
         run_id: m.filename,
         started_at: runStartedAt,
         experiment: runExperiment,
-        target: runTarget,
+        target: runTargets.length > 1 ? `${runTargets.length} providers` : runTarget,
+        targets: runTargets,
         source: m.source,
         eval_count: runEvalCount,
         quality_count: runQualityCount,

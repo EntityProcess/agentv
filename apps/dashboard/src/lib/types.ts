@@ -449,11 +449,26 @@ export interface TagGroupsResponse {
 
 export interface CompareTestResult {
   test_id: string;
+  /** Provider/model label for this result row. Historical artifacts call this target. */
+  target?: string;
   /** Optional per-test category from the source eval result, when available. */
   category?: string;
   score: number;
   passed: boolean;
   execution_status?: string;
+  answer?: string;
+  answer_path?: string;
+  output_path?: string;
+  grading_path?: string;
+  transcript_path?: string;
+  metrics_path?: string;
+  result_dir?: string;
+  duration_ms?: number;
+  token_usage?: {
+    input?: number;
+    output?: number;
+    reasoning?: number;
+  };
 }
 
 export interface CompareCell {
@@ -485,6 +500,8 @@ export interface CompareRunEntry {
   started_at: string;
   experiment: string;
   target: string;
+  /** Provider/model labels represented inside this run. */
+  targets?: string[];
   source: 'local' | 'remote';
   eval_count: number;
   quality_count?: number;
