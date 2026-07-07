@@ -6,7 +6,7 @@
  * @example Custom assertion (simplest way to add evaluation logic)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineAssertion } from '@agentv/sdk';
+ * import { defineAssertion } from 'agentv';
  *
  * export default defineAssertion(({ output, criteria }) => {
  *   const answer = output ?? '';
@@ -21,7 +21,7 @@
  * @example script grader (full control)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineScriptGrader } from '@agentv/sdk';
+ * import { defineScriptGrader } from 'agentv';
  *
  * export default defineScriptGrader(({ output, traceSummary }) => {
  *   return {
@@ -39,7 +39,7 @@
  * @example Vitest workspace verifier adapter (custom wrapper form)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineVitestWorkspaceGrader } from '@agentv/sdk';
+ * import { defineVitestWorkspaceGrader } from 'agentv';
  *
  * export default defineVitestWorkspaceGrader({
  *   testFile: 'graders/welcome-banner.test.ts',
@@ -50,7 +50,7 @@
  * @example Workspace grader (small file checks)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineWorkspaceGrader } from '@agentv/sdk';
+ * import { defineWorkspaceGrader } from 'agentv';
  *
  * export default defineWorkspaceGrader(async ({ workspace }) => [
  *   await workspace.file('app/page.tsx').contains('Status: All systems ready'),
@@ -283,7 +283,7 @@ export type { PromptTemplateHandler };
  *
  * @example
  * ```typescript
- * import { defineScriptGrader } from '@agentv/sdk';
+ * import { defineScriptGrader } from 'agentv';
  *
  * export default defineScriptGrader(({ trace }) => {
  *   if (!trace) {
@@ -302,7 +302,7 @@ export type { PromptTemplateHandler };
  *
  * @example With typed config
  * ```typescript
- * import { defineScriptGrader, z } from '@agentv/sdk';
+ * import { defineScriptGrader, z } from 'agentv';
  *
  * const ConfigSchema = z.object({
  *   maxToolCalls: z.number().default(10),
@@ -338,7 +338,7 @@ export function defineCodeGrader(handler: ScriptGraderHandler): void {
  *
  * @example
  * ```typescript
- * import { definePromptTemplate } from '@agentv/sdk';
+ * import { definePromptTemplate } from 'agentv';
  *
  * export default definePromptTemplate((ctx) => {
  *   const question = ctx.input
@@ -376,7 +376,7 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  *
  * @example Simple pass/fail
  * ```typescript
- * import { defineAssertion } from '@agentv/sdk';
+ * import { defineAssertion } from 'agentv';
  *
  * export default defineAssertion(({ output }) => {
  *   const text = output ?? '';
@@ -389,7 +389,7 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  *
  * @example Granular scoring
  * ```typescript
- * import { defineAssertion } from '@agentv/sdk';
+ * import { defineAssertion } from 'agentv';
  *
  * export default defineAssertion(({ output, traceSummary }) => {
  *   const text = output ?? '';

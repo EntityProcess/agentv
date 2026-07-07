@@ -7,7 +7,7 @@
  *
  * @example Inline tests with config objects
  * ```typescript
- * import { evaluate } from '@agentv/core';
+ * import { evaluate } from 'agentv';
  *
  * const results = await evaluate({
  *   prompts: ['{{ question }}'],
@@ -27,7 +27,7 @@
  *
  * @example Inline tests with task function and custom assertion
  * ```typescript
- * import { evaluate } from '@agentv/core';
+ * import { evaluate } from 'agentv';
  *
  * const { summary } = await evaluate({
  *   prompts: ['{{ text }}'],

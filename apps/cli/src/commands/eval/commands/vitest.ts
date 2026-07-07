@@ -1,6 +1,6 @@
 import { command, flag, number, option, optional, restPositionals, string } from 'cmd-ts';
 
-import { runScriptGrader, runVitestWorkspaceGrader } from '@agentv/sdk';
+import { runScriptGrader, runVitestWorkspaceGrader } from '@agentv/core/script-grader';
 
 function parseCommand(value: string | undefined): readonly string[] | undefined {
   const trimmed = value?.trim();

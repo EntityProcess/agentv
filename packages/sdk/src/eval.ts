@@ -1,7 +1,7 @@
 import { stringify as stringifyYaml } from 'yaml';
 
-const EVAL_SUITE_SYMBOL = Symbol.for('@agentv/sdk/eval-suite');
-const TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('@agentv/sdk/to-eval-yaml-object');
+const EVAL_SUITE_SYMBOL = Symbol.for('agentv/eval-suite');
+const TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('agentv/to-eval-yaml-object');
 
 const KNOWN_SNAKE_CASE_KEYS = {
   afterAll: 'after_all',

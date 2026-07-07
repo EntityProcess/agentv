@@ -15,8 +15,8 @@ import type { ProviderFactoryFn } from '../providers/provider-registry.js';
 import type { ProviderDefinition } from '../providers/types.js';
 import { type EvalSuiteResult, loadTestSuiteFromYamlObject } from '../yaml-parser.js';
 
-const SDK_EVAL_SUITE_SYMBOL = Symbol.for('@agentv/sdk/eval-suite');
-const SDK_TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('@agentv/sdk/to-eval-yaml-object');
+const SDK_EVAL_SUITE_SYMBOL = Symbol.for('agentv/eval-suite');
+const SDK_TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('agentv/to-eval-yaml-object');
 const TS_EVAL_CONFIG_NAME_RE = /^.+\.eval\.(?:m)?ts$/i;
 const TS_EVAL_CONFIG_GLOB = '*.eval.ts,*.eval.mts' as const;
 

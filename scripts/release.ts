@@ -32,11 +32,7 @@ const VALID_BUMP_TYPES: BumpType[] = ['patch', 'minor', 'major'];
 const NEXT_PRERELEASE_TAG = 'next';
 
 // Packages to update (relative to repo root)
-const PACKAGE_PATHS = [
-  'packages/core/package.json',
-  'packages/sdk/package.json',
-  'apps/cli/package.json',
-];
+const PACKAGE_PATHS = ['apps/cli/package.json'];
 
 // The primary package that determines the version
 const PRIMARY_PACKAGE = 'apps/cli/package.json';
@@ -68,12 +64,6 @@ function readPackageJson(path: string): PackageJson {
 
 function writePackageJson(path: string, pkg: PackageJson): void {
   writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
-}
-
-function syncInternalRuntimeDependencies(pkg: PackageJson, version: string): void {
-  if (pkg.name === '@agentv/sdk' && pkg.dependencies?.['@agentv/core']) {
-    pkg.dependencies['@agentv/core'] = version;
-  }
 }
 
 function bumpVersion(currentVersion: string, bumpType: BumpType): string {
@@ -408,7 +398,6 @@ async function main() {
     const pkg = readPackageJson(fullPath);
     const oldVersion = pkg.version;
     pkg.version = newVersion;
-    syncInternalRuntimeDependencies(pkg, newVersion);
     writePackageJson(fullPath, pkg);
     console.log(`   ✓ ${pkg.name}: ${oldVersion} → ${newVersion}`);
   }

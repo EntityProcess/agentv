@@ -1,9 +1,9 @@
-const EVAL_SUITE_SYMBOL = Symbol.for('@agentv/sdk/eval-suite');
-const TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('@agentv/sdk/to-eval-yaml-object');
+const EVAL_SUITE_SYMBOL = Symbol.for('agentv/eval-suite');
+const TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('agentv/to-eval-yaml-object');
 
 const suite = {
   name: 'sdk-define-eval-suite',
-  description: 'YAML-aligned TypeScript suite authored with @agentv/sdk',
+  description: 'YAML-aligned TypeScript suite authored with agentv',
   tags: ['sdk', 'typescript', 'yaml'],
   providers: [
     {

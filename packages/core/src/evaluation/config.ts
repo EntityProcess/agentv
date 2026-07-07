@@ -7,7 +7,7 @@
  * @example
  * ```typescript
  * // agentv.config.ts
- * import { defineConfig } from '@agentv/core';
+ * import { defineConfig } from 'agentv';
  *
  * export default defineConfig({
  *   execution: {
@@ -147,7 +147,7 @@ export type AgentVConfig = z.infer<typeof AgentVConfigSchema>;
  *
  * @example
  * ```typescript
- * import { defineConfig } from '@agentv/core';
+ * import { defineConfig } from 'agentv';
  *
  * export default defineConfig({
  *   execution: { maxConcurrency: 5 },

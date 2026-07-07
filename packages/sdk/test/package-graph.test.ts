@@ -6,6 +6,7 @@ const repoRoot = path.resolve(import.meta.dir, '../../..');
 
 function readJson(filePath: string) {
   return JSON.parse(readFileSync(path.join(repoRoot, filePath), 'utf8')) as {
+    readonly private?: boolean;
     readonly dependencies?: Record<string, string>;
     readonly devDependencies?: Record<string, string>;
   };
@@ -31,7 +32,9 @@ describe('core/sdk package graph', () => {
     const sdkPackage = readJson('packages/sdk/package.json');
     const corePackage = readJson('packages/core/package.json');
 
-    expect(sdkPackage.dependencies?.['@agentv/core']).toBe(corePackage.version);
+    expect(sdkPackage.private).toBe(true);
+    expect(corePackage.private).toBe(true);
+    expect(sdkPackage.dependencies?.['@agentv/core']).toBe('workspace:*');
     expect(corePackage.dependencies?.['@agentv/sdk']).toBeUndefined();
     expect(corePackage.devDependencies?.['@agentv/sdk']).toBeUndefined();
   });
