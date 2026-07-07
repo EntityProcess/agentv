@@ -539,25 +539,19 @@ experiment:
 
 ### Current Shape
 
-Current schema accepts top-level `experiment` only as a non-empty string run
-grouping label. Current docs also support promptfoo-shaped `tags.experiment`.
+Current schema rejects top-level `experiment` in authored eval YAML. Use the
+promptfoo-shaped `tags.experiment` key when the label belongs in the eval file,
+or pass CLI `--experiment` when the label is run-time context.
 
 ```yaml
-experiment: with-skills
+tags:
+  experiment: with-skills
 target: codex
 timeout_seconds: 600
 evaluate_options:
   repeat:
     count: 3
     strategy: pass_any
-```
-
-or:
-
-```yaml
-tags:
-  experiment: with-skills
-target: codex
 ```
 
 ### Migration Steps
@@ -568,7 +562,8 @@ target: codex
   - budget -> `evaluate_options.budget_usd`
   - timeout -> top-level `timeout_seconds`
   - threshold -> top-level `threshold`
-- Keep only a string label in `experiment`, or use `tags.experiment`.
+- Move string experiment labels to `tags.experiment`, or supply them at run time
+  with CLI `--experiment`.
 
 ### Verification
 
@@ -576,6 +571,8 @@ target: codex
 bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
 rg -n "^experiment:" path/to/evals
 ```
+
+Any match under authored eval YAML should be removed or migrated.
 
 ### Compatibility Notes
 

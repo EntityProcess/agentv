@@ -293,7 +293,7 @@ describe('EvalFileSchema input shorthand', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       description: 'Wrapper eval',
-      experiment: 'release-gate',
+      tags: { experiment: 'release-gate' },
       providers: [{ id: 'agentv:codex-cli', label: 'codex' }],
       threshold: 0.8,
       timeout_seconds: 300,
@@ -335,6 +335,18 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects top-level experiment strings with a migration hint', () => {
+    const result = EvalFileSchema.safeParse({
+      experiment: 'release-gate',
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.path.join('.') === 'experiment')).toBe(true);
+    expect(JSON.stringify(result.error?.issues)).toContain('tags.experiment');
+    expect(JSON.stringify(result.error?.issues)).toContain('CLI --experiment');
   });
 
   it('accepts Promptfoo-style colon provider specs', () => {
@@ -790,6 +802,7 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain('tags.experiment');
   });
 
   it('rejects lifecycle commands under authored policy blocks', () => {

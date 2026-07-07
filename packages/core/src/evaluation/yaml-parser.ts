@@ -2621,9 +2621,9 @@ function parentEnvironmentLocation(suite: RawTestSuite): string | undefined {
 }
 
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
-  if (suite.experiment !== undefined && typeof suite.experiment !== 'string') {
+  if (suite.experiment !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' must be a string run/result grouping label.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' has been removed from authored eval YAML. Use tags.experiment in the eval file or CLI --experiment at run time.`,
     );
   }
   if (suite.policy !== undefined) {
@@ -2689,11 +2689,9 @@ function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | 
   readSuiteRuntimeBlock(suite, 'eval file');
   const suiteTargets = extractTargetsFromSuite(parsed);
   const singleSuiteTarget = suiteTargets?.length === 1 ? suiteTargets[0] : undefined;
-  const experimentName = asString(suite.experiment);
   const budgetUsd = extractBudgetUsd(parsed);
   const evaluateOptions = isJsonObject(suite.evaluate_options) ? suite.evaluate_options : undefined;
   const runtimeConfig: JsonObject = {
-    ...(experimentName !== undefined ? { name: experimentName } : {}),
     ...(singleSuiteTarget !== undefined ? { target: singleSuiteTarget } : {}),
     ...(evaluateOptions?.repeat !== undefined ? { repeat: evaluateOptions.repeat } : {}),
     ...(suite.timeout_seconds !== undefined ? { timeout_seconds: suite.timeout_seconds } : {}),

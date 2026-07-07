@@ -1066,7 +1066,9 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' must be a string"),
+          error.message.includes("Top-level 'experiment' has been removed") &&
+          error.message.includes('tags.experiment') &&
+          error.message.includes('CLI --experiment'),
       ),
     ).toBe(true);
   });
@@ -1130,7 +1132,9 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' must be a string"),
+          error.message.includes("Top-level 'experiment' has been removed") &&
+          error.message.includes('tags.experiment') &&
+          error.message.includes('CLI --experiment'),
       ),
     ).toBe(true);
   });
@@ -1159,7 +1163,9 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' must be a string"),
+          error.message.includes("Top-level 'experiment' has been removed") &&
+          error.message.includes('tags.experiment') &&
+          error.message.includes('CLI --experiment'),
       ),
     ).toBe(true);
   });
@@ -1187,7 +1193,9 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' must be a string"),
+          error.message.includes("Top-level 'experiment' has been removed") &&
+          error.message.includes('tags.experiment') &&
+          error.message.includes('CLI --experiment'),
       ),
     ).toBe(true);
   });
@@ -1364,7 +1372,7 @@ tests: []
     expect(importsError?.message).toContain('CLI multi-file selection');
   });
 
-  it('rejects removed execution blocks when experiment label is present', async () => {
+  it('rejects removed execution blocks when top-level experiment is present', async () => {
     const filePath = path.join(tempDir, 'runtime-conflict.yaml');
     await writeFile(
       filePath,
@@ -1381,6 +1389,14 @@ tests:
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.location === 'experiment' &&
+          error.message.includes('tags.experiment') &&
+          error.message.includes('CLI --experiment'),
+      ),
+    ).toBe(true);
     expect(
       result.errors.some(
         (error) =>
@@ -2475,7 +2491,9 @@ tests: "./cases-shorthand-workspace.yaml"
           (error) =>
             error.severity === 'error' &&
             error.location === 'experiment' &&
-            error.message.includes("Top-level 'experiment' must be a string"),
+            error.message.includes("Top-level 'experiment' has been removed") &&
+            error.message.includes('tags.experiment') &&
+            error.message.includes('CLI --experiment'),
         ),
       ).toBe(true);
     });

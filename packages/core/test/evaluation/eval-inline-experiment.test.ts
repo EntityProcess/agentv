@@ -23,7 +23,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: runtime-suite',
-        'experiment: release-gate',
+        'tags:',
+        '  experiment: release-gate',
         'providers:',
         '  - id: agentv:codex-cli',
         '    label: codex',
@@ -49,12 +50,12 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
 
     expect(suite.experimentConfig).toMatchObject({
       target: 'codex',
-      name: 'release-gate',
       threshold: 0.7,
       repeat: { count: 2, strategy: 'pass_any' },
       timeoutSeconds: 30,
       budgetUsd: 1.5,
     });
+    expect(suite.tags).toEqual({ experiment: 'release-gate' });
     expect(suite.targetSpec).toBeUndefined();
     expect(suite.targets).toEqual(['codex']);
   });
@@ -667,7 +668,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/evaluate_options\.repeat/);
   });
 
-  it('rejects top-level execution blocks and non-string experiment values', async () => {
+  it('rejects top-level execution blocks and removed experiment values', async () => {
     const legacyPath = path.join(tempDir, 'legacy.eval.yaml');
     await writeFile(
       legacyPath,
@@ -702,8 +703,25 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(removedPath, tempDir)).rejects.toThrow(
-      /top-level 'experiment' must be a string/,
+    await expect(loadTestSuite(removedPath, tempDir)).rejects.toThrow(/tags\.experiment/);
+
+    const stringExperimentPath = path.join(tempDir, 'string-experiment.eval.yaml');
+    await writeFile(
+      stringExperimentPath,
+      [
+        'experiment: release-gate',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: one',
+        '    criteria: ok',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(stringExperimentPath, tempDir)).rejects.toThrow(
+      /tags\.experiment.*CLI --experiment/,
     );
   });
 
@@ -1256,7 +1274,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /top-level 'experiment' must be a string/,
+      /tags\.experiment.*CLI --experiment/,
     );
   });
 

@@ -259,11 +259,8 @@ export interface EvalConfig {
   readonly defaults?: EvalDefaultsConfig;
   readonly defaultTest?: EvalDefaultTest | string;
   readonly tests: readonly EvalTest[] | string;
-  /**
-   * @deprecated A top-level `experiment` label no longer sets the run's
-   * experiment namespace. Use `tags: { experiment: '<name>' }` instead.
-   */
-  readonly experiment?: string;
+  /** @deprecated Rejected. Use `tags: { experiment: '<name>' }` or CLI --experiment. */
+  readonly experiment?: never;
   readonly repeat?: EvalRepeat;
   readonly timeoutSeconds?: number;
   readonly threshold?: number;
@@ -375,11 +372,10 @@ function validateTopLevelRuntimeFields(definition: EvalConfig): void {
       "defineEval() no longer accepts top-level 'graders'. Put grader providers in 'providers' and select them with defaults.grader, defaultTest.options.provider, tests[].options.provider, or assertion provider.",
     );
   }
-  if (
-    Object.prototype.hasOwnProperty.call(rawDefinition, 'experiment') &&
-    typeof rawDefinition.experiment !== 'string'
-  ) {
-    throw new Error("defineEval() expects top-level 'experiment' to be a string label.");
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'experiment')) {
+    throw new Error(
+      "defineEval() no longer accepts top-level 'experiment'. Use tags: { experiment: '<name>' } or CLI --experiment.",
+    );
   }
   for (const field of ['model', 'policy', 'execution', 'runs', 'earlyExit']) {
     if (Object.prototype.hasOwnProperty.call(rawDefinition, field)) {

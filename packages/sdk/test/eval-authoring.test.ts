@@ -7,7 +7,7 @@ describe('YAML-aligned eval authoring helpers', () => {
     const suite = defineEval({
       name: 'sdk-yaml-suite',
       inputFiles: ['fixtures/shared-system.md'],
-      experiment: 'sdk-yaml-run',
+      tags: { experiment: 'sdk-yaml-run' },
       providers: [
         {
           label: 'sdk-codex',
@@ -97,7 +97,7 @@ describe('YAML-aligned eval authoring helpers', () => {
     expect(lowered).toEqual({
       name: 'sdk-yaml-suite',
       input_files: ['fixtures/shared-system.md'],
-      experiment: 'sdk-yaml-run',
+      tags: { experiment: 'sdk-yaml-run' },
       providers: [
         {
           label: 'sdk-codex',
@@ -363,11 +363,11 @@ describe('YAML-aligned eval authoring helpers', () => {
     ).toThrow(/top-level 'preprocessors'.*defaultTest\.options\.transform/);
   });
 
-  it('rejects removed experiment authoring blocks', () => {
+  it('rejects removed top-level experiment authoring', () => {
     expect(() =>
       defineEval({
         name: 'removed-experiment',
-        experiment: { target: 'mock' },
+        experiment: 'sdk-baseline',
         prompts: ['{{ input }}'],
         tests: [
           {
@@ -377,7 +377,7 @@ describe('YAML-aligned eval authoring helpers', () => {
           },
         ],
       } as never),
-    ).toThrow(/top-level 'experiment'/);
+    ).toThrow(/top-level 'experiment'.*tags.*experiment.*CLI --experiment/);
   });
 
   it('rejects removed top-level repeat aliases', () => {

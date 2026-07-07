@@ -67,10 +67,10 @@ agentv eval evals/my-eval.yaml --experiment without_skills
 ```
 
 The experiment label chooses the result bucket and is propagated to each entry
-in `index.jsonl`. CLI `--experiment` wins over `experiment.name` in the eval
-file. If neither is set, AgentV writes to the `default` bucket. The eval file
-stays the same across experiments; what changes is the runtime condition.
-Dashboards can filter and compare results by experiment.
+in `index.jsonl`. CLI `--experiment` wins over `tags.experiment` authored in
+the eval file. If neither is set, AgentV writes to the `default` bucket. The
+eval file can stay the same across experiments; what changes is the runtime
+condition. Dashboards can filter and compare results by experiment.
 
 ### Run Specific Test
 
