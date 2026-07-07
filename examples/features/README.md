@@ -83,7 +83,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [benchmark-tooling](benchmark-tooling/) | N-way benchmarking with `agentv results compare` over completed runs |
-| [trials](trials/) | Configure repeated attempts with `evaluate_options.repeat` |
+| [trials](trials/) | Configure repeated samples with `evaluate_options.repeat` |
 | [trial-output-consistency](trial-output-consistency/) | Measure output consistency across trials using pairwise cosine similarity |
 | [compare](compare/) | Compare a run against a stored baseline |
 

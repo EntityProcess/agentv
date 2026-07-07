@@ -19,7 +19,7 @@ Test AI providers on real repo tasks and measure what actually works.
 - **Environment / fixtures / graders** are task-owned context: host or Docker setup, repos, setup scripts, files, fixtures, deterministic checks, and LLM grading prompts.
 - **Provider** is the configured system under test: an agent, model provider, gateway, replay provider, CLI wrapper, transcript provider, or future app/service wrapper. Each provider entry uses `id` for the backend/spec and optional `label` for the stable AgentV selection and result identity.
 - **Tags** are run/result grouping labels. `tags.experiment` is the default experiment namespace, such as `with-skills` or `without-skills`; keep suite/category and provider/model names out of that tag.
-- **Evaluate options** configure eval run behavior such as `max_concurrency`, repeat policy, and budgets.
+- **Evaluate options** configure eval run behavior such as `max_concurrency`, repeat sample count, and budgets.
 - **Default test** configures inherited per-test defaults such as score `threshold`.
 - **Run** is one concrete execution of a tagged eval against a resolved provider that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
@@ -133,9 +133,7 @@ providers:
       api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
       model: gpt-5.4-mini
 evaluate_options:
-  repeat:
-    count: 2
-    strategy: pass_any
+  repeat: 2
 
 default_test:
   threshold: 0.85
@@ -253,11 +251,7 @@ const config: EvalConfig = {
     extends: 'copilot-sdk',
     model: 'claude-sonnet-4.6',
   },
-  repeat: {
-    count: 3,
-    strategy: 'pass_any',
-    earlyExit: false,
-  },
+  repeat: 3,
   threshold: 0.8,
   prompts: ['{{ input }}'],
   environment: {

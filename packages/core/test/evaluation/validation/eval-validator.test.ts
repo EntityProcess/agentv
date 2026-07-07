@@ -108,10 +108,7 @@ threshold: 0.8
 evaluate_options:
   budget_usd: 2
   max_concurrency: 3
-  repeat:
-    count: 2
-    strategy: pass_any
-    early_exit: true
+  repeat: 2
 tests:
   - id: local-case
     vars:
@@ -460,9 +457,7 @@ tests:
     vars:
       diff: change
     options:
-      repeat:
-        count: 3
-        strategy: mean
+      repeat: 3
     assert:
       - type: contains
         value: safe
@@ -878,6 +873,35 @@ evalcases:
     expect(result.errors.some((error) => error.severity === 'warning')).toBe(false);
   });
 
+  it('rejects public repeat objects with migration guidance', async () => {
+    const filePath = path.join(tempDir, 'removed-repeat-object.yaml');
+    await writeFile(
+      filePath,
+      `target: codex
+evaluate_options:
+  repeat:
+    count: 2
+    strategy: pass_any
+    early_exit: true
+    cost_limit_usd: 1
+tests:
+  - id: local-case
+    input: "Hello"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.location === 'evaluate_options.repeat' &&
+          error.message.includes('use evaluate_options.repeat: 2'),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects removed top-level repeat controls with migration guidance', async () => {
     const filePath = path.join(tempDir, 'removed-repeat-fields.yaml');
     await writeFile(
@@ -900,12 +924,10 @@ tests:
       result.errors.some((error) => error.message.includes('Use evaluate_options.repeat')),
     ).toBe(true);
     expect(
-      result.errors.some((error) => error.message.includes('Use evaluate_options.repeat.count')),
+      result.errors.some((error) => error.message.includes('Use evaluate_options.repeat')),
     ).toBe(true);
     expect(
-      result.errors.some((error) =>
-        error.message.includes('Use evaluate_options.repeat.early_exit'),
-      ),
+      result.errors.some((error) => error.message.includes('Use evaluate_options.repeat')),
     ).toBe(true);
   });
 

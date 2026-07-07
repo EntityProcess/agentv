@@ -3,10 +3,7 @@ description: Repeat runs example with 2 samples configured inline
 providers:
   - llm
 evaluate_options:
-  repeat:
-    count: 2
-    strategy: pass_any
-    early_exit: false
+  repeat: 2
   budget_usd: 1
 prompts:
   - "{{ input }}"

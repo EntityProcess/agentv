@@ -17,7 +17,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses evaluate_options.repeat object as the canonical runtime block', async () => {
+  it('parses evaluate_options.repeat number as the canonical runtime block', async () => {
     const evalPath = path.join(tempDir, 'runtime.eval.yaml');
     await writeFile(
       evalPath,
@@ -32,10 +32,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '      reasoning_effort: high',
         'threshold: 0.7',
         'evaluate_options:',
-        '  repeat:',
-        '    count: 2',
-        '    strategy: pass_any',
-        '    early_exit: true',
+        '  repeat: 2',
         '  budget_usd: 1.5',
         'timeout_seconds: 30',
         'prompts:',
@@ -54,7 +51,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       target: 'codex',
       name: 'release-gate',
       threshold: 0.7,
-      repeat: { count: 2, strategy: 'pass_any', earlyExit: true },
+      repeat: { count: 2, strategy: 'pass_any' },
       timeoutSeconds: 30,
       budgetUsd: 1.5,
     });
@@ -1082,9 +1079,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  - parent-target',
         'threshold: 0.8',
         'evaluate_options:',
-        '  repeat:',
-        '    count: 3',
-        '    strategy: pass_any',
+        '  repeat: 3',
         '  budget_usd: 1.5',
         'timeout_seconds: 30',
         'assert:',
@@ -1115,7 +1110,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(test.assertions?.[0]).toMatchObject({ value: 'child' });
   });
 
-  it('applies tests[].options.repeat over the global repeat object', async () => {
+  it('applies numeric tests[].options.repeat over the global repeat count', async () => {
     const evalPath = path.join(tempDir, 'test-options-repeat.eval.yaml');
     await writeFile(
       evalPath,
@@ -1124,9 +1119,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'providers:',
         '  - codex',
         'evaluate_options:',
-        '  repeat:',
-        '    count: 4',
-        '    strategy: pass_all',
+        '  repeat: 4',
         'prompts:',
         '  - "{{ input }}"',
         'tests:',
@@ -1140,15 +1133,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '      repeat: 2',
         '    vars:',
         '      input: hello',
-        '  - id: case-repeat-object',
+        '  - id: case-repeat-run',
         '    criteria: ok',
         '    run:',
         '      threshold: 0.9',
+        '      repeat: 3',
         '    options:',
-        '      repeat:',
-        '        count: 3',
-        '        strategy: mean',
-        '        early_exit: false',
+        '      repeat: 2',
         '    vars:',
         '      input: hello',
       ].join('\n'),
@@ -1157,16 +1148,45 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     const suite = await loadTestSuite(evalPath, tempDir);
     const byId = new Map(suite.tests.map((test) => [test.id, test]));
 
-    expect(suite.experimentConfig?.repeat).toEqual({ count: 4, strategy: 'pass_all' });
+    expect(suite.experimentConfig?.repeat).toEqual({ count: 4, strategy: 'pass_any' });
     expect(byId.get('global-repeat')?.run).toBeUndefined();
     expect(byId.get('case-repeat-count')?.run?.repeat).toEqual({
       count: 2,
       strategy: 'pass_any',
     });
-    expect(byId.get('case-repeat-object')?.run).toMatchObject({
+    expect(byId.get('case-repeat-run')?.run).toMatchObject({
       threshold: 0.9,
-      repeat: { count: 3, strategy: 'mean', earlyExit: false },
+      repeat: { count: 2, strategy: 'pass_any' },
     });
+  });
+
+  it('rejects object-shaped repeat under evaluate_options and scoped run overrides', async () => {
+    const evalPath = path.join(tempDir, 'test-options-repeat-object.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: test-options-repeat-object',
+        'providers:',
+        '  - codex',
+        'evaluate_options:',
+        '  repeat:',
+        '    count: 4',
+        '    strategy: pass_all',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: one',
+        '    criteria: ok',
+        '    options:',
+        '      repeat:',
+        '        count: 3',
+        '        early_exit: false',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/positive integer/);
   });
 
   it('rejects parent environment when importing eval suites with type: suite', async () => {
@@ -1365,8 +1385,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '    criteria: ok',
         '    run:',
         '      threshold: 1',
-        '      repeat:',
-        '        count: 1',
+        '      repeat: 1',
         '    vars:',
         '      input: critical',
       ].join('\n'),
@@ -1381,9 +1400,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '    type: suite',
         '    run:',
         '      threshold: 0.9',
-        '      repeat:',
-        '        count: 2',
-        '        strategy: pass_all',
+        '      repeat: 2',
         '      timeout_seconds: 30',
         '      budget_usd: 1.25',
         '',
@@ -1396,7 +1413,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.experimentConfig).toBeUndefined();
     expect(byId.get('child-default')?.run).toMatchObject({
       threshold: 0.9,
-      repeat: { count: 2, strategy: 'pass_all' },
+      repeat: { count: 2, strategy: 'pass_any' },
       timeoutSeconds: 30,
       budgetUsd: 1.25,
     });

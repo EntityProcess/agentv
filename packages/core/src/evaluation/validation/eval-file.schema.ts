@@ -721,7 +721,7 @@ const ExecutionSchema = z.object({
   assert: z.array(AssertionItemSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
-  /** Removed before stable release. Repeat counts belong under evaluate_options.repeat.count. */
+  /** Removed before stable release. Repeat counts belong under evaluate_options.repeat. */
   trials: z.never().optional(),
   budget_usd: z.number().min(0).optional(),
   budgetUsd: z.number().min(0).optional(),
@@ -730,19 +730,10 @@ const ExecutionSchema = z.object({
   threshold: z.number().min(0).max(1).optional(),
 });
 
-const ExperimentRepeatSchema = z
-  .object({
-    count: z.number().int().min(1),
-    strategy: z.enum(['pass_any', 'pass_all', 'mean', 'confidence_interval']).optional(),
-    early_exit: z.boolean().optional(),
-    cost_limit_usd: z.number().min(0).optional(),
-  })
-  .strict();
-
 const RunOverrideSchema = z
   .object({
     threshold: z.number().min(0).max(1).optional(),
-    repeat: ExperimentRepeatSchema.optional(),
+    repeat: z.number().int().min(1).optional(),
     timeout_seconds: z.number().gt(0).optional(),
     budget_usd: z.number().gt(0).optional(),
   })
@@ -774,7 +765,7 @@ const EvaluateOptionsSchema = z
     cache: z.union([z.boolean(), JsonObjectSchema]).optional(),
     delay: z.number().min(0).optional(),
     generate_suggestions: z.boolean().optional(),
-    repeat: z.union([z.number().int().min(1), ExperimentRepeatSchema]).optional(),
+    repeat: z.number().int().min(1).optional(),
     timeout_ms: z.number().gt(0).optional(),
     max_eval_time_ms: z.number().gt(0).optional(),
     filter_range: z.union([z.tuple([z.number(), z.number()]), z.string()]).optional(),

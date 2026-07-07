@@ -275,8 +275,6 @@ const KNOWN_EVALUATE_OPTION_FIELDS = new Set([
   'max_eval_time_ms',
   'filter_range',
 ]);
-const KNOWN_REPEAT_FIELDS = new Set(['count', 'strategy', 'early_exit', 'cost_limit_usd']);
-const KNOWN_REPEAT_STRATEGIES = new Set(['pass_any', 'pass_all', 'mean', 'confidence_interval']);
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
   'assert',
   'skip_defaults',
@@ -327,10 +325,10 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     "Top-level 'evalcases' has been removed from authored eval YAML. Use 'tests' instead.",
   ],
   ['repeat', "Top-level 'repeat' has been removed. Use evaluate_options.repeat instead."],
-  ['runs', "Top-level 'runs' has been removed. Use evaluate_options.repeat.count instead."],
+  ['runs', "Top-level 'runs' has been removed. Use a positive integer evaluate_options.repeat."],
   [
     'early_exit',
-    "Top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.",
+    "Top-level 'early_exit' has been removed. Use a positive integer evaluate_options.repeat.",
   ],
   ['budget_usd', "Top-level 'budget_usd' has been removed. Use evaluate_options.budget_usd."],
   [
@@ -1880,7 +1878,12 @@ function validateEvaluateOptionsRepeat(
     }
     return;
   }
-  validateRepeatOverride(repeat, location, filePath, errors);
+  errors.push({
+    severity: 'error',
+    filePath,
+    location,
+    message: `Invalid '${location}' field (must be a positive integer). The repeat object shape has been removed; use ${location}: 2.`,
+  });
 }
 
 function validateFilterRange(
@@ -1915,67 +1918,13 @@ function validateRepeatOverride(
   if (repeat === undefined) {
     return;
   }
-  if (!isObject(repeat)) {
+  if (typeof repeat !== 'number' || !Number.isInteger(repeat) || repeat < 1) {
     errors.push({
       severity: 'error',
       filePath,
       location,
-      message: "Invalid 'repeat' field (must be an object)",
-    });
-    return;
-  }
-
-  for (const key of Object.keys(repeat)) {
-    if (!KNOWN_REPEAT_FIELDS.has(key)) {
-      errors.push({
-        severity: 'error',
-        filePath,
-        location: `${location}.${key}`,
-        message:
-          'Invalid repeat field. Supported fields: count, strategy, early_exit, cost_limit_usd.',
-      });
-    }
-  }
-
-  if (typeof repeat.count !== 'number' || !Number.isInteger(repeat.count) || repeat.count < 1) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: `${location}.count`,
-      message: "Invalid 'count' field (must be a positive integer)",
-    });
-  }
-
-  if (
-    repeat.strategy !== undefined &&
-    (typeof repeat.strategy !== 'string' || !KNOWN_REPEAT_STRATEGIES.has(repeat.strategy))
-  ) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: `${location}.strategy`,
       message:
-        "Invalid 'strategy' field (must be pass_any, pass_all, mean, or confidence_interval; use pass_any instead of removed pass_at_k)",
-    });
-  }
-
-  const earlyExit = repeat.early_exit;
-  if (earlyExit !== undefined && typeof earlyExit !== 'boolean') {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: `${location}.early_exit`,
-      message: "Invalid 'early_exit' field (must be a boolean)",
-    });
-  }
-
-  const costLimit = repeat.cost_limit_usd;
-  if (costLimit !== undefined && (typeof costLimit !== 'number' || costLimit < 0)) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: `${location}.cost_limit_usd`,
-      message: "Invalid 'cost_limit_usd' field (must be a non-negative number)",
+        "Invalid 'repeat' field (must be a positive integer). The repeat object shape has been removed; use repeat: 2.",
     });
   }
 }

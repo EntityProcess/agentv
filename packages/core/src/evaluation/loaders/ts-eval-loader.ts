@@ -29,10 +29,8 @@ const KNOWN_SNAKE_CASE_KEYS = {
   cachePath: 'cache_path',
   budgetUsd: 'budget_usd',
   conversationId: 'conversation_id',
-  costLimitUsd: 'cost_limit_usd',
   defaultTest: 'default_test',
   dependsOn: 'depends_on',
-  earlyExit: 'early_exit',
   expectedOutput: 'expected_output',
   failOnError: 'fail_on_error',
   inputFiles: 'input_files',
@@ -196,6 +194,7 @@ function isProgrammaticEvalConfig(value: unknown): value is ProgrammaticEvalConf
 function lowerTypeScriptEvalConfig(config: Record<string, unknown>): Record<string, unknown> {
   const lowered = lowerEvalYamlValue(config) as Record<string, unknown>;
   const { budget_usd: budgetUsd, repeat, ...withoutRuntimeAliases } = lowered;
+  validateTypeScriptRepeat(repeat, 'repeat');
   if (budgetUsd === undefined && repeat === undefined) {
     return withoutRuntimeAliases;
   }
@@ -218,6 +217,17 @@ function lowerTypeScriptEvalConfig(config: Record<string, unknown>): Record<stri
     ...withoutRuntimeAliases,
     evaluate_options: evaluateOptions,
   };
+}
+
+function validateTypeScriptRepeat(value: unknown, location: string): void {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new Error(
+      `TypeScript eval ${location} must be a positive integer; object-shaped repeat authoring has been removed.`,
+    );
+  }
 }
 
 function lowerEvalYamlValue(value: unknown): unknown {

@@ -11,9 +11,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   beforeEach: 'before_each',
   budgetUsd: 'budget_usd',
   conversationId: 'conversation_id',
-  costLimitUsd: 'cost_limit_usd',
   dependsOn: 'depends_on',
-  earlyExit: 'early_exit',
   expectedOutput: 'expected_output',
   explorationTolerance: 'exploration_tolerance',
   failOnError: 'fail_on_error',
@@ -190,14 +188,7 @@ export interface EvalDefaultTest {
   readonly [key: string]: unknown;
 }
 
-export interface EvalTrials {
-  readonly count: number;
-  readonly strategy?: 'pass_any' | 'pass_all' | 'mean' | 'confidence_interval';
-  readonly earlyExit?: boolean;
-  readonly costLimitUsd?: number;
-}
-
-export type EvalRepeat = EvalTrials;
+export type EvalRepeat = number;
 
 export interface EvalExecution {
   readonly provider?: string;
@@ -205,7 +196,7 @@ export interface EvalExecution {
   readonly assert?: readonly EvalAssertionConfig[];
   readonly skipDefaults?: boolean;
   readonly cache?: boolean;
-  readonly trials?: EvalTrials;
+  readonly trials?: never;
   readonly budgetUsd?: number;
   readonly failOnError?: boolean;
   readonly threshold?: number;
@@ -306,6 +297,7 @@ function lowerEvalYamlValue(value: unknown): unknown {
 function lowerEvalConfig(config: unknown): Record<string, unknown> {
   const lowered = lowerEvalYamlValue(config) as Record<string, unknown>;
   const { budget_usd: budgetUsd, repeat, ...loweredWithoutRuntimeOptions } = lowered;
+  validateRepeatValue(repeat, 'repeat');
   if (budgetUsd === undefined && repeat === undefined) {
     return lowered;
   }
@@ -327,6 +319,17 @@ function lowerEvalConfig(config: unknown): Record<string, unknown> {
     ...loweredWithoutRuntimeOptions,
     evaluate_options: evaluateOptions,
   };
+}
+
+function validateRepeatValue(value: unknown, location: string): void {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new Error(
+      `defineEval() expects ${location} to be a positive integer; object-shaped repeat authoring has been removed.`,
+    );
+  }
 }
 
 function attachEvalSuiteBrand<T extends EvalConfig>(definition: T): T & DefinedEvalSuite {
@@ -385,11 +388,19 @@ function validateTopLevelRuntimeFields(definition: EvalConfig): void {
       );
     }
   }
+  validateRepeatValue(rawDefinition.repeat, 'repeat');
   if (Array.isArray(rawDefinition.tests)) {
     rawDefinition.tests.forEach((test, index) => {
       if (test && typeof test === 'object' && Object.prototype.hasOwnProperty.call(test, 'input')) {
         throw new Error(
           `defineEval() does not accept tests[${index}].input. Use prompts with tests[].vars instead.`,
+        );
+      }
+      const options = (test as { readonly options?: unknown }).options;
+      if (options && typeof options === 'object' && !Array.isArray(options)) {
+        validateRepeatValue(
+          (options as { readonly repeat?: unknown }).repeat,
+          `tests[${index}].options.repeat`,
         );
       }
     });

@@ -6,10 +6,7 @@ const config = {
   tags: { experiment: 'ts-config', group: 'loader' },
   prompts: [relativePrompt],
   budgetUsd: 1,
-  repeat: {
-    count: 2,
-    strategy: 'pass_any',
-  },
+  repeat: 2,
   tests: [
     {
       id: 'relative-import',

@@ -725,10 +725,7 @@ describe('agentv eval CLI', () => {
           'threshold: 0.8',
           'evaluate_options:',
           '  budget_usd: 3',
-          '  repeat:',
-          '    count: 2',
-          '    strategy: pass_any',
-          '    early_exit: true',
+          '  repeat: 2',
           'tests:',
           '  - include: sample.test.yaml',
           '    type: suite',
@@ -737,10 +734,7 @@ describe('agentv eval CLI', () => {
           '      threshold: 1.0',
           '      timeout_seconds: 5',
           '      budget_usd: 0.75',
-          '      repeat:',
-          '        count: 3',
-          '        strategy: pass_all',
-          '        early_exit: true',
+          '      repeat: 3',
           '',
         ].join('\n'),
         'utf8',
@@ -765,8 +759,7 @@ describe('agentv eval CLI', () => {
         threshold: 1,
         trials: {
           count: 3,
-          strategy: 'pass_all',
-          earlyExit: true,
+          strategy: 'pass_any',
         },
       });
 

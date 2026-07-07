@@ -976,8 +976,7 @@ default_test:
     shared: default
     default_only: base
   options:
-    repeat:
-      count: 2
+    repeat: 2
   assert:
     - type: contains
       value: default assertion
@@ -990,8 +989,7 @@ scenarios:
           owner: config
           source: scenario-config
         options:
-          repeat:
-            count: 3
+          repeat: 3
         run:
           timeout_seconds: 10
         assert:
@@ -1004,8 +1002,7 @@ scenarios:
         metadata:
           owner: test
         options:
-          repeat:
-            count: 4
+          repeat: 4
         run:
           threshold: 0.8
         assert:

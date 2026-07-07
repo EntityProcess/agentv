@@ -300,11 +300,7 @@ describe('EvalFileSchema input shorthand', () => {
       evaluate_options: {
         budget_usd: 2,
         max_concurrency: 3,
-        repeat: {
-          count: 2,
-          strategy: 'pass_any',
-          early_exit: true,
-        },
+        repeat: 2,
       },
       tests: [
         {
@@ -326,7 +322,7 @@ describe('EvalFileSchema input shorthand', () => {
           },
           run: {
             threshold: 1,
-            repeat: { count: 2, strategy: 'pass_all', early_exit: true },
+            repeat: 2,
             timeout_seconds: 120,
             budget_usd: 2,
           },
@@ -750,7 +746,7 @@ describe('EvalFileSchema input shorthand', () => {
             },
             run: {
               threshold: 1,
-              repeat: { count: 2, strategy: 'pass_all' },
+              repeat: 2,
               timeout_seconds: 120,
               budget_usd: 2,
             },
@@ -813,6 +809,18 @@ describe('EvalFileSchema input shorthand', () => {
       target: 'codex',
       policy: {
         sandbox: 'auto',
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects object-shaped public repeat fields', () => {
+    const result = EvalFileSchema.safeParse({
+      providers: ['mock-target'],
+      evaluate_options: {
+        repeat: { count: 2, strategy: 'pass_any', early_exit: true, cost_limit_usd: 1 },
       },
       tests: [baseTest],
     });
