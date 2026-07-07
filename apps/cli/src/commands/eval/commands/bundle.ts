@@ -11,8 +11,8 @@ import { array, command, multioption, option, optional, positional, string } fro
 import { discoverProvidersFile } from '../../../utils/providers.js';
 import { loadEnvFromHierarchy } from '../env.js';
 import { findRepoRoot, resolveEvalPaths } from '../shared.js';
-import { readTestSuiteTarget } from '../targets.js';
-import { type TaskBundleTargetSelection, materializeEvalBundle } from '../task-bundle.js';
+import { readTestSuiteProvider } from '../targets.js';
+import { type TaskBundleProviderSelection, materializeEvalBundle } from '../task-bundle.js';
 
 function unique(values: readonly string[]): readonly string[] {
   const result: string[] = [];
@@ -50,9 +50,9 @@ function targetReferenceNames(target: ProviderDefinition): readonly string[] {
 }
 
 function ensureTargetGraph(
-  targetName: string,
+  providerLabel: string,
   definitions: readonly ProviderDefinition[],
-  targetsFilePath: string,
+  providersFilePath: string,
 ): void {
   const byName = new Map(definitions.map((definition) => [definition.name, definition]));
   const seen = new Set<string>();
@@ -69,7 +69,7 @@ function ensureTargetGraph(
         .join(', ');
       const owner = requestedBy ? ` referenced by provider '${requestedBy}'` : '';
       throw new Error(
-        `Provider '${name}'${owner} not found in ${targetsFilePath}. Available providers: ${available}`,
+        `Provider '${name}'${owner} not found in ${providersFilePath}. Available providers: ${available}`,
       );
     }
     seen.add(name);
@@ -78,19 +78,19 @@ function ensureTargetGraph(
     }
   }
 
-  visit(targetName);
+  visit(providerLabel);
 }
 
-function definitionsWithEvalTargetRefs(
+function definitionsWithEvalProviderRefs(
   definitions: readonly ProviderDefinition[],
-  targetRefs: readonly EvalTargetRef[] | undefined,
+  providerRefs: readonly EvalTargetRef[] | undefined,
 ): readonly ProviderDefinition[] {
-  if (!targetRefs) {
+  if (!providerRefs) {
     return definitions;
   }
 
   const result = [...definitions];
-  for (const ref of targetRefs) {
+  for (const ref of providerRefs) {
     if (ref.definition && !result.some((definition) => definition.name === ref.name)) {
       result.push(ref.definition);
     } else if (ref.use_target && !result.some((definition) => definition.name === ref.name)) {
@@ -129,12 +129,12 @@ function definitionsWithEvalTargetSpec(
 }
 
 function buildBundleRuntime(options: {
-  readonly targetNames: readonly string[];
+  readonly providerLabels: readonly string[];
   readonly budgetUsd?: number;
   readonly threshold?: number;
 }): Record<string, unknown> {
   const runtime: Record<string, unknown> =
-    options.targetNames.length > 0 ? { providers: options.targetNames } : {};
+    options.providerLabels.length > 0 ? { providers: options.providerLabels } : {};
   if (options.budgetUsd !== undefined) {
     runtime.budget_usd = options.budgetUsd;
   }
@@ -211,50 +211,52 @@ export const evalBundleCommand = command({
     }
 
     let definitions: readonly ProviderDefinition[];
-    let targetNames: readonly string[];
+    let providerLabels: readonly string[];
     if (suite.inlineTarget) {
       definitions = [suite.inlineTarget];
-      targetNames = unique(args.provider.length > 0 ? args.provider : [suite.inlineTarget.name]);
+      providerLabels = unique(args.provider.length > 0 ? args.provider : [suite.inlineTarget.name]);
     } else {
-      const targetsFilePath = await discoverProvidersFile({
+      const providersFilePath = await discoverProvidersFile({
         explicitPath: args.providers,
         testFilePath: evalFilePath,
         repoRoot,
         cwd,
       });
       definitions = definitionsWithEvalTargetSpec(
-        definitionsWithEvalTargetRefs(
-          await readProviderDefinitions(targetsFilePath),
+        definitionsWithEvalProviderRefs(
+          await readProviderDefinitions(providersFilePath),
           suite.targetRefs,
         ),
         suite.targetSpec,
       );
-      const suiteTarget = await readTestSuiteTarget(evalFilePath);
-      targetNames = unique(
+      const suiteTarget = await readTestSuiteProvider(evalFilePath);
+      providerLabels = unique(
         args.provider.length > 0
           ? args.provider
           : (suite.targets ?? [suite.targetSpec?.name ?? suiteTarget ?? 'default']),
       );
-      for (const targetName of targetNames) {
-        ensureTargetGraph(targetName, definitions, targetsFilePath);
+      for (const providerLabel of providerLabels) {
+        ensureTargetGraph(providerLabel, definitions, providersFilePath);
       }
     }
 
-    const targetSelections: TaskBundleTargetSelection[] = targetNames.map((targetName) => ({
-      evalFileAbsolutePath: evalFilePath,
-      targetName,
-      definitions,
-    }));
+    const providerSelections: TaskBundleProviderSelection[] = providerLabels.map(
+      (providerLabel) => ({
+        evalFileAbsolutePath: evalFilePath,
+        providerLabel,
+        definitions,
+      }),
+    );
 
     const paths = await materializeEvalBundle({
       evalFilePath,
       tests: suite.tests,
-      targetSelections,
+      providerSelections,
       outputDir: args.out,
       cwd,
       repoRoot,
       runtime: buildBundleRuntime({
-        targetNames,
+        providerLabels,
         budgetUsd: suite.budgetUsd,
         threshold: suite.threshold,
       }),

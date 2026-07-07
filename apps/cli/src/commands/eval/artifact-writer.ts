@@ -40,7 +40,7 @@ import type { ProviderDefinition } from '@agentv/core';
 
 import {
   type MaterializedTaskBundlePaths,
-  type TaskBundleTargetSelection,
+  type TaskBundleProviderSelection,
   materializeTaskBundle,
 } from './task-bundle.js';
 
@@ -145,68 +145,71 @@ export function buildResultIndexArtifact(
   return buildCoreResultIndexArtifact(result, extraIndexFields);
 }
 
-function targetSelectionKey(evalFileAbsolutePath: string | undefined, targetName: string): string {
-  return `${evalFileAbsolutePath ? path.resolve(evalFileAbsolutePath) : ''}::${targetName}`;
+function providerSelectionKey(
+  evalFileAbsolutePath: string | undefined,
+  providerLabel: string,
+): string {
+  return `${evalFileAbsolutePath ? path.resolve(evalFileAbsolutePath) : ''}::${providerLabel}`;
 }
 
-function buildTargetSelectionMap(
-  selections: readonly TaskBundleTargetSelection[] | undefined,
-): Map<string, TaskBundleTargetSelection> {
-  const targets = new Map<string, TaskBundleTargetSelection>();
+function buildProviderSelectionMap(
+  selections: readonly TaskBundleProviderSelection[] | undefined,
+): Map<string, TaskBundleProviderSelection> {
+  const providers = new Map<string, TaskBundleProviderSelection>();
   for (const selection of selections ?? []) {
-    targets.set(
-      targetSelectionKey(selection.evalFileAbsolutePath, selection.targetName),
+    providers.set(
+      providerSelectionKey(selection.evalFileAbsolutePath, selection.providerLabel),
       selection,
     );
-    if (selection.resolvedTargetName) {
-      targets.set(
-        targetSelectionKey(selection.evalFileAbsolutePath, selection.resolvedTargetName),
+    if (selection.resolvedProviderName) {
+      providers.set(
+        providerSelectionKey(selection.evalFileAbsolutePath, selection.resolvedProviderName),
         selection,
       );
     }
     if (!selection.evalFileAbsolutePath) {
-      targets.set(targetSelectionKey(undefined, selection.targetName), selection);
-      if (selection.resolvedTargetName) {
-        targets.set(targetSelectionKey(undefined, selection.resolvedTargetName), selection);
+      providers.set(providerSelectionKey(undefined, selection.providerLabel), selection);
+      if (selection.resolvedProviderName) {
+        providers.set(providerSelectionKey(undefined, selection.resolvedProviderName), selection);
       }
     }
   }
-  return targets;
+  return providers;
 }
 
-function findTargetSelection(
+function findProviderSelection(
   result: EvaluationResult,
   test: EvalTest | undefined,
-  targets: ReadonlyMap<string, TaskBundleTargetSelection>,
-): TaskBundleTargetSelection | undefined {
-  const targetName = result.target ?? 'unknown';
+  providers: ReadonlyMap<string, TaskBundleProviderSelection>,
+): TaskBundleProviderSelection | undefined {
+  const providerLabel = result.target ?? 'unknown';
   const evalFileAbsolutePath = test?.source?.evalFileAbsolutePath;
   return (
-    targets.get(targetSelectionKey(evalFileAbsolutePath, targetName)) ??
-    targets.get(targetSelectionKey(undefined, targetName))
+    providers.get(providerSelectionKey(evalFileAbsolutePath, providerLabel)) ??
+    providers.get(providerSelectionKey(undefined, providerLabel))
   );
 }
 
 function createTaskBundleArtifactsWriter(options?: {
   cwd?: string;
   repoRoot?: string;
-  taskBundleTargets?: readonly TaskBundleTargetSelection[];
+  taskBundleTargets?: readonly TaskBundleProviderSelection[];
 }): AdditionalResultArtifactsWriter | undefined {
-  const targetSelections = buildTargetSelectionMap(options?.taskBundleTargets);
-  if (targetSelections.size === 0) {
+  const providerSelections = buildProviderSelectionMap(options?.taskBundleTargets);
+  if (providerSelections.size === 0) {
     return undefined;
   }
 
   return async ({ outputDir, result, sourceTest, testDir }) => {
-    const targetSelection = findTargetSelection(result, sourceTest, targetSelections);
-    if (!sourceTest || !targetSelection) {
+    const providerSelection = findProviderSelection(result, sourceTest, providerSelections);
+    if (!sourceTest || !providerSelection) {
       return undefined;
     }
 
     const taskBundle = await materializeTaskBundle({
       test: sourceTest,
-      targetName: targetSelection.targetName,
-      targetDefinitions: targetSelection.definitions as readonly ProviderDefinition[],
+      providerLabel: providerSelection.providerLabel,
+      providerDefinitions: providerSelection.definitions as readonly ProviderDefinition[],
       outputDir: testDir,
       cwd: options?.cwd,
       repoRoot: options?.repoRoot,
@@ -227,7 +230,7 @@ export async function writePerTestArtifacts(
     cwd?: string;
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
-    taskBundleTargets?: readonly TaskBundleTargetSelection[];
+    taskBundleTargets?: readonly TaskBundleProviderSelection[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
     tags?: Record<string, string>;
@@ -259,7 +262,7 @@ export async function writeArtifactsFromResults(
     cwd?: string;
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
-    taskBundleTargets?: readonly TaskBundleTargetSelection[];
+    taskBundleTargets?: readonly TaskBundleProviderSelection[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
     tags?: Record<string, string>;

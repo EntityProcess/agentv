@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import { buildEvalRunRawOptions } from '../../../src/commands/eval/commands/run.js';
 
 describe('eval run provider CLI options', () => {
-  it('lowers public provider flags into existing internal run options', () => {
+  it('passes public provider flags through provider-named internal run options', () => {
     const rawOptions = buildEvalRunRawOptions({
       provider: ['codex-host', 'claude-docker'],
       providers: '.agentv/providers.yaml',
@@ -11,8 +11,8 @@ describe('eval run provider CLI options', () => {
       testId: ['case-*'],
     });
 
-    expect(rawOptions.target).toEqual(['codex-host', 'claude-docker']);
-    expect(rawOptions.targets).toBe('.agentv/providers.yaml');
+    expect(rawOptions.provider).toEqual(['codex-host', 'claude-docker']);
+    expect(rawOptions.providers).toBe('.agentv/providers.yaml');
     expect(rawOptions.graderTarget).toBe('grader-gpt5-mini');
     expect(rawOptions.filter).toEqual(['case-*']);
   });

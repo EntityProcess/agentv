@@ -36,14 +36,14 @@ function resolveUseTarget(
   name: string,
   definitions: readonly ProviderDefinition[],
   env: NodeJS.ProcessEnv,
-  targetsFilePath: string,
+  providersFilePath: string,
 ): ProviderDefinition {
   const maxDepth = 5;
   let current: ProviderDefinition | undefined = definitions.find((d) => d.name === name);
   if (!current) {
     const available = listProviderLabels(definitions).join(', ');
     throw new Error(
-      `Provider '${name}' not found in ${targetsFilePath}. Available providers: ${available}`,
+      `Provider '${name}' not found in ${providersFilePath}. Available providers: ${available}`,
     );
   }
 
@@ -64,7 +64,7 @@ function resolveUseTarget(
     if (!next) {
       const available = listProviderLabels(definitions).join(', ');
       throw new Error(
-        `Provider '${name}' use_target '${resolved.trim()}' not found in ${targetsFilePath}. Available providers: ${available}`,
+        `Provider '${name}' use_target '${resolved.trim()}' not found in ${providersFilePath}. Available providers: ${available}`,
       );
     }
     current = next;
@@ -73,48 +73,48 @@ function resolveUseTarget(
   return current;
 }
 
-export async function readTestSuiteTarget(testFilePath: string): Promise<string | undefined> {
+export async function readTestSuiteProvider(testFilePath: string): Promise<string | undefined> {
   const metadata = await readTestSuiteMetadata(testFilePath);
   return metadata.target;
 }
 
-export async function readTestSuiteTargets(
+export async function readTestSuiteProviders(
   testFilePath: string,
 ): Promise<readonly string[] | undefined> {
   const metadata = await readTestSuiteMetadata(testFilePath);
   return metadata.targets;
 }
 
-export interface TargetSelection {
+export interface ProviderSelection {
   readonly definitions: readonly ProviderDefinition[];
-  readonly resolvedTarget: ResolvedProviderBackend;
-  readonly targetName: string;
-  readonly targetLabel?: string;
-  readonly targetSource: 'cli' | 'test-file' | 'default';
-  readonly targetsFilePath: string;
-  /** Per-target hooks from eval file (eval-level customization) */
-  readonly targetHooks?: import('@agentv/core').TargetHooksConfig;
+  readonly resolvedProvider: ResolvedProviderBackend;
+  readonly providerLabel: string;
+  readonly providerDisplayLabel?: string;
+  readonly providerSource: 'cli' | 'test-file' | 'default';
+  readonly providersFilePath: string;
+  /** Per-provider hooks from eval file (eval-level customization) */
+  readonly providerHooks?: import('@agentv/core').TargetHooksConfig;
 }
 
-export interface TargetSelectionOptions {
+export interface ProviderSelectionOptions {
   readonly testFilePath: string;
   readonly repoRoot: string;
   readonly cwd: string;
-  readonly explicitTargetsPath?: string;
+  readonly explicitProvidersPath?: string;
   readonly providerDefinitions?: readonly ProviderDefinition[];
   readonly providerDefinitionsSource?: string;
   readonly requireExplicitProviderCatalog?: boolean;
   readonly allowLegacyTargetFiles?: boolean;
-  readonly cliTargetName?: string;
-  readonly cliTargetNames?: readonly string[];
-  readonly fileTargetName?: string;
+  readonly cliProviderLabel?: string;
+  readonly cliProviderLabels?: readonly string[];
+  readonly fileProviderLabel?: string;
   readonly fileTargetSpec?: EvalTargetSpec;
   readonly modelOverride?: string;
   readonly env: NodeJS.ProcessEnv;
 }
 
 async function readProviderCatalog(options: {
-  readonly explicitTargetsPath?: string;
+  readonly explicitProvidersPath?: string;
   readonly providerDefinitions?: readonly ProviderDefinition[];
   readonly providerDefinitionsSource?: string;
   readonly requireExplicitProviderCatalog?: boolean;
@@ -123,38 +123,38 @@ async function readProviderCatalog(options: {
   readonly cwd: string;
   readonly allowLegacyTargetFiles?: boolean;
 }): Promise<{ readonly definitions: readonly ProviderDefinition[]; readonly sourcePath: string }> {
-  if (!options.explicitTargetsPath && options.providerDefinitions) {
+  if (!options.explicitProvidersPath && options.providerDefinitions) {
     return {
       definitions: options.providerDefinitions,
       sourcePath: options.providerDefinitionsSource ?? '.agentv/config.yaml:providers',
     };
   }
-  if (!options.explicitTargetsPath && options.requireExplicitProviderCatalog) {
+  if (!options.explicitProvidersPath && options.requireExplicitProviderCatalog) {
     throw new Error(
       'No provider catalog configured. Add `providers:` to .agentv/config.yaml, use `providers: file://providers.yaml`, or pass --providers <path>.',
     );
   }
-  const targetsFilePath = await discoverProvidersFile({
-    explicitPath: options.explicitTargetsPath,
+  const providersFilePath = await discoverProvidersFile({
+    explicitPath: options.explicitProvidersPath,
     testFilePath: options.testFilePath,
     repoRoot: options.repoRoot,
     cwd: options.cwd,
     allowLegacyTargetFiles: options.allowLegacyTargetFiles,
   });
-  await validateProviderCatalogFile(targetsFilePath);
+  await validateProviderCatalogFile(providersFilePath);
   return {
-    definitions: await readProviderDefinitions(targetsFilePath),
-    sourcePath: targetsFilePath,
+    definitions: await readProviderDefinitions(providersFilePath),
+    sourcePath: providersFilePath,
   };
 }
 
-async function validateProviderCatalogFile(targetsFilePath: string): Promise<void> {
-  const validationResult = await validateTargetsFile(targetsFilePath);
+async function validateProviderCatalogFile(providersFilePath: string): Promise<void> {
+  const validationResult = await validateTargetsFile(providersFilePath);
   const warnings = validationResult.errors.filter((e) => e.severity === 'warning');
   const useColors = isTTY();
 
   if (warnings.length > 0) {
-    console.warn(`\nWarnings in ${targetsFilePath}:`);
+    console.warn(`\nWarnings in ${providersFilePath}:`);
     for (const warning of warnings) {
       const location = warning.location ? ` [${warning.location}]` : '';
       const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : '  ⚠';
@@ -166,7 +166,7 @@ async function validateProviderCatalogFile(targetsFilePath: string): Promise<voi
 
   const errors = validationResult.errors.filter((e) => e.severity === 'error');
   if (errors.length > 0) {
-    console.error(`\nErrors in ${targetsFilePath}:`);
+    console.error(`\nErrors in ${providersFilePath}:`);
     for (const error of errors) {
       const location = error.location ? ` [${error.location}]` : '';
       const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : '  ✗';
@@ -177,16 +177,16 @@ async function validateProviderCatalogFile(targetsFilePath: string): Promise<voi
   }
 }
 
-function pickTargetName(options: {
-  readonly cliTargetName?: string;
-  readonly fileTargetName?: string;
+function pickProviderLabel(options: {
+  readonly cliProviderLabel?: string;
+  readonly fileProviderLabel?: string;
 }): { readonly name: string; readonly source: 'cli' | 'test-file' | 'default' } {
-  const cliName = options.cliTargetName?.trim();
+  const cliName = options.cliProviderLabel?.trim();
   if (cliName && cliName !== 'default') {
     return { name: cliName, source: 'cli' };
   }
 
-  const fileName = options.fileTargetName?.trim();
+  const fileName = options.fileProviderLabel?.trim();
   if (fileName && fileName.length > 0) {
     return { name: fileName, source: 'test-file' };
   }
@@ -206,14 +206,14 @@ function overlayTargetDefinition(params: {
   readonly spec: EvalTargetSpec | undefined;
   readonly definitions: readonly ProviderDefinition[];
   readonly env: NodeJS.ProcessEnv;
-  readonly targetsFilePath: string;
+  readonly providersFilePath: string;
 }): ProviderDefinition | undefined {
-  const { spec, definitions, env, targetsFilePath } = params;
+  const { spec, definitions, env, providersFilePath } = params;
   if (!spec?.definition) {
     return undefined;
   }
   if (spec.extends) {
-    const base = resolveUseTarget(spec.extends, definitions, env, targetsFilePath);
+    const base = resolveUseTarget(spec.extends, definitions, env, providersFilePath);
     return {
       ...base,
       ...spec.definition,
@@ -243,23 +243,25 @@ async function resolveInlineDefinitionEnvironment(
   return resolved ?? definition;
 }
 
-export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
+export async function selectProvider(
+  options: ProviderSelectionOptions,
+): Promise<ProviderSelection> {
   const {
     testFilePath,
     repoRoot,
     cwd,
-    explicitTargetsPath,
+    explicitProvidersPath,
     providerDefinitions,
     providerDefinitionsSource,
     requireExplicitProviderCatalog,
     allowLegacyTargetFiles,
-    cliTargetName,
+    cliProviderLabel,
     modelOverride,
     env,
   } = options;
 
   const providerCatalog = await readProviderCatalog({
-    explicitTargetsPath,
+    explicitProvidersPath,
     providerDefinitions,
     providerDefinitionsSource,
     requireExplicitProviderCatalog,
@@ -269,21 +271,23 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     allowLegacyTargetFiles,
   });
   const definitions = providerCatalog.definitions;
-  const targetsFilePath = providerCatalog.sourcePath;
+  const providersFilePath = providerCatalog.sourcePath;
   const fileTargetSpec = options.fileTargetSpec;
-  const fileTargetName =
-    options.fileTargetName ?? fileTargetSpec?.name ?? (await readTestSuiteTarget(testFilePath));
-  const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
+  const fileProviderLabel =
+    options.fileProviderLabel ??
+    fileTargetSpec?.name ??
+    (await readTestSuiteProvider(testFilePath));
+  const providerChoice = pickProviderLabel({ cliProviderLabel, fileProviderLabel });
 
   const rawOverlayDefinition =
-    targetChoice.source === 'test-file'
-      ? overlayTargetDefinition({ spec: fileTargetSpec, definitions, env, targetsFilePath })
+    providerChoice.source === 'test-file'
+      ? overlayTargetDefinition({ spec: fileTargetSpec, definitions, env, providersFilePath })
       : undefined;
   const overlayDefinition = rawOverlayDefinition
     ? await resolveInlineDefinitionEnvironment(rawOverlayDefinition, testFilePath, 'providers')
     : undefined;
   const targetDefinition = withModelOverride(
-    overlayDefinition ?? resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath),
+    overlayDefinition ?? resolveUseTarget(providerChoice.name, definitions, env, providersFilePath),
     modelOverride,
   );
   const effectiveDefinitions =
@@ -292,56 +296,56 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
       : definitions;
 
   try {
-    const resolvedTarget = resolveProviderDefinition(targetDefinition, env, testFilePath, {
+    const resolvedProvider = resolveProviderDefinition(targetDefinition, env, testFilePath, {
       emitDeprecationWarnings: false,
     });
     return {
       definitions: effectiveDefinitions,
-      resolvedTarget,
-      targetName: targetChoice.name,
-      targetSource: targetChoice.source,
-      targetsFilePath,
-      ...(targetChoice.source === 'test-file' && fileTargetSpec?.hooks
-        ? { targetHooks: fileTargetSpec.hooks }
+      resolvedProvider,
+      providerLabel: providerChoice.name,
+      providerSource: providerChoice.source,
+      providersFilePath,
+      ...(providerChoice.source === 'test-file' && fileTargetSpec?.hooks
+        ? { providerHooks: fileTargetSpec.hooks }
         : {}),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to resolve provider '${targetChoice.name}': ${message}`);
+    throw new Error(`Failed to resolve provider '${providerChoice.name}': ${message}`);
   }
 }
 
 /**
- * Select multiple targets for matrix evaluation.
- * Returns an array of TargetSelection, one per target name.
+ * Select multiple providers for matrix evaluation.
+ * Returns an array of ProviderSelection, one per provider label.
  */
-export async function selectMultipleTargets(
-  options: TargetSelectionOptions & {
-    readonly targetNames: readonly string[];
-    readonly targetRefs?: readonly import('@agentv/core').EvalTargetRef[];
-    readonly targetSource?: 'cli' | 'test-file';
+export async function selectMultipleProviders(
+  options: ProviderSelectionOptions & {
+    readonly providerLabels: readonly string[];
+    readonly providerRefs?: readonly import('@agentv/core').EvalTargetRef[];
+    readonly providerSource?: 'cli' | 'test-file';
   },
-): Promise<readonly TargetSelection[]> {
+): Promise<readonly ProviderSelection[]> {
   const {
     testFilePath,
     repoRoot,
     cwd,
-    explicitTargetsPath,
+    explicitProvidersPath,
     providerDefinitions,
     providerDefinitionsSource,
     requireExplicitProviderCatalog,
     allowLegacyTargetFiles,
     env,
-    targetNames,
-    targetRefs,
+    providerLabels,
+    providerRefs,
     modelOverride,
   } = options;
 
   // Build a lookup for target hooks from eval target refs
   const hooksMap = new Map<string, import('@agentv/core').TargetHooksConfig>();
   const labelsMap = new Map<string, string>();
-  if (targetRefs) {
-    for (const ref of targetRefs) {
+  if (providerRefs) {
+    for (const ref of providerRefs) {
       if (ref.hooks) {
         hooksMap.set(ref.name, ref.hooks);
       }
@@ -352,7 +356,7 @@ export async function selectMultipleTargets(
   }
 
   const providerCatalog = await readProviderCatalog({
-    explicitTargetsPath,
+    explicitProvidersPath,
     providerDefinitions,
     providerDefinitionsSource,
     requireExplicitProviderCatalog,
@@ -361,13 +365,13 @@ export async function selectMultipleTargets(
     cwd,
     allowLegacyTargetFiles,
   });
-  const targetsFilePath = providerCatalog.sourcePath;
+  const providersFilePath = providerCatalog.sourcePath;
   const fileDefinitions = providerCatalog.definitions;
 
   // Inject synthetic definitions from eval target refs (for use_target delegation)
   const definitions = [...fileDefinitions];
-  if (targetRefs) {
-    for (const ref of targetRefs) {
+  if (providerRefs) {
+    for (const ref of providerRefs) {
       if (ref.definition && !fileDefinitions.some((d) => d.name === ref.name)) {
         definitions.push(
           await resolveInlineDefinitionEnvironment(ref.definition, testFilePath, 'providers'),
@@ -378,28 +382,28 @@ export async function selectMultipleTargets(
     }
   }
 
-  const results: TargetSelection[] = [];
+  const results: ProviderSelection[] = [];
 
-  for (const name of targetNames) {
+  for (const name of providerLabels) {
     const targetDefinition = withModelOverride(
-      resolveUseTarget(name, definitions, env, targetsFilePath),
+      resolveUseTarget(name, definitions, env, providersFilePath),
       modelOverride,
     );
     const hooks = hooksMap.get(name);
-    const targetLabel = labelsMap.get(name);
+    const providerDisplayLabel = labelsMap.get(name);
 
     try {
-      const resolvedTarget = resolveProviderDefinition(targetDefinition, env, testFilePath, {
+      const resolvedProvider = resolveProviderDefinition(targetDefinition, env, testFilePath, {
         emitDeprecationWarnings: false,
       });
       results.push({
         definitions,
-        resolvedTarget,
-        targetName: name,
-        ...(targetLabel ? { targetLabel } : {}),
-        targetSource: options.targetSource ?? 'cli',
-        targetsFilePath,
-        ...(hooks && { targetHooks: hooks }),
+        resolvedProvider,
+        providerLabel: name,
+        ...(providerDisplayLabel ? { providerDisplayLabel } : {}),
+        providerSource: options.providerSource ?? 'cli',
+        providersFilePath,
+        ...(hooks && { providerHooks: hooks }),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

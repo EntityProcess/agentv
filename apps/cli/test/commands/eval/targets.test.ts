@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { loadTestSuite } from '@agentv/core';
 
-import { selectMultipleTargets } from '../../../src/commands/eval/targets.js';
+import { selectMultipleProviders } from '../../../src/commands/eval/targets.js';
 
 describe('eval target selection', () => {
   let tempDir: string;
@@ -41,21 +41,21 @@ describe('eval target selection', () => {
     );
 
     const suite = await loadTestSuite(evalPath, tempDir);
-    const selections = await selectMultipleTargets({
+    const selections = await selectMultipleProviders({
       testFilePath: evalPath,
       repoRoot: tempDir,
       cwd: tempDir,
-      explicitTargetsPath: providersPath,
+      explicitProvidersPath: providersPath,
       env: {},
-      targetNames: suite.targets ?? [],
-      targetRefs: suite.targetRefs,
-      targetSource: 'test-file',
+      providerLabels: suite.targets ?? [],
+      providerRefs: suite.targetRefs,
+      providerSource: 'test-file',
     });
 
     expect(selections).toHaveLength(1);
-    expect(selections[0]?.targetName).toBe('openai:gpt-5.4-mini');
-    expect(selections[0]?.targetLabel).toBeUndefined();
-    expect(selections[0]?.resolvedTarget.kind).toBe('mock');
+    expect(selections[0]?.providerLabel).toBe('openai:gpt-5.4-mini');
+    expect(selections[0]?.providerDisplayLabel).toBeUndefined();
+    expect(selections[0]?.resolvedProvider.kind).toBe('mock');
   });
 
   it('uses an explicit providers.yaml catalog path', async () => {
@@ -83,19 +83,19 @@ describe('eval target selection', () => {
     );
 
     const suite = await loadTestSuite(evalPath, tempDir);
-    const selections = await selectMultipleTargets({
+    const selections = await selectMultipleProviders({
       testFilePath: evalPath,
       repoRoot: tempDir,
       cwd: tempDir,
-      explicitTargetsPath: providersPath,
+      explicitProvidersPath: providersPath,
       env: {},
-      targetNames: suite.targets ?? [],
-      targetRefs: suite.targetRefs,
-      targetSource: 'test-file',
+      providerLabels: suite.targets ?? [],
+      providerRefs: suite.targetRefs,
+      providerSource: 'test-file',
     });
 
-    expect(selections[0]?.targetName).toBe('modern');
-    expect(selections[0]?.resolvedTarget.config.response).toBe('modern');
+    expect(selections[0]?.providerLabel).toBe('modern');
+    expect(selections[0]?.resolvedProvider.config.response).toBe('modern');
   });
 
   it('uses an explicit directory containing providers.yaml', async () => {
@@ -122,19 +122,19 @@ describe('eval target selection', () => {
     );
 
     const suite = await loadTestSuite(evalPath, tempDir);
-    const selections = await selectMultipleTargets({
+    const selections = await selectMultipleProviders({
       testFilePath: evalPath,
       repoRoot: tempDir,
       cwd: tempDir,
-      explicitTargetsPath: agentvDir,
+      explicitProvidersPath: agentvDir,
       env: {},
-      targetNames: suite.targets ?? [],
-      targetRefs: suite.targetRefs,
-      targetSource: 'test-file',
+      providerLabels: suite.targets ?? [],
+      providerRefs: suite.targetRefs,
+      providerSource: 'test-file',
     });
 
-    expect(selections[0]?.targetName).toBe('directory-modern');
-    expect(selections[0]?.resolvedTarget.config.response).toBe('directory');
+    expect(selections[0]?.providerLabel).toBe('directory-modern');
+    expect(selections[0]?.resolvedProvider.config.response).toBe('directory');
   });
 
   it('requires config or explicit provider catalog when requested', async () => {
@@ -162,15 +162,15 @@ describe('eval target selection', () => {
 
     const suite = await loadTestSuite(evalPath, tempDir);
     await expect(
-      selectMultipleTargets({
+      selectMultipleProviders({
         testFilePath: evalPath,
         repoRoot: tempDir,
         cwd: tempDir,
         requireExplicitProviderCatalog: true,
         env: {},
-        targetNames: suite.targets ?? [],
-        targetRefs: suite.targetRefs,
-        targetSource: 'test-file',
+        providerLabels: suite.targets ?? [],
+        providerRefs: suite.targetRefs,
+        providerSource: 'test-file',
       }),
     ).rejects.toThrow(/Add `providers:` to \.agentv\/config\.yaml/);
   });
@@ -193,7 +193,7 @@ describe('eval target selection', () => {
     );
 
     const suite = await loadTestSuite(evalPath, tempDir);
-    const selections = await selectMultipleTargets({
+    const selections = await selectMultipleProviders({
       testFilePath: evalPath,
       repoRoot: tempDir,
       cwd: tempDir,
@@ -209,14 +209,14 @@ describe('eval target selection', () => {
       providerDefinitionsSource: '.agentv/config.yaml:providers',
       requireExplicitProviderCatalog: true,
       env: {},
-      targetNames: suite.targets ?? [],
-      targetRefs: suite.targetRefs,
-      targetSource: 'test-file',
+      providerLabels: suite.targets ?? [],
+      providerRefs: suite.targetRefs,
+      providerSource: 'test-file',
     });
 
-    expect(selections[0]?.targetName).toBe('inline-modern');
-    expect(selections[0]?.targetsFilePath).toBe('.agentv/config.yaml:providers');
-    expect(selections[0]?.resolvedTarget.config.response).toBe('inline');
+    expect(selections[0]?.providerLabel).toBe('inline-modern');
+    expect(selections[0]?.providersFilePath).toBe('.agentv/config.yaml:providers');
+    expect(selections[0]?.resolvedProvider.config.response).toBe('inline');
   });
 
   it('hard-rejects legacy targets.yaml as authored provider config', async () => {
@@ -244,14 +244,14 @@ describe('eval target selection', () => {
 
     const suite = await loadTestSuite(evalPath, tempDir);
     await expect(
-      selectMultipleTargets({
+      selectMultipleProviders({
         testFilePath: evalPath,
         repoRoot: tempDir,
         cwd: tempDir,
         env: {},
-        targetNames: suite.targets ?? [],
-        targetRefs: suite.targetRefs,
-        targetSource: 'test-file',
+        providerLabels: suite.targets ?? [],
+        providerRefs: suite.targetRefs,
+        providerSource: 'test-file',
       }),
     ).rejects.toThrow(/Authored targets\.yaml files were removed.*providers\.yaml/);
   });

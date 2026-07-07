@@ -281,8 +281,8 @@ export function buildEvalRunRawOptions(args: {
   }
 
   return {
-    target: args.provider,
-    targets: args.providers,
+    provider: args.provider,
+    providers: args.providers,
     filter: args.testId,
     workers: args.workers,
     out: args.out,

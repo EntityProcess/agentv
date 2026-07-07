@@ -73,17 +73,17 @@ const AUTHORING_TOP_LEVEL_TARGET_FIELDS = new Set([
   'retry_status_codes',
 ]);
 
-export interface TaskBundleTargetSelection {
+export interface TaskBundleProviderSelection {
   readonly evalFileAbsolutePath?: string;
-  readonly targetName: string;
-  readonly resolvedTargetName?: string;
+  readonly providerLabel: string;
+  readonly resolvedProviderName?: string;
   readonly definitions: readonly ProviderDefinition[];
 }
 
 export interface MaterializeTaskBundleOptions {
   readonly test: EvalTest;
-  readonly targetName: string;
-  readonly targetDefinitions: readonly ProviderDefinition[];
+  readonly providerLabel: string;
+  readonly providerDefinitions: readonly ProviderDefinition[];
   readonly outputDir: string;
   readonly cwd?: string;
   readonly repoRoot?: string;
@@ -100,7 +100,7 @@ export interface MaterializedTaskBundlePaths {
 export interface MaterializeEvalBundleOptions {
   readonly evalFilePath: string;
   readonly tests: readonly EvalTest[];
-  readonly targetSelections: readonly TaskBundleTargetSelection[];
+  readonly providerSelections: readonly TaskBundleProviderSelection[];
   readonly outputDir: string;
   readonly cwd?: string;
   readonly repoRoot?: string;
@@ -580,7 +580,7 @@ function targetReferenceNames(target: ProviderDefinition): readonly string[] {
 }
 
 function selectTargetDefinitions(
-  targetName: string,
+  providerLabel: string,
   definitions: readonly ProviderDefinition[],
 ): readonly ProviderDefinition[] {
   const byName = new Map(definitions.map((definition) => [definition.name, definition]));
@@ -602,7 +602,7 @@ function selectTargetDefinitions(
     }
   }
 
-  visit(targetName);
+  visit(providerLabel);
   return selected;
 }
 
@@ -636,7 +636,7 @@ function bundledEvalFileName(evalFilePath: string): string {
 }
 
 function uniqueTargetDefinitions(
-  selections: readonly TaskBundleTargetSelection[],
+  selections: readonly TaskBundleProviderSelection[],
   tests: readonly EvalTest[] = [],
 ): readonly ProviderDefinition[] {
   const selected: ProviderDefinition[] = [];
@@ -659,7 +659,7 @@ function uniqueTargetDefinitions(
 
   const graderTargetNames = collectGraderTargetNames(tests);
   for (const selection of selections) {
-    addDefinitions([selection.targetName, ...graderTargetNames], selection.definitions);
+    addDefinitions([selection.providerLabel, ...graderTargetNames], selection.definitions);
   }
 
   return selected;
@@ -703,14 +703,14 @@ function collectGraderTargetNames(tests: readonly EvalTest[]): readonly string[]
 }
 
 function selectTaskBundleTargetDefinitions(
-  targetName: string,
+  providerLabel: string,
   definitions: readonly ProviderDefinition[],
   tests: readonly EvalTest[],
 ): readonly ProviderDefinition[] {
   const selected: ProviderDefinition[] = [];
   const seen = new Set<string>();
 
-  for (const name of [targetName, ...collectGraderTargetNames(tests)]) {
+  for (const name of [providerLabel, ...collectGraderTargetNames(tests)]) {
     for (const definition of selectTargetDefinitions(name, definitions)) {
       if (seen.has(definition.name)) {
         continue;
@@ -786,15 +786,15 @@ function serializeTargetDefinitions(
   return definitions.map((definition) => serializeTargetDefinition(definition, rewrites));
 }
 
-function uniqueTargetNames(selections: readonly TaskBundleTargetSelection[]): readonly string[] {
+function uniqueTargetNames(selections: readonly TaskBundleProviderSelection[]): readonly string[] {
   const names: string[] = [];
   const seen = new Set<string>();
   for (const selection of selections) {
-    if (seen.has(selection.targetName)) {
+    if (seen.has(selection.providerLabel)) {
       continue;
     }
-    seen.add(selection.targetName);
-    names.push(selection.targetName);
+    seen.add(selection.providerLabel);
+    names.push(selection.providerLabel);
   }
   return names;
 }
@@ -1258,12 +1258,12 @@ export async function materializeTaskBundle(
     return undefined;
   }
 
-  const targetDefinitions = selectTaskBundleTargetDefinitions(
-    options.targetName,
-    options.targetDefinitions,
+  const providerDefinitions = selectTaskBundleTargetDefinitions(
+    options.providerLabel,
+    options.providerDefinitions,
     [options.test],
   );
-  if (targetDefinitions.length === 0) {
+  if (providerDefinitions.length === 0) {
     return undefined;
   }
 
@@ -1271,7 +1271,7 @@ export async function materializeTaskBundle(
   await mkdir(testDir, { recursive: true });
 
   const providerEnvironmentReferences = await collectProviderEnvironmentReferences(
-    targetDefinitions,
+    providerDefinitions,
     path.dirname(options.test.source.evalFileAbsolutePath ?? options.test.source.evalFilePath),
   );
   const copiedReferences = await copyReferences(
@@ -1285,12 +1285,12 @@ export async function materializeTaskBundle(
   const providersPath = path.join(testDir, TASK_PROVIDERS_FILENAME);
 
   await writeYamlFile(evalPath, {
-    providers: [options.targetName],
+    providers: [options.providerLabel],
     prompts: [INPUT_PROMPT],
     tests: [evalCase],
   });
   await writeYamlFile(providersPath, {
-    providers: serializeTargetDefinitions(targetDefinitions, rewrites),
+    providers: serializeTargetDefinitions(providerDefinitions, rewrites),
   });
 
   return {
@@ -1320,7 +1320,7 @@ export async function materializeEvalBundle(
   if (options.tests.length === 0) {
     throw new Error('Cannot bundle eval with no runnable tests.');
   }
-  if (options.targetSelections.length === 0) {
+  if (options.providerSelections.length === 0) {
     throw new Error('Cannot bundle eval without a selected target.');
   }
 
@@ -1336,11 +1336,11 @@ export async function materializeEvalBundle(
   await mkdir(evalsDir, { recursive: true });
 
   const evalFileDir = path.dirname(path.resolve(options.evalFilePath));
-  const targetDefinitions = uniqueTargetDefinitions(options.targetSelections, options.tests);
+  const providerDefinitions = uniqueTargetDefinitions(options.providerSelections, options.tests);
   const workspaceReferences = await collectWorkspaceReferences(options.tests, evalFileDir);
   const environmentReferences = await collectEnvironmentReferences(options.tests, evalFileDir);
   const providerEnvironmentReferences = await collectProviderEnvironmentReferences(
-    targetDefinitions,
+    providerDefinitions,
     evalFileDir,
   );
   const references: BundleSourceReference[] = [
@@ -1358,7 +1358,7 @@ export async function materializeEvalBundle(
   }
 
   const rewrites = buildPathRewrites(copied);
-  const targetNames = uniqueTargetNames(options.targetSelections);
+  const targetNames = uniqueTargetNames(options.providerSelections);
   const evalPath = path.join(evalsDir, bundledEvalFileName(options.evalFilePath));
   const providersPath = path.join(outputDir, BUNDLE_PROVIDERS_FILENAME);
   const configPath = path.join(outputDir, BUNDLE_CONFIG_DIRNAME, BUNDLE_CONFIG_FILENAME);
@@ -1371,7 +1371,7 @@ export async function materializeEvalBundle(
     prompts: [INPUT_PROMPT],
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
-  await writeYamlFile(providersPath, serializeTargetDefinitions(targetDefinitions, rewrites));
+  await writeYamlFile(providersPath, serializeTargetDefinitions(providerDefinitions, rewrites));
   await mkdir(path.dirname(configPath), { recursive: true });
   await writeYamlFile(configPath, { providers: `file://../${BUNDLE_PROVIDERS_FILENAME}` });
 

@@ -90,8 +90,8 @@ import {
   formatEvaluationSummary,
   formatMatrixSummary,
 } from './statistics.js';
-import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
-import type { TaskBundleTargetSelection } from './task-bundle.js';
+import { type ProviderSelection, selectMultipleProviders, selectProvider } from './targets.js';
+import type { TaskBundleProviderSelection } from './task-bundle.js';
 import { WipCheckpointLoop } from './wip-checkpoint.js';
 
 const DEFAULT_WORKERS = 3;
@@ -270,9 +270,9 @@ interface RunEvalCommandInput {
 }
 
 interface NormalizedOptions {
-  readonly target?: string;
-  readonly cliTargets: readonly string[];
-  readonly targetsPath?: string;
+  readonly provider?: string;
+  readonly cliProviderLabels: readonly string[];
+  readonly providersPath?: string;
   /** Internal rerun-only carveout for generated test bundle targets.yaml artifacts. */
   readonly allowLegacyTargetFiles?: boolean;
   /** Internal rerun-only provider catalog paths keyed by captured eval file. */
@@ -319,9 +319,9 @@ interface NormalizedOptions {
   readonly experiment?: string;
   readonly experimentConfig?: ExperimentConfig;
   readonly experimentMetadata?: ExperimentArtifactMetadata;
-  readonly experimentTargets?: readonly string[];
-  readonly experimentTargetRefs?: readonly EvalTargetRef[];
-  readonly targetModelOverride?: string;
+  readonly experimentProviderLabels?: readonly string[];
+  readonly experimentProviderRefs?: readonly EvalTargetRef[];
+  readonly providerModelOverride?: string;
   readonly experimentTrialsConfig?: TrialsConfig;
   readonly budgetUsd?: number;
   readonly cliBudgetUsd?: number;
@@ -676,18 +676,19 @@ function normalizeOptions(
 
   const cliOutputDir = normalizeString(rawOptions.output);
 
-  // Normalize provider selection: public --provider lowers into the historical internal target key.
-  const rawTarget = rawOptions.target;
-  let cliTargets: string[] = [];
-  let singleTarget: string | undefined;
-  if (Array.isArray(rawTarget)) {
-    cliTargets = rawTarget.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
-    singleTarget = cliTargets.length === 1 ? cliTargets[0] : undefined;
-  } else if (typeof rawTarget === 'string') {
-    const trimmed = rawTarget.trim();
+  const rawProvider = rawOptions.provider;
+  let cliProviderLabels: string[] = [];
+  let singleProvider: string | undefined;
+  if (Array.isArray(rawProvider)) {
+    cliProviderLabels = rawProvider.filter(
+      (v): v is string => typeof v === 'string' && v.trim().length > 0,
+    );
+    singleProvider = cliProviderLabels.length === 1 ? cliProviderLabels[0] : undefined;
+  } else if (typeof rawProvider === 'string') {
+    const trimmed = rawProvider.trim();
     if (trimmed.length > 0 && trimmed !== 'default') {
-      cliTargets = [trimmed];
-      singleTarget = trimmed;
+      cliProviderLabels = [trimmed];
+      singleProvider = trimmed;
     }
   }
 
@@ -731,9 +732,9 @@ function normalizeOptions(
   const cliTags = splitCliTags(rawOptions.tag);
 
   return {
-    target: singleTarget,
-    cliTargets,
-    targetsPath: normalizeString(rawOptions.targets),
+    provider: singleProvider,
+    cliProviderLabels,
+    providersPath: normalizeString(rawOptions.providers),
     allowLegacyTargetFiles: normalizeBoolean(rawOptions.allowLegacyTargetFiles),
     providerCatalogPathByEvalFile: normalizeProviderCatalogPathByEvalFile(
       rawOptions.providerCatalogPathByEvalFile,
@@ -831,8 +832,8 @@ function deriveEvalResultGroupName(evalFilePath: string | undefined): string {
 }
 
 const CLI_RUNTIME_SOURCE_OPTION_KEYS = [
-  'target',
-  'targets',
+  'provider',
+  'providers',
   'filter',
   'tag',
   'excludeTag',
@@ -992,14 +993,14 @@ function applyExperimentOptions(
     return options;
   }
 
-  const experimentTargetRefs = buildExperimentTargetRefs(experiment);
-  const experimentTargetNames = experimentTargetRefs?.map((target) => target.name) ?? [];
+  const experimentProviderRefs = buildExperimentTargetRefs(experiment);
+  const experimentProviderLabels = experimentProviderRefs?.map((target) => target.name) ?? [];
   const experimentTarget =
     experiment.target && experiment.target.trim().length > 0 ? experiment.target : undefined;
-  const experimentTargets =
-    options.cliTargets.length === 0
-      ? experimentTargetNames.length > 0
-        ? experimentTargetNames
+  const experimentProviders =
+    options.cliProviderLabels.length === 0
+      ? experimentProviderLabels.length > 0
+        ? experimentProviderLabels
         : experimentTarget
           ? [experimentTarget]
           : undefined
@@ -1007,16 +1008,16 @@ function applyExperimentOptions(
 
   return {
     ...options,
-    target: options.target,
     agentTimeoutSeconds: options.agentTimeoutSeconds ?? experiment.timeoutSeconds,
     workspacePath: options.workspacePath,
     budgetUsd: options.budgetUsd ?? experiment.budgetUsd,
     threshold: options.threshold ?? experiment.threshold,
     experimentConfig: experiment,
     experimentMetadata: buildExperimentArtifactMetadata(experiment),
-    experimentTargets,
-    experimentTargetRefs: options.cliTargets.length === 0 ? experimentTargetRefs : undefined,
-    targetModelOverride: options.targetModelOverride ?? experiment.model,
+    experimentProviderLabels: experimentProviders,
+    experimentProviderRefs:
+      options.cliProviderLabels.length === 0 ? experimentProviderRefs : undefined,
+    providerModelOverride: options.providerModelOverride ?? experiment.model,
     experimentTrialsConfig: buildExperimentTrialsConfig(experiment),
   };
 }
@@ -1223,29 +1224,32 @@ function buildTargetLabelSuffix(providerLabel: string, target: ResolvedProviderB
  * Override CLI provider verbose setting based on CLI --verbose flag.
  * CLI provider logs should only appear when --verbose is passed.
  */
-function applyVerboseOverride(selection: TargetSelection, cliVerbose: boolean): TargetSelection {
-  const { resolvedTarget } = selection;
+function applyVerboseOverride(
+  selection: ProviderSelection,
+  cliVerbose: boolean,
+): ProviderSelection {
+  const { resolvedProvider } = selection;
 
   // Only CLI providers have a verbose setting in their config
-  if (resolvedTarget.kind !== 'cli') {
+  if (resolvedProvider.kind !== 'cli') {
     return selection;
   }
 
   // Set verbose to match CLI --verbose flag
   return {
     ...selection,
-    resolvedTarget: {
-      ...resolvedTarget,
+    resolvedProvider: {
+      ...resolvedProvider,
       config: {
-        ...resolvedTarget.config,
+        ...resolvedProvider.config,
         verbose: cliVerbose,
       },
     },
   };
 }
 
-function targetVariantForSelection(selection: TargetSelection): string | undefined {
-  const target = selection.resolvedTarget;
+function targetVariantForSelection(selection: ProviderSelection): string | undefined {
+  const target = selection.resolvedProvider;
   if (target.kind === 'replay') {
     return target.config.variant;
   }
@@ -1346,7 +1350,7 @@ async function prepareFileMetadata(params: {
   readonly options: NormalizedOptions;
   readonly testIds: readonly string[];
   readonly testCases: readonly EvalTest[];
-  readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
+  readonly selections: readonly { selection: ProviderSelection; inlineTargetLabel: string }[];
   readonly trialsConfig?: TrialsConfig;
   readonly suiteTargets?: readonly string[];
   readonly yamlCache?: boolean;
@@ -1390,7 +1394,7 @@ async function prepareFileMetadata(params: {
     experimentOptions.workers === undefined && suite.workers !== undefined
       ? { ...experimentOptions, workers: suite.workers }
       : experimentOptions;
-  const effectiveProviderCatalogPath = effectiveOptions.targetsPath ?? providerCatalogPath;
+  const effectiveProviderCatalogPath = effectiveOptions.providersPath ?? providerCatalogPath;
   const testCases =
     suiteFilter && effectiveOptions.filter
       ? suite.tests.filter((testCase) =>
@@ -1429,21 +1433,21 @@ async function prepareFileMetadata(params: {
     };
   }
 
-  let selections: { selection: TargetSelection; inlineTargetLabel: string }[];
+  let selections: { selection: ProviderSelection; inlineTargetLabel: string }[];
 
   if (fileOptions.transcript) {
     // --transcript mode: bypass target resolution entirely.
-    // Create a synthetic TargetSelection for the transcript provider.
-    const transcriptSelection: TargetSelection = {
+    // Create a synthetic ProviderSelection for the transcript provider.
+    const transcriptSelection: ProviderSelection = {
       definitions: [],
-      resolvedTarget: {
+      resolvedProvider: {
         kind: 'transcript',
         name: 'transcript',
         config: {} as Record<string, never>,
       },
-      targetName: 'transcript',
-      targetSource: 'cli',
-      targetsFilePath: fileOptions.transcript,
+      providerLabel: 'transcript',
+      providerSource: 'cli',
+      providersFilePath: fileOptions.transcript,
     };
     selections = [
       {
@@ -1451,24 +1455,29 @@ async function prepareFileMetadata(params: {
         inlineTargetLabel: `transcript (${path.basename(fileOptions.transcript)})`,
       },
     ];
-  } else if (suite.inlineTarget && fileOptions.cliTargets.length === 0) {
+  } else if (suite.inlineTarget && fileOptions.cliProviderLabels.length === 0) {
     const targetDefinition = suite.inlineTarget;
-    const resolvedTarget = resolveProviderDefinition(targetDefinition, process.env, testFilePath, {
-      emitDeprecationWarnings: false,
-    });
+    const resolvedProvider = resolveProviderDefinition(
+      targetDefinition,
+      process.env,
+      testFilePath,
+      {
+        emitDeprecationWarnings: false,
+      },
+    );
     selections = [
       {
         selection: {
           definitions: [targetDefinition],
-          resolvedTarget,
-          targetName: targetDefinition.name,
-          targetSource: 'test-file',
-          targetsFilePath: testFilePath,
+          resolvedProvider,
+          providerLabel: targetDefinition.name,
+          providerSource: 'test-file',
+          providersFilePath: testFilePath,
         },
-        inlineTargetLabel: resolveTargetLabel(targetDefinition.name, resolvedTarget.name),
+        inlineTargetLabel: resolveTargetLabel(targetDefinition.name, resolvedProvider.name),
       },
     ];
-  } else if (suite.providerFactory && fileOptions.cliTargets.length === 0) {
+  } else if (suite.providerFactory && fileOptions.cliProviderLabels.length === 0) {
     const taskTarget: ResolvedProviderBackend = {
       kind: 'mock',
       name: 'custom-task',
@@ -1479,109 +1488,114 @@ async function prepareFileMetadata(params: {
       {
         selection: {
           definitions: [],
-          resolvedTarget: taskTarget,
-          targetName: 'custom-task',
-          targetSource: 'test-file',
-          targetsFilePath: testFilePath,
+          resolvedProvider: taskTarget,
+          providerLabel: 'custom-task',
+          providerSource: 'test-file',
+          providersFilePath: testFilePath,
         },
         inlineTargetLabel: 'custom-task',
       },
     ];
   } else {
     // Determine provider labels: CLI --provider flags override YAML
-    const cliTargets = fileOptions.cliTargets;
-    const experimentTargets = fileOptions.experimentTargets ?? [];
+    const cliProviderLabels = fileOptions.cliProviderLabels;
+    const experimentProviderLabels = fileOptions.experimentProviderLabels ?? [];
     const suiteTargetSpec = suite.targetSpec;
-    const suiteTargets = suiteTargetSpec ? [suiteTargetSpec.name] : suite.targets;
-    const suiteTargetRefs = suite.targetRefs;
-    const experimentTargetRefs = fileOptions.experimentTargetRefs;
+    const suiteProviderLabels = suiteTargetSpec ? [suiteTargetSpec.name] : suite.targets;
+    const suiteProviderRefs = suite.targetRefs;
+    const experimentProviderRefs = fileOptions.experimentProviderRefs;
 
-    // Resolve which target names to use (precedence: CLI/experiment > suite YAML targets > default)
-    let targetNames: readonly string[];
-    let targetRefs: readonly EvalTargetRef[] | undefined;
-    let targetSource: 'cli' | 'test-file' = 'test-file';
-    if (cliTargets.length > 0) {
-      targetNames = cliTargets;
-      targetRefs = experimentTargetRefs;
-      targetSource = 'cli';
-    } else if (experimentTargets.length > 0) {
-      targetNames = experimentTargets;
-      targetRefs = experimentTargetRefs;
-    } else if (suiteTargets && suiteTargets.length > 0) {
-      targetNames = suiteTargets;
-      targetRefs = suiteTargetRefs;
+    // Resolve which provider labels to use (precedence: CLI/experiment > suite YAML providers > default)
+    let providerLabels: readonly string[];
+    let providerRefs: readonly EvalTargetRef[] | undefined;
+    let providerSource: 'cli' | 'test-file' = 'test-file';
+    if (cliProviderLabels.length > 0) {
+      providerLabels = cliProviderLabels;
+      providerRefs = experimentProviderRefs;
+      providerSource = 'cli';
+    } else if (experimentProviderLabels.length > 0) {
+      providerLabels = experimentProviderLabels;
+      providerRefs = experimentProviderRefs;
+    } else if (suiteProviderLabels && suiteProviderLabels.length > 0) {
+      providerLabels = suiteProviderLabels;
+      providerRefs = suiteProviderRefs;
     } else if (suiteDefaults?.provider) {
-      targetNames = [suiteDefaults.provider];
-      targetRefs = undefined;
+      providerLabels = [suiteDefaults.provider];
+      providerRefs = undefined;
     } else {
-      targetNames = [];
-      targetRefs = undefined;
+      providerLabels = [];
+      providerRefs = undefined;
     }
 
-    if (targetNames.length > 1 || (targetNames.length === 1 && targetRefs)) {
-      // Matrix mode: multiple targets
-      const multiSelections = await selectMultipleTargets({
+    if (providerLabels.length > 1 || (providerLabels.length === 1 && providerRefs)) {
+      // Matrix mode: multiple providers
+      const multiSelections = await selectMultipleProviders({
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: effectiveProviderCatalogPath,
+        explicitProvidersPath: effectiveProviderCatalogPath,
         providerDefinitions,
         providerDefinitionsSource,
         requireExplicitProviderCatalog: true,
         allowLegacyTargetFiles: fileOptions.allowLegacyTargetFiles,
         env: process.env,
-        targetNames,
-        targetRefs,
-        targetSource,
-        modelOverride: fileOptions.targetModelOverride,
+        providerLabels,
+        providerRefs: providerRefs,
+        providerSource,
+        modelOverride: fileOptions.providerModelOverride,
       });
 
       selections = multiSelections.map((sel) => ({
         selection: sel,
         inlineTargetLabel:
-          sel.targetLabel ?? resolveTargetLabel(sel.targetName, sel.resolvedTarget.name),
+          sel.providerDisplayLabel ??
+          resolveTargetLabel(sel.providerLabel, sel.resolvedProvider.name),
       }));
     } else {
-      // Single target mode (legacy path)
-      const selection = await selectTarget({
+      // Single provider mode
+      const selection = await selectProvider({
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: effectiveProviderCatalogPath,
+        explicitProvidersPath: effectiveProviderCatalogPath,
         providerDefinitions,
         providerDefinitionsSource,
         requireExplicitProviderCatalog: true,
         allowLegacyTargetFiles: fileOptions.allowLegacyTargetFiles,
-        cliTargetName:
-          targetSource === 'cli'
-            ? targetNames.length === 1
-              ? targetNames[0]
-              : fileOptions.target
-            : fileOptions.target,
-        fileTargetName:
-          targetSource === 'test-file' && targetNames.length === 1 ? targetNames[0] : undefined,
+        cliProviderLabel:
+          providerSource === 'cli'
+            ? providerLabels.length === 1
+              ? providerLabels[0]
+              : fileOptions.provider
+            : fileOptions.provider,
+        fileProviderLabel:
+          providerSource === 'test-file' && providerLabels.length === 1
+            ? providerLabels[0]
+            : undefined,
         fileTargetSpec:
-          targetSource === 'test-file' && targetNames.length === 1 ? suiteTargetSpec : undefined,
-        modelOverride: fileOptions.targetModelOverride,
+          providerSource === 'test-file' && providerLabels.length === 1
+            ? suiteTargetSpec
+            : undefined,
+        modelOverride: fileOptions.providerModelOverride,
         env: process.env,
       });
 
-      // Attach target hooks from eval file if available
-      const singleTargetRef = targetRefs?.find((ref) => ref.name === selection.targetName);
-      const augmentedSelection: TargetSelection = {
+      // Attach provider hooks from eval file if available
+      const singleProviderRef = providerRefs?.find((ref) => ref.name === selection.providerLabel);
+      const augmentedSelection: ProviderSelection = {
         ...selection,
-        ...(singleTargetRef?.label ? { targetLabel: singleTargetRef.label } : {}),
-        ...(singleTargetRef?.hooks ? { targetHooks: singleTargetRef.hooks } : {}),
+        ...(singleProviderRef?.label ? { providerDisplayLabel: singleProviderRef.label } : {}),
+        ...(singleProviderRef?.hooks ? { providerHooks: singleProviderRef.hooks } : {}),
       };
 
       selections = [
         {
           selection: augmentedSelection,
           inlineTargetLabel:
-            augmentedSelection.targetLabel ??
+            augmentedSelection.providerDisplayLabel ??
             resolveTargetLabel(
-              augmentedSelection.targetName,
-              augmentedSelection.resolvedTarget.name,
+              augmentedSelection.providerLabel,
+              augmentedSelection.resolvedProvider.name,
             ),
         },
       ];
@@ -1605,13 +1619,13 @@ async function prepareFileMetadata(params: {
   };
 }
 
-function buildTaskBundleTargetSelections(
+function buildTaskBundleProviderSelections(
   activeTestFiles: readonly string[],
   fileMetadata: ReadonlyMap<
     string,
-    { readonly selections: readonly { readonly selection: TargetSelection }[] }
+    { readonly selections: readonly { readonly selection: ProviderSelection }[] }
   >,
-): readonly TaskBundleTargetSelection[] {
+): readonly TaskBundleProviderSelection[] {
   return activeTestFiles.flatMap((testFilePath) => {
     const meta = fileMetadata.get(testFilePath);
     if (!meta) {
@@ -1619,8 +1633,8 @@ function buildTaskBundleTargetSelections(
     }
     return meta.selections.map(({ selection }) => ({
       evalFileAbsolutePath: testFilePath,
-      targetName: selection.targetName,
-      resolvedTargetName: selection.resolvedTarget.name,
+      providerLabel: selection.providerLabel,
+      resolvedProviderName: selection.resolvedProvider.name,
       definitions: selection.definitions,
     }));
   });
@@ -1638,7 +1652,7 @@ async function runSingleEvalFile(params: {
   readonly progressReporter: ProgressReporter;
   readonly seenTestCases: Set<string>;
   readonly displayIdTracker: { getOrAssign(testCaseKey: string): number };
-  readonly selection: TargetSelection;
+  readonly selection: ProviderSelection;
   readonly inlineTargetLabel: string;
   readonly testCases: readonly EvalTest[];
   readonly trialsConfig?: TrialsConfig;
@@ -1676,11 +1690,11 @@ async function runSingleEvalFile(params: {
     providerFactory,
   } = params;
 
-  const targetName = selection.targetName;
+  const providerLabel = selection.providerLabel;
   const replayRecording = options.recordReplay
     ? {
         fixturesPath: path.resolve(options.recordReplay),
-        sourceTarget: targetName,
+        sourceTarget: providerLabel,
         variant: options.recordReplayVariant,
       }
     : undefined;
@@ -1688,19 +1702,19 @@ async function runSingleEvalFile(params: {
   await ensureFileExists(testFilePath, 'Test file');
 
   // CLI provider verbose logging should only be enabled when --verbose flag is passed
-  const resolvedTargetSelection = applyVerboseOverride(selection, options.verbose);
-  const explicitVariant = targetVariantForSelection(resolvedTargetSelection);
-  const providerLabel = resolvedTargetSelection.resolvedTarget.kind;
+  const resolvedProviderSelection = applyVerboseOverride(selection, options.verbose);
+  const explicitVariant = targetVariantForSelection(resolvedProviderSelection);
+  const providerId = resolvedProviderSelection.resolvedProvider.kind;
   const targetMessage = options.verbose
-    ? `Using provider (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
+    ? `Using provider (${resolvedProviderSelection.providerSource}): ${resolvedProviderSelection.providerLabel} ${buildTargetLabelSuffix(providerId, resolvedProviderSelection.resolvedProvider)} via ${resolvedProviderSelection.providersFilePath}`
     : `Using provider: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
     console.log(`${targetMessage}`);
   }
 
   // Hint about pipeline for CLI agent targets
-  const targetKind = resolvedTargetSelection.resolvedTarget.kind;
-  if (targetKind === 'claude-cli' || targetKind === 'copilot-cli') {
+  const providerKind = resolvedProviderSelection.resolvedProvider.kind;
+  if (providerKind === 'claude-cli' || providerKind === 'copilot-cli') {
     console.log('');
     console.log('  TIP: For subagent-mode evals, use `agentv pipeline` instead of `eval run`.');
     console.log('  The agent orchestrates executor + grader subagents directly.');
@@ -1714,14 +1728,14 @@ async function runSingleEvalFile(params: {
   // Resolve workers: CLI/config > target setting > default
   const workerPreference = workersOverride ?? options.workers;
   let resolvedWorkers =
-    workerPreference ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
+    workerPreference ?? resolvedProviderSelection.resolvedProvider.workers ?? DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }
 
   // VSCode providers require window focus, so only 1 worker is allowed
   const isVSCodeProvider = ['vscode', 'vscode-insiders'].includes(
-    resolvedTargetSelection.resolvedTarget.kind,
+    resolvedProviderSelection.resolvedProvider.kind,
   );
   if (isVSCodeProvider && resolvedWorkers > 1) {
     console.warn(
@@ -1732,9 +1746,9 @@ async function runSingleEvalFile(params: {
 
   // Auto-provision subagents for VSCode targets
   if (isVSCodeProvider) {
-    const vsConfig = resolvedTargetSelection.resolvedTarget.config as { executable?: string };
+    const vsConfig = resolvedProviderSelection.resolvedProvider.config as { executable?: string };
     await ensureVSCodeSubagents({
-      kind: resolvedTargetSelection.resolvedTarget.kind as 'vscode' | 'vscode-insiders',
+      kind: resolvedProviderSelection.resolvedProvider.kind as 'vscode' | 'vscode-insiders',
       count: resolvedWorkers,
       verbose: options.verbose,
       vscodeCmd: vsConfig.executable,
@@ -1744,8 +1758,8 @@ async function runSingleEvalFile(params: {
   const results = await evaluationRunner({
     testFilePath,
     repoRoot,
-    target: resolvedTargetSelection.resolvedTarget,
-    targets: resolvedTargetSelection.definitions,
+    target: resolvedProviderSelection.resolvedProvider,
+    targets: resolvedProviderSelection.definitions,
     env: process.env,
     maxRetries: Math.max(0, options.maxRetries),
     agentTimeoutMs,
@@ -1754,7 +1768,10 @@ async function runSingleEvalFile(params: {
       // Skip cache if not enabled
       if (!cache) return false;
       // Skip cache when target has temperature > 0 (non-deterministic)
-      const targetConfig = resolvedTargetSelection.resolvedTarget.config as Record<string, unknown>;
+      const targetConfig = resolvedProviderSelection.resolvedProvider.config as Record<
+        string,
+        unknown
+      >;
       if (shouldSkipCacheForTemperature(targetConfig)) {
         if (options.verbose) {
           console.log('Cache skipped: target temperature > 0');
@@ -1777,7 +1794,7 @@ async function runSingleEvalFile(params: {
     defaultGraderTarget: options.defaultGraderTarget,
     model: options.model,
     threshold: params.threshold,
-    targetHooks: resolvedTargetSelection.targetHooks,
+    targetHooks: resolvedProviderSelection.providerHooks,
     replayRecording,
     providerFactory,
     onResult: async (result: EvaluationResult) => {
@@ -1790,7 +1807,7 @@ async function runSingleEvalFile(params: {
       await outputWriter.append(trimmedResult);
     },
     onProgress: async (event) => {
-      const testCaseKeyId = matrixMode ? `${event.testId}@${targetName}` : event.testId;
+      const testCaseKeyId = matrixMode ? `${event.testId}@${providerLabel}` : event.testId;
       const testCaseKey = makeTestCaseKey(testFilePath, testCaseKeyId);
       if (event.status === 'pending' && !seenTestCases.has(testCaseKey)) {
         seenTestCases.add(testCaseKey);
@@ -1806,7 +1823,7 @@ async function runSingleEvalFile(params: {
 
       progressReporter.update(displayId, {
         workerId: displayId,
-        testId: matrixMode ? `${event.testId}@${targetName}` : event.testId,
+        testId: matrixMode ? `${event.testId}@${providerLabel}` : event.testId,
         status: event.status,
         startedAt: event.startedAt,
         completedAt: event.completedAt,
@@ -1835,7 +1852,7 @@ export interface RunEvalResult {
   readonly executionErrorCount: number;
   readonly outputPath: string;
   readonly testFiles: readonly string[];
-  readonly target?: string;
+  readonly provider?: string;
   /** True when --threshold is set and mean score is below the threshold */
   readonly thresholdFailed?: boolean;
   /** True when all tests had execution errors and no evaluation was performed */
@@ -1881,8 +1898,12 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
-  if (yamlConfig?.defaults?.provider && options.cliTargets.length === 0 && !options.target) {
-    options = { ...options, target: yamlConfig.defaults.provider };
+  if (
+    yamlConfig?.defaults?.provider &&
+    options.cliProviderLabels.length === 0 &&
+    !options.provider
+  ) {
+    options = { ...options, provider: yamlConfig.defaults.provider };
   }
   if (yamlConfig?.defaults?.grader) {
     options = { ...options, defaultGraderTarget: yamlConfig.defaults.grader };
@@ -2146,7 +2167,7 @@ export async function runEvalCommand(
       readonly testIds: readonly string[];
       readonly testCases: readonly EvalTest[];
       readonly selections: readonly {
-        selection: TargetSelection;
+        selection: ProviderSelection;
         inlineTargetLabel: string;
       }[];
       readonly trialsConfig?: TrialsConfig;
@@ -2248,7 +2269,7 @@ export async function runEvalCommand(
   for (const meta of fileMetadata.values()) {
     for (const test of meta.testCases) {
       for (const { selection } of meta.selections) {
-        const target = selection.targetName;
+        const target = selection.providerLabel;
         const variant = targetVariantForSelection(selection);
         if (rerunIncludeKeys) {
           if (resumeIdentityMatches(rerunIncludeKeys, test, target, variant)) {
@@ -2323,13 +2344,13 @@ export async function runEvalCommand(
       for (const testId of meta.testIds) {
         const testCaseKey = makeTestCaseKey(
           testFilePath,
-          meta.selections.length > 1 ? `${testId}@${selection.targetName}` : testId,
+          meta.selections.length > 1 ? `${testId}@${selection.providerLabel}` : testId,
         );
         seenTestCases.add(testCaseKey);
         const displayId = displayIdTracker.getOrAssign(testCaseKey);
         progressReporter.update(displayId, {
           workerId: displayId,
-          testId: meta.selections.length > 1 ? `${testId}@${selection.targetName}` : testId,
+          testId: meta.selections.length > 1 ? `${testId}@${selection.providerLabel}` : testId,
           status: 'pending',
           targetLabel: inlineTargetLabel,
         });
@@ -2478,7 +2499,7 @@ export async function runEvalCommand(
               input: testCase.input as EvaluationResult['input'],
               output: [{ role: 'assistant' as const, content: budgetMsg }],
               finalOutput: budgetMsg,
-              target: selection.targetName,
+              target: selection.providerLabel,
               testId: testCase.testId ?? testCase.id,
               conversationId: testCase.conversation_id,
               error: budgetMsg,
@@ -2489,7 +2510,7 @@ export async function runEvalCommand(
             failureStage: 'setup' as const,
             failureReasonCode: 'budget_exceeded' as const,
             executionError: { message: budgetMsg, stage: 'setup' as const },
-            target: selection.targetName,
+            target: selection.providerLabel,
             variant: explicitVariant,
           }));
           for (const r of skippedResults) {
@@ -2521,7 +2542,7 @@ export async function runEvalCommand(
           limitTarget(async () => {
             // Target selection is suite/experiment/CLI runtime policy; every selected
             // target runs every filtered test case for this eval file.
-            const targetName = selection.targetName;
+            const providerLabel = selection.providerLabel;
             const applicableTestCases = targetPrep.testCases;
 
             // --resume skips completed tests; --rerun-failed only includes prior failed/error tests.
@@ -2530,14 +2551,14 @@ export async function runEvalCommand(
                   resumeIdentityMatches(
                     rerunIncludeKeys,
                     test,
-                    targetName,
+                    providerLabel,
                     targetVariantForSelection(selection),
                   ),
                 )
               : resumeSkipKeys
                 ? applicableTestCases.filter((test) => {
                     const variant = targetVariantForSelection(selection);
-                    return !resumeIdentityMatches(resumeSkipKeys, test, targetName, variant);
+                    return !resumeIdentityMatches(resumeSkipKeys, test, providerLabel, variant);
                   })
                 : applicableTestCases;
 
@@ -2618,7 +2639,7 @@ export async function runEvalCommand(
                       input: testCase.input as EvaluationResult['input'],
                       output: [{ role: 'assistant' as const, content: message }],
                       finalOutput: message,
-                      target: selection.targetName,
+                      target: selection.providerLabel,
                       testId: testCase.testId ?? testCase.id,
                       conversationId: testCase.conversation_id,
                       error: message,
@@ -2630,7 +2651,7 @@ export async function runEvalCommand(
                     failureReasonCode: 'setup_error' as const,
                     durationMs: 0,
                     tokenUsage: { input: 0, output: 0 },
-                    target: selection.targetName,
+                    target: selection.providerLabel,
                     variant: explicitVariant,
                   },
                   testFilePath,
@@ -2709,7 +2730,7 @@ export async function runEvalCommand(
     if (allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? path.relative(cwd, activeTestFiles[0]) : '';
       const sourceTests = activeSourceTests;
-      const taskBundleTargets = buildTaskBundleTargetSelections(activeTestFiles, fileMetadata);
+      const taskBundleTargets = buildTaskBundleProviderSelections(activeTestFiles, fileMetadata);
       if (isResumeAppend) {
         // Resume mode: write per-test artifacts for newly-run tests, then
         // aggregate the run from its full row manifest (old + new results with
@@ -2830,7 +2851,7 @@ export async function runEvalCommand(
     // Suggest resume commands when execution errors are detected
     if (summary.executionErrorCount > 0 && !options.retryErrors && !options.resume) {
       const evalFileArgs = activeTestFiles.map((f) => path.relative(cwd, f)).join(' ');
-      const targetFlag = options.target ? ` --provider ${options.target}` : '';
+      const targetFlag = options.provider ? ` --provider ${options.provider}` : '';
       const relativeRunDir = path.relative(cwd, runDir);
       console.log(
         `\nTip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +
@@ -2861,7 +2882,7 @@ export async function runEvalCommand(
       executionErrorCount: summary.executionErrorCount,
       outputPath,
       testFiles: activeTestFiles,
-      target: options.target,
+      provider: options.provider,
       thresholdFailed,
       allExecutionErrors,
       budgetExceeded: runBudgetExceeded || undefined,

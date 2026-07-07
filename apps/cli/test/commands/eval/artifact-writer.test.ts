@@ -2618,7 +2618,7 @@ describe('writeArtifactsFromResults', () => {
         taskBundleTargets: [
           {
             evalFileAbsolutePath: evalFile,
-            targetName: 'gpt-4o',
+            providerLabel: 'gpt-4o',
             definitions: [
               {
                 name: 'gpt-4o',
@@ -2738,7 +2738,7 @@ describe('writeArtifactsFromResults', () => {
         taskBundleTargets: [
           {
             evalFileAbsolutePath: evalFile,
-            targetName: 'mock-target',
+            providerLabel: 'mock-target',
             definitions: [{ name: 'mock-target', provider: 'mock', response: 'ok' }],
           },
         ],
@@ -2790,8 +2790,8 @@ describe('writeArtifactsFromResults', () => {
         taskBundleTargets: [
           {
             evalFileAbsolutePath: evalFile,
-            targetName: 'mock-target',
-            resolvedTargetName: 'mock-target-dry-run',
+            providerLabel: 'mock-target',
+            resolvedProviderName: 'mock-target-dry-run',
             definitions: [{ name: 'mock-target', provider: 'mock', response: 'ok' }],
           },
         ],

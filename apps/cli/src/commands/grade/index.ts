@@ -30,7 +30,7 @@ import { command, number, oneOf, option, optional, positional, string } from 'cm
 import { loadEnvFromHierarchy } from '../eval/env.js';
 import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
-import { selectMultipleTargets } from '../eval/targets.js';
+import { selectMultipleProviders } from '../eval/targets.js';
 
 interface PreparedBaseline {
   readonly status: 'initialized' | 'unavailable';
@@ -540,20 +540,20 @@ async function gradePreparedAttempt(options: {
     throw new Error(`Test ID '${testId}' not found in ${evalPath}`);
   }
 
-  const selections = await selectMultipleTargets({
+  const selections = await selectMultipleProviders({
     testFilePath: evalPath,
     repoRoot,
     cwd: process.cwd(),
     env: process.env,
-    targetNames: [manifest.target],
-    targetRefs: suite.targetRefs,
+    providerLabels: [manifest.target],
+    providerRefs: suite.targetRefs,
   });
   const selection = selections[0];
   if (!selection) {
     throw new Error(`Target '${manifest.target}' could not be resolved`);
   }
   const target = {
-    ...selection.resolvedTarget,
+    ...selection.resolvedProvider,
     name: manifest.target,
   } as ResolvedProviderBackend;
 
