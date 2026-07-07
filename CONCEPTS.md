@@ -4,27 +4,27 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Providers and Targets
 
-**Provider** — an adapter plugin that connects AgentV's evaluation engine to a specific AI system (e.g., copilot CLI, copilot SDK, Claude API, pi). Each provider implements the request/response contract: given a test case, invoke the AI system and return its output. Providers are selected inside `targets[]` in eval YAML and can be extended via the provider registry. Top-level Promptfoo `providers` is useful reference evidence, but it is not the canonical AgentV authoring key.
+**Provider** — The eval YAML or config declaration for a system under test. AgentV follows Promptfoo's provider declaration layer: entries may be strings such as `openai:responses:gpt-5.4`, complete package provider strings such as `package:@agentv/promptfoo-providers:CodexCliProvider`, provider option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, or provider maps such as `{ "openai:gpt-4": { label, config } }`. In AgentV, `id` names the backend/spec and may contain colons; `label` is the stable AgentV selection and result identity. Built-in AgentV ids such as `agentv:codex-cli` are AgentV-native sugar and require Promptfoo export before Promptfoo can run them.
 
-**Target** — The eval YAML or config declaration for a system under test. A target has a stable AgentV `id`, a `provider` backend or adapter kind, an optional `runtime`, and provider settings under `config`; field-level `file://` references can load prompts, defaults, or other config fragments at the boundary. A single eval file can declare multiple targets to compare AI systems side by side. Targets select agents/providers; they do not own the authored host/Docker testbed recipe.
+**Target** — Historical/public-authoring term for a system under test and still an internal/result-artifact vocabulary where existing run bundles, Dashboard facets, and sidecars use `target`. New authored eval YAML uses `providers`. Do not reintroduce public `targets` authoring without a new ADR; keep artifact renames separate from the provider-surface migration.
 
-**Target runtime** — The placement/transport mode for invoking a target provider, such as host execution, sandbox/container placement, CLI subprocess, app-server protocol, RPC, or SDK child runner. Runtime describes how the selected agent is invoked. Advanced home/env/profile-style overlays are provider or runtime configuration details, not the authored testbed recipe. Runtime is separate from the environment that prepares files, services, and cwd.
+**Provider runtime** — The placement/transport mode for invoking a provider, such as host execution, sandbox/container placement, CLI subprocess, app-server protocol, RPC, or SDK child runner. Runtime describes how the selected agent is invoked. Advanced home/env/profile-style overlays are provider or runtime configuration details, not the authored testbed recipe. Runtime is separate from the environment that prepares files, services, and cwd.
 
-**Grader (selection)** — Not a distinct entity type. A grader is a regular target, listed under `targets` like any other and selected for a grading role via `defaults.grader`, CLI `--grader-target`, or an assertion-level target override. Authoring a separate `graders:` list is a hard error: move each entry into `targets`. This also means a grader can itself be the target of an ordinary eval (oracle/calibration checks), which a separate schema would block. Do not confuse this with **grader (method)** — an assertion `type` such as `llm-rubric`, `code-grader`, or `g-eval` that names *how* scoring works, independent of *which* target performs it; or with a rubric's `criteria`/`value`, which is the grading *prompt*. AgentV once called grader-selection "judge" (`judge_target`) before a deliberate, full rename to "grader" — do not reintroduce "judge" without a stronger reason than surface-level clarity, since peer frameworks (Margin-Lab/evals, Harbor) don't treat judge/grader as a first-class schema concept either.
+**Grader (selection)** — Not a distinct entity type. A grader is a regular provider, listed under `providers` like any other and selected for a grading role via `defaults.grader`, CLI `--grader-provider`, test options, or an assertion-level provider override. Authoring a separate `graders:` list is a hard error: move each entry into `providers`. This also means a grader can itself be the provider under evaluation (oracle/calibration checks), which a separate schema would block. Do not confuse this with **grader (method)** — an assertion `type` such as `llm-rubric`, `script`, or `g-eval` that names *how* scoring works, independent of *which* provider performs it; or with a rubric's `criteria`/`value`, which is the grading *prompt*. AgentV once called grader-selection "judge" before a deliberate rename to "grader" — do not reintroduce "judge" without a stronger reason than surface-level clarity.
 
 **Provider runtime boundary** — The process boundary between AgentV's evaluation orchestrator and the agent runtime a provider invokes. CLI-backed providers place the agent runtime outside the orchestrator; SDK providers should run through an AgentV-owned child-runner boundary when runtime teardown can threaten run artifact finalization. This boundary does not own repository/testbed setup by default.
 
 ## Evaluation Model
 
-**Eval / Eval YAML** — The composable and runnable AgentV authoring primitive. An eval YAML file describes the prompts, tests, variables, targets, assertions, environments, tags, and run policy for an evaluation. AgentV does not have a separate runnable `experiment.yaml` artifact.
+**Eval / Eval YAML** — The composable and runnable AgentV authoring primitive. An eval YAML file describes the prompts, tests, variables, providers, assertions, environments, tags, and run policy for an evaluation. AgentV does not have a separate runnable `experiment.yaml` artifact.
 
-**Matrix authoring** — The Promptfoo-compatible shape AgentV adopts where useful: `prompts x tests/vars x targets`, with repeat samples and retries applied as run policy after the authored matrix is resolved. AgentV uses this matrix model without copying Promptfoo wholesale. AgentV-native boundaries remain: `targets` identify systems under test, `provider` names the backend/adapter kind inside a target, `environment` recipes prepare coding-agent testbeds, `env` carries provider/eval variables, `extensions` are lifecycle hooks, reusable content uses field-local `file://` refs, and grouping uses tags plus run-bundle metadata.
+**Matrix authoring** — The Promptfoo-compatible shape AgentV adopts by default: `prompts x tests/vars x providers`, with repeat samples and retries applied as run policy after the authored matrix is resolved. AgentV-native boundaries are intentionally narrow: `environment` recipes prepare coding-agent testbeds, AgentV refs may be rewritten during export, built-in AgentV provider ids such as `agentv:codex-cli` require export for Promptfoo execution, and grouping uses tags plus run-bundle metadata.
 
 **Task suite** — Eval YAML that owns what is being tested: prompts, datasets, input files, fixtures, `environment`, assertions, expected references, and judge criteria. It runs directly or shares reusable parts through field-local `file://` refs such as `prompts: file://...`, `tests: file://...`, `default_test: file://...`, and `environment: file://...`.
 
 **Raw case file** — YAML, JSONL, or directory case data loaded with `tests: file://./cases.yaml`, string shorthand, or another supported field-local tests reference. Raw cases are reusable data inputs; they do not carry suite context such as shared `environment`, shared `prompts`, or shared `assertions`.
 
-**Policy eval** — Eval YAML whose main job is to bind top-level runtime policy such as target selection, repeat count, timeout, budget, thresholds, and tags around explicit prompts/tests/targets refs. Policy evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. Use tags and run-bundle metadata for grouping rather than experiment path buckets, Vercel path layout, model-as-experiment grouping, or wrapper-suite import semantics.
+**Policy eval** — Eval YAML whose main job is to bind top-level runtime policy such as provider selection, repeat count, timeout, budget, thresholds, and tags around explicit prompts/tests/providers refs. Policy evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. Use tags and run-bundle metadata for grouping rather than experiment path buckets, Vercel path layout, model-as-experiment grouping, or wrapper-suite import semantics.
 
 **Multi-file run** — A CLI-selected set of eval YAML files. Use multiple eval files, tags, and CLI run selection to group suites under one run intent without adding wrapper-suite semantics to YAML.
 
@@ -32,9 +32,9 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Tags** — A promptfoo-shaped `Record<string,string>` map authored on an eval (or project config / `--tag key=value`) that labels a run with structured facets such as `experiment`, `team`, or `env`. The reserved `experiment` key feeds the experiment namespace. The resolved map is recorded in `summary.json` `metadata.tags` and every `.internal/index.jsonl` row, and the Dashboard "Tags" tab groups and compares runs by any tag key. This is the only "tags" concept: the earlier free-form manual per-run tag chips have been removed. (Suite-level `tags` may still be authored as a string list, which is a selection construct for `select.tags` / `--tag name` filtering rather than run metadata.)
 
-**Environment** — The AgentV-authored testbed recipe for coding-agent evals. It prepares the host or Docker state an agent will inspect or modify: repositories, archives, patches, generated fixtures, services, dependency setup, and cwd. `environment` can be inline or loaded with `file://`, with shared `file://` recipes as the canonical reusable form. Initial `environment.type` values are `host` and `docker`. Promptfoo does not define this primitive; it is an AgentV extension to promptfoo-compatible eval authoring.
+**Environment** — The AgentV-authored testbed recipe for coding-agent evals. It prepares the host or Docker state an agent will inspect or modify: repositories, archives, patches, generated fixtures, services, dependency setup, and cwd. `environment` can be inline or loaded with `file://`, with shared `file://` recipes as the canonical reusable form. Initial `environment.type` values are `host` and `docker`. Promptfoo does not define this primitive; it is an AgentV extension to promptfoo-compatible eval authoring. Promptfoo export may lower a host/filesystem subset into generated extensions and provider workdir config; Docker environment export is unsupported until a faithful runner boundary exists.
 
-**Workdir** — The current working directory inside an environment. `environment.workdir` is the cwd passed to target providers and graders/test scripts unless a later scoped feature explicitly overrides it. Host workdirs are local paths such as `./workspaces/bottle`; Docker workdirs are container paths such as `/app`.
+**Workdir** — The current working directory inside an environment. `environment.workdir` is the cwd passed to providers and graders/test scripts unless a later scoped feature explicitly overrides it. Host workdirs are local paths such as `./workspaces/bottle`; Docker workdirs are container paths such as `/app`.
 
 **Top-level `env`** — Promptfoo-compatible provider/eval environment-variable overrides and load-time template inputs such as `OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"`. Top-level `env` is not the testbed recipe and must not be moved under `environment`.
 
@@ -49,9 +49,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 ```yaml
 environment: file://.agentv/environments/local-python.yaml
 
-targets:
-  - id: codex
-    provider: codex-cli
+providers:
+  - id: agentv:codex-cli
+    label: codex
+    config:
+      command: codex
 ```
 
 ```yaml

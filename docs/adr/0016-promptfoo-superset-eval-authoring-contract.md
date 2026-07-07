@@ -39,6 +39,14 @@ identity key for AgentV reruns, trends, result links, or cross-run comparison.
 This deliberately diverges from Promptfoo's display-first row model while
 keeping Promptfoo config importable.
 
+Status note (2026-07-07): [ADR 0019](0019-promptfoo-first-provider-authoring-and-export-boundary.md)
+supersedes this ADR's target/provider authoring decision. Public systems under
+test are now authored as top-level `providers` using Promptfoo-compatible
+`id`/`label` semantics. AgentV's intended authored-config differences from
+Promptfoo are limited to `environment`, AgentV refs, and built-in AgentV
+providers; full Promptfoo compatibility for those differences is by
+`agentv export promptfoo`.
+
 ## Context
 
 AgentV's eval-authoring surface diverged from industry primitives. We are re-basing
@@ -79,10 +87,13 @@ keep AgentV's only where its semantics are genuinely better.**
    `javascript` is NOT desugared to `script`.
 4. **`metric` is the named-score field** (nunjucks-templated); grader `name` becomes
    display-only. Add `named_scores` + `derived_metrics`.
-5. **`targets` is the canonical system-under-test** axis (promptfoo target/`ProviderOptions`
-   object shape + AgentV extensions). `provider`/`apiId` = the **backend** kind (never a
-   SUT). No runtime top-level `providers` alias (would overload the backend term); the
-   codemod/conversion remaps promptfoo `providers:` → `targets:`.
+5. **`providers` is the canonical system-under-test** axis. Provider entries
+   follow Promptfoo-compatible shapes. `providers[].id` is the backend/spec
+   string, may contain colons, and may be Promptfoo-native or AgentV-native.
+   `providers[].label` is the stable AgentV selection/result identity and
+   defaults to `id` when omitted. Old public `targets` authoring is removed
+   before release; run-bundle artifact fields named `target` remain a separate
+   artifact-contract concern.
 6. **Prompts + vars plus direct `input`**: adopt top-level `prompts` (string/chat-array/file/
    fn, nunjucks `{{vars}}`) for prompt matrices, while keeping `input` as the
    supported direct-task shorthand for one-prompt suites. When `prompts` is
@@ -122,23 +133,25 @@ keep AgentV's only where its semantics are genuinely better.**
     lifecycle extension and not target identity.** AgentV remains
     promptfoo-compatible where promptfoo has matching primitives: `prompts`,
     `vars`, `tests`, `default_test`/`defaultTest`, `assert`, transforms,
-    `targets`/providers, top-level `env`, and lifecycle `extensions`. AgentV
+    `providers`, top-level `env`, and lifecycle `extensions`. AgentV
     adds `environment` as an AgentV-specific suite/test/case testbed recipe for
     repo materialization, fixtures, patches, services, Docker context/image,
-    setup scripts, and the workdir/cwd handed to targets and graders. The
+    setup scripts, and the workdir/cwd handed to providers and graders. The
     recipe may be inline or a `file://` reference; shared `file://` recipes are
     the canonical reusable form:
 
     ```yaml
     environment: file://.agentv/environments/local-python.yaml
 
-    targets:
-      - id: codex
-        provider: codex-cli
+    providers:
+      - id: agentv:codex-cli
+        label: codex
+        config:
+          command: codex
     ```
 
     `environment.type` starts with `host` and `docker`. `environment.workdir`
-    defines the current working directory passed to target providers and
+    defines the current working directory passed to providers and
     graders/test scripts unless a later scoped feature explicitly overrides it.
     Top-level `env` remains promptfoo-compatible provider/eval env overrides
     rendered from `{{ env.VAR }}` and must not be moved under `environment`.
@@ -172,7 +185,8 @@ top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, t
 - A one-shot codemod migrates existing eval files and hard-errors on removed keys with a
   message pointing at the replacement.
 - promptfoo authors get a near-drop-in contract (snake_case); AgentV keeps repo/agent
-  differentiation as documented extensions.
+  differentiation concentrated in `environment`, AgentV refs, built-in AgentV
+  providers, artifacts, and Dashboard behavior.
 - FizzBuzz/SWE-bench-style test grading needs no new assertion primitive -- a
   script grader runs the tests from `environment.workdir` (see ADR 0017 note on
   SWE-bench `FAIL_TO_PASS`/`PASS_TO_PASS`).

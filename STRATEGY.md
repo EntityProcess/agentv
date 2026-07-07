@@ -1,6 +1,6 @@
 ---
 name: AgentV
-last_updated: 2026-06-21
+last_updated: 2026-07-07
 ---
 
 # AgentV Strategy
@@ -9,9 +9,11 @@ last_updated: 2026-06-21
 
 Teams evaluating coding agents and other tool-using workflows need results from the real repositories, fixtures, and harnesses their agents already touch, but that work often gets split away from the actual workspace and development loop it came from. That makes it hard to reproduce failures, compare targets fairly, and keep evaluation evidence close to the code and workflow it came from.
 
-## Our approach
+## Our Approach
 
-AgentV stays repo-native and workspace-native: it runs or imports evaluations around the user's existing harness, writes portable run artifacts, and keeps core primitives focused on execution, grading, routing, and results storage. It integrates outward through clear boundaries: Phoenix can be correlated with as an optional external trace database when spans were emitted independently, Harbor can provide benchmark-grade execution, and post-run/export adapters can serve adjacent systems without AgentV trying to own every layer.
+AgentV stays repo-native and workspace-native while using Promptfoo-compatible eval authoring as the default public surface. Users author familiar `providers`, `prompts`, `tests`, `vars`, `assert`, `env`, and `extensions`; AgentV adds repo-native `environment` recipes, AgentV-native built-in providers, portable run artifacts, and the local Dashboard. When a config uses AgentV-only pieces, `agentv export promptfoo` is the compatibility boundary: supported refs and built-in providers lower to Promptfoo-readable files/providers, while unsupported environment semantics fail with explicit diagnostics.
+
+AgentV runs or imports evaluations around the user's existing harness, writes portable run artifacts, and keeps core primitives focused on execution, grading, routing, and results storage. It integrates outward through clear boundaries: Phoenix can be correlated with as an optional external trace database when spans were emitted independently, Harbor can provide benchmark-grade execution, and post-run/export adapters can serve adjacent systems without AgentV trying to own every layer.
 
 ## Who it's for
 
@@ -43,6 +45,12 @@ _Why it serves the approach:_ Portable artifacts let local runs, CI, static repo
 Add Phoenix, Harbor, Opik, Langfuse, and similar systems through narrow correlation, runner, adapter, or export boundaries rather than copying their product models into core. For Phoenix specifically, the supported boundary is link-out correlation from safe `external_trace` metadata; AgentV does not read through, export, or project completed runs, traces, transcripts, datasets, experiments, or indexes into Phoenix.
 
 _Why it serves the approach:_ This expands AgentV's reach without turning it into a hosted observability stack, benchmark platform, or integration kitchen sink.
+
+### Promptfoo-compatible authoring and export
+
+Keep AgentV's authored eval surface close to Promptfoo wherever the semantics match. The intentional differences are limited to `environment`, AgentV refs, and built-in AgentV providers. The exporter turns supported AgentV-native sugar into Promptfoo-readable config, with filesystem/host environment setup lowered through generated extensions and provider workdir config where possible.
+
+_Why it serves the approach:_ This lets users and coding agents reuse the incumbent eval vocabulary while preserving AgentV's repo-native setup, artifacts, and dashboard.
 
 ### Evaluation primitives for real agent workflows
 

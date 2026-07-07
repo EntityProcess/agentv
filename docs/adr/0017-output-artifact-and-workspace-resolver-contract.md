@@ -23,6 +23,14 @@ contract below supersedes both the earlier agentskills-shaped
 `graders[]`/`checks[]` wording. Native AgentV grading artifacts now use a
 recursive Promptfoo-style grading result in `snake_case`.
 
+Amended (2026-07-07) by [ADR 0019](0019-promptfoo-first-provider-authoring-and-export-boundary.md):
+Promptfoo-compatible authoring now uses top-level `providers` for systems under
+test. The artifact contract may keep `target` fields until a separate artifact
+migration is accepted. `environment` remains the AgentV-owned testbed recipe;
+Promptfoo export may lower a host/filesystem subset into generated extensions
+and provider workdir configuration, while Docker environments are unsupported
+for export until a faithful runner boundary exists.
+
 Amended (2026-07-06) by tracker `av-cpl5`: decision point 3 below described
 `transcript_summary` as inlined into each `index.jsonl` result row. That
 inlining is superseded — see "Summary/index/sidecar boundary is locked" below
@@ -285,8 +293,8 @@ contract than this ADR's original `workspace` decision:
 
 AgentV combines promptfoo-compatible eval authoring with an AgentV-owned
 environment recipe informed by Margin, Harbor, and Terminal-Bench evidence:
-Promptfoo is the compatibility baseline for prompts, vars, tests, assertions,
-targets/providers, top-level `env`, and lifecycle `extensions`; Margin Evals is
+Promptfoo is the compatibility baseline for providers, prompts, vars, tests,
+assertions, top-level `env`, and lifecycle `extensions`; Margin Evals is
 the closest reference for local coding-agent UX, filesystem-native suite
 ergonomics, immutable run bundles, resume/artifact discipline, and per-case
 image/cwd/test execution; Harbor and Terminal-Bench 2 are the strongest
@@ -298,9 +306,11 @@ in
 ```yaml
 environment: file://.agentv/environments/local-python.yaml
 
-targets:
-  - id: codex
-    provider: codex-cli
+providers:
+  - id: agentv:codex-cli
+    label: codex
+    config:
+      command: codex
 ```
 
 ```yaml
@@ -339,9 +349,11 @@ mechanically run setup code. For example, an eval could author a reusable
 extensions:
   - file://.agentv/extensions/setup-workspace.ts:beforeAll
 
-targets:
-  - id: codex
-    provider: codex-cli
+providers:
+  - id: agentv:codex-cli
+    label: codex
+    config:
+      command: codex
 ```
 
 That shape is not a good canonical product contract for coding-agent eval
@@ -358,6 +370,12 @@ separate visible concepts.
 
 Therefore `extensions` stay lifecycle hooks for customizing eval flow, while
 `environment` is the explicit AgentV substrate, setup, and `workdir` contract.
+For Promptfoo export, AgentV may generate extensions that implement a supported
+host/filesystem environment subset and pass the resolved workdir to providers.
+That generated shape is an export artifact, not the canonical AgentV authoring
+contract. Docker environments must not be flattened into extensions until an
+export path can preserve image, mount, service, resource, and provenance
+semantics.
 
 1. **`environment` is the authored testbed recipe** at suite/test/case scope.
    It may be inline or loaded through a field-level `file://` reference. Shared
@@ -367,14 +385,14 @@ Therefore `extensions` stay lifecycle hooks for customizing eval flow, while
    fields such as `context`, `dockerfile`, `image`, `workdir`, and future scoped
    resource/mount/secrets fields.
 3. **`environment.workdir` defines cwd.** AgentV passes the resolved workdir to
-   target providers and graders/test scripts unless a later scoped feature
-   explicitly overrides it. Target configs may still expose provider-specific
-   knobs, but the canonical testbed cwd comes from the environment recipe.
+   providers and graders/test scripts unless a later scoped feature explicitly
+   overrides it. Provider configs may still expose provider-specific knobs, but
+   the canonical testbed cwd comes from the environment recipe.
 4. **`environment.setup` materializes testbed state.** Setup is declarative data
    plus an argv `command`: repos, archives, patches, generated fixtures,
    installed dependencies, services, and other case state. Shell behavior is
    explicit by authoring an argv such as `["bash", "-lc", "..."]`. Setup runs
-   before target execution and before ordinary promptfoo lifecycle hooks.
+   before provider execution and before ordinary promptfoo lifecycle hooks.
 5. **Top-level `env` remains promptfoo-compatible.** It is for provider/eval env
    overrides and load-time `{{ env.VAR }}` rendering. Do not move it under
    `environment`. If `environment.env` is implemented, it means variables scoped
@@ -382,10 +400,12 @@ Therefore `extensions` stay lifecycle hooks for customizing eval flow, while
 6. **Promptfoo `extensions` remain lifecycle hooks.** They can customize eval
    flow, but they are not the canonical testbed setup contract because hidden
    hook code is weaker for review, validation, sharing, and cwd semantics.
-7. **Targets select agents/providers.** `targets[].id` is stable AgentV target
-   identity, `targets[].provider` names the adapter/control boundary, and
-   `targets[].runtime` remains placement/transport. Targets do not own
-   Docker/testbed setup by default.
+7. **Providers select agents/runtimes.** Superseded by ADR 0019 for public
+   authoring: systems under test are authored under top-level `providers`.
+   `providers[].id` names the backend/spec string, `providers[].label` is the
+   stable AgentV selection/result identity, and `providers[].runtime` remains
+   placement/transport for AgentV-native provider entries. Provider entries do
+   not own Docker/testbed setup by default.
 8. **`workspace` is not the public coding-agent benchmark contract.** The
    original `workspace.repos`, `workspace.scope`, `workspace.docker`, and
    `workspace.template` names are superseded where they meant authored testbed
@@ -395,10 +415,10 @@ Therefore `extensions` stay lifecycle hooks for customizing eval flow, while
    authored testbed primitive.
 
 The invariants matter more than the mechanism: testbed setup is declared as
-data; materialization precedes target execution and normal lifecycle hooks; cwd
-is explicit; provider/target identity remains separate from testbed setup; and
-run bundles can snapshot the resolved recipe, setup inputs, and resolved
-workdir as provenance.
+data; materialization precedes provider execution and normal lifecycle hooks;
+cwd is explicit; provider identity remains separate from testbed setup; and run
+bundles can snapshot the resolved recipe, setup inputs, and resolved workdir as
+provenance.
 
 ### Note: SWE-bench `FAIL_TO_PASS` / `PASS_TO_PASS`
 
