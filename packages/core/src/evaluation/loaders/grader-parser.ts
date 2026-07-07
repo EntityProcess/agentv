@@ -874,27 +874,33 @@ async function parseGraderList(
         resolvedCwd = searchRoots[0];
       }
 
-      // Parse optional target config (enables target proxy access)
-      const rawTarget = rawEvaluator.target;
-      let targetConfig: import('../types.js').TargetAccessConfig | undefined;
-      if (rawTarget !== undefined) {
-        if (isJsonObject(rawTarget)) {
-          const maxCalls = rawTarget.max_calls;
+      if (rawEvaluator.target !== undefined) {
+        throw new Error(
+          `Script evaluator field 'target' has been removed in '${evalId}' for evaluator '${name}'. Use script evaluator 'provider' instead.`,
+        );
+      }
+
+      // Parse optional provider config (enables provider proxy access)
+      const rawProvider = rawEvaluator.provider;
+      let providerConfig: import('../types.js').ProviderAccessConfig | undefined;
+      if (rawProvider !== undefined) {
+        if (isJsonObject(rawProvider)) {
+          const maxCalls = rawProvider.max_calls;
           if (maxCalls !== undefined && (typeof maxCalls !== 'number' || maxCalls < 0)) {
             logWarning(
-              `Invalid target.max_calls for evaluator '${name}' in '${evalId}': must be a non-negative number`,
+              `Invalid provider.max_calls for evaluator '${name}' in '${evalId}': must be a non-negative number`,
             );
           } else {
-            targetConfig = {
+            providerConfig = {
               ...(typeof maxCalls === 'number' ? { max_calls: maxCalls } : {}),
             };
           }
-        } else if (rawTarget === true) {
-          // Support shorthand: `target: true` to enable with defaults
-          targetConfig = {};
+        } else if (rawProvider === true) {
+          // Support shorthand: `provider: true` to enable with defaults
+          providerConfig = {};
         } else {
           logWarning(
-            `Invalid target config for evaluator '${name}' in '${evalId}': expected object or true`,
+            `Invalid provider config for evaluator '${name}' in '${evalId}': expected object or true`,
           );
         }
       }
@@ -913,7 +919,7 @@ async function parseGraderList(
         'command',
         'cwd',
         'weight',
-        'target',
+        'provider',
         'config',
         'preprocessors',
         'required',
@@ -948,7 +954,7 @@ async function parseGraderList(
         ...(inheritedInternalPreprocessors
           ? { preprocessors: inheritedInternalPreprocessors }
           : {}),
-        ...(targetConfig !== undefined ? { target: targetConfig } : {}),
+        ...(providerConfig !== undefined ? { provider: providerConfig } : {}),
       });
       continue;
     }

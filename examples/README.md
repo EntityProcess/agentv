@@ -47,10 +47,10 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [assert-set](features/assert-set/) - Assertion grouping patterns
 - [weighted-graders](features/weighted-graders/) - Weighted graders
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
-- [script-grader-with-llm-calls](features/script-grader-with-llm-calls/) - script graders with target proxy for LLM calls
+- [script-grader-with-llm-calls](features/script-grader-with-llm-calls/) - script graders with provider proxy for LLM calls
 - [batch-cli](features/batch-cli/) - Batch CLI evaluation
 - [document-extraction](features/document-extraction/) - Document data extraction
-- [local-cli](features/local-cli/) - Local CLI targets
+- [local-cli](features/local-cli/) - Local CLI providers
 - [compare](features/compare/) - Baseline comparison
 - [deterministic-graders](features/deterministic-graders/) - Deterministic assertions (contains, regex, JSON validation)
 - [vitest-workspace-grader](features/vitest-workspace-grader/) - Vitest-style deterministic workspace verifiers
@@ -92,7 +92,7 @@ example-name/
 │   └── *.md                  # LLM grader prompts (optional)
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/
-│   └── providers.yaml          # Target configuration (optional)
+│   └── providers.yaml          # Provider configuration (optional)
 ├── package.json              # Dependencies (if using agentv)
 └── README.md                 # Example documentation
 ```

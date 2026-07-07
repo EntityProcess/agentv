@@ -205,16 +205,16 @@ export {
   type RegexGraderOptions,
 } from './graders.js';
 
-// Re-export target client
+// Re-export provider client
 export {
-  createTargetClient,
-  TargetNotAvailableError,
-  TargetInvocationError,
-  type TargetClient,
-  type TargetInfo,
-  type TargetInvokeRequest,
-  type TargetInvokeResponse,
-} from './target-client.js';
+  createProviderClient,
+  ProviderNotAvailableError,
+  ProviderInvocationError,
+  type ProviderClient,
+  type ProviderInfo,
+  type ProviderInvokeRequest,
+  type ProviderInvokeResponse,
+} from './provider-client.js';
 
 // Re-export workspace grader helpers
 export {

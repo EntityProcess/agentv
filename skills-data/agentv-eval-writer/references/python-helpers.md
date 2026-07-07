@@ -18,7 +18,7 @@ Use it when the user wants Python-based custom graders or wants to emit AgentV Y
   - `load_grader_input()`
   - `run_script_grader(handler)`
   - `define_script_grader(handler)`
-  - `TargetClient.from_env()`
+  - `ProviderClient.from_env()`
 - `agentv_py.evals`
   - `EvalDefinition`
   - `EvalTest`
@@ -57,7 +57,7 @@ def rag_faithfulness():
     return {
         "name": "rag-faithfulness",
         "type": "llm-rubric",
-        "target": "grader-target",
+        "provider": "grader-provider",
         "prompt": "Grade whether the answer is supported by the retrieved context.",
     }
 

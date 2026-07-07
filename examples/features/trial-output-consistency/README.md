@@ -23,7 +23,7 @@ When an agent is run multiple times on the same input (trials), outputs may vary
 | Method | When Used | Accuracy |
 |--------|-----------|----------|
 | **Embedding** | Target client available, `fallback` not set | High — captures semantic similarity |
-| **Token-overlap** | No target or `fallback: token` | Moderate — bag-of-words cosine |
+| **Token-overlap** | No provider or `fallback: token` | Moderate — bag-of-words cosine |
 
 ## Edge Cases
 
@@ -64,8 +64,8 @@ assert:
 # Validate the eval file
 bun agentv validate examples/features/trial-output-consistency/evals/suite.yaml
 
-# Run a specific test with a configured target
-bun agentv eval examples/features/trial-output-consistency/evals/suite.yaml --test-id high-consistency --provider <your-target>
+# Run a specific test with a configured provider
+bun agentv eval examples/features/trial-output-consistency/evals/suite.yaml --test-id high-consistency --provider <your-provider>
 ```
 
 ## Extending

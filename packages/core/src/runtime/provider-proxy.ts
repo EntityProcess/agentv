@@ -1,5 +1,5 @@
 /**
- * Local HTTP proxy server for target invocations from script graders.
+ * Local HTTP proxy server for provider invocations from script graders.
  *
  * Security properties:
  * - Binds to loopback only (127.0.0.1)
@@ -18,19 +18,19 @@ import type { TokenUsage } from '../evaluation/trace.js';
 /**
  * Request body for /invoke endpoint
  */
-export interface TargetProxyInvokeRequest {
+export interface ProviderProxyInvokeRequest {
   readonly evalCaseId: string;
   readonly attempt: number;
   readonly question: string;
   readonly systemPrompt?: string;
-  /** Optional target override - use a different target for this invocation */
-  readonly target?: string;
+  /** Optional provider override - use a different provider for this invocation */
+  readonly provider?: string;
 }
 
 /**
  * Response body for /invoke endpoint
  */
-export interface TargetProxyInvokeResponse {
+export interface ProviderProxyInvokeResponse {
   readonly output: readonly unknown[];
   readonly rawText?: string;
   readonly tokenUsage?: TokenUsage;
@@ -39,7 +39,7 @@ export interface TargetProxyInvokeResponse {
 /**
  * Proxy usage metadata recorded after execution
  */
-export interface TargetProxyUsageMetadata {
+export interface ProviderProxyUsageMetadata {
   readonly callCount: number;
   readonly maxCalls: number;
   readonly tokenUsage?: TokenUsage;
@@ -48,48 +48,50 @@ export interface TargetProxyUsageMetadata {
 /**
  * Response body for /info endpoint
  */
-export interface TargetProxyInfoResponse {
-  readonly targetName: string;
+export interface ProviderProxyInfoResponse {
+  readonly providerLabel: string;
   readonly maxCalls: number;
   readonly callCount: number;
-  readonly availableTargets: readonly string[];
+  readonly availableProviderLabels: readonly string[];
 }
 
 /**
- * Function to resolve a target name to a provider
+ * Function to resolve a provider label to a provider
  */
-export type TargetResolver = (targetName: string) => Provider | undefined;
+export type ProviderResolver = (providerLabel: string) => Provider | undefined;
 
 /**
- * Options for creating a target proxy
+ * Options for creating a provider proxy
  */
-export interface TargetProxyOptions {
+export interface ProviderProxyOptions {
   readonly defaultProvider: Provider;
-  /** Optional resolver for target override - if not provided, only default target is available */
-  readonly targetResolver?: TargetResolver;
-  /** Names of all available targets (for /info endpoint) */
-  readonly availableTargets?: readonly string[];
+  /** Optional resolver for provider override - if not provided, only default provider is available */
+  readonly providerResolver?: ProviderResolver;
+  /** Labels of all available providers (for /info endpoint) */
+  readonly availableProviderLabels?: readonly string[];
   readonly maxCalls: number;
 }
 
 /**
- * Active target proxy instance
+ * Active provider proxy instance
  */
-export interface TargetProxyInstance {
+export interface ProviderProxyInstance {
   readonly url: string;
   readonly token: string;
   readonly shutdown: () => Promise<void>;
-  readonly getUsageMetadata: () => TargetProxyUsageMetadata;
+  readonly getUsageMetadata: () => ProviderProxyUsageMetadata;
 }
 
 /** Default max calls if not specified */
 export const DEFAULT_MAX_CALLS = 50;
 
 /**
- * Create and start a target proxy server.
+ * Create and start a provider proxy server.
  */
-export async function createTargetProxy(options: TargetProxyOptions): Promise<TargetProxyInstance> {
-  const { defaultProvider, targetResolver, availableTargets, maxCalls } = options;
+export async function createProviderProxy(
+  options: ProviderProxyOptions,
+): Promise<ProviderProxyInstance> {
+  const { defaultProvider, providerResolver, availableProviderLabels, maxCalls } = options;
 
   // Generate unique token for this invocation
   const token = randomBytes(32).toString('hex');
@@ -99,20 +101,20 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  // Build available targets list - always includes default
-  const targetsList: readonly string[] = availableTargets ?? [defaultProvider.targetName];
+  // Build available provider list - always includes default
+  const providerLabels: readonly string[] = availableProviderLabels ?? [defaultProvider.targetName];
 
   /**
-   * Resolve a target name to a provider.
-   * Returns the default provider if targetName is undefined or matches default.
-   * Returns undefined if targetName is unknown.
+   * Resolve a provider label to a provider.
+   * Returns the default provider if provider is undefined or matches default.
+   * Returns undefined if provider is unknown.
    */
-  function resolveProvider(targetName: string | undefined): Provider | undefined {
-    if (targetName === undefined || targetName === defaultProvider.targetName) {
+  function resolveProvider(providerLabel: string | undefined): Provider | undefined {
+    if (providerLabel === undefined || providerLabel === defaultProvider.targetName) {
       return defaultProvider;
     }
-    if (targetResolver) {
-      return targetResolver(targetName);
+    if (providerResolver) {
+      return providerResolver(providerLabel);
     }
     return undefined;
   }
@@ -163,11 +165,11 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
   });
 
   function handleInfo(res: ServerResponse): void {
-    const response: TargetProxyInfoResponse = {
-      targetName: defaultProvider.targetName,
+    const response: ProviderProxyInfoResponse = {
+      providerLabel: defaultProvider.targetName,
       maxCalls,
       callCount,
-      availableTargets: targetsList,
+      availableProviderLabels: providerLabels,
     };
     sendJson(res, 200, response);
   }
@@ -181,7 +183,7 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
 
     try {
       const body = await readBody(req);
-      const request = JSON.parse(body) as TargetProxyInvokeRequest;
+      const request = JSON.parse(body) as ProviderProxyInvokeRequest;
 
       // Validate required fields
       if (!request.question || typeof request.question !== 'string') {
@@ -189,11 +191,11 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
         return;
       }
 
-      // Resolve target provider
-      const provider = resolveProvider(request.target);
+      // Resolve provider override
+      const provider = resolveProvider(request.provider);
       if (!provider) {
         sendJson(res, 400, {
-          error: `Unknown target '${request.target}'. Available: ${targetsList.join(', ')}`,
+          error: `Unknown provider '${request.provider}'. Available: ${providerLabels.join(', ')}`,
         });
         return;
       }
@@ -216,7 +218,7 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
       const output = response.output ?? [];
       const rawText = extractLastAssistantContent(output);
 
-      const result: TargetProxyInvokeResponse = {
+      const result: ProviderProxyInvokeResponse = {
         output,
         rawText,
         tokenUsage: response.tokenUsage,
@@ -232,7 +234,7 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
   async function handleInvokeBatch(req: IncomingMessage, res: ServerResponse): Promise<void> {
     try {
       const body = await readBody(req);
-      const { requests } = JSON.parse(body) as { requests: TargetProxyInvokeRequest[] };
+      const { requests } = JSON.parse(body) as { requests: ProviderProxyInvokeRequest[] };
 
       if (!Array.isArray(requests)) {
         sendJson(res, 400, { error: 'Missing required field: requests (array)' });
@@ -247,7 +249,7 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
         return;
       }
 
-      const responses: TargetProxyInvokeResponse[] = [];
+      const responses: ProviderProxyInvokeResponse[] = [];
 
       for (const request of requests) {
         if (!request.question || typeof request.question !== 'string') {
@@ -258,12 +260,12 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
           continue;
         }
 
-        // Resolve target provider
-        const provider = resolveProvider(request.target);
+        // Resolve provider override
+        const provider = resolveProvider(request.provider);
         if (!provider) {
           responses.push({
             output: [],
-            rawText: `Error: Unknown target '${request.target}'. Available: ${targetsList.join(', ')}`,
+            rawText: `Error: Unknown provider '${request.provider}'. Available: ${providerLabels.join(', ')}`,
           });
           continue;
         }

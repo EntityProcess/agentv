@@ -11,7 +11,7 @@ It does **not** add a native Python runner. Evaluations still run through the Ag
 
 ## Layout
 
-- `src/agentv_py/grader.py` - canonical script-grader helper and target proxy client
+- `src/agentv_py/grader.py` - canonical script-grader helper and provider proxy client
 - `src/agentv_py/evals.py` - YAML/JSONL authoring helpers plus optional CLI invocation
 - `scripts/check_expected_output.py` - example Python script-grader
 - `scripts/build_eval.py` - example eval definition builder

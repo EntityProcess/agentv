@@ -56,7 +56,7 @@ Promptfoo normally calls eval custom logic assertions and uses fixed assertion t
 
 ```typescript
 import {
-  createTargetClient,
+  createProviderClient,
   defineScriptGrader,
   defineEval,
   type EvalConfig,
@@ -69,7 +69,7 @@ import {
 - `EvalConfig` - Public TypeScript eval authoring type for default-exported `*.eval.ts` and `*.eval.mts` files
 - `defineEval(definition)` - Optional thin helper over the same `EvalConfig` shape
 - `graders` - Helper catalog that returns ordinary AgentV `assert` entries
-- `createTargetClient()` - Returns LLM proxy client (when `target: {}` configured)
+- `createProviderClient()` - Returns LLM proxy client (when `provider: {}` configured)
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
@@ -88,7 +88,7 @@ import { graders, type EvalConfig } from '@agentv/sdk';
 function ragFaithfulness() {
   return graders.llmRubric(undefined, {
     name: 'rag-faithfulness',
-    target: 'grader-target',
+    provider: 'grader-provider',
     prompt: 'Grade whether the answer is supported by the retrieved context.',
   });
 }
@@ -120,7 +120,7 @@ assert:
     value: source
   - name: rag-faithfulness
     type: llm-rubric
-    target: grader-target
+    provider: grader-provider
     prompt: Grade whether the answer is supported by the retrieved context.
 ```
 
@@ -181,6 +181,6 @@ Derived from test fields (users never author these directly):
 | `input` | Full resolved input array (JSON) |
 | `expected_output` | Full resolved expected array (JSON) |
 | `output` | Final answer / scored result string |
-| `messages` | Transcript messages from target execution |
+| `messages` | Transcript messages from provider execution |
 
 Markdown templates use `{{variable}}` syntax. TypeScript templates receive context object.

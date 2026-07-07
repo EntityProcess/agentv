@@ -141,7 +141,7 @@ The current `extractRetrievalContext()` in `utils.ts` flattens for simplicity. F
 
 ## Security
 
-The target proxy is designed with security in mind:
+The provider proxy is designed with security in mind:
 - Binds to **loopback only** (127.0.0.1) - not accessible from network
 - Uses **bearer token authentication** - unique per execution
 - Enforces **max_calls limit** - prevents runaway costs
@@ -149,29 +149,29 @@ The target proxy is designed with security in mind:
 
 ## Configuration
 
-Enable target access by adding a `target` block to your `script_grader` grader:
+Enable provider access by adding a `provider` block to your `script_grader` grader:
 
 ```yaml
 graders:
   - name: contextual_precision
     type: script
     command: [bun, run, scripts/contextual-precision.ts]
-    target:
+    provider:
       max_calls: 10  # At least N nodes to evaluate
   - name: contextual_recall
     type: script
     command: [bun, run, scripts/contextual-recall.ts]
-    target:
+    provider:
       max_calls: 15  # 1 for extraction + N statements for attribution
 ```
 
 ## Usage in Code
 
 ```typescript
-import { createTargetClient, defineScriptGrader } from 'agentv';
+import { createProviderClient, defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(async ({ question, config }) => {
-  const target = createTargetClient();
+  const provider = createProviderClient();
   const retrievalContext = config?.retrieval_context ?? [];
 
   // Batch evaluation of all nodes
@@ -180,7 +180,7 @@ export default defineScriptGrader(async ({ question, config }) => {
     systemPrompt: 'Respond with JSON: { "relevant": true/false }'
   }));
 
-  const responses = await target.invokeBatch(requests);
+  const responses = await provider.invokeBatch(requests);
 
   // Calculate weighted precision score...
 });
@@ -188,42 +188,42 @@ export default defineScriptGrader(async ({ question, config }) => {
 
 ## Querying Proxy Info
 
-You can query information about the target proxy:
+You can query information about the provider proxy:
 
 ```typescript
-const info = await target.getInfo();
-console.log(`Target: ${info.targetName}`);
+const info = await provider.getInfo();
+console.log(`Provider: ${info.providerLabel}`);
 console.log(`Calls: ${info.callCount}/${info.maxCalls}`);
-console.log(`Available targets: ${info.availableTargets.join(', ')}`);
+console.log(`Available providers: ${info.availableProviderLabels.join(', ')}`);
 ```
 
-## Target Override
+## Provider Override
 
-Use different targets for different purposes within the same grader:
+Use different providers for different purposes within the same grader:
 
 ```typescript
 // Use a coding agent for complex tasks
-const agentResponses = await target.invokeBatch(
+const agentResponses = await provider.invokeBatch(
   nodes.map(node => ({
     question: `Is this relevant? ${node}`,
-    target: 'pi'  // Override default target
+    provider: 'pi'  // Override default provider
   }))
 );
 
 // Use a base LLM for simple evaluation
-const response = await target.invoke({
+const response = await provider.invoke({
   question: complexAnalysisPrompt,
-  target: 'gemini-llm'  // Use different target
+  provider: 'gemini-llm'  // Use different provider
 });
 ```
 
 ## Environment Variables
 
-When `target` is configured, these environment variables are automatically set:
-- `AGENTV_TARGET_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
-- `AGENTV_TARGET_PROXY_TOKEN` - Bearer token for authentication
+When `provider` is configured, these environment variables are automatically set:
+- `AGENTV_PROVIDER_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
+- `AGENTV_PROVIDER_PROXY_TOKEN` - Bearer token for authentication
 
-The `createTargetClient()` function reads these automatically.
+The `createProviderClient()` function reads these automatically.
 
 ## Running
 

@@ -729,6 +729,46 @@ describe('parseGraders - script config pass-through', () => {
     expect(config.config).toEqual({ threshold: 0.9, algorithm: 'levenshtein' });
   });
 
+  it('parses script provider proxy config', async () => {
+    const rawEvalCase = {
+      assert: [
+        {
+          metric: 'provider-backed-script',
+          type: 'script',
+          command: ['bun', 'run', './test_script.ts'],
+          provider: { max_calls: 2 },
+        },
+      ],
+    };
+
+    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as ScriptGraderConfig;
+    expect(config.provider).toEqual({ max_calls: 2 });
+    expect(config.config).toBeUndefined();
+  });
+
+  it('rejects removed script provider proxy target config', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [
+            {
+              metric: 'legacy-provider-access',
+              type: 'script',
+              command: ['bun', 'run', './test_script.ts'],
+              target: { max_calls: 2 },
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-case',
+      ),
+    ).rejects.toThrow(/Script evaluator field 'target' has been removed.*provider/);
+  });
+
   it('converts string commands into argv using a shell', async () => {
     const rawEvalCase = {
       assert: [

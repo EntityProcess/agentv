@@ -5,7 +5,7 @@ assert:
       - bun
       - run
       - ../scripts/contextual-recall.ts
-    target:
+    provider:
       max_calls: 15
 providers:
   - llm
