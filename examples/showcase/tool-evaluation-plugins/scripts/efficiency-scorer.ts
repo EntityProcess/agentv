@@ -19,7 +19,7 @@
  *       type: script
  *       command: ["bun", "run", "scripts/efficiency-scorer.ts"]
  */
-import { type TraceSummary, defineScriptGrader } from '@agentv/sdk';
+import { type TraceSummary, defineScriptGrader } from 'agentv';
 
 // Configurable thresholds (customize for your domain)
 const THRESHOLDS = {

@@ -11,7 +11,7 @@
  *       type: script
  *       command: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];

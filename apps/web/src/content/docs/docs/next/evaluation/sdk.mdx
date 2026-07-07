@@ -6,37 +6,29 @@ sidebar:
 slug: docs/evaluation/sdk
 ---
 
-YAML remains AgentV's canonical, portable eval format. The SDK surfaces below are for cases where you want to generate YAML-shaped definitions in code, embed eval runs inside another application, or write executable graders and prompt templates. For authoring helpers, `@agentv/sdk` is AgentV's public lightweight SDK package.
-
-AgentV currently provides two npm packages for programmatic use:
-
-- **`@agentv/sdk`** — user-facing SDK for `evaluate()`, YAML-aligned eval authoring, custom assertions, and script graders
-- **`@agentv/core`** — core implementation package and typed configuration
+YAML remains AgentV's canonical, portable eval format. The SDK surfaces below are for cases where you want to generate YAML-shaped definitions in code, embed eval runs inside another application, or write executable graders and prompt templates. The public TypeScript SDK and programmatic API live in the `agentv` package.
 
 ## Installation
 
 ```bash
 # User-facing SDK (evaluate, defineEval, graders, defineAssertion, defineScriptGrader)
-npm install @agentv/sdk
-
-# Core configuration helpers (defineConfig)
-npm install @agentv/core
+npm install agentv
 ```
 
 ## Migrating from `@agentv/eval`
 
-Use `@agentv/sdk` for all new TypeScript SDK code:
+Use `agentv` for all new TypeScript SDK code:
 
 ```bash
 npm uninstall @agentv/eval
-npm install @agentv/sdk
+npm install agentv
 ```
 
 ```typescript
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 ```
 
-The general policy is hard convergence for same-week or unreleased surface names: use the correct package, field, or wire name instead of carrying aliases. `@agentv/eval` was already published, then deprecated on npm, and has been removed from this repository. New docs, examples, scaffolds, and skills should use `@agentv/sdk` directly.
+The general policy is hard convergence for same-week or unreleased surface names: use the correct package, field, or wire name instead of carrying aliases. `@agentv/eval` was already published, then deprecated on npm, and has been removed from this repository. New docs, examples, scaffolds, and skills should use `agentv` directly.
 
 ## Choose a Surface
 
@@ -89,11 +81,11 @@ This is example-local/repo-local guidance, not a promise of a published Python p
 
 ## TypeScript Eval Config Authoring
 
-Use `EvalConfig` from `@agentv/sdk` when you want TypeScript ergonomics without creating a second eval vocabulary. AgentV accepts explicit `*.eval.ts` and `*.eval.mts` files as eval configs. Each TypeScript config uses a default export and lowers back to the canonical snake_case eval object contract when AgentV loads the file.
+Use `EvalConfig` from `agentv` when you want TypeScript ergonomics without creating a second eval vocabulary. AgentV accepts explicit `*.eval.ts` and `*.eval.mts` files as eval configs. Each TypeScript config uses a default export and lowers back to the canonical snake_case eval object contract when AgentV loads the file.
 
 ```typescript
 // evals/greeting.eval.ts
-import { graders, type EvalConfig } from '@agentv/sdk';
+import { graders, type EvalConfig } from 'agentv';
 
 const config: EvalConfig = {
   name: 'hello-suite',
@@ -139,10 +131,10 @@ TypeScript eval configs use the same provider surface as YAML: top-level `provid
 
 ## Built-In Grader Helpers
 
-`@agentv/sdk` includes a small `graders` catalog for common deterministic and LLM-backed grader configs. These helpers return ordinary `assert` entries and serialize to the same canonical YAML you could write by hand.
+`agentv` includes a small `graders` catalog for common deterministic and LLM-backed grader configs. These helpers return ordinary `assert` entries and serialize to the same canonical YAML you could write by hand.
 
 ```typescript
-import { graders, type EvalConfig } from '@agentv/sdk';
+import { graders, type EvalConfig } from 'agentv';
 
 const config: EvalConfig = {
   name: 'grader-helper-suite',
@@ -178,7 +170,7 @@ The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `llm
 If you are coming from Braintrust `scores` or DeepEval metrics, keep the reusable logic AgentV-native: write helper factories that return `graders.*` configs, then let the TypeScript eval config lower them to ordinary `assert` entries.
 
 ```typescript
-import { graders, type EvalConfig } from '@agentv/sdk';
+import { graders, type EvalConfig } from 'agentv';
 
 function ragFaithfulness() {
   return graders.llmRubric(undefined, {
@@ -226,7 +218,7 @@ assert:
 
 ## Custom Assertions
 
-Use `defineAssertion` from `@agentv/sdk` to create reusable assertion types. Place them in `.agentv/assertions/` — they're auto-discovered by filename.
+Use `defineAssertion` from `agentv` to create reusable assertion types. Place them in `.agentv/assertions/` — they're auto-discovered by filename.
 
 This is the custom assertion path, not the custom grader path. It matches Promptfoo's assertion terminology for normal eval checks, while extending Promptfoo's fixed custom logic types (`javascript`, `python`, `ruby`, `webhook`) with arbitrary discovered AgentV type names.
 
@@ -234,7 +226,7 @@ This is the custom assertion path, not the custom grader path. It matches Prompt
 
 ```typescript
 // .agentv/assertions/min-words.ts
-import { defineAssertion } from '@agentv/sdk';
+import { defineAssertion } from 'agentv';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
@@ -253,7 +245,7 @@ Return a `score` (0–1) instead of `pass` for graded evaluation:
 
 ```typescript
 // .agentv/assertions/efficiency.ts
-import { defineAssertion } from '@agentv/sdk';
+import { defineAssertion } from 'agentv';
 
 export default defineAssertion(({ output, traceSummary }) => {
   const hasContent = (output ?? '').length > 0 ? 0.5 : 0;
@@ -287,10 +279,10 @@ assert:
 
 ## Script Graders
 
-Use `defineScriptGrader` from `@agentv/sdk` for full control over scoring with optional per-check results:
+Use `defineScriptGrader` from `agentv` for full control over scoring with optional per-check results:
 
 ```typescript
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 export default defineScriptGrader(({ output, traceSummary }) => ({
   pass: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5,
@@ -334,7 +326,7 @@ assert:
 Use `defineWorkspaceGrader` only for tiny one-off file checks or custom score shaping:
 
 ```typescript
-import { defineWorkspaceGrader } from '@agentv/sdk';
+import { defineWorkspaceGrader } from 'agentv';
 
 export default defineWorkspaceGrader(async ({ workspace }) => [
   await workspace.file('app/page.tsx').contains('Status: All systems ready'),
@@ -350,7 +342,7 @@ For detailed patterns, input/output contracts, and language-agnostic examples, s
 
 ## Wire Format vs SDK Format
 
-Raw grader stdin uses `snake_case` because it crosses a process boundary and may be consumed by Python, shell, jq, or external dashboards. The `@agentv/sdk` package converts that payload to idiomatic TypeScript `camelCase` before calling your handler.
+Raw grader stdin uses `snake_case` because it crosses a process boundary and may be consumed by Python, shell, jq, or external dashboards. The `agentv` package converts that payload to idiomatic TypeScript `camelCase` before calling your handler.
 
 | Raw stdin | SDK handler field |
 |-----------|-------------------|
@@ -366,12 +358,12 @@ Raw grader stdin uses `snake_case` because it crosses a process boundary and may
 
 ## Programmatic API
 
-Use `evaluate()` from `@agentv/sdk` to run evaluations as a library. The implementation is owned by `@agentv/core`, but the SDK re-exports it as the user-facing entrypoint. The most portable pattern is still to keep the suite in YAML and point `specFile` at it; inline tests are best when the eval is tightly coupled to application code.
+Use `evaluate()` from `agentv` to run evaluations as a library. The most portable pattern is still to keep the suite in YAML and point `specFile` at it; inline tests are best when the eval is tightly coupled to application code.
 
 ### Inline Test Definitions
 
 ```typescript
-import { evaluate } from '@agentv/sdk';
+import { evaluate } from 'agentv';
 
 const { results, summary } = await evaluate({
   tests: [
@@ -390,7 +382,7 @@ console.log(`${summary.passed}/${summary.total} passed`);
 A strict OR is easy with inline assertion handlers:
 
 ```typescript
-import { evaluate } from '@agentv/sdk';
+import { evaluate } from 'agentv';
 
 const { summary } = await evaluate({
   tests: [
@@ -420,7 +412,7 @@ Auto-discovers the `default` provider from `.agentv/providers.yaml` and `.env` c
 Point to an existing YAML eval instead of inlining tests:
 
 ```typescript
-import { evaluate } from '@agentv/sdk';
+import { evaluate } from 'agentv';
 
 const { results, summary } = await evaluate({
   specFile: './evals/my-eval.eval.yaml',
@@ -431,10 +423,10 @@ This is the recommended bridge when you want SDK control without creating a sepa
 
 ## Typed Configuration
 
-Create `agentv.config.ts` at your project root for type-safe, validated configuration using `defineConfig()` from `@agentv/core`:
+Create `agentv.config.ts` at your project root for type-safe, validated configuration using `defineConfig()` from `agentv/config`:
 
 ```typescript
-import { defineConfig } from '@agentv/core';
+import { defineConfig } from 'agentv/config';
 
 export default defineConfig({
   execution: {

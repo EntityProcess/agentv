@@ -17,7 +17,7 @@
  *       type: script
  *       command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  */
-import { type Message, defineScriptGrader } from '@agentv/sdk';
+import { type Message, defineScriptGrader } from 'agentv';
 
 interface ToolSummary {
   tools: string[];

@@ -5,7 +5,7 @@
  * Uses the declarative defineScriptGrader helper to verify attachments
  * are referenced in the candidate output.
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 function fileName(path: string): string {
   const parts = path.split('/');

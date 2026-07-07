@@ -3,7 +3,7 @@
   "private": true,
   "description": "Cross-repo sync workspace evaluation showcase",
   "dependencies": {
-    "@agentv/sdk": "file:../../../packages/sdk"
+    "agentv": "file:../../../apps/cli"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

@@ -1,8 +1,8 @@
-import { type EvalConfig, graders } from '@agentv/sdk';
+import { type EvalConfig, graders } from 'agentv';
 
 const config: EvalConfig = {
   name: 'sdk-eval-authoring',
-  description: 'TypeScript eval config authoring with @agentv/sdk',
+  description: 'TypeScript eval config authoring with agentv',
   target: 'mock-sdk',
   environment: {
     type: 'host',

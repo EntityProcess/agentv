@@ -6,7 +6,7 @@
  * appear in the candidate output. Produces stable scores for unambiguous
  * cases and variable scores for partial matches.
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 function getMessageText(
   messages: readonly { role: string; content?: unknown }[],

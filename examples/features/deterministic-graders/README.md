@@ -31,7 +31,7 @@ Set `negated: true` in config to invert any assertion.
 
 ## Files
 
-- `graders/assertions.ts` — Parameterised script grader using `defineScriptGrader` from `@agentv/sdk`
+- `graders/assertions.ts` — Parameterised script grader using `defineScriptGrader` from `agentv`
 - `evals/suite.yaml` — Example tests covering every assertion type
 
 ## Setup

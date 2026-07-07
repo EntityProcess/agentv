@@ -71,7 +71,7 @@ Checks whether the `csv-analyzer` skill was (or was not) invoked.
 Inspects tool call names and skill invocation events in the transcript.
 
 ### transcript-quality (script-grader)
-Custom grader using `defineScriptGrader` from `@agentv/sdk`. Validates:
+Custom grader using `defineScriptGrader` from `agentv`. Validates:
 1. Transcript contains assistant messages
 2. Tool calls were recorded (inspects `Message[].toolCalls`)
 3. Response addresses the CSV analysis question

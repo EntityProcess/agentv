@@ -15,7 +15,7 @@
  *       type: script
  *       command: ["bun", "run", "../graders/transcript-quality.ts"]
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 function getMessageText(
   messages: readonly { role: string; content?: unknown }[],

@@ -22,7 +22,7 @@
  *           args: { query: "weather" }
  *         - tool: fetch
  */
-import { type ScriptGraderInput, defineScriptGrader } from '@agentv/sdk';
+import { type ScriptGraderInput, defineScriptGrader } from 'agentv';
 
 interface ExpectedTool {
   tool: string;

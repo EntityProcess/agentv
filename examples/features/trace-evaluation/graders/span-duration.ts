@@ -5,7 +5,7 @@
  * Validates that no individual tool execution exceeds a time threshold
  * using trace.toolDurations data.
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 const DEFAULT_MAX_SPAN_MS = 5000;
 

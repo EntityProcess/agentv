@@ -1,4 +1,4 @@
-import { defineConfig } from '@agentv/core';
+import { defineConfig } from 'agentv/config';
 
 export default defineConfig({
   execution: {

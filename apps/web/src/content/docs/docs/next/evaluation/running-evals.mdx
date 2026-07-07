@@ -578,7 +578,7 @@ eval_patterns:
 ### TypeScript config (`agentv.config.ts`)
 
 ```typescript
-import { defineConfig } from '@agentv/core';
+import { defineConfig } from 'agentv/config';
 
 export default defineConfig({
   execution: {
@@ -602,7 +602,7 @@ agentv eval evals/suite.yaml --cache-path .agentv/response-cache
 Project TypeScript config can set the project default:
 
 ```typescript
-import { defineConfig } from '@agentv/core';
+import { defineConfig } from 'agentv/config';
 
 export default defineConfig({
   cache: {

@@ -15,7 +15,7 @@
  *   1 trial   → score 1.0 (perfect consistency by definition)
  *   2+ trials → average pairwise cosine similarity
  */
-import { createTargetClient, defineScriptGrader, z } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader, z } from 'agentv';
 
 const ConfigSchema = z.object({
   trialOutputs: z.array(z.string()),

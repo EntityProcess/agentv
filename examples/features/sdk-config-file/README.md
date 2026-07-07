@@ -1,6 +1,6 @@
 # SDK Example: Config File
 
-Demonstrates using `defineConfig()` from `@agentv/core` for typed project-level configuration.
+Demonstrates using `defineConfig()` from `agentv/config` for typed project-level configuration.
 
 ## What It Does
 

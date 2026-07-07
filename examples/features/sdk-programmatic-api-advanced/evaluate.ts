@@ -6,7 +6,7 @@
  *
  * Run: bun run evaluate.ts
  */
-import { evaluate } from '@agentv/sdk';
+import { evaluate } from 'agentv';
 
 const { results, summary } = await evaluate({
   // Run a setup command before the suite starts

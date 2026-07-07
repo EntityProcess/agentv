@@ -215,7 +215,7 @@ Run bundle layout:
 Use `evaluate()` when your application owns the run:
 
 ```typescript
-import { evaluate } from '@agentv/sdk';
+import { evaluate } from 'agentv';
 
 const { results, summary } = await evaluate({
   experiment: 'with-skills',
@@ -242,14 +242,25 @@ console.log(`${summary.passed}/${summary.total} passed`);
 Use `*.eval.ts` when you want AgentV to run a TypeScript eval config:
 
 ```typescript
-import type { EvalConfig } from '@agentv/sdk';
+import type { EvalConfig } from 'agentv';
 
 const config: EvalConfig = {
   description: 'Code generation quality',
   tags: { experiment: 'with-skills' },
-  target: {
-    extends: 'copilot-sdk',
-    model: 'claude-sonnet-4.6',
+  providers: [
+    {
+      id: 'copilot-sdk',
+      label: 'copilot',
+      config: { model: 'claude-sonnet-4.6' },
+    },
+    {
+      id: 'openai:gpt-5-mini',
+      label: 'grader',
+    },
+  ],
+  defaults: {
+    provider: 'copilot',
+    grader: 'grader',
   },
   repeat: 3,
   threshold: 0.8,

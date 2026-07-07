@@ -5,7 +5,7 @@
  * Validates that the number of LLM calls and tool executions stays
  * within configurable thresholds using trace data.
  */
-import { defineScriptGrader } from '@agentv/sdk';
+import { defineScriptGrader } from 'agentv';
 
 const DEFAULTS = {
   maxLlmCalls: 10,

@@ -1,10 +1,10 @@
 # SDK Example: Programmatic API
 
-Demonstrates using `evaluate()` from `@agentv/sdk` to run evaluations as a library when the eval definition belongs in TypeScript. The config mirrors the canonical YAML surface, with TypeScript-friendly names such as `expectedOutput`.
+Demonstrates using `evaluate()` from `agentv` to run evaluations as a library when the eval definition belongs in TypeScript. The config mirrors the canonical YAML surface, with TypeScript-friendly names such as `expectedOutput`.
 
 ## What It Does
 
-1. Imports `evaluate()` from `@agentv/sdk`
+1. Imports `evaluate()` from `agentv`
 2. Defines tests inline with `assert`
 3. Runs the evaluation and prints summary statistics
 4. Writes canonical AgentV run artifacts under `.agentv/results/...`

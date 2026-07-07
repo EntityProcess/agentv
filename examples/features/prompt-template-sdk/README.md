@@ -1,6 +1,6 @@
 # Prompt Template SDK
 
-This example demonstrates using TypeScript files for custom LLM grader prompts using the `definePromptTemplate` helper from `@agentv/sdk`.
+This example demonstrates using TypeScript files for custom LLM grader prompts using the `definePromptTemplate` helper from `agentv`.
 
 ## Features
 
@@ -14,7 +14,7 @@ This example demonstrates using TypeScript files for custom LLM grader prompts u
 Instead of static text files with `{{variable}}` placeholders, you can use TypeScript files that export a prompt template:
 
 ```typescript
-import { definePromptTemplate } from '@agentv/sdk';
+import { definePromptTemplate } from 'agentv';
 
 function textFromMessages(messages) {
   return messages

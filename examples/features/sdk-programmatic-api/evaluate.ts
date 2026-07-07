@@ -1,13 +1,13 @@
 /**
  * Programmatic API Example
  *
- * Uses evaluate() from @agentv/sdk to run evaluations as a library.
+ * Uses evaluate() from agentv to run evaluations as a library.
  * The inline config mirrors the canonical YAML surface with TypeScript-friendly names.
  *
  * Run: bun run evaluate.ts
  * (Uses 'default' target from .agentv/providers.yaml and .env credentials)
  */
-import { evaluate } from '@agentv/sdk';
+import { evaluate } from 'agentv';
 
 const { results, summary } = await evaluate({
   tests: [

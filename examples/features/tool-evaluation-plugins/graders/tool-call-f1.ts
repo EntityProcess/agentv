@@ -20,7 +20,7 @@
  *       command: ["bun", "run", "../graders/tool-call-f1.ts"]
  *       expected_tools: ["search", "fetch"]
  */
-import { type ScriptGraderInput, defineScriptGrader } from '@agentv/sdk';
+import { type ScriptGraderInput, defineScriptGrader } from 'agentv';
 
 function extractActualTools(input: ScriptGraderInput): string[] {
   const tools: string[] = [];

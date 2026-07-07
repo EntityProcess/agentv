@@ -17,7 +17,7 @@
  *       type: script
  *       command: ["bun", "run", "scripts/tool-selection-grader.ts"]
  */
-import { type Message, defineScriptGrader } from '@agentv/sdk';
+import { type Message, defineScriptGrader } from 'agentv';
 
 interface ExtractedToolCall {
   tool: string;
