@@ -1,0 +1,66 @@
+description: Promptfoo oracle matrix export fixture
+metadata:
+  agentv_promptfoo_oracle:
+    promptfoo_version: "0.121.15"
+    promptfoo_reference_clone_commit: "6bfc5a0c7f16f9c4717ac731d276b578e63d0769"
+
+providers:
+  - id: file://oracle-target-provider.cjs
+    label: target-default
+    config:
+      prefix: DEFAULT
+  - id: file://oracle-target-provider.cjs
+    label: target-override
+    config:
+      prefix: OVERRIDE
+  - id: file://oracle-grader-provider.cjs
+    label: grader-default
+    config:
+      grade_label: default
+  - id: file://oracle-grader-provider.cjs
+    label: grader-test-options
+    config:
+      grade_label: test-options
+  - id: file://oracle-grader-provider.cjs
+    label: grader-assertion
+    config:
+      grade_label: assertion
+
+defaults:
+  provider: target-default
+  grader: grader-default
+
+prompts:
+  - "{{ case_id }}"
+
+default_test:
+  assert:
+    - type: llm-rubric
+      value: "The answer matches the requested case."
+
+tests:
+  - id: default-provider-and-grader
+    vars:
+      case_id: default-case
+    assert:
+      - type: contains
+        value: "DEFAULT:default-case"
+  - id: test-options-grader
+    vars:
+      case_id: test-options-case
+    options:
+      provider: grader-test-options
+    assert:
+      - type: contains
+        value: "DEFAULT:test-options-case"
+  - id: assertion-provider-and-target-override
+    vars:
+      case_id: assertion-override-case
+    providers:
+      - target-override
+    assert:
+      - type: contains
+        value: "OVERRIDE:assertion-override-case"
+      - type: llm-rubric
+        value: "The assertion-level grader is used."
+        provider: grader-assertion
