@@ -98,6 +98,45 @@ describe('eval target selection', () => {
     expect(selections[0]?.resolvedTarget.config.response).toBe('modern');
   });
 
+  it('uses an explicit directory containing providers.yaml', async () => {
+    const agentvDir = path.join(tempDir, '.agentv');
+    await mkdir(agentvDir, { recursive: true });
+    await writeFile(
+      path.join(agentvDir, 'providers.yaml'),
+      ['- id: mock', '  label: directory-modern', '  response: directory', ''].join('\n'),
+    );
+    const evalPath = path.join(tempDir, 'provider-directory-discovery.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'providers:',
+        '  - directory-modern',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: provider-case',
+        '    criteria: ok',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+    const selections = await selectMultipleTargets({
+      testFilePath: evalPath,
+      repoRoot: tempDir,
+      cwd: tempDir,
+      explicitTargetsPath: agentvDir,
+      env: {},
+      targetNames: suite.targets ?? [],
+      targetRefs: suite.targetRefs,
+      targetSource: 'test-file',
+    });
+
+    expect(selections[0]?.targetName).toBe('directory-modern');
+    expect(selections[0]?.resolvedTarget.config.response).toBe('directory');
+  });
+
   it('requires config or explicit provider catalog when requested', async () => {
     const agentvDir = path.join(tempDir, '.agentv');
     await mkdir(agentvDir, { recursive: true });

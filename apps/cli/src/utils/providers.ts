@@ -61,7 +61,9 @@ async function findProviderFileInDirectory(directory: string): Promise<string | 
   return undefined;
 }
 
-async function findLegacyTargetFileInDirectory(directory: string): Promise<string | undefined> {
+async function findLegacyGeneratedTargetFileInDirectory(
+  directory: string,
+): Promise<string | undefined> {
   for (const candidate of LEGACY_TARGET_FILE_CANDIDATES) {
     const fullPath = path.join(directory, candidate);
     if ((await pathKind(fullPath)) === 'file') {
@@ -71,11 +73,12 @@ async function findLegacyTargetFileInDirectory(directory: string): Promise<strin
   return undefined;
 }
 
-export async function discoverTargetsFile(options: {
+export async function discoverProvidersFile(options: {
   readonly explicitPath?: string;
   readonly testFilePath: string;
   readonly repoRoot: string;
   readonly cwd: string;
+  /** Rerun-only carveout for old generated test bundles that captured targets.yaml. */
   readonly allowLegacyTargetFiles?: boolean;
 }): Promise<string> {
   const { explicitPath, testFilePath, repoRoot, cwd, allowLegacyTargetFiles = false } = options;
@@ -95,7 +98,7 @@ export async function discoverTargetsFile(options: {
       if (providerFile) {
         return providerFile;
       }
-      const legacyTargetFile = await findLegacyTargetFileInDirectory(resolvedExplicit);
+      const legacyTargetFile = await findLegacyGeneratedTargetFileInDirectory(resolvedExplicit);
       if (legacyTargetFile) {
         if (allowLegacyTargetFiles) {
           return legacyTargetFile;
@@ -123,7 +126,7 @@ export async function discoverTargetsFile(options: {
   }
 
   for (const directory of directories) {
-    const legacyTargetFile = await findLegacyTargetFileInDirectory(directory);
+    const legacyTargetFile = await findLegacyGeneratedTargetFileInDirectory(directory);
     if (legacyTargetFile) {
       if (allowLegacyTargetFiles) {
         return legacyTargetFile;

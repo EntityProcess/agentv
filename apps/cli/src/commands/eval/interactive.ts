@@ -3,7 +3,7 @@ import path from 'node:path';
 import { listProviderLabels, readProviderDefinitions } from '@agentv/core';
 import { checkbox, confirm, number, search, select } from '@inquirer/prompts';
 
-import { PROVIDER_FILE_CANDIDATES, fileExists } from '../../utils/targets.js';
+import { PROVIDER_FILE_CANDIDATES, fileExists } from '../../utils/providers.js';
 import {
   type DiscoveredEvalFile,
   discoverEvalFiles,
@@ -202,14 +202,14 @@ async function promptTargetSelection(cwd: string, firstEvalPath: string): Promis
   const repoRoot = await findRepoRoot(cwd);
 
   // Try to find providers.yaml near the eval file first, then cwd/repoRoot.
-  const targetsPath = await findTargetsFile(cwd, repoRoot, firstEvalPath);
+  const providersPath = await findProvidersFile(cwd, repoRoot, firstEvalPath);
 
-  if (!targetsPath) {
+  if (!providersPath) {
     console.log(`${ANSI_DIM}No providers.yaml found. Using default provider.${ANSI_RESET}`);
     return 'default';
   }
 
-  const definitions = await readProviderDefinitions(targetsPath);
+  const definitions = await readProviderDefinitions(providersPath);
   const targetNames = listProviderLabels(definitions);
 
   if (targetNames.length === 0) {
@@ -239,12 +239,12 @@ async function promptTargetSelection(cwd: string, firstEvalPath: string): Promis
   });
 }
 
-async function findTargetsFile(
+async function findProvidersFile(
   cwd: string,
   repoRoot: string,
   evalFilePath?: string,
 ): Promise<string | undefined> {
-  // Build directory chain: eval file dir → cwd → repoRoot (mirrors discoverTargetsFile)
+  // Build directory chain: eval file dir -> cwd -> repoRoot.
   const dirsToSearch: string[] = [];
 
   if (evalFilePath) {
