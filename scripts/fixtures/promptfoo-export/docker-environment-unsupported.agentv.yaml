@@ -1,0 +1,25 @@
+description: Unsupported Docker environment export fixture
+environment:
+  type: docker
+  image: node:20
+  workdir: /workspace
+  mounts:
+    - source: ./fixtures
+      target: /workspace/fixtures
+  resources:
+    cpus: 2
+  services:
+    postgres:
+      image: postgres:16
+
+providers:
+  - id: openai:responses:gpt-5.4
+    label: responses-direct
+
+prompts:
+  - "{{ question }}"
+
+tests:
+  - id: capital
+    vars:
+      question: What is the capital of France?

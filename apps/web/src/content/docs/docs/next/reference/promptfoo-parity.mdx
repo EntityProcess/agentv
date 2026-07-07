@@ -6,14 +6,12 @@ sidebar:
 slug: docs/reference/promptfoo-parity
 ---
 
-AgentV uses a similar eval config contract to Promptfoo for ordinary authored
-evals: prompt matrices, test rows, vars, default test data, assertions, and
-provider matrices all use the same broad shape. AgentV is a
-Promptfoo-compatible superset at the provider declaration layer, not a promise
-that every AgentV config executes unchanged in Promptfoo. AgentV keeps the wire
-format `snake_case`, keeps provider selection identity explicit with `label`,
-and adds repo-native environment recipes and artifact fields for agent
-evaluation.
+AgentV authored YAML should be Promptfoo-compatible by default for ordinary eval
+surfaces: prompt matrices, test rows, vars, default test data, assertions, and
+provider matrices all use the same broad shape. The intended authored-config
+differences are `environment`, AgentV refs, and built-in AgentV providers. Export
+fills those gaps for supported AgentV-native pieces so Promptfoo can validate or
+load the resulting config without learning AgentV semantics.
 
 Promptfoo-shaped `providers` entries can be strings such as
 `openai:gpt-4.1-mini`, complete package provider strings such as
@@ -21,20 +19,22 @@ Promptfoo-shaped `providers` entries can be strings such as
 `package:@agentv/promptfoo-providers/codex-cli:Provider`, provider option
 objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`,
 and `inputs`, or provider maps such as
-`{ "openai:gpt-4": { label, config } }`. AgentV-only fields such as top-level
-`environment` and provider-local runtime/testbed overlays are AgentV semantics;
-Promptfoo may ignore or strip unknown keys and will not execute AgentV
-environment setup without a transpiler or wrapper.
+`{ "openai:gpt-4": { label, config } }`. Promptfoo-native provider IDs such as
+`openai:responses:gpt-5.4`, `openai:codex-sdk`, and
+`openai:codex-app-server` remain directly Promptfoo-readable.
 
 For AgentV-only provider IDs such as `agentv:codex-cli`, use the Promptfoo
 export path instead of running the AgentV YAML directly with Promptfoo. The
 exporter lowers supported AgentV-only IDs to Promptfoo-readable provider
 references such as
 `file://.agentv/generated/promptfoo/providers/codex-cli-provider.ts`
-and fails with a diagnostic for unsupported AgentV-only semantics such as
-top-level `environment`. The generated TypeScript provider is emitted as a
-Promptfoo custom provider module so Promptfoo config validation can load it
-without live provider calls.
+and exports supported host/filesystem `environment` recipes to a generated
+Promptfoo extension such as
+`file://.agentv/generated/promptfoo/extensions/host-environment.ts:beforeAll`.
+The exporter passes the resolved isolated workdir through provider `config`,
+default-test vars, and metadata. Docker `environment` export is intentionally
+unsupported initially and fails with a diagnostic instead of degrading
+isolation, image/context, mounts, services, resources, secrets, or provenance.
 
 Use this matrix when translating a Promptfoo-style normal eval into AgentV YAML.
 It documents which surfaces align directly, which AgentV surfaces are cleaner
@@ -66,7 +66,7 @@ implements equivalent semantics directly.
 | Evaluate options | `evaluateOptions` for runtime controls. | `evaluate_options` for runtime controls. | Align with Promptfoo | AgentV uses `evaluate_options.repeat`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency`. |
 | Authored concurrency | Common Promptfoo usage includes runtime options such as `maxConcurrency`. | `evaluate_options.max_concurrency`. | Keep AgentV divergence | Do not author `execution.max_concurrency` or top-level `workers` in eval YAML. CLI `--workers` remains an operator override. |
 | Provider selection | Promptfoo normal evals use `providers`; `targets` can alias providers in unified config. | Use top-level `providers` for one or more systems under test. | Align with Promptfoo | Old AgentV `target`/`targets` authoring is hard-rejected. Use CLI `--provider`/`--providers` for runtime selection. |
-| Provider declarations | Provider entries can be strings, complete package provider strings such as `package:@agentv/promptfoo-providers:CodexCliProvider` or `package:@agentv/promptfoo-providers/codex-cli:Provider`, provider option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, or provider maps such as `{ "openai:gpt-4": { label, config } }`. | AgentV accepts the same provider declaration layer; `id` is the backend/spec and `label` is the stable AgentV selection and result identity. | Align with Promptfoo | Package provider strings must include the exported class/function segment after the final colon. AgentV-only fields such as `runtime` and provider-local testbed/runtime overlays are AgentV semantics. Promptfoo may ignore or strip unknown keys and will not execute AgentV environment setup without a transpiler or wrapper. |
+| Provider declarations | Provider entries can be strings, complete package provider strings such as `package:@agentv/promptfoo-providers:CodexCliProvider` or `package:@agentv/promptfoo-providers/codex-cli:Provider`, provider option objects with `id`, `label`, `config`, `env`, `prompts`, `transform`, `delay`, and `inputs`, or provider maps such as `{ "openai:gpt-4": { label, config } }`. | AgentV accepts the same provider declaration layer; `id` is the backend/spec and `label` is the stable AgentV selection and result identity. | Align with Promptfoo | Package provider strings must include the exported class/function segment after the final colon. Promptfoo-native provider IDs remain directly Promptfoo-readable. Built-in AgentV IDs such as `agentv:codex-cli` need export, which lowers them to a generated file provider for validation. |
 | Provider-prompt mapping | `providerPromptMap` maps provider identities to prompt subsets. | Rejected. Use explicit AgentV composition: separate eval suites/files for provider-specific prompt subsets, top-level `prompts` plus `tests`/`default_test.vars`, `providers` or CLI `--provider`, and tags/run metadata for grouping. | Removed/rejected surface | Do not author `providerPromptMap` or `provider_prompt_map`. |
 | Direct authored input | Promptfoo prompt authoring normally goes through `prompts` plus vars. | Top-level `input` and inline `tests[].input` are removed from normal authored eval YAML. External raw-case imports may still carry internal input rows for compatibility. | Removed AgentV extension | Author prompt text, chat/system/user messages, and file-backed prompt content as `prompts`; put row data in `tests[].vars` and shared defaults in `default_test.vars`. |
 | Authored preprocessors | Not Promptfoo's canonical output-shaping surface. | Rejected in current authored YAML. | Removed/rejected surface | Use `transform` at `default_test.options`, `tests[].options`, or the assertion that needs the shaped output. Historical versioned docs may still show old preprocessor examples. |
@@ -78,7 +78,7 @@ implements equivalent semantics directly.
 | Skill assertions | Promptfoo includes `skill-used` for checking whether an agent invoked a named skill. | `type: skill-used` and `type: not-skill-used` with `value: <skill>` or a matcher object. | Align with Promptfoo | AgentV evaluates these against normalized tool-call and skill-use trace data. |
 | Trajectory assertions | Promptfoo includes `trajectory:tool-used`, `trajectory:tool-sequence`, `trajectory:tool-args-match`, `trajectory:step-count`, and `trajectory:goal-success`. | AgentV accepts the same assertion names over AgentV-normalized traces. | Align with Promptfoo | Use these for tool presence, order, argument checks, step budgets, and LLM-judged goal success. |
 | Other Promptfoo trace assertions | Promptfoo also includes `tool-call-f1`, `trace-span-count`, `trace-span-duration`, and `trace-error-spans`. | Not accepted yet. | Defer/future-scope | Use `script` assertions or `execution-metrics` when current AgentV primitives cover the requirement. |
-| Coding-agent testbeds | Promptfoo normal evals do not define a typed coding-agent testbed primitive. | `environment`, usually inline or `environment: file://...`, plus distinct top-level `env` and lifecycle `extensions`. | Keep AgentV extension | `environment` is an AgentV extension informed by Margin local-agent ergonomics and Harbor/Terminal-Bench Docker substrate evidence. Use it for host/Docker workdir, setup argv, fixtures, services, and repo materialization. Use top-level `env` for provider/eval variables and `extensions` for lifecycle hooks. |
+| Coding-agent testbeds | Promptfoo normal evals do not define a typed coding-agent testbed primitive. | `environment`, usually inline or `environment: file://...`, plus distinct top-level `env` and lifecycle `extensions`. | Keep AgentV extension | `environment` is an AgentV extension informed by Margin local-agent ergonomics and Harbor/Terminal-Bench Docker substrate evidence. Export supports the host/filesystem subset by generating Promptfoo setup extensions and passing the resolved workdir through config, vars, and metadata. Docker export is not supported yet and fails clearly instead of degrading isolation or provenance. |
 | Run artifacts and inspection | Promptfoo owns its own result viewer and output formats. | AgentV writes `.agentv/results/<run_id>/` bundles with `summary.json`, `.internal/index.jsonl`, sidecars, and local Dashboard support. | Keep AgentV extension | AgentV-owned bundles are the source of truth for compare, Dashboard, CI, and adapters. Phoenix is link-out correlation only through safe external trace metadata. |
 | Grading result artifacts | Promptfoo `GradingResult` uses aggregate `pass`, `score`, `reason`, recursive `componentResults`, optional `assertion`, optional `namedScores`, and optional `metadata`. | AgentV persists the same concepts as `pass`, `score`, `reason`, recursive `component_results`, optional `assertion`, optional `named_scores`, and optional `metadata`. | Align with Promptfoo | AgentV keeps split filesystem run bundles and `snake_case` persisted fields. Promptfoo import/export adapters may translate `componentResults`/`namedScores` to and from AgentV `component_results`/`named_scores`. |
 | Compare command | Promptfoo has its own result comparison surfaces. | `agentv results compare <baseline-index.jsonl> <candidate-index.jsonl>`. | Keep AgentV extension | Compare consumes completed AgentV run indexes such as `.agentv/results/<run_id>/.internal/index.jsonl`. |

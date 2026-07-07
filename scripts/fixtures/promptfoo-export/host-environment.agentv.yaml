@@ -1,0 +1,34 @@
+description: Promptfoo host environment export validation
+environment:
+  type: host
+  workdir: ./workspaces/provider-export
+  setup:
+    command: ["bash", "-lc", "echo ready > \"$AGENTV_ENVIRONMENT_WORKDIR/ready.txt\""]
+    timeout_ms: 120000
+  env:
+    AGENTV_EXPORT_TEST: fixture
+
+providers:
+  - id: agentv:codex-cli
+    label: codex-cli-host-exported
+    runtime: host
+    config:
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
+
+prompts:
+  - "Answer briefly: {{ question }}"
+
+default_test:
+  vars:
+    locale: en-US
+  assert:
+    - type: contains
+      value: Paris
+
+evaluate_options:
+  max_concurrency: 1
+
+tests:
+  - id: capital
+    vars:
+      question: What is the capital of France?

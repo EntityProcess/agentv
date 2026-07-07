@@ -81,24 +81,65 @@ describe('exportPromptfooConfig', () => {
     expect(exported).not.toHaveProperty('evaluate_options');
   });
 
-  it('fails clearly on unsupported top-level environment semantics', () => {
+  it('lowers host environment setup to a generated Promptfoo extension and workdir metadata', () => {
+    const output = outputPath('promptfooconfig.yaml');
+    exportPromptfooConfig({
+      inputPath: path.join(FIXTURE_DIR, 'host-environment.agentv.yaml'),
+      outputPath: output,
+    });
+
+    const workdir = path.resolve(FIXTURE_DIR, 'workspaces', 'provider-export');
+    const exported = parseYamlFile(output);
+    const providers = exported.providers as Array<Record<string, unknown>>;
+    const providerConfig = providers[0]?.config as Record<string, unknown>;
+    const defaultTest = exported.defaultTest as Record<string, Record<string, unknown>>;
+    const metadata = exported.metadata as Record<string, unknown>;
+    const extensionPath = path.join(
+      path.dirname(output),
+      '.agentv',
+      'generated',
+      'promptfoo',
+      'extensions',
+      'host-environment.ts',
+    );
+
+    expect(exported).not.toHaveProperty('environment');
+    expect(exported.extensions).toContain(
+      'file://.agentv/generated/promptfoo/extensions/host-environment.ts:beforeAll',
+    );
+    expect(defaultTest.vars).toMatchObject({
+      locale: 'en-US',
+      agentv_environment_workdir: workdir,
+    });
+    expect(defaultTest.metadata).toMatchObject({
+      agentv_environment: { type: 'host', workdir },
+    });
+    expect(metadata.agentv_environment).toEqual({ type: 'host', workdir });
+    expect(providerConfig.agentv_environment_workdir).toBe(workdir);
+    expect(providerConfig.agentv_environment).toEqual({ type: 'host', workdir });
+    expect(existsSync(extensionPath)).toBe(true);
+    expect(readFileSync(extensionPath, 'utf8')).toContain('AGENTV_ENVIRONMENT_WORKDIR');
+  });
+
+  it('fails clearly on unsupported Docker environment export', () => {
     const output = outputPath('promptfooconfig.yaml');
     expect(() =>
       exportPromptfooConfig({
-        inputPath: path.join(FIXTURE_DIR, 'environment-unsupported.agentv.yaml'),
+        inputPath: path.join(FIXTURE_DIR, 'docker-environment-unsupported.agentv.yaml'),
         outputPath: output,
       }),
     ).toThrow(PromptfooExportDiagnostic);
 
     try {
       exportPromptfooConfig({
-        inputPath: path.join(FIXTURE_DIR, 'environment-unsupported.agentv.yaml'),
+        inputPath: path.join(FIXTURE_DIR, 'docker-environment-unsupported.agentv.yaml'),
         outputPath: output,
       });
     } catch (error) {
       expect(error).toBeInstanceOf(PromptfooExportDiagnostic);
-      expect((error as PromptfooExportDiagnostic).code).toBe('unsupported_environment');
-      expect((error as Error).message).toContain("Top-level 'environment' is AgentV-only");
+      expect((error as PromptfooExportDiagnostic).code).toBe('unsupported_docker_environment');
+      expect((error as Error).message).toContain('Docker environment export is not supported');
+      expect((error as Error).message).toContain('isolation, image/context, mounts, services');
     }
   });
 });

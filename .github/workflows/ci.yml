@@ -191,7 +191,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/promptfoo-export"
           bun scripts/export-promptfoo-config.ts \
-            --input scripts/fixtures/promptfoo-export/provider-surface.agentv.yaml \
+            --input scripts/fixtures/promptfoo-export/host-environment.agentv.yaml \
             --output "$RUNNER_TEMP/promptfoo-export/promptfooconfig.yaml"
 
       - name: Validate exported config with Promptfoo
