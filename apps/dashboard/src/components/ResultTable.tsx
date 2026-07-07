@@ -345,19 +345,19 @@ export function ResultTable({
               type="search"
               value={model.state.search}
               onChange={(event) => updateState({ search: event.target.value })}
-              placeholder="Search tests, targets, graders, assertions"
+              placeholder="Search tests, providers, models, graders, assertions"
               className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-gray-100 placeholder:text-gray-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
             />
           </label>
 
           <label>
-            <span className="sr-only">Filter by target</span>
+            <span className="sr-only">Filter by provider/model</span>
             <select
               value={model.state.target}
               onChange={(event) => updateState({ target: event.target.value })}
               className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-gray-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
             >
-              <option value="all">All targets</option>
+              <option value="all">All provider/model labels</option>
               {model.targetOptions.map((target) => (
                 <option key={target} value={target}>
                   {target}
@@ -642,8 +642,8 @@ function formatTargetError(
   error: string | undefined,
   kind: string | undefined,
 ): string | undefined {
-  if (!error) return kind ? `Target error: ${kind}` : undefined;
-  return kind ? `[target:${kind}] ${error}` : error;
+  if (!error) return kind ? `Provider error: ${kind}` : undefined;
+  return kind ? `[provider:${kind}] ${error}` : error;
 }
 
 function targetErrorKind(value: {

@@ -24,7 +24,7 @@ import studioRemoteResultsAfterSync from '../../../../../assets/screenshots/stud
 
 The `dashboard` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
-<Image src={studioRunsBench} alt="AgentV Dashboard showing evaluation runs with pass rates, targets, and experiment names" />
+<Image src={studioRunsBench} alt="AgentV Dashboard showing evaluation runs with pass rates, provider/model labels, and experiment names" />
 
 ## Usage
 
@@ -72,7 +72,7 @@ indexes into Phoenix.
 
 - **Recent Runs** — table of all evaluation runs with source badge (`local` / `remote`), provider/model label, experiment, timestamp, test count, pass rate, and mean score
 - **Experiments** — group and compare runs by experiment name
-- **Targets** — group runs by provider/model label
+- **Providers** — group runs by provider/model label
 - **Run Detail** — drill into a run to see per-test results, scores, and grader output
 - **Analytics** — provider/model comparison for multi-provider eval runs, an aggregated experiment × provider/model matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags. Includes a collapsible charts section with baseline comparison analytics
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
@@ -124,7 +124,7 @@ The **Analytics** tab has two modes: **Aggregated** for the experiment × provid
 
 The default view shows a cross-experiment, cross-provider/model performance matrix. Numbers are colour-coded by pass rate — green (80%+), amber (50–80%), red (below 50%) — and each cell shows `passed/total` and the mean score. Click any cell to expand the per-test-case breakdown.
 
-<Image src={studioAnalyticsAggregated} alt="AgentV Dashboard Analytics tab showing aggregated experiment × target matrix with pass rates for baseline, optimized-prompt, and with-rag across claude-sonnet, gemini-pro, and gpt-4o" />
+<Image src={studioAnalyticsAggregated} alt="AgentV Dashboard Analytics tab showing aggregated experiment by provider/model matrix with pass rates for baseline, optimized-prompt, and with-rag across claude-sonnet, gemini-pro, and gpt-4o" />
 
 Run the same eval against multiple providers or experiment variants, then open the Analytics tab:
 
@@ -156,7 +156,7 @@ Keep model identity in `providers` and provider `label`s. Use `tags.experiment` 
 
 Running the same `(experiment, provider/model label)` twice no longer collapses into a single cell. Switch to **Per run** mode to see every run as its own row, select two or more, and compare them head-to-head.
 
-<Image src={studioComparePerRun} alt="AgentV Dashboard per-run compare mode with a filter-by-tag chip row and individual runs listing timestamp, tags, experiment, target, and pass rate; experiment-prefixed runs surface the experiment name under the timestamp" />
+<Image src={studioComparePerRun} alt="AgentV Dashboard per-run compare mode with a filter-by-tag chip row and individual runs listing timestamp, tags, experiment, provider/model label, and pass rate; experiment-prefixed runs surface the experiment name under the timestamp" />
 
 Use per-run mode when you want to:
 
@@ -192,11 +192,11 @@ The section includes the following visualizations:
 - **Tag × Provider/Model Heatmap** — pass-rate grid across tags and provider/model labels, colour-coded by performance (emerald for high, amber for medium, red for low).
 - **Negative Delta Table** — filtered list of experiment × provider/model pairs that scored worse than the baseline, sorted by largest regression.
 - **Score Distribution** — histogram showing the variance of scores across all test cases, binned by 10% intervals.
-- **Score Trend Over Time** — line chart plotting mean score per target across runs over time, with a colour-coded legend for each target.
+- **Score Trend Over Time** — line chart plotting mean score per provider/model label across runs over time, with a colour-coded legend for each label.
 
-<Image src={studioAnalyticsTrend} alt="AgentV Dashboard analytics showing score distribution histogram and score trend over time line chart with multi-target legend" />
+<Image src={studioAnalyticsTrend} alt="AgentV Dashboard analytics showing score distribution histogram and score trend over time line chart with multi-provider/model legend" />
 
-The baseline comparison is also available via the API: `GET /api/compare?baseline=<target>` adds `delta` and `normalized_gain` fields to each non-baseline cell in the response.
+The baseline comparison is also available via the API: `GET /api/compare?baseline=<target>` adds `delta` and `normalized_gain` fields to each non-baseline provider/model cell in the response.
 
 ## Projects Dashboard
 

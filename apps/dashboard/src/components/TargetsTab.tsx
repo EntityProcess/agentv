@@ -95,7 +95,7 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
   if (error) {
     return (
       <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-6 text-red-400">
-        Failed to load targets: {error.message}
+        Failed to load provider/model labels: {error.message}
       </div>
     );
   }
@@ -103,9 +103,9 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
   if (targets.length === 0) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-        <p className="text-lg text-gray-400">No targets found</p>
+        <p className="text-lg text-gray-400">No provider/model labels found</p>
         <p className="mt-2 text-sm text-gray-500">
-          Targets will appear here once evaluations are run with target labels.
+          Provider/model labels will appear here once evaluations have run.
         </p>
       </div>
     );
@@ -117,7 +117,7 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
         <table className="min-w-[720px] w-full whitespace-nowrap text-left text-sm">
           <thead className="border-b border-gray-800 bg-gray-900/50">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-400">Target</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Provider/Model</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Experiments</th>
               <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
@@ -174,7 +174,7 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
           onClick={() => setSelectedTargetName(null)}
           className="rounded-md px-3 py-1.5 text-sm text-gray-400 transition-colors hover:text-gray-200"
         >
-          ← Back to targets
+          ← Back to providers
         </button>
         <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -203,9 +203,10 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
 
       {experimentGroups.length === 0 ? (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-lg text-gray-400">No runs found for this target</p>
+          <p className="text-lg text-gray-400">No runs found for this provider/model label</p>
           <p className="mt-2 text-sm text-gray-500">
-            This target summary exists, but there are no matching runs to group by experiment.
+            This provider/model summary exists, but there are no matching runs to group by
+            experiment.
           </p>
         </div>
       ) : (

@@ -108,7 +108,7 @@ export function TagsTab({ projectId, tagKey, onTagKeyChange }: TagsTabProps) {
               <tr>
                 <th className="px-4 py-3 font-medium text-gray-400">{tagKeyLabel(effectiveKey)}</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-400">Targets</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-400">Providers</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Execution Errors</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>

@@ -350,7 +350,7 @@ function SourceTab({ result }: { result: EvalResult }) {
           <SourceMetaRow label="Test ID" value={traceability.test_id ?? result.testId} />
           <SourceMetaRow label="Legacy suite" value={result.suite} />
           <SourceMetaRow label="Category" value={result.category} />
-          <SourceMetaRow label="Target" value={result.target} />
+          <SourceMetaRow label="Provider/Model" value={result.target} />
         </dl>
       </section>
 

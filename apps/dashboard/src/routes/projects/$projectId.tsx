@@ -1,5 +1,5 @@
 /**
- * Project home route: tabbed view (Runs, Tags, Analytics, Targets) scoped to a project.
+ * Project home route: tabbed view (Runs, Tags, Analytics, Providers) scoped to a project.
  *
  * Mirrors the single-project home page but fetches from project-scoped API endpoints.
  */
@@ -38,7 +38,7 @@ const tabs: { id: TabId; label: string; title: string }[] = [
   { id: 'runs', label: '🏃 Recent Runs', title: 'Recent Runs' },
   { id: 'tags', label: '🏷️ Tags', title: 'Tags' },
   { id: 'analytics', label: '📊 Analytics', title: 'Analytics' },
-  { id: 'targets', label: '🤖 Targets', title: 'Targets' },
+  { id: 'targets', label: '🤖 Providers', title: 'Providers' },
 ];
 
 export const Route = createFileRoute('/projects/$projectId')({
