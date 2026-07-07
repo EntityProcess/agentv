@@ -37,13 +37,23 @@ interface AnalyticsTabProps {
   projectId?: string;
   /** Read-only mode. Reserved for surfaces that disable mutating actions. */
   readOnly?: boolean;
+  /** Initial row display for provider/model comparison. */
+  defaultProviderModelDisplayMode?: ProviderModelDisplayMode;
 }
 
 type ViewMode = 'aggregated' | 'per-run';
+type ProviderModelDisplayMode = 'all' | 'differing';
 
 // ── Top-level container ─────────────────────────────────────────────────
 
-export function AnalyticsTab({ data, isLoading, isError, error, projectId }: AnalyticsTabProps) {
+export function AnalyticsTab({
+  data,
+  isLoading,
+  isError,
+  error,
+  projectId,
+  defaultProviderModelDisplayMode = 'all',
+}: AnalyticsTabProps) {
   const [mode, setMode] = useState<ViewMode>('aggregated');
 
   const runsCount = data?.runs?.length ?? 0;
@@ -60,7 +70,13 @@ export function AnalyticsTab({ data, isLoading, isError, error, projectId }: Ana
       {!isLoading && !isError && !underlyingHasData && <EmptyState />}
       {!isLoading && !isError && underlyingHasData && data && (
         <>
-          {mode === 'aggregated' && <AggregatedView data={data} projectId={projectId} />}
+          {mode === 'aggregated' && (
+            <AggregatedView
+              data={data}
+              projectId={projectId}
+              defaultProviderModelDisplayMode={defaultProviderModelDisplayMode}
+            />
+          )}
           {mode === 'per-run' && <PerRunView data={data} />}
         </>
       )}
@@ -162,7 +178,15 @@ function ModeButton({
 
 // ── Aggregated (matrix) view ────────────────────────────────────────────
 
-function AggregatedView({ data, projectId }: { data: CompareResponse; projectId?: string }) {
+function AggregatedView({
+  data,
+  projectId,
+  defaultProviderModelDisplayMode,
+}: {
+  data: CompareResponse;
+  projectId?: string;
+  defaultProviderModelDisplayMode: ProviderModelDisplayMode;
+}) {
   const { experiments, targets, cells } = data;
 
   // Hooks must run on every render regardless of the early-return below,
@@ -192,7 +216,13 @@ function AggregatedView({ data, projectId }: { data: CompareResponse; projectId?
 
   return (
     <div className="space-y-3">
-      {hasProviderModelRun && <ProviderModelComparison data={data} projectId={projectId} />}
+      {hasProviderModelRun && (
+        <ProviderModelComparison
+          data={data}
+          projectId={projectId}
+          defaultDisplayMode={defaultProviderModelDisplayMode}
+        />
+      )}
       <Legend />
       <div className="overflow-x-auto rounded-lg border border-gray-800">
         <table className="w-full text-left text-sm">
@@ -598,16 +628,24 @@ function PerRunCompareView({
 function ProviderModelComparison({
   data,
   projectId,
+  defaultDisplayMode,
 }: {
   data: CompareResponse;
   projectId?: string;
+  defaultDisplayMode: ProviderModelDisplayMode;
 }) {
+  const [displayMode, setDisplayMode] = useState<ProviderModelDisplayMode>(defaultDisplayMode);
   const run = useMemo(
     () => (data.runs ?? []).find((entry) => providerLabelsForRun(entry).length > 1),
     [data.runs],
   );
 
   const model = useMemo(() => (run ? buildProviderModelTable(run) : null), [run]);
+  const rows = useMemo(() => {
+    if (!model) return [];
+    if (displayMode === 'all') return model.rows;
+    return model.rows.filter((row) => providerModelRowDiffers(row, model.providerLabels));
+  }, [displayMode, model]);
 
   if (!run || !model) return null;
 
@@ -620,43 +658,96 @@ function ProviderModelComparison({
             {run.experiment} · {formatTimestamp(run.started_at)}
           </p>
         </div>
-        <PassRatePill rate={run.pass_rate} />
+        <div className="flex flex-wrap items-center gap-3">
+          <ProviderModelDisplayToggle mode={displayMode} onChange={setDisplayMode} />
+          <PassRatePill rate={run.pass_rate} />
+        </div>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-gray-800">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="border-b border-gray-800 bg-gray-900/50">
-            <tr>
-              <th className="sticky left-0 z-10 w-52 bg-gray-900/90 px-4 py-3 font-medium text-gray-400 backdrop-blur">
-                Test case
-              </th>
-              {model.providerLabels.map((label) => (
-                <th key={label} className="min-w-[240px] px-4 py-3 font-medium text-gray-300">
-                  {label}
+      {rows.length > 0 ? (
+        <div className="overflow-x-auto rounded-lg border border-gray-800">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-gray-800 bg-gray-900/50">
+              <tr>
+                <th className="sticky left-0 z-10 w-52 bg-gray-900/90 px-4 py-3 font-medium text-gray-400 backdrop-blur">
+                  Test case
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800/50">
-            {model.rows.map((row) => (
-              <tr key={row.testId} className="align-top transition-colors hover:bg-gray-900/30">
-                <td className="sticky left-0 z-10 bg-gray-950/90 px-4 py-3 font-medium text-gray-200 backdrop-blur">
-                  {row.testId}
-                </td>
                 {model.providerLabels.map((label) => (
-                  <td key={label} className="px-4 py-3">
-                    <ProviderModelResultCell
-                      run={run}
-                      result={row.resultsByProvider.get(label)}
-                      projectId={projectId}
-                    />
-                  </td>
+                  <th key={label} className="min-w-[240px] px-4 py-3 font-medium text-gray-300">
+                    {label}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-gray-800/50">
+              {rows.map((row) => (
+                <tr key={row.testId} className="align-top transition-colors hover:bg-gray-900/30">
+                  <td className="sticky left-0 z-10 bg-gray-950/90 px-4 py-3 font-medium text-gray-200 backdrop-blur">
+                    {row.testId}
+                  </td>
+                  {model.providerLabels.map((label) => (
+                    <td key={label} className="px-4 py-3">
+                      <ProviderModelResultCell
+                        run={run}
+                        result={row.resultsByProvider.get(label)}
+                        projectId={projectId}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <Notice
+          headline="All compared rows match"
+          body="Switch back to All rows to inspect the full provider/model table."
+        />
+      )}
     </section>
+  );
+}
+
+function ProviderModelDisplayToggle({
+  mode,
+  onChange,
+}: {
+  mode: ProviderModelDisplayMode;
+  onChange: (mode: ProviderModelDisplayMode) => void;
+}) {
+  return (
+    <fieldset className="inline-flex items-center rounded-lg border border-gray-800 bg-gray-900/50 p-1">
+      <legend className="sr-only">Provider/model rows</legend>
+      <DisplayModeButton active={mode === 'all'} onClick={() => onChange('all')}>
+        All
+      </DisplayModeButton>
+      <DisplayModeButton active={mode === 'differing'} onClick={() => onChange('differing')}>
+        Differing
+      </DisplayModeButton>
+    </fieldset>
+  );
+}
+
+function DisplayModeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+        active ? 'bg-gray-800 text-cyan-400 shadow-sm' : 'text-gray-400 hover:text-gray-200'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -779,7 +870,7 @@ function providerLabelsForRun(run: CompareRunEntry): string[] {
 
 function buildProviderModelTable(run: CompareRunEntry): {
   providerLabels: string[];
-  rows: Array<{ testId: string; resultsByProvider: Map<string, CompareTestResult> }>;
+  rows: ProviderModelRow[];
 } | null {
   const providerLabels = providerLabelsForRun(run);
   if (providerLabels.length <= 1) return null;
@@ -800,6 +891,41 @@ function buildProviderModelTable(run: CompareRunEntry): {
       resultsByProvider,
     })),
   };
+}
+
+interface ProviderModelRow {
+  testId: string;
+  resultsByProvider: Map<string, CompareTestResult>;
+}
+
+function providerModelRowDiffers(
+  row: ProviderModelRow,
+  providerLabels: readonly string[],
+): boolean {
+  const signatures = new Set<string>();
+  for (const label of providerLabels) {
+    signatures.add(providerModelResultSignature(row.resultsByProvider.get(label)));
+    if (signatures.size > 1) return true;
+  }
+  return false;
+}
+
+function providerModelResultSignature(result: CompareTestResult | undefined): string {
+  if (!result) return 'missing';
+  return JSON.stringify({
+    answer: result.answer ?? '',
+    output: compareOptionalString(result, 'output'),
+    passed: result.passed,
+    score: result.score,
+    state: result.execution_status ?? '',
+    error: compareOptionalString(result, 'error'),
+    errorKind: compareOptionalString(result, 'target_error_kind'),
+  });
+}
+
+function compareOptionalString(result: CompareTestResult, key: string): string {
+  const value = (result as CompareTestResult & Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : '';
 }
 
 function artifactHref(
