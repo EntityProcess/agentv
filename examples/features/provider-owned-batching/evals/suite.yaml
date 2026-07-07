@@ -1,0 +1,30 @@
+name: provider-owned-batching
+description: Demonstrates provider-owned batching behind ordinary per-case CLI provider invocation.
+providers:
+  - provider-owned-batch-cli
+tags:
+  - provider-owned-batching
+  - cli
+prompts:
+  - "{{ input }}"
+evaluate_options:
+  max_concurrency: 3
+tests:
+  - id: ticket-clear
+    assert:
+      - type: contains
+        value: decision=CLEAR
+    vars:
+      input: "screen support ticket: password reset succeeded"
+  - id: ticket-review
+    assert:
+      - type: contains
+        value: decision=REVIEW
+    vars:
+      input: "screen support ticket: billing dispute requires escalation"
+  - id: ticket-block
+    assert:
+      - type: contains
+        value: decision=BLOCK
+    vars:
+      input: "screen support ticket: fraud alert from blocked account"

@@ -1,0 +1,7 @@
+- id: cli
+  label: provider-owned-batch-cli
+  command: bun run ./scripts/provider-owned-batch-adapter.ts {PROMPT_FILE} {OUTPUT_FILE} {EVAL_ID}
+  cwd: ..
+  timeout_seconds: 5
+- id: mock
+  label: grader

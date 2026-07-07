@@ -49,6 +49,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
 - [script-grader-with-llm-calls](features/script-grader-with-llm-calls/) - script graders with provider proxy for LLM calls
 - [batch-cli](features/batch-cli/) - Batch CLI evaluation
+- [provider-owned-batching](features/provider-owned-batching/) - CLI adapter-owned request batching behind normal per-case provider calls
 - [document-extraction](features/document-extraction/) - Document data extraction
 - [local-cli](features/local-cli/) - Local CLI providers
 - [compare](features/compare/) - Baseline comparison
