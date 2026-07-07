@@ -69,27 +69,30 @@ function ProjectEvalDetailPage() {
 
   return (
     <div className="flex h-full flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-400">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="break-words text-sm text-gray-400">
             Run: {runId} / Eval: {result.eval_path ?? evalId}
           </p>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
+          <h1 className="mt-1 flex min-w-0 items-start gap-2 break-words text-2xl font-semibold text-white">
             <span
-              className={`text-2xl font-bold leading-none ${passed ? 'text-emerald-400' : 'text-red-400'}`}
+              className={`shrink-0 text-2xl font-bold leading-none ${
+                passed ? 'text-emerald-400' : 'text-red-400'
+              }`}
             >
               {passed ? '✓' : '✗'}
             </span>
-            {evalId}
+            <span className="min-w-0">{evalId}</span>
           </h1>
         </div>
         {!isReadOnly && (
           <button
             type="button"
             onClick={() => setShowRunEval(true)}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+            className="inline-flex shrink-0 items-center gap-1 self-start whitespace-nowrap rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
           >
-            ▶ Run this Test
+            <span aria-hidden="true">▶</span>
+            <span>Run this Test</span>
           </button>
         )}
       </div>

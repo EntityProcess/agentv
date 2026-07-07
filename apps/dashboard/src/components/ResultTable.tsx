@@ -317,7 +317,7 @@ export function ResultTable({
         </p>
       </div>
 
-      <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3">
+      <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-950/80 p-3 ring-1 ring-white/5">
         <div className="flex flex-wrap gap-2">
           {RESULT_TABLE_VIEW_PRESETS.map((preset) => (
             <button
@@ -326,8 +326,8 @@ export function ResultTable({
               onClick={() => updateState({ view: preset.id })}
               className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors ${
                 model.state.view === preset.id
-                  ? 'border-cyan-900/60 bg-cyan-950/30 text-cyan-300'
-                  : 'border-gray-800 bg-gray-950/70 text-gray-400 hover:border-gray-700 hover:text-gray-200'
+                  ? 'border-cyan-700/70 bg-cyan-950/40 text-cyan-200'
+                  : 'border-gray-800 bg-gray-950/80 text-gray-400 hover:border-gray-600 hover:bg-gray-900/70 hover:text-gray-100'
               }`}
             >
               <span>{preset.label}</span>
@@ -494,12 +494,12 @@ export function ResultRowsTable({
   onOpenTrialDetail: (rowKey: string, trial: EvalCaseTrial) => void;
 }) {
   return (
-    <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+    <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 ring-1 ring-white/5">
       <table
         className="w-full whitespace-nowrap text-left text-sm"
         style={{ minWidth: `${resultTableMinWidth(visibleColumns)}px` }}
       >
-        <thead className="border-b border-gray-800 bg-gray-900/50">
+        <thead className="border-b border-gray-800 bg-gray-900/80">
           <tr>
             {visibleColumns.map((column) => (
               <th key={column.id} className={columnHeaderClassName(column.id)} title={column.label}>
@@ -514,7 +514,7 @@ export function ResultRowsTable({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-800/50">
+        <tbody className="divide-y divide-gray-800/70">
           {rows.map((row) => {
             const repeatGroup = repeatGroupsByRowKey.get(row.key);
             const isSelected = selectedRowKey === row.key && !selectedTrialPath;
@@ -523,8 +523,12 @@ export function ResultRowsTable({
               <Fragment key={row.key}>
                 <tr
                   className={`cursor-pointer transition-colors ${
-                    isSelected ? 'bg-cyan-950/20' : 'hover:bg-gray-900/30'
-                  } ${repeatGroup ? 'bg-gray-950/20' : ''}`}
+                    isSelected
+                      ? 'bg-cyan-950/30 ring-1 ring-inset ring-cyan-800/60'
+                      : row.status === 'failing'
+                        ? 'bg-red-950/10 hover:bg-red-950/20'
+                        : 'hover:bg-gray-900/50'
+                  } ${repeatGroup ? 'bg-gray-950/30' : ''}`}
                   onClick={() => onOpenDetail(row.key)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -760,9 +764,16 @@ function ResultStatusSymbol({ status, label }: { status: string; label: string }
   const passing = status === 'passing';
   const warning = status === 'error' || status === 'partial';
   const symbol = passing ? CHECK_MARK : CROSS_MARK;
-  const tone = passing ? 'text-emerald-300' : warning ? 'text-amber-300' : 'text-red-300';
+  const tone = passing
+    ? 'border-emerald-900/60 bg-emerald-950/30 text-emerald-300'
+    : warning
+      ? 'border-amber-900/60 bg-amber-950/30 text-amber-300'
+      : 'border-red-800/70 bg-red-950/40 text-red-300';
   return (
-    <span className={`inline-flex text-base font-semibold ${tone}`} title={label}>
+    <span
+      className={`inline-flex h-6 w-6 items-center justify-center rounded-md border text-base font-semibold ${tone}`}
+      title={label}
+    >
       {symbol}
     </span>
   );
@@ -829,7 +840,10 @@ function RepeatScoreCell({ group }: { group: RepeatRunGroup }) {
     <div className="flex min-w-0 flex-col items-end gap-1">
       <PassRatePill rate={group.passRate} />
       <div className="text-xs text-gray-500">Attempt success</div>
-      <div className="text-xs tabular-nums text-gray-600">
+      <div
+        className="text-xs tabular-nums text-gray-600"
+        title={`Mean score ${formatPercent(group.meanScore)}`}
+      >
         Mean score {formatPercent(group.meanScore)}
       </div>
     </div>
@@ -1021,11 +1035,13 @@ function ResultDetailPanel({
     <aside
       key={panelScrollKey}
       ref={scrollPanelIntoView}
-      className="min-w-0 max-w-full overflow-hidden rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]"
+      className="min-w-0 max-w-full overflow-hidden rounded-lg border border-cyan-950/70 bg-gray-950/95 ring-1 ring-white/10 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]"
     >
-      <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 px-4 py-3">
+      <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 bg-gray-900/60 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Row detail</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-cyan-500/80">
+            Row detail
+          </p>
           <h4 className="mt-1 truncate text-base font-semibold text-white" title={title}>
             {title}
           </h4>
@@ -1037,14 +1053,14 @@ function ResultDetailPanel({
         <div className="flex shrink-0 items-center gap-2">
           <a
             href={evalDetailHref}
-            className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+            className="rounded-md border border-gray-700 bg-gray-950/80 px-2.5 py-1.5 text-xs text-gray-300 transition-colors hover:border-cyan-800/70 hover:text-cyan-200"
           >
             Full page
           </a>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+            className="rounded-md border border-gray-700 bg-gray-950/80 px-2.5 py-1.5 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-gray-100"
           >
             Close
           </button>

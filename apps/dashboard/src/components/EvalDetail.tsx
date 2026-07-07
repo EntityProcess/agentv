@@ -174,7 +174,7 @@ export function EvalDetail({
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* Tab navigation — at the top so Files tab editor fills maximum height */}
       <div className="min-w-0 border-b border-gray-800">
-        <div className="flex min-w-0 gap-1 overflow-x-auto px-4">
+        <div className="av-scrollbar-none flex min-w-0 gap-1 overflow-x-auto px-4">
           {tabs.map((tab) => (
             <button
               type="button"
@@ -331,7 +331,7 @@ function SourceTab({ result }: { result: EvalResult }) {
   const traceability: SourceTraceability | undefined = result.source_traceability;
   if (!traceability || traceability.status !== 'captured') {
     return (
-      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+      <div className="rounded-lg border border-gray-800 bg-gray-950/80 p-4 ring-1 ring-white/5">
         <h4 className="text-sm font-medium text-gray-300">Source metadata</h4>
         <p className="mt-2 text-sm text-gray-500">
           {traceability?.message ?? 'Source metadata was not captured for this run.'}
@@ -493,7 +493,7 @@ function ChecksTab({ result, projectId }: { result: EvalResult; projectId?: stri
   return (
     <div className="space-y-6">
       {/* Overall score */}
-      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+      <div className="rounded-lg border border-gray-800 bg-gray-950/80 p-4 ring-1 ring-white/5">
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-gray-400">Overall score</span>
           <div className="flex-1">
@@ -567,9 +567,9 @@ function ChecksTab({ result, projectId }: { result: EvalResult; projectId?: stri
 
 function RunMetricRow({ label, value }: { label: string; value: string | undefined }) {
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+    <div className="rounded-lg border border-gray-800 bg-gray-950/80 p-3 ring-1 ring-white/5">
       <div className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</div>
-      <div className="mt-1 font-mono text-sm text-gray-200">{value ?? '-'}</div>
+      <div className="mt-1 font-mono text-sm text-gray-100">{value ?? '-'}</div>
     </div>
   );
 }
@@ -784,9 +784,15 @@ function gradingVerdictLabel(pass: boolean | undefined): string {
 }
 
 function gradingVerdictClass(pass: boolean | undefined): string {
-  if (pass === true) return 'border-emerald-900/50 bg-emerald-950/20 text-emerald-300';
-  if (pass === false) return 'border-red-900/50 bg-red-950/20 text-red-300';
-  return 'border-gray-800 bg-gray-950/50 text-gray-300';
+  if (pass === true) return 'border-emerald-800/60 bg-emerald-950/30 text-emerald-200';
+  if (pass === false) return 'border-red-700/70 bg-red-950/40 text-red-200';
+  return 'border-gray-700 bg-gray-950/70 text-gray-300';
+}
+
+function gradingPanelClass(pass: boolean | undefined): string {
+  if (pass === true) return 'border-emerald-900/50 bg-emerald-950/15';
+  if (pass === false) return 'border-red-900/60 bg-red-950/15';
+  return 'border-gray-800 bg-gray-900/70';
 }
 
 function assertionLabel(
@@ -815,9 +821,19 @@ function NamedScoresGrid({ scores }: { scores: Record<string, number> | undefine
   if (!scores || Object.keys(scores).length === 0) return null;
   return (
     <div className="grid gap-3 md:grid-cols-3">
-      {Object.entries(scores).map(([name, value]) => (
-        <RunMetricRow key={name} label={name} value={formatPercent(value)} />
-      ))}
+      {Object.entries(scores).map(([name, value]) => {
+        const tone =
+          value >= 0.8 ? 'text-emerald-300' : value >= 0.5 ? 'text-amber-300' : 'text-red-300';
+        return (
+          <div
+            key={name}
+            className="rounded-lg border border-gray-800 bg-gray-950/70 p-3 ring-1 ring-white/5"
+          >
+            <div className="text-xs font-medium uppercase tracking-wider text-gray-500">{name}</div>
+            <div className={`mt-1 font-mono text-sm ${tone}`}>{formatPercent(value)}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -825,7 +841,7 @@ function NamedScoresGrid({ scores }: { scores: Record<string, number> | undefine
 function MetadataBlock({ metadata }: { metadata: GradingJsonObject | undefined }) {
   if (!metadata || Object.keys(metadata).length === 0) return null;
   return (
-    <details className="rounded-lg border border-gray-800 bg-gray-950/50 p-3">
+    <details className="rounded-lg border border-gray-800 bg-gray-950/80 p-3">
       <summary className="cursor-pointer text-sm font-medium text-gray-300">Metadata</summary>
       <pre className="mt-3 max-h-64 overflow-auto text-xs text-gray-300">
         {JSON.stringify(metadata, null, 2)}
@@ -838,15 +854,19 @@ function OptionalScoreBar({ score }: { score: number | undefined }) {
   if (score == null) {
     return <div className="h-2 rounded-full bg-gray-800" />;
   }
-  return <ScoreBar score={score} />;
+  return <ScoreBar score={score} showLabel={false} />;
 }
 
 function GradingAggregateSummary({ result }: { result: GradingComponentResult }) {
   return (
-    <div className="space-y-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+    <div
+      className={`space-y-4 rounded-lg border p-4 ring-1 ring-white/5 ${gradingPanelClass(
+        result.pass,
+      )}`}
+    >
       <div className="grid gap-3 md:grid-cols-[minmax(9rem,12rem)_1fr] md:items-center">
         <div
-          className={`rounded-lg border px-3 py-2 text-sm font-medium ${gradingVerdictClass(
+          className={`rounded-lg border px-3 py-2 text-sm font-semibold ${gradingVerdictClass(
             result.pass,
           )}`}
         >
@@ -855,12 +875,12 @@ function GradingAggregateSummary({ result }: { result: GradingComponentResult })
         <div className="min-w-0">
           <div className="mb-1 flex items-center justify-between gap-3 text-xs text-gray-500">
             <span>Aggregate score</span>
-            <span className="font-mono">{formatPercent(result.score)}</span>
+            <span className="font-mono text-gray-300">{formatPercent(result.score)}</span>
           </div>
           <OptionalScoreBar score={result.score} />
         </div>
       </div>
-      {result.reason ? <p className="text-sm text-gray-300">{result.reason}</p> : null}
+      {result.reason ? <p className="text-sm text-gray-200">{result.reason}</p> : null}
       <NamedScoresGrid scores={result.namedScores} />
       <MetadataBlock metadata={result.metadata} />
     </div>
@@ -917,7 +937,7 @@ function GradingComponentNode({
       <div className="grid gap-3 md:grid-cols-[minmax(10rem,1fr)_minmax(8rem,12rem)] md:items-center">
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="font-medium text-gray-200">{label.title}</span>
+            <span className="font-medium text-gray-100">{label.title}</span>
             <span
               className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${gradingVerdictClass(
                 component.pass,
@@ -935,20 +955,20 @@ function GradingComponentNode({
           ) : null}
         </div>
         <div className="min-w-0">
-          <div className="mb-1 text-right font-mono text-xs text-gray-500">
+          <div className="mb-1 text-right font-mono text-xs text-gray-400">
             {formatPercent(component.score)}
           </div>
           <OptionalScoreBar score={component.score} />
         </div>
       </div>
-      {component.reason ? <p className="text-sm text-gray-300">{component.reason}</p> : null}
+      {component.reason ? <p className="mt-1 text-sm text-gray-200">{component.reason}</p> : null}
     </div>
   );
 
   return (
     <details
       open={depth === 0}
-      className="rounded-lg border border-gray-800 bg-gray-900 p-3"
+      className={`rounded-lg border p-3 ring-1 ring-white/5 ${gradingPanelClass(component.pass)}`}
       style={{ marginLeft: depth > 0 ? `${Math.min(depth, 4) * 1}rem` : undefined }}
     >
       <summary className="flex cursor-pointer list-none items-start gap-3">
@@ -1030,7 +1050,7 @@ function ArtifactGradingTab({
           <button
             type="button"
             onClick={() => onOpenFile(gradingPath)}
-            className="rounded-md border border-gray-700 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
+            className="rounded-md border border-gray-700 bg-gray-950/80 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-cyan-800/70 hover:text-cyan-200"
           >
             Open grading JSON
           </button>
