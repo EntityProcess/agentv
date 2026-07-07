@@ -166,6 +166,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Check generated eval schema sync
+        run: bun run validate:eval-schema
+
       - name: Run tests
         run: bun run test
 
