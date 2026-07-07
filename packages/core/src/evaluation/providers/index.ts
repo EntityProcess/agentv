@@ -16,19 +16,19 @@ import { PiRpcProvider } from './pi-rpc.js';
 import { ProviderRegistry } from './provider-registry.js';
 import { ReplayProvider } from './replay.js';
 import { SdkChildProvider } from './sdk-child-provider.js';
-import type { ResolvedTarget } from './targets.js';
+import type { ResolvedProviderBackend } from './targets.js';
 import {
-  COMMON_TARGET_SETTINGS,
-  resolveDelegatedTargetDefinition,
-  resolveTargetDefinition,
+  COMMON_PROVIDER_SETTINGS,
+  resolveDelegatedProviderDefinition,
+  resolveProviderDefinition,
 } from './targets.js';
 import type {
   EnvLookup,
   Provider,
+  ProviderDefinition,
   ProviderKind,
   ProviderRequest,
   ProviderResponse,
-  TargetDefinition,
 } from './types.js';
 import { VSCodeProvider } from './vscode-provider.js';
 
@@ -41,7 +41,7 @@ export type {
   ProviderResponse,
   ProviderStreamCallbacks,
   ProviderTokenUsage,
-  TargetDefinition,
+  ProviderDefinition,
   ToolCall,
 } from './types.js';
 
@@ -66,12 +66,12 @@ export type {
   PiRpcResolvedConfig,
   ReplayResolvedConfig,
   ReplayResolvedSource,
-  ResolvedTarget,
+  ResolvedProviderBackend,
   VSCodeResolvedConfig,
 } from './targets.js';
 
-export { COMMON_TARGET_SETTINGS, resolveDelegatedTargetDefinition, resolveTargetDefinition };
-export { readTargetDefinitions, listTargetNames } from './targets-file.js';
+export { COMMON_PROVIDER_SETTINGS, resolveDelegatedProviderDefinition, resolveProviderDefinition };
+export { readProviderDefinitions, listProviderLabels } from './targets-file.js';
 export {
   ensureVSCodeSubagents,
   type EnsureSubagentsOptions,
@@ -161,11 +161,11 @@ class UnsupportedSandboxProvider implements Provider {
   }
 }
 
-function usesSandboxRuntime(target: ResolvedTarget): boolean {
+function usesSandboxRuntime(target: ResolvedProviderBackend): boolean {
   return target.runtime?.mode === 'sandbox';
 }
 
-function unsupportedSandboxProvider(target: ResolvedTarget): Provider {
+function unsupportedSandboxProvider(target: ResolvedProviderBackend): Provider {
   return new UnsupportedSandboxProvider(
     target.kind as ProviderKind,
     target.name,
@@ -261,14 +261,14 @@ const defaultProviderRegistry = createBuiltinProviderRegistry();
  * Create a provider from a resolved target using the default registry.
  * Custom providers can be registered via `createBuiltinProviderRegistry().register()`.
  */
-export function createProvider(target: ResolvedTarget): Provider {
+export function createProvider(target: ResolvedProviderBackend): Provider {
   return defaultProviderRegistry.create(target);
 }
 
 export function resolveAndCreateProvider(
-  definition: TargetDefinition,
+  definition: ProviderDefinition,
   env: EnvLookup = process.env,
 ): Provider {
-  const resolved = resolveTargetDefinition(definition, env);
+  const resolved = resolveProviderDefinition(definition, env);
   return createProvider(resolved);
 }

@@ -2,7 +2,10 @@ import { constants } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { parseYamlValue, readTargetDefinitions as readCoreTargetDefinitions } from '@agentv/core';
+import {
+  parseYamlValue,
+  readProviderDefinitions as readCoreProviderDefinitions,
+} from '@agentv/core';
 import {
   array,
   command,
@@ -115,7 +118,7 @@ async function readTaskTarget(evalPath: string, fallback: string): Promise<strin
 async function readRerunTargetDefinitions(
   providersPath: string,
 ): Promise<readonly Record<string, unknown>[]> {
-  const definitions = await readCoreTargetDefinitions(providersPath);
+  const definitions = await readCoreProviderDefinitions(providersPath);
   return definitions.map((definition) => definition as unknown as Record<string, unknown>);
 }
 

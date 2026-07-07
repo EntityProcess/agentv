@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { runEvaluation } from '../../src/evaluation/orchestrator.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
   ProviderRequest,
@@ -14,7 +14,7 @@ import type {
 } from '../../src/evaluation/providers/types.js';
 import { loadTestSuite, loadTests } from '../../src/evaluation/yaml-parser.js';
 
-const target: ResolvedTarget = {
+const target: ResolvedProviderBackend = {
   name: 'mock',
   kind: 'mock',
   config: {},

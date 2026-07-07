@@ -12,7 +12,7 @@ import {
 import { getAgentvConfigDir } from '../../paths.js';
 import { createEvalConfigEnv, interpolateEnv } from '../interpolation.js';
 import { normalizeProviderDefinition } from '../providers/targets.js';
-import type { TargetDefinition } from '../providers/types.js';
+import type { ProviderDefinition } from '../providers/types.js';
 import type {
   EvalTargetRef,
   FailOnError,
@@ -106,7 +106,7 @@ export type AgentVConfig = {
   /** Resolved file path when top-level `providers` was authored as a file:// reference. */
   readonly providerCatalogPath?: string;
   /** Provider definitions resolved from top-level `providers`, including inline arrays and file refs. */
-  readonly providerDefinitions?: readonly TargetDefinition[];
+  readonly providerDefinitions?: readonly ProviderDefinition[];
 } & ComposableConfigGraph;
 
 /**
@@ -314,7 +314,7 @@ function parseConfigObject(
 function parseProviderDefinitions(
   rawProviders: unknown,
   configPath: string,
-): readonly TargetDefinition[] | undefined {
+): readonly ProviderDefinition[] | undefined {
   if (rawProviders === undefined) {
     return undefined;
   }
@@ -565,7 +565,7 @@ function parseEvalProviderRef(raw: unknown, location: string): EvalTargetRef {
   const definition = normalizeProviderDefinition(
     Object.fromEntries(Object.entries(raw).filter(([key]) => key !== 'hooks')),
     { location },
-  ) as TargetDefinition;
+  ) as ProviderDefinition;
 
   return {
     name: definition.name,

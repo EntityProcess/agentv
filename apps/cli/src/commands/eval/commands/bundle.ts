@@ -2,9 +2,9 @@ import path from 'node:path';
 import {
   type EvalTargetRef,
   type EvalTargetSpec,
-  type TargetDefinition,
+  type ProviderDefinition,
   loadTestSuite,
-  readTargetDefinitions,
+  readProviderDefinitions,
 } from '@agentv/core';
 import { array, command, multioption, option, optional, positional, string } from 'cmd-ts';
 
@@ -28,7 +28,7 @@ function unique(values: readonly string[]): readonly string[] {
   return result;
 }
 
-function targetReferenceNames(target: TargetDefinition): readonly string[] {
+function targetReferenceNames(target: ProviderDefinition): readonly string[] {
   const references: string[] = [];
   for (const key of ['use_target', 'grader_target'] as const) {
     const value = target[key];
@@ -51,7 +51,7 @@ function targetReferenceNames(target: TargetDefinition): readonly string[] {
 
 function ensureTargetGraph(
   targetName: string,
-  definitions: readonly TargetDefinition[],
+  definitions: readonly ProviderDefinition[],
   targetsFilePath: string,
 ): void {
   const byName = new Map(definitions.map((definition) => [definition.name, definition]));
@@ -82,9 +82,9 @@ function ensureTargetGraph(
 }
 
 function definitionsWithEvalTargetRefs(
-  definitions: readonly TargetDefinition[],
+  definitions: readonly ProviderDefinition[],
   targetRefs: readonly EvalTargetRef[] | undefined,
-): readonly TargetDefinition[] {
+): readonly ProviderDefinition[] {
   if (!targetRefs) {
     return definitions;
   }
@@ -94,16 +94,16 @@ function definitionsWithEvalTargetRefs(
     if (ref.definition && !result.some((definition) => definition.name === ref.name)) {
       result.push(ref.definition);
     } else if (ref.use_target && !result.some((definition) => definition.name === ref.name)) {
-      result.push({ name: ref.name, use_target: ref.use_target } as TargetDefinition);
+      result.push({ name: ref.name, use_target: ref.use_target } as ProviderDefinition);
     }
   }
   return result;
 }
 
 function definitionsWithEvalTargetSpec(
-  definitions: readonly TargetDefinition[],
+  definitions: readonly ProviderDefinition[],
   targetSpec: EvalTargetSpec | undefined,
-): readonly TargetDefinition[] {
+): readonly ProviderDefinition[] {
   if (!targetSpec?.definition) {
     return definitions;
   }
@@ -124,7 +124,7 @@ function definitionsWithEvalTargetSpec(
     ...base,
     ...targetSpec.definition,
     name: targetSpec.name,
-  } as TargetDefinition;
+  } as ProviderDefinition;
   return [effective, ...definitions.filter((definition) => definition.name !== targetSpec.name)];
 }
 
@@ -210,7 +210,7 @@ export const evalBundleCommand = command({
       );
     }
 
-    let definitions: readonly TargetDefinition[];
+    let definitions: readonly ProviderDefinition[];
     let targetNames: readonly string[];
     if (suite.inlineTarget) {
       definitions = [suite.inlineTarget];
@@ -224,7 +224,7 @@ export const evalBundleCommand = command({
       });
       definitions = definitionsWithEvalTargetSpec(
         definitionsWithEvalTargetRefs(
-          await readTargetDefinitions(targetsFilePath),
+          await readProviderDefinitions(targetsFilePath),
           suite.targetRefs,
         ),
         suite.targetSpec,

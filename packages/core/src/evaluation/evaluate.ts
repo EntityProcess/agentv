@@ -75,9 +75,9 @@ import type { EvalMetadata } from './metadata.js';
 import { runEvaluation } from './orchestrator.js';
 import { createFunctionProvider } from './providers/function-provider.js';
 import type { ProviderFactoryFn } from './providers/provider-registry.js';
-import { readTargetDefinitions } from './providers/targets-file.js';
-import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
-import type { TargetDefinition } from './providers/types.js';
+import { readProviderDefinitions } from './providers/targets-file.js';
+import { type ResolvedProviderBackend, resolveProviderDefinition } from './providers/targets.js';
+import type { ProviderDefinition } from './providers/types.js';
 import { INLINE_ASSERT_FN } from './registry/builtin-graders.js';
 import { writeArtifactsFromResults } from './run-artifacts.js';
 import type {
@@ -177,7 +177,7 @@ export interface EvalConfig {
   /** Prompt templates for inline tests. Use tests[].vars for per-row values. */
   readonly prompts?: readonly (string | readonly { role: string; content: string }[])[];
   /** Target provider configuration */
-  readonly target?: TargetDefinition;
+  readonly target?: ProviderDefinition;
   /** Custom task function — mutually exclusive with target */
   readonly task?: (input: string) => string | Promise<string>;
   /** Suite-level assert entries applied to all tests */
@@ -221,7 +221,7 @@ export interface MaterializedEvalConfig {
   readonly budgetUsd?: number;
   readonly threshold?: number;
   readonly metadata?: EvalMetadata;
-  readonly target?: TargetDefinition;
+  readonly target?: ProviderDefinition;
   readonly task?: (input: string) => string | Promise<string>;
   readonly providerFactory?: ProviderFactoryFn;
 }
@@ -324,7 +324,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
   // files participate even when the command is launched from a parent folder.
   await loadEnvHierarchy(repoRoot, testFilePath);
 
-  let resolvedTarget: ResolvedTarget;
+  let resolvedTarget: ResolvedProviderBackend;
   let providerFactory: ProviderFactoryFn | undefined;
   if (config.task || materialized.providerFactory) {
     providerFactory = config.task
@@ -337,7 +337,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     };
   } else {
     // Resolve target — inline definition or auto-discover from providers.yaml
-    let targetDef: TargetDefinition;
+    let targetDef: ProviderDefinition;
     if (config.target) {
       targetDef = config.target;
     } else if (materialized.target) {
@@ -345,7 +345,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     } else {
       targetDef = (await discoverDefaultTarget(repoRoot)) ?? { name: 'default', provider: 'mock' };
     }
-    resolvedTarget = resolveTargetDefinition(targetDef);
+    resolvedTarget = resolveProviderDefinition(targetDef);
   }
 
   const collectedResults: EvaluationResult[] = [];
@@ -748,7 +748,7 @@ const PROVIDER_FILE_CANDIDATES = ['.agentv/providers.yaml', '.agentv/providers.y
 /**
  * Auto-discover the 'default' provider from providers.yaml in the repo tree.
  */
-async function discoverDefaultTarget(repoRoot: string): Promise<TargetDefinition | null> {
+async function discoverDefaultTarget(repoRoot: string): Promise<ProviderDefinition | null> {
   const cwd = process.cwd();
   const chain = buildDirectoryChain(path.join(cwd, '_placeholder'), repoRoot);
 
@@ -757,7 +757,7 @@ async function discoverDefaultTarget(repoRoot: string): Promise<TargetDefinition
       const targetsPath = path.join(dir, candidate);
       if (!existsSync(targetsPath)) continue;
       try {
-        const definitions = await readTargetDefinitions(targetsPath);
+        const definitions = await readProviderDefinitions(targetsPath);
         const defaultTarget = definitions.find((d) => d.name === 'default');
         if (defaultTarget) return defaultTarget;
       } catch {

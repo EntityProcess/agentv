@@ -38,21 +38,21 @@ mock.module('@earendil-works/pi-ai', () => ({
 }));
 
 const providerModule = await import('../../../src/evaluation/providers/index.js');
-const { resolveDelegatedTargetDefinition, resolveTargetDefinition, createProvider } =
+const { resolveDelegatedProviderDefinition, resolveProviderDefinition, createProvider } =
   providerModule;
 const { normalizeProviderDefinition } = await import(
   '../../../src/evaluation/providers/targets.js'
 );
 const { extractLastAssistantContent } = await import('../../../src/evaluation/providers/types.js');
 
-describe('resolveDelegatedTargetDefinition', () => {
+describe('resolveDelegatedProviderDefinition', () => {
   it('throws a helpful error when an env-backed use_target variable is missing', () => {
     const definitions = new Map([
       ['grader', { name: 'grader', use_target: '{{ env.GRADER_TARGET }}' }],
       ['azure', { name: 'azure', provider: 'azure' }],
     ]);
 
-    expect(() => resolveDelegatedTargetDefinition('grader', definitions, {})).toThrow(
+    expect(() => resolveDelegatedProviderDefinition('grader', definitions, {})).toThrow(
       /GRADER_TARGET is not set/i,
     );
   });
@@ -63,7 +63,7 @@ describe('resolveDelegatedTargetDefinition', () => {
     ]);
 
     expect(() =>
-      resolveDelegatedTargetDefinition('grader', definitions, {
+      resolveDelegatedProviderDefinition('grader', definitions, {
         GRADER_TARGET: 'azure',
       }),
     ).toThrow(/resolved to "azure".*no target named "azure" exists/i);
@@ -75,7 +75,7 @@ describe('resolveDelegatedTargetDefinition', () => {
       ['azure', { name: 'azure', provider: 'azure' }],
     ]);
 
-    expect(() => resolveDelegatedTargetDefinition('grader', definitions, {})).toThrow(
+    expect(() => resolveDelegatedProviderDefinition('grader', definitions, {})).toThrow(
       /removed legacy use_target syntax.*Use {{ env\.GRADER_TARGET }}/,
     );
   });
@@ -87,7 +87,7 @@ describe('resolveDelegatedTargetDefinition', () => {
       ['azure', { name: 'azure', provider: 'azure' }],
     ]);
 
-    const resolved = resolveDelegatedTargetDefinition('grader', definitions, {
+    const resolved = resolveDelegatedProviderDefinition('grader', definitions, {
       GRADER_TARGET: 'llm',
     });
 
@@ -95,14 +95,14 @@ describe('resolveDelegatedTargetDefinition', () => {
   });
 });
 
-describe('resolveTargetDefinition', () => {
+describe('resolveProviderDefinition', () => {
   beforeEach(() => {
     piCompleteMock.mockClear();
     piGetModelMock.mockClear();
   });
 
   it('uses authored target id as AgentV target identity', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         id: 'primary-sut',
         provider: 'mock',
@@ -120,7 +120,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('uses clean target id as identity when label and legacy name are absent', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         id: 'sandbox-cli',
         provider: 'cli',
@@ -140,7 +140,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('treats provider as backend kind while id remains target identity', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         id: 'candidate-agent',
         provider: 'openai',
@@ -161,7 +161,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves Promptfoo-style colon provider specs without splitting stable identity', () => {
-    const openaiTarget = resolveTargetDefinition(
+    const openaiTarget = resolveProviderDefinition(
       normalizeProviderDefinition({
         id: 'openai:responses:gpt-5.4',
         label: 'gpt5-responses',
@@ -174,7 +174,7 @@ describe('resolveTargetDefinition', () => {
     expect(openaiTarget.config.model).toBe('gpt-5.4');
     expect(openaiTarget.config.apiFormat).toBe('responses');
 
-    const anthropicTarget = resolveTargetDefinition(
+    const anthropicTarget = resolveProviderDefinition(
       normalizeProviderDefinition({
         id: 'anthropic:messages:claude-sonnet-4-6',
         config: { api_key: '{{ env.ANTHROPIC_API_KEY }}' },
@@ -185,14 +185,14 @@ describe('resolveTargetDefinition', () => {
     expect(anthropicTarget.kind).toBe('anthropic');
     expect(anthropicTarget.config.model).toBe('claude-sonnet-4-6');
 
-    const execTarget = resolveTargetDefinition(
+    const execTarget = resolveProviderDefinition(
       normalizeProviderDefinition({ id: 'exec:node ./provider.js' }),
     );
     expect(execTarget.name).toBe('exec:node ./provider.js');
     expect(execTarget.kind).toBe('cli');
     expect(execTarget.config.command).toBe('node ./provider.js');
 
-    const codexSdkTarget = resolveTargetDefinition(
+    const codexSdkTarget = resolveProviderDefinition(
       normalizeProviderDefinition({
         id: 'openai:codex-sdk:gpt-5.4-codex',
         label: 'codex-sdk',
@@ -203,7 +203,7 @@ describe('resolveTargetDefinition', () => {
     expect(codexSdkTarget.kind).toBe('codex-sdk');
     expect(codexSdkTarget.config.model).toBe('gpt-5.4-codex');
 
-    const codexAppServerTarget = resolveTargetDefinition(
+    const codexAppServerTarget = resolveProviderDefinition(
       normalizeProviderDefinition({
         id: 'openai:codex-desktop:gpt-5.4-codex',
         label: 'codex-local',
@@ -223,7 +223,7 @@ describe('resolveTargetDefinition', () => {
     } satisfies Record<string, string>;
 
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'default',
           provider: 'azure',
@@ -243,7 +243,7 @@ describe('resolveTargetDefinition', () => {
       AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'default',
         provider: 'azure',
@@ -270,7 +270,7 @@ describe('resolveTargetDefinition', () => {
       MY_MODEL: 'literal-model',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'test',
         provider: 'azure',
@@ -295,7 +295,7 @@ describe('resolveTargetDefinition', () => {
       MY_MODEL: 'literal-model',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'no-spaces',
         provider: 'azure',
@@ -318,7 +318,7 @@ describe('resolveTargetDefinition', () => {
     const env = {} satisfies Record<string, string>;
 
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'broken',
           provider: 'azure',
@@ -339,7 +339,7 @@ describe('resolveTargetDefinition', () => {
       CUSTOM_VERSION: 'api-version=2024-08-01-preview',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'azure-version',
         provider: 'azure',
@@ -367,7 +367,7 @@ describe('resolveTargetDefinition', () => {
     } satisfies Record<string, string>;
 
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'azure-with-api-format',
           provider: 'azure',
@@ -387,7 +387,7 @@ describe('resolveTargetDefinition', () => {
     } satisfies Record<string, string>;
 
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'openai-with-judge-target',
           provider: 'openai',
@@ -402,7 +402,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects removed copilot-log target provider surface', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'old-copilot-log',
           provider: 'copilot-log',
@@ -415,7 +415,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects removed log_format target aliases', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'copilot-log-format',
           provider: 'copilot-cli',
@@ -426,7 +426,7 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/log_format.*has been removed.*stream_log/i);
 
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'claude-log-output-format',
           provider: 'claude-cli',
@@ -438,7 +438,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('maps canonical stream_log values to agent logger config', () => {
-    const raw = resolveTargetDefinition(
+    const raw = resolveProviderDefinition(
       {
         name: 'copilot-raw-log',
         provider: 'copilot-cli',
@@ -453,7 +453,7 @@ describe('resolveTargetDefinition', () => {
     expect(raw.config.streamLog).toBe('raw');
     expect(raw.config.logFormat).toBe('json');
 
-    const summary = resolveTargetDefinition(
+    const summary = resolveProviderDefinition(
       {
         name: 'claude-summary-log',
         provider: 'claude-cli',
@@ -468,7 +468,7 @@ describe('resolveTargetDefinition', () => {
     expect(summary.config.streamLog).toBe('summary');
     expect(summary.config.logFormat).toBe('summary');
 
-    const disabled = resolveTargetDefinition(
+    const disabled = resolveProviderDefinition(
       {
         name: 'pi-disabled-log',
         provider: 'pi-cli',
@@ -491,7 +491,7 @@ describe('resolveTargetDefinition', () => {
       AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'azure-default-version',
         provider: 'azure',
@@ -516,7 +516,7 @@ describe('resolveTargetDefinition', () => {
     } satisfies Record<string, string>;
 
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'broken',
           provider: 'azure',
@@ -530,7 +530,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('supports vscode configuration with executable/wait/dry_run', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'editor',
         provider: 'vscode',
@@ -556,7 +556,7 @@ describe('resolveTargetDefinition', () => {
       VSCODE_CMD: '/custom/path/to/code',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'editor',
         provider: 'vscode',
@@ -576,7 +576,7 @@ describe('resolveTargetDefinition', () => {
   it('resolves vscode executable from literal path', () => {
     const env = {} satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'editor',
         provider: 'vscode',
@@ -596,7 +596,7 @@ describe('resolveTargetDefinition', () => {
   it('vscode defaults to code when no executable specified', () => {
     const env = {} satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'editor',
         provider: 'vscode',
@@ -617,7 +617,7 @@ describe('resolveTargetDefinition', () => {
       GOOGLE_API_KEY: 'gemini-secret',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'gemini-target',
         provider: 'gemini',
@@ -643,7 +643,7 @@ describe('resolveTargetDefinition', () => {
       GOOGLE_GEMINI_MODEL: 'gemini-2.5-pro',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'gemini-pro',
         provider: 'gemini',
@@ -669,7 +669,7 @@ describe('resolveTargetDefinition', () => {
       GOOGLE_API_KEY: 'gemini-secret',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'gemini-flash',
         provider: 'gemini',
@@ -697,7 +697,7 @@ describe('resolveTargetDefinition', () => {
       OPENAI_MODEL: 'gpt-5.4',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'openai-target',
         provider: 'openai',
@@ -727,7 +727,7 @@ describe('resolveTargetDefinition', () => {
       OPENAI_MODEL: 'gpt-5.4',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'openai-target',
         provider: 'openai',
@@ -752,7 +752,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects inline {{ env.* }} templates in secret fields', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'openai-target',
           provider: 'openai',
@@ -771,7 +771,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects composed {{ env.* }} templates in secret fields', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'openai-target',
           provider: 'openai',
@@ -791,7 +791,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects literal defaults in secret field env templates', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'openai-target',
           provider: 'openai',
@@ -813,7 +813,7 @@ describe('resolveTargetDefinition', () => {
       OPENROUTER_MODEL: 'openai/gpt-5-mini',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'openrouter-target',
         provider: 'openrouter',
@@ -836,7 +836,7 @@ describe('resolveTargetDefinition', () => {
 
   it('throws when google api key is missing', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'broken-gemini',
           provider: 'gemini',
@@ -848,7 +848,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('honors batch_requests flag in settings', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'batched',
         provider: 'mock',
@@ -863,7 +863,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects removed provider_batching flag in settings', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'batched',
           provider: 'mock',
@@ -880,7 +880,7 @@ describe('resolveTargetDefinition', () => {
       CLI_TOKEN: 'secret-token',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'shell-cli',
         provider: 'cli',
@@ -904,7 +904,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('accepts PROMPT_FILE as a supported cli placeholder', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'shell-cli-prompt-file',
         provider: 'cli',
@@ -923,7 +923,7 @@ describe('resolveTargetDefinition', () => {
 
   it('throws for unknown cli placeholders', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'bad-cli',
           provider: 'cli',
@@ -940,7 +940,7 @@ describe('resolveTargetDefinition', () => {
       CODEX_MODEL: 'gpt-4',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'codex-cli',
         provider: 'codex-cli',
@@ -970,7 +970,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves codex-cli reasoning_effort from env', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'codex-cli',
         provider: 'codex-cli',
@@ -994,7 +994,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves codex-cli OpenAI-compatible endpoint settings', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'codex-local-openai',
         provider: 'codex-cli',
@@ -1034,7 +1034,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves codex-sdk as an explicit SDK provider kind', () => {
-    const target = resolveTargetDefinition({
+    const target = resolveProviderDefinition({
       name: 'codex-sdk-target',
       provider: 'codex-sdk',
       model: 'gpt-5-codex',
@@ -1049,7 +1049,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects unsupported codex reasoning_effort values', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'codex',
           provider: 'codex-cli',
@@ -1063,7 +1063,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects bare codex provider alias', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'codex',
           provider: 'codex',
@@ -1076,7 +1076,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects ambiguous Claude and Copilot provider aliases', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'copilot-alias-removed',
           provider: 'copilot',
@@ -1086,7 +1086,7 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/ambiguous provider 'copilot'.*copilot-cli.*copilot-sdk/i);
 
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'claude-alias-removed',
           provider: 'claude',
@@ -1097,7 +1097,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('claude-cli defaults command to claude', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'claude-default',
         provider: 'claude-cli',
@@ -1115,7 +1115,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('claude-cli accepts custom command argv', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'claude-custom',
         provider: 'claude-cli',
@@ -1135,7 +1135,7 @@ describe('resolveTargetDefinition', () => {
 
   it('claude-cli rejects removed executable and args fields', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'claude-custom',
           provider: 'claude-cli',
@@ -1147,7 +1147,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves copilot-cli as its own provider kind', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-cli-target',
         provider: 'copilot-cli',
@@ -1169,7 +1169,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('copilot-cli defaults executable to copilot', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-cli-default',
         provider: 'copilot-cli',
@@ -1193,7 +1193,7 @@ describe('resolveTargetDefinition', () => {
       OPTIONAL_BEARER_TOKEN: 'bearer-secret',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-cli-openai-flat',
         provider: 'copilot-cli',
@@ -1228,7 +1228,7 @@ describe('resolveTargetDefinition', () => {
       OPENAI_API_KEY: 'openai-secret',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-sdk-openai-flat',
         provider: 'copilot-sdk',
@@ -1261,7 +1261,7 @@ describe('resolveTargetDefinition', () => {
       WIRE_MODEL: 'gpt-5.3-codex-spark',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-sdk-openai-wire-model',
         provider: 'copilot-sdk',
@@ -1292,7 +1292,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves copilot-sdk args field', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-sdk-with-args',
         provider: 'copilot-sdk',
@@ -1311,7 +1311,7 @@ describe('resolveTargetDefinition', () => {
 
   it('copilot flat config rejects literal api_key', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'copilot-literal-key',
           provider: 'copilot-sdk',
@@ -1325,7 +1325,7 @@ describe('resolveTargetDefinition', () => {
 
   it('copilot flat config rejects literal bearer_token', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'copilot-literal-bearer',
           provider: 'copilot-sdk',
@@ -1342,7 +1342,7 @@ describe('resolveTargetDefinition', () => {
       MY_TOKEN: 'bearer-secret',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-sdk-bearer',
         provider: 'copilot-sdk',
@@ -1366,7 +1366,7 @@ describe('resolveTargetDefinition', () => {
       FOUNDRY_KEY: 'foundry-secret',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-sdk-responses',
         provider: 'copilot-sdk',
@@ -1388,7 +1388,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('copilot-sdk without base_url has no custom provider', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'copilot-sdk-plain',
         provider: 'copilot-sdk',
@@ -1407,7 +1407,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects camelCase target fields', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'deprecated-camel-case',
           provider: 'openai',
@@ -1426,7 +1426,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('preserves Azure deployment-scoped OpenAI base URLs', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'azure-chat',
         provider: 'openai',
@@ -1452,7 +1452,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves agentv target with model and default temperature', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'agentv-grader',
         provider: 'agentv',
@@ -1471,7 +1471,7 @@ describe('resolveTargetDefinition', () => {
   });
 
   it('resolves agentv target with explicit temperature', () => {
-    const target = resolveTargetDefinition(
+    const target = resolveProviderDefinition(
       {
         name: 'agentv-warm',
         provider: 'agentv',
@@ -1492,7 +1492,7 @@ describe('resolveTargetDefinition', () => {
 
   it('throws when agentv target is missing model', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'agentv-no-model',
           provider: 'agentv',
@@ -1504,7 +1504,7 @@ describe('resolveTargetDefinition', () => {
 
   it('resolves replay targets from execution trace sources', () => {
     const evalFilePath = '/workspace/evals/sample.eval.yaml';
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'replay-from-execution-trace',
         provider: 'replay',
@@ -1535,7 +1535,7 @@ describe('resolveTargetDefinition', () => {
 
   it('rejects replay targets with multiple replay sources', () => {
     expect(() =>
-      resolveTargetDefinition(
+      resolveProviderDefinition(
         {
           name: 'ambiguous-replay',
           provider: 'replay',
@@ -1563,7 +1563,7 @@ describe('createProvider', () => {
       OPENAI_MODEL: 'gpt-5.4',
     } satisfies Record<string, string>;
 
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'openai-target',
         provider: 'openai',
@@ -1590,7 +1590,7 @@ describe('createProvider', () => {
       OPENAI_API_KEY: 'k',
       OPENAI_MODEL: 'gpt-5',
     } satisfies Record<string, string>;
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'openai-resp',
         provider: 'openai',
@@ -1613,7 +1613,7 @@ describe('createProvider', () => {
       OPENROUTER_API_KEY: 'openrouter-key',
       OPENROUTER_MODEL: 'openai/gpt-5-mini',
     } satisfies Record<string, string>;
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'openrouter-target',
         provider: 'openrouter',
@@ -1636,7 +1636,7 @@ describe('createProvider', () => {
       ANTHROPIC_API_KEY: 'k',
       ANTHROPIC_MODEL: 'claude-sonnet-4',
     } satisfies Record<string, string>;
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'anthropic-target',
         provider: 'anthropic',
@@ -1660,7 +1660,7 @@ describe('createProvider', () => {
 
   it('routes gemini targets through pi-ai google-generative-ai', async () => {
     const env = { GOOGLE_API_KEY: 'gemini-key' } satisfies Record<string, string>;
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       { name: 'gemini-target', provider: 'gemini', api_key: '{{ env.GOOGLE_API_KEY }}' },
       env,
     );
@@ -1676,7 +1676,7 @@ describe('createProvider', () => {
       AZURE_OPENAI_API_KEY: 'key',
       AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'azure-target',
         provider: 'azure',
@@ -1703,7 +1703,7 @@ describe('createProvider', () => {
       AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-azure',
         provider: 'pi-coding-agent',
@@ -1726,7 +1726,7 @@ describe('createProvider', () => {
   });
 
   it('resolves pi-coding-agent reasoning_effort level from target config', () => {
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-openai-codex',
         provider: 'pi-coding-agent',
@@ -1744,7 +1744,7 @@ describe('createProvider', () => {
   });
 
   it('resolves pi-sdk as an explicit SDK provider kind', () => {
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-sdk-agent',
         provider: 'pi-sdk',
@@ -1765,7 +1765,7 @@ describe('createProvider', () => {
       AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-cli-azure',
         provider: 'pi-cli',
@@ -1786,7 +1786,7 @@ describe('createProvider', () => {
   });
 
   it('normalizes pi-cli openai base_url targets to azure for PI CLI compatibility', () => {
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-cli-openai-compatible',
         provider: 'pi-cli',
@@ -1806,7 +1806,7 @@ describe('createProvider', () => {
   });
 
   it('defaults pi-cli base_url targets to azure when subprovider is omitted', () => {
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-cli-local-endpoint',
         provider: 'pi-cli',
@@ -1827,7 +1827,7 @@ describe('createProvider', () => {
   });
 
   it('keeps pi-cli openai targets on openai when no base_url is configured', () => {
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-cli-openai',
         provider: 'pi-cli',
@@ -1845,7 +1845,7 @@ describe('createProvider', () => {
   });
 
   it('resolves pi-cli reasoning_effort level from env-backed config', () => {
-    const resolved = resolveTargetDefinition(
+    const resolved = resolveProviderDefinition(
       {
         name: 'pi-cli-openai-codex',
         provider: 'pi-cli',

@@ -17,7 +17,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { deriveSkillCallsFromMessages, skillCallMetadata } from './providers/skill-calls.js';
-import type { ResolvedTarget } from './providers/targets.js';
+import type { ResolvedProviderBackend } from './providers/targets.js';
 import type { Message, ProviderResponse, ProviderTokenUsage, ToolCall } from './providers/types.js';
 import type { EvalTest } from './types.js';
 
@@ -135,7 +135,7 @@ export interface BuildReplayFixtureRecordOptions {
   readonly evalCase: EvalTest;
   readonly evalFilePath: string;
   readonly repoRoot: string;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly sourceTarget?: string;
   readonly attempt: number;
   readonly variant?: string;
@@ -496,7 +496,7 @@ function buildFixtureId(input: {
 }
 
 function buildSourceMetadata(
-  target: ResolvedTarget,
+  target: ResolvedProviderBackend,
   sourceTarget: string,
 ): Record<string, unknown> {
   return dropUndefined({
@@ -507,7 +507,7 @@ function buildSourceMetadata(
   });
 }
 
-function extractModelName(target: ResolvedTarget): string | undefined {
+function extractModelName(target: ResolvedProviderBackend): string | undefined {
   const config = target.config as Record<string, unknown>;
   if (typeof config.model === 'string') {
     return config.model;

@@ -15,7 +15,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import micromatch from 'micromatch';
 
-import type { ResolvedTarget } from './providers/targets.js';
+import type { ResolvedProviderBackend } from './providers/targets.js';
 import type { ChatPrompt } from './providers/types.js';
 import { AGENT_PROVIDER_KINDS } from './providers/types.js';
 import type { EvalTest, JsonObject, RepoConfig, TargetHooksConfig } from './types.js';
@@ -33,7 +33,7 @@ import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.j
 export interface PrepareEvalWorkspaceOptions {
   readonly testFilePath: string;
   readonly repoRoot: URL | string;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly targetHooks?: TargetHooksConfig;
   readonly evalCases?: readonly EvalTest[];
   /** Exact test id to prepare. */
@@ -130,7 +130,7 @@ function selectSingleCase(options: {
   return selected[0];
 }
 
-function promptModeForTarget(target: ResolvedTarget): 'agent' | 'lm' {
+function promptModeForTarget(target: ResolvedProviderBackend): 'agent' | 'lm' {
   return AGENT_PROVIDER_KINDS.includes(target.kind) || target.kind === 'cli' ? 'agent' : 'lm';
 }
 

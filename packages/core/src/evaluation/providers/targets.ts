@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { renderEnvTemplateString } from '../interpolation.js';
 import type { TargetRuntimeConfig, TargetRuntimeMode } from './sandbox-runner.js';
-import type { EnvLookup, TargetDefinition } from './types.js';
+import type { EnvLookup, ProviderDefinition } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for CLI Provider Configuration
@@ -686,7 +686,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export interface NormalizeTargetDefinitionOptions {
+export interface NormalizeInternalProviderDefinitionOptions {
   readonly defaultName?: string;
 }
 
@@ -822,13 +822,13 @@ function assertCrossPlatformExecProviderSpec(spec: string, providerId: string): 
 
 /**
  * Converts the public Promptfoo-shaped provider object into AgentV's internal
- * target definition. Public YAML uses `providers[].id` for the backend/provider
+ * provider definition. Public YAML uses `providers[].id` for the backend/provider
  * spec and `providers[].label` for the stable AgentV result/selection key.
  */
 export function normalizeProviderDefinition(
   definition: unknown,
   options: NormalizeProviderDefinitionOptions = {},
-): TargetDefinition {
+): ProviderDefinition {
   const location = options.location ?? 'provider';
   if (!isRecord(definition)) {
     throw new Error(`Invalid ${location}: provider must be an object.`);
@@ -868,7 +868,7 @@ export function normalizeProviderDefinition(
   const publicSpec = normalizePublicProviderId(providerId);
   const authoredConfig = isRecord(rest.config) ? rest.config : {};
 
-  return normalizeTargetDefinition({
+  return normalizeInternalProviderDefinition({
     ...rest,
     config: {
       ...publicSpec.config,
@@ -879,17 +879,13 @@ export function normalizeProviderDefinition(
   });
 }
 
-/**
- * Converts the authored target object into AgentV's internal target definition.
- * Authored YAML uses `id` as the stable AgentV target identity. The runtime
- * continues to use `name` as its resolver and artifact key.
- */
-export function normalizeTargetDefinition(
+/** Normalizes an internal provider definition object for resolver use. */
+export function normalizeInternalProviderDefinition(
   definition: unknown,
-  options: NormalizeTargetDefinitionOptions = {},
-): TargetDefinition {
+  options: NormalizeInternalProviderDefinitionOptions = {},
+): ProviderDefinition {
   if (!isRecord(definition)) {
-    throw new Error('Target definition must be an object');
+    throw new Error('Provider definition must be an object');
   }
   assertNoTargetTestbedFields(definition);
 
@@ -903,7 +899,7 @@ export function normalizeTargetDefinition(
     typeof rawName === 'string' && rawName.trim().length > 0 ? rawName.trim() : undefined;
   const name = id ?? legacyName ?? label ?? options.defaultName;
   if (!name || name.trim().length === 0) {
-    throw new Error("Target definition is missing a valid 'id' field");
+    throw new Error("Provider definition is missing a valid 'id' field");
   }
 
   const config = isRecord(definition.config) ? definition.config : {};
@@ -913,22 +909,22 @@ export function normalizeTargetDefinition(
     ...(id !== undefined ? { id } : {}),
     label: label ?? name,
     name,
-  } as unknown as TargetDefinition;
+  } as unknown as ProviderDefinition;
 }
 
 function assertNoTargetTestbedFields(definition: Record<string, unknown>): void {
   if (definition.environment !== undefined) {
     throw new Error(
-      'Target definitions cannot include environment; author environment at suite/test/case scope.',
+      'Provider definitions cannot include environment; author environment at suite/test/case scope.',
     );
   }
   if (definition.container !== undefined) {
     throw new Error(
-      'Target definitions cannot include container setup; use an environment recipe.',
+      'Provider definitions cannot include container setup; use an environment recipe.',
     );
   }
   if (definition.install !== undefined) {
-    throw new Error('Target definitions cannot include install steps; use environment.setup.');
+    throw new Error('Provider definitions cannot include install steps; use environment.setup.');
   }
 }
 
@@ -954,7 +950,7 @@ function collectDeprecatedCamelCaseWarnings(
   return warnings;
 }
 
-function assertNoDeprecatedCamelCaseTargetFields(definition: TargetDefinition): void {
+function assertNoDeprecatedCamelCaseTargetFields(definition: ProviderDefinition): void {
   const warning = findDeprecatedCamelCaseTargetWarnings(
     definition,
     `target "${definition.name}"`,
@@ -972,7 +968,7 @@ function assertNoDeprecatedCamelCaseTargetFields(definition: TargetDefinition): 
   );
 }
 
-function assertNoRemovedTargetFields(definition: TargetDefinition): void {
+function assertNoRemovedTargetFields(definition: ProviderDefinition): void {
   const rawDefinition = definition as unknown as Record<string, unknown>;
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'judge_target')) {
     throw new Error(
@@ -1031,8 +1027,8 @@ export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 // Note: CliResolvedConfig is a type alias derived from CliNormalizedConfig (see above),
 // which itself is inferred from CliTargetConfigSchema for type safety and single source of truth.
 
-/** Base fields shared by all resolved targets. */
-interface ResolvedTargetBase {
+/** Base fields shared by all resolved provider backends. */
+interface ResolvedProviderBackendBase {
   readonly name: string;
   readonly label?: string;
   readonly runtime?: TargetRuntimeConfig;
@@ -1052,51 +1048,80 @@ interface ResolvedTargetBase {
   readonly fallbackTargets?: readonly string[];
 }
 
-export type ResolvedTarget =
-  | (ResolvedTargetBase & { readonly kind: 'openai'; readonly config: OpenAIResolvedConfig })
-  | (ResolvedTargetBase & {
+export type ResolvedProviderBackend =
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'openai';
+      readonly config: OpenAIResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & {
       readonly kind: 'openrouter';
       readonly config: OpenRouterResolvedConfig;
     })
-  | (ResolvedTargetBase & { readonly kind: 'azure'; readonly config: AzureResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'anthropic'; readonly config: AnthropicResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'gemini'; readonly config: GeminiResolvedConfig })
-  | (ResolvedTargetBase & {
+  | (ResolvedProviderBackendBase & { readonly kind: 'azure'; readonly config: AzureResolvedConfig })
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'anthropic';
+      readonly config: AnthropicResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'gemini';
+      readonly config: GeminiResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & {
       readonly kind: 'codex-cli' | 'codex-app-server' | 'codex-sdk';
       readonly config: CodexResolvedConfig;
     })
-  | (ResolvedTargetBase & {
+  | (ResolvedProviderBackendBase & {
       readonly kind: 'copilot-sdk';
       readonly config: CopilotSdkResolvedConfig;
     })
-  | (ResolvedTargetBase & {
+  | (ResolvedProviderBackendBase & {
       readonly kind: 'copilot-cli';
       readonly config: CopilotCliResolvedConfig;
     })
-  | (ResolvedTargetBase & {
+  | (ResolvedProviderBackendBase & {
       readonly kind: 'pi-sdk' | 'pi-coding-agent';
       readonly config: PiCodingAgentResolvedConfig;
     })
-  | (ResolvedTargetBase & { readonly kind: 'pi-cli'; readonly config: PiCliResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'pi-rpc'; readonly config: PiRpcResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'claude-cli'; readonly config: ClaudeResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'claude-sdk'; readonly config: ClaudeResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'mock'; readonly config: MockResolvedConfig })
-  | (ResolvedTargetBase & {
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'pi-cli';
+      readonly config: PiCliResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'pi-rpc';
+      readonly config: PiRpcResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'claude-cli';
+      readonly config: ClaudeResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'claude-sdk';
+      readonly config: ClaudeResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & { readonly kind: 'mock'; readonly config: MockResolvedConfig })
+  | (ResolvedProviderBackendBase & {
       readonly kind: 'vscode' | 'vscode-insiders';
       readonly config: VSCodeResolvedConfig;
     })
-  | (ResolvedTargetBase & { readonly kind: 'agentv'; readonly config: AgentVResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'cli'; readonly config: CliResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'transcript'; readonly config: Record<string, never> })
-  | (ResolvedTargetBase & { readonly kind: 'replay'; readonly config: ReplayResolvedConfig });
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'agentv';
+      readonly config: AgentVResolvedConfig;
+    })
+  | (ResolvedProviderBackendBase & { readonly kind: 'cli'; readonly config: CliResolvedConfig })
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'transcript';
+      readonly config: Record<string, never>;
+    })
+  | (ResolvedProviderBackendBase & {
+      readonly kind: 'replay';
+      readonly config: ReplayResolvedConfig;
+    });
 
 /**
- * Optional settings accepted on ALL target definitions regardless of provider.
- * Exported so the targets validator can reuse the same list — adding a field
- * here automatically makes it valid in targets.yaml without a separate update.
+ * Optional settings accepted on all provider definitions regardless of backend.
+ * Exported so provider validation can reuse the same list.
  */
-export const COMMON_TARGET_SETTINGS = [
+export const COMMON_PROVIDER_SETTINGS = [
   'runtime',
   'batch_requests',
   'subagent_mode_allowed',
@@ -1208,11 +1233,11 @@ function resolveTargetRuntime(
   );
 }
 
-export function resolveDelegatedTargetDefinition(
+export function resolveDelegatedProviderDefinition(
   name: string,
-  definitions: ReadonlyMap<string, TargetDefinition>,
+  definitions: ReadonlyMap<string, ProviderDefinition>,
   env: EnvLookup = process.env,
-): TargetDefinition | undefined {
+): ProviderDefinition | undefined {
   let definition = definitions.get(name);
   if (!definition) {
     return undefined;
@@ -1278,21 +1303,21 @@ export function resolveDelegatedTargetDefinition(
   );
 }
 
-export function resolveTargetDefinition(
-  definition: TargetDefinition,
+export function resolveProviderDefinition(
+  definition: ProviderDefinition,
   env: EnvLookup = process.env,
   evalFilePath?: string,
   options?: { readonly emitDeprecationWarnings?: boolean },
-): ResolvedTarget {
+): ResolvedProviderBackend {
   void options;
-  const normalizedDefinition = normalizeTargetDefinition(definition);
+  const normalizedDefinition = normalizeInternalProviderDefinition(definition);
   assertNoRemovedTargetFields(normalizedDefinition);
   assertNoDeprecatedCamelCaseTargetFields(normalizedDefinition);
 
   const parsed = BASE_TARGET_SCHEMA.parse(normalizedDefinition);
   if (!parsed.provider) {
     throw new Error(
-      `${parsed.name}: 'provider' is required (targets with use_target must be resolved before calling resolveTargetDefinition)`,
+      `${parsed.name}: 'provider' is required (provider definitions with use_target must be resolved before calling resolveProviderDefinition)`,
     );
   }
   const provider = resolveString(

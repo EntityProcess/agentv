@@ -8,8 +8,8 @@
 import { describe, expect, it } from 'bun:test';
 
 import { runEvalCase } from '../../../src/evaluation/orchestrator.js';
-import { resolveTargetDefinition } from '../../../src/evaluation/providers/targets.js';
-import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
+import { resolveProviderDefinition } from '../../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../../src/evaluation/providers/targets.js';
 import type { Provider, ProviderResponse } from '../../../src/evaluation/providers/types.js';
 import type { EvalTest } from '../../../src/evaluation/types.js';
 
@@ -68,14 +68,14 @@ const MOCK_EVAL_CASE: EvalTest = {
   criteria: 'Answer correctly',
 };
 
-const MOCK_TARGET: ResolvedTarget = {
+const MOCK_TARGET: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'primary',
   config: { response: 'ok' },
   fallbackTargets: ['fallback-a', 'fallback-b'],
 };
 
-const MOCK_TARGET_NO_FALLBACK: ResolvedTarget = {
+const MOCK_TARGET_NO_FALLBACK: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'primary',
   config: { response: 'ok' },
@@ -122,10 +122,10 @@ const evaluators = {
 };
 
 // ---------------------------------------------------------------------------
-// resolveTargetDefinition tests
+// resolveProviderDefinition tests
 // ---------------------------------------------------------------------------
 
-describe('resolveTargetDefinition - fallback_targets', () => {
+describe('resolveProviderDefinition - fallback_targets', () => {
   const env = {
     TEST_KEY: 'sk-test-key',
     TEST_MODEL: 'gpt-4o-mini',
@@ -140,7 +140,7 @@ describe('resolveTargetDefinition - fallback_targets', () => {
       fallback_targets: ['azure-llm', 'gemini-flash'],
     };
 
-    const resolved = resolveTargetDefinition(definition, env);
+    const resolved = resolveProviderDefinition(definition, env);
     expect(resolved.fallbackTargets).toEqual(['azure-llm', 'gemini-flash']);
   });
 
@@ -153,7 +153,7 @@ describe('resolveTargetDefinition - fallback_targets', () => {
       fallbackTargets: ['backup-1'],
     };
 
-    expect(() => resolveTargetDefinition(definition, env)).toThrow(
+    expect(() => resolveProviderDefinition(definition, env)).toThrow(
       /fallbackTargets.*fallback_targets/i,
     );
   });
@@ -166,7 +166,7 @@ describe('resolveTargetDefinition - fallback_targets', () => {
       model: '{{ env.TEST_MODEL }}',
     };
 
-    const resolved = resolveTargetDefinition(definition, env);
+    const resolved = resolveProviderDefinition(definition, env);
     expect(resolved.fallbackTargets).toBeUndefined();
   });
 });

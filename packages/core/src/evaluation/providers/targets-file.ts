@@ -5,7 +5,7 @@ import path from 'node:path';
 import { parseYamlValue } from '../yaml-loader.js';
 import { normalizeProviderDefinition } from './targets.js';
 import { TARGETS_SCHEMA_V2 } from './types.js';
-import type { TargetDefinition } from './types.js';
+import type { ProviderDefinition } from './types.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -36,7 +36,7 @@ function assertProviderDefinition(
   value: unknown,
   index: number,
   filePath: string,
-): TargetDefinition {
+): ProviderDefinition {
   if (!isRecord(value)) {
     throw new Error(`providers entry at index ${index} in ${filePath} must be an object`);
   }
@@ -59,9 +59,9 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-export async function readTargetDefinitions(
+export async function readProviderDefinitions(
   filePath: string,
-): Promise<readonly TargetDefinition[]> {
+): Promise<readonly ProviderDefinition[]> {
   const absolutePath = path.resolve(filePath);
   if (!(await fileExists(absolutePath))) {
     throw new Error(`providers.yaml not found at ${absolutePath}`);
@@ -77,6 +77,6 @@ export async function readTargetDefinitions(
   return definitions;
 }
 
-export function listTargetNames(definitions: readonly TargetDefinition[]): readonly string[] {
+export function listProviderLabels(definitions: readonly ProviderDefinition[]): readonly string[] {
   return definitions.map((definition) => definition.name);
 }

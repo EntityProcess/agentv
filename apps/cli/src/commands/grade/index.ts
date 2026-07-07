@@ -11,7 +11,7 @@ import path from 'node:path';
 import {
   EXECUTION_TRACE_SCHEMA_VERSION,
   type PreparedAttemptMetadata,
-  type ResolvedTarget,
+  type ResolvedProviderBackend,
   type Trace,
   type TranscriptJsonLine,
   buildTraceFromMessages,
@@ -555,7 +555,7 @@ async function gradePreparedAttempt(options: {
   const target = {
     ...selection.resolvedTarget,
     name: manifest.target,
-  } as ResolvedTarget;
+  } as ResolvedProviderBackend;
 
   const response =
     options.responsePath !== undefined

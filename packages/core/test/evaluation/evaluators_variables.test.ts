@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { LlmGrader } from '../../src/evaluation/graders.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
   ProviderRequest,
@@ -35,7 +35,7 @@ const baseTestCase: EvalTest = {
   evaluator: 'llm-grader',
 };
 
-const baseTarget: ResolvedTarget = {
+const baseTarget: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock',
   config: { response: '{}' },

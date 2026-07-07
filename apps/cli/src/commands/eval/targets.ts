@@ -1,11 +1,11 @@
 import {
   type EvalTargetSpec,
-  type ResolvedTarget,
-  type TargetDefinition,
-  listTargetNames,
-  readTargetDefinitions,
+  type ProviderDefinition,
+  type ResolvedProviderBackend,
+  listProviderLabels,
+  readProviderDefinitions,
   readTestSuiteMetadata,
-  resolveTargetDefinition,
+  resolveProviderDefinition,
 } from '@agentv/core';
 import { validateTargetsFile } from '@agentv/core/evaluation/validation';
 import { discoverTargetsFile } from '../../utils/targets.js';
@@ -32,14 +32,14 @@ function isTTY(): boolean {
  */
 function resolveUseTarget(
   name: string,
-  definitions: readonly TargetDefinition[],
+  definitions: readonly ProviderDefinition[],
   env: NodeJS.ProcessEnv,
   targetsFilePath: string,
-): TargetDefinition {
+): ProviderDefinition {
   const maxDepth = 5;
-  let current: TargetDefinition | undefined = definitions.find((d) => d.name === name);
+  let current: ProviderDefinition | undefined = definitions.find((d) => d.name === name);
   if (!current) {
-    const available = listTargetNames(definitions).join(', ');
+    const available = listProviderLabels(definitions).join(', ');
     throw new Error(
       `Provider '${name}' not found in ${targetsFilePath}. Available providers: ${available}`,
     );
@@ -56,9 +56,11 @@ function resolveUseTarget(
     const resolved: string = envMatch ? (env[envMatch[1]] ?? '') : raw;
     if (resolved.trim().length === 0) break;
 
-    const next: TargetDefinition | undefined = definitions.find((d) => d.name === resolved.trim());
+    const next: ProviderDefinition | undefined = definitions.find(
+      (d) => d.name === resolved.trim(),
+    );
     if (!next) {
-      const available = listTargetNames(definitions).join(', ');
+      const available = listProviderLabels(definitions).join(', ');
       throw new Error(
         `Provider '${name}' use_target '${resolved.trim()}' not found in ${targetsFilePath}. Available providers: ${available}`,
       );
@@ -82,8 +84,8 @@ export async function readTestSuiteTargets(
 }
 
 export interface TargetSelection {
-  readonly definitions: readonly TargetDefinition[];
-  readonly resolvedTarget: ResolvedTarget;
+  readonly definitions: readonly ProviderDefinition[];
+  readonly resolvedTarget: ResolvedProviderBackend;
   readonly targetName: string;
   readonly targetLabel?: string;
   readonly targetSource: 'cli' | 'test-file' | 'default';
@@ -97,7 +99,7 @@ export interface TargetSelectionOptions {
   readonly repoRoot: string;
   readonly cwd: string;
   readonly explicitTargetsPath?: string;
-  readonly providerDefinitions?: readonly TargetDefinition[];
+  readonly providerDefinitions?: readonly ProviderDefinition[];
   readonly providerDefinitionsSource?: string;
   readonly requireExplicitProviderCatalog?: boolean;
   readonly allowLegacyTargetFiles?: boolean;
@@ -111,14 +113,14 @@ export interface TargetSelectionOptions {
 
 async function readProviderCatalog(options: {
   readonly explicitTargetsPath?: string;
-  readonly providerDefinitions?: readonly TargetDefinition[];
+  readonly providerDefinitions?: readonly ProviderDefinition[];
   readonly providerDefinitionsSource?: string;
   readonly requireExplicitProviderCatalog?: boolean;
   readonly testFilePath: string;
   readonly repoRoot: string;
   readonly cwd: string;
   readonly allowLegacyTargetFiles?: boolean;
-}): Promise<{ readonly definitions: readonly TargetDefinition[]; readonly sourcePath: string }> {
+}): Promise<{ readonly definitions: readonly ProviderDefinition[]; readonly sourcePath: string }> {
   if (!options.explicitTargetsPath && options.providerDefinitions) {
     return {
       definitions: options.providerDefinitions,
@@ -139,7 +141,7 @@ async function readProviderCatalog(options: {
   });
   await validateProviderCatalogFile(targetsFilePath);
   return {
-    definitions: await readTargetDefinitions(targetsFilePath),
+    definitions: await readProviderDefinitions(targetsFilePath),
     sourcePath: targetsFilePath,
   };
 }
@@ -191,19 +193,19 @@ function pickTargetName(options: {
 }
 
 function withModelOverride(
-  target: TargetDefinition,
+  target: ProviderDefinition,
   modelOverride: string | undefined,
-): TargetDefinition {
+): ProviderDefinition {
   const model = modelOverride?.trim();
   return model && model.length > 0 ? { ...target, model } : target;
 }
 
 function overlayTargetDefinition(params: {
   readonly spec: EvalTargetSpec | undefined;
-  readonly definitions: readonly TargetDefinition[];
+  readonly definitions: readonly ProviderDefinition[];
   readonly env: NodeJS.ProcessEnv;
   readonly targetsFilePath: string;
-}): TargetDefinition | undefined {
+}): ProviderDefinition | undefined {
   const { spec, definitions, env, targetsFilePath } = params;
   if (!spec?.definition) {
     return undefined;
@@ -220,9 +222,9 @@ function overlayTargetDefinition(params: {
 }
 
 function definitionsWithEffectiveTarget(
-  definitions: readonly TargetDefinition[],
-  effective: TargetDefinition,
-): readonly TargetDefinition[] {
+  definitions: readonly ProviderDefinition[],
+  effective: ProviderDefinition,
+): readonly ProviderDefinition[] {
   return [effective, ...definitions.filter((definition) => definition.name !== effective.name)];
 }
 
@@ -272,7 +274,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
       : definitions;
 
   try {
-    const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
+    const resolvedTarget = resolveProviderDefinition(targetDefinition, env, testFilePath, {
       emitDeprecationWarnings: false,
     });
     return {
@@ -351,7 +353,7 @@ export async function selectMultipleTargets(
       if (ref.definition && !fileDefinitions.some((d) => d.name === ref.name)) {
         definitions.push(ref.definition);
       } else if (ref.use_target && !fileDefinitions.some((d) => d.name === ref.name)) {
-        definitions.push({ name: ref.name, use_target: ref.use_target } as TargetDefinition);
+        definitions.push({ name: ref.name, use_target: ref.use_target } as ProviderDefinition);
       }
     }
   }
@@ -367,7 +369,7 @@ export async function selectMultipleTargets(
     const targetLabel = labelsMap.get(name);
 
     try {
-      const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
+      const resolvedTarget = resolveProviderDefinition(targetDefinition, env, testFilePath, {
         emitDeprecationWarnings: false,
       });
       results.push({

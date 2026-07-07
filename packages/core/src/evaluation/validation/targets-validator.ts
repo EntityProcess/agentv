@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import {
   CLI_PLACEHOLDERS,
-  COMMON_TARGET_SETTINGS,
+  COMMON_PROVIDER_SETTINGS,
   findDeprecatedCamelCaseTargetWarnings,
   normalizeProviderDefinition,
 } from '../providers/targets.js';
@@ -63,9 +63,9 @@ function validateLegacyEnvTemplates(
   }
 }
 
-// Cross-provider settings derived from the schema source of truth in targets.ts.
-// Adding a field to COMMON_TARGET_SETTINGS automatically makes it valid here.
-const COMMON_SETTINGS = new Set<string>(COMMON_TARGET_SETTINGS);
+// Cross-provider settings derived from the provider-definition schema source of truth.
+// Adding a field to COMMON_PROVIDER_SETTINGS automatically makes it valid here.
+const COMMON_SETTINGS = new Set<string>(COMMON_PROVIDER_SETTINGS);
 
 const RETRY_SETTINGS = new Set([
   'max_retries',

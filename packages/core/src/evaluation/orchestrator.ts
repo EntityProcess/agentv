@@ -26,9 +26,9 @@ import {
 import { createBuiltinProviderRegistry, createProvider } from './providers/index.js';
 import { discoverProviders } from './providers/provider-discovery.js';
 import {
-  type ResolvedTarget,
-  resolveDelegatedTargetDefinition,
-  resolveTargetDefinition,
+  type ResolvedProviderBackend,
+  resolveDelegatedProviderDefinition,
+  resolveProviderDefinition,
 } from './providers/targets.js';
 import type {
   ChatMessage,
@@ -36,10 +36,10 @@ import type {
   EnvLookup,
   Message,
   Provider,
+  ProviderDefinition,
   ProviderRequest,
   ProviderResponse,
   ProviderStreamCallbacks,
-  TargetDefinition,
 } from './providers/types.js';
 import {
   LLM_GRADER_CAPABLE_KINDS,
@@ -179,10 +179,10 @@ function mergeTextOutput(left: string | undefined, right: string | undefined): s
 }
 
 interface EvaluationRuntimeOptions {
-  readonly target: ResolvedTarget;
-  readonly targets?: readonly TargetDefinition[];
+  readonly target: ResolvedProviderBackend;
+  readonly targets?: readonly ProviderDefinition[];
   readonly env?: EnvLookup;
-  readonly providerFactory?: (target: ResolvedTarget) => Provider;
+  readonly providerFactory?: (target: ResolvedProviderBackend) => Provider;
   readonly evalFilePath?: string;
   readonly graderTarget?: string;
   /** Config-level fallback grader target name (`.agentv/config.yaml`'s `defaults.grader`), used when a target has no `grader_target` and no CLI `--grader-target` override is given. */
@@ -191,8 +191,10 @@ interface EvaluationRuntimeOptions {
 }
 
 interface EvaluationRuntime {
-  readonly getOrCreateProvider: (resolved: ResolvedTarget) => Provider;
-  readonly resolveGraderProvider: (targetContext: ResolvedTarget) => Promise<Provider | undefined>;
+  readonly getOrCreateProvider: (resolved: ResolvedProviderBackend) => Provider;
+  readonly resolveGraderProvider: (
+    targetContext: ResolvedProviderBackend,
+  ) => Promise<Provider | undefined>;
   readonly targetResolver: (name: string) => Provider | undefined;
   readonly availableTargets: readonly string[];
 }
@@ -208,10 +210,10 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
     defaultGraderTarget,
     model: cliModel,
   } = options;
-  const resolvedTargetsByName = new Map<string, ResolvedTarget>();
+  const resolvedTargetsByName = new Map<string, ResolvedProviderBackend>();
   resolvedTargetsByName.set(target.name, target);
 
-  const targetDefinitions = new Map<string, TargetDefinition>();
+  const targetDefinitions = new Map<string, ProviderDefinition>();
   for (const definition of targets ?? []) {
     targetDefinitions.set(definition.name, definition);
   }
@@ -219,7 +221,7 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
   const envLookup: EnvLookup = env ?? process.env;
   const providerCache = new Map<string, Provider>();
 
-  const getOrCreateProvider = (resolved: ResolvedTarget): Provider => {
+  const getOrCreateProvider = (resolved: ResolvedProviderBackend): Provider => {
     const existing = providerCache.get(resolved.name);
     if (existing) {
       return existing;
@@ -230,21 +232,21 @@ function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationR
     return instance;
   };
 
-  const resolveTargetByName = (name: string): ResolvedTarget | undefined => {
+  const resolveTargetByName = (name: string): ResolvedProviderBackend | undefined => {
     if (resolvedTargetsByName.has(name)) {
       return resolvedTargetsByName.get(name);
     }
-    const definition = resolveDelegatedTargetDefinition(name, targetDefinitions, envLookup);
+    const definition = resolveDelegatedProviderDefinition(name, targetDefinitions, envLookup);
     if (!definition) {
       return undefined;
     }
-    const resolved = resolveTargetDefinition(definition, envLookup, evalFilePath ?? '');
+    const resolved = resolveProviderDefinition(definition, envLookup, evalFilePath ?? '');
     resolvedTargetsByName.set(name, resolved);
     return resolved;
   };
 
   const resolveGraderProvider = async (
-    targetContext: ResolvedTarget,
+    targetContext: ResolvedProviderBackend,
   ): Promise<Provider | undefined> => {
     // CLI --grader-target takes highest priority.
     if (cliGraderTarget) {
@@ -424,8 +426,8 @@ export interface EvaluationCache {
 export interface RunEvalCaseOptions {
   readonly evalCase: EvalTest;
   readonly provider: Provider;
-  readonly providerFactory?: (target: ResolvedTarget) => Provider;
-  readonly target: ResolvedTarget;
+  readonly providerFactory?: (target: ResolvedProviderBackend) => Provider;
+  readonly target: ResolvedProviderBackend;
   readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
   readonly now?: () => Date;
   readonly maxRetries?: number;
@@ -504,10 +506,10 @@ export interface ProgressEvent {
 export interface RunEvaluationOptions {
   readonly testFilePath: string;
   readonly repoRoot: URL | string;
-  readonly target: ResolvedTarget;
-  readonly targets?: readonly TargetDefinition[];
+  readonly target: ResolvedProviderBackend;
+  readonly targets?: readonly ProviderDefinition[];
   readonly env?: EnvLookup;
-  readonly providerFactory?: (target: ResolvedTarget) => Provider;
+  readonly providerFactory?: (target: ResolvedProviderBackend) => Provider;
   readonly evaluators?: Partial<Record<string, Grader>>;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
@@ -573,11 +575,11 @@ export interface PreparedAttemptMetadata {
 
 export interface GradePreparedEvalCaseOptions {
   readonly evalCase: EvalTest;
-  readonly target: ResolvedTarget;
-  readonly targets?: readonly TargetDefinition[];
+  readonly target: ResolvedProviderBackend;
+  readonly targets?: readonly ProviderDefinition[];
   readonly env?: EnvLookup;
   readonly evaluators?: Partial<Record<string, Grader>>;
-  readonly providerFactory?: (target: ResolvedTarget) => Provider;
+  readonly providerFactory?: (target: ResolvedProviderBackend) => Provider;
   readonly now?: () => Date;
   readonly agentTimeoutMs?: number;
   readonly graderTarget?: string;
@@ -592,7 +594,7 @@ export interface GradePreparedEvalCaseOptions {
   readonly preparedAttempt: PreparedAttemptMetadata;
 }
 
-function createPreparedProvider(target: ResolvedTarget): Provider {
+function createPreparedProvider(target: ResolvedProviderBackend): Provider {
   return {
     id: `prepared:${target.name}`,
     kind: target.kind,
@@ -1588,7 +1590,7 @@ export async function runEvaluation(
 async function runBatchEvaluation(options: {
   readonly evalCases: readonly EvalTest[];
   readonly provider: Provider;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly evaluatorRegistry: Partial<Record<string, Grader>> & {
     readonly 'llm-grader': Grader;
   };
@@ -1597,7 +1599,9 @@ async function runBatchEvaluation(options: {
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
   readonly verbose?: boolean;
-  readonly resolveGraderProvider: (target: ResolvedTarget) => Promise<Provider | undefined>;
+  readonly resolveGraderProvider: (
+    target: ResolvedProviderBackend,
+  ) => Promise<Provider | undefined>;
   readonly agentTimeoutMs?: number;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
@@ -1829,7 +1833,7 @@ async function maybeRecordReplayFixture(options: {
   readonly evalCase: EvalTest;
   readonly evalFilePath?: string;
   readonly repoRoot?: string;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly attempt: number;
   readonly response: ProviderResponse;
   readonly nowFn: () => Date;
@@ -2727,7 +2731,7 @@ async function prepareCandidateForGrading(options: {
 async function evaluateCandidate(options: {
   readonly evalCase: EvalTest;
   readonly candidate: string;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
   readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
@@ -2920,7 +2924,7 @@ async function runEvaluatorsForCase(options: {
   readonly candidate: string;
   readonly candidateValue?: unknown;
   readonly responseMetadata?: JsonObject;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
   readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
@@ -3128,7 +3132,7 @@ async function runEvaluatorList(options: {
   readonly candidate: string;
   readonly candidateValue?: unknown;
   readonly responseMetadata?: JsonObject;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Grader>> & {
     readonly 'llm-grader': Grader;
@@ -3390,7 +3394,7 @@ function filterEvalCases(
 
 function buildEvaluatorRegistry(
   overrides: Partial<Record<string, Grader>> | undefined,
-  resolveGraderProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
+  resolveGraderProvider: (target: ResolvedProviderBackend) => Promise<Provider | undefined>,
 ): Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader } {
   const llmGrader =
     overrides?.['llm-grader'] ??
@@ -3422,7 +3426,7 @@ function buildEvaluatorRegistry(
 async function runConversationMode(options: {
   readonly evalCase: EvalTest;
   readonly provider: Provider;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
   readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
   readonly graderProvider?: Provider;
@@ -3813,7 +3817,7 @@ async function invokeProvider(
   provider: Provider,
   options: {
     readonly evalCase: EvalTest;
-    readonly target: ResolvedTarget;
+    readonly target: ResolvedProviderBackend;
     readonly promptInputs: PromptInputs;
     readonly attempt: number;
     readonly evalFilePath?: string;
@@ -3991,7 +3995,7 @@ function extractProviderError(response: ProviderResponse): string | undefined {
 
 function createCacheKey(
   provider: Provider,
-  target: ResolvedTarget,
+  target: ResolvedProviderBackend,
   evalCase: EvalTest,
   promptInputs: PromptInputs,
 ): string {

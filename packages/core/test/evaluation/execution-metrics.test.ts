@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ScriptGrader } from '../../src/evaluation/graders.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import {
   type TraceComputeResult,
   type TraceSummary,
@@ -253,7 +253,7 @@ describe('Code Grader Metrics Integration', () => {
     evaluator: 'script',
   };
 
-  const baseTarget: ResolvedTarget = {
+  const baseTarget: ResolvedProviderBackend = {
     kind: 'mock',
     name: 'mock',
     config: { response: '{}' },

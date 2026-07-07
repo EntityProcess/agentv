@@ -7,7 +7,7 @@ import {
   type EvalSourceReference,
   type EvalTest,
   type JsonObject,
-  type TargetDefinition,
+  type ProviderDefinition,
   type TestMessage,
   type WorkspaceConfig,
   parseYamlValue,
@@ -76,13 +76,13 @@ export interface TaskBundleTargetSelection {
   readonly evalFileAbsolutePath?: string;
   readonly targetName: string;
   readonly resolvedTargetName?: string;
-  readonly definitions: readonly TargetDefinition[];
+  readonly definitions: readonly ProviderDefinition[];
 }
 
 export interface MaterializeTaskBundleOptions {
   readonly test: EvalTest;
   readonly targetName: string;
-  readonly targetDefinitions: readonly TargetDefinition[];
+  readonly targetDefinitions: readonly ProviderDefinition[];
   readonly outputDir: string;
   readonly cwd?: string;
   readonly repoRoot?: string;
@@ -557,7 +557,7 @@ function buildEvalCase(
   return moveInputToVars(testCase);
 }
 
-function targetReferenceNames(target: TargetDefinition): readonly string[] {
+function targetReferenceNames(target: ProviderDefinition): readonly string[] {
   const references: string[] = [];
   for (const key of ['use_target', 'grader_target'] as const) {
     const value = target[key];
@@ -580,10 +580,10 @@ function targetReferenceNames(target: TargetDefinition): readonly string[] {
 
 function selectTargetDefinitions(
   targetName: string,
-  definitions: readonly TargetDefinition[],
-): readonly TargetDefinition[] {
+  definitions: readonly ProviderDefinition[],
+): readonly ProviderDefinition[] {
   const byName = new Map(definitions.map((definition) => [definition.name, definition]));
-  const selected: TargetDefinition[] = [];
+  const selected: ProviderDefinition[] = [];
   const seen = new Set<string>();
 
   function visit(name: string): void {
@@ -636,8 +636,8 @@ function bundledEvalFileName(evalFilePath: string): string {
 
 function uniqueTargetDefinitions(
   selections: readonly TaskBundleTargetSelection[],
-): readonly TargetDefinition[] {
-  const selected: TargetDefinition[] = [];
+): readonly ProviderDefinition[] {
+  const selected: ProviderDefinition[] = [];
   const seen = new Set<string>();
 
   for (const selection of selections) {
@@ -653,7 +653,7 @@ function uniqueTargetDefinitions(
   return selected;
 }
 
-function serializeTargetDefinition(definition: TargetDefinition): Record<string, unknown> {
+function serializeTargetDefinition(definition: ProviderDefinition): Record<string, unknown> {
   const providerSpec =
     typeof definition.provider_spec === 'string' && definition.provider_spec.trim().length > 0
       ? definition.provider_spec.trim()
@@ -702,7 +702,7 @@ function serializeTargetDefinition(definition: TargetDefinition): Record<string,
 }
 
 function serializeTargetDefinitions(
-  definitions: readonly TargetDefinition[],
+  definitions: readonly ProviderDefinition[],
 ): readonly Record<string, unknown>[] {
   return definitions.map((definition) => serializeTargetDefinition(definition));
 }

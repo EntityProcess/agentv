@@ -1,4 +1,4 @@
-import type { ResolvedTarget } from '../providers/targets.js';
+import type { ResolvedProviderBackend } from '../providers/targets.js';
 import type { ChatPrompt, Message, Provider } from '../providers/types.js';
 import type { TokenUsage, Trace } from '../trace.js';
 import type {
@@ -25,7 +25,7 @@ export interface EvaluationContext {
   readonly candidateValue?: unknown;
   /** JSON-safe provider response metadata available to transforms. */
   readonly responseMetadata?: JsonObject;
-  readonly target: ResolvedTarget;
+  readonly target: ResolvedProviderBackend;
   readonly provider: Provider;
   readonly attempt: number;
   readonly promptInputs: {

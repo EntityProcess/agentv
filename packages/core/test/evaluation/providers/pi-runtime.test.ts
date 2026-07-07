@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import {
   createProvider,
-  resolveTargetDefinition,
+  resolveProviderDefinition,
 } from '../../../src/evaluation/providers/index.js';
 import { PiCliProvider } from '../../../src/evaluation/providers/pi-cli.js';
 import type { PiProcessRunOptions } from '../../../src/evaluation/providers/pi-process.js';
@@ -270,7 +270,7 @@ describe('Pi coding-agent runtime providers', () => {
   });
 
   it('resolves pi-cli and pi-rpc command argv without disturbing plain LLM providers', async () => {
-    const piCli = resolveTargetDefinition(
+    const piCli = resolveProviderDefinition(
       {
         id: 'pi-cli-id',
         name: 'pi-cli-id',
@@ -283,7 +283,7 @@ describe('Pi coding-agent runtime providers', () => {
       } as never,
       {},
     );
-    const piRpc = resolveTargetDefinition(
+    const piRpc = resolveProviderDefinition(
       {
         id: 'pi-rpc-id',
         name: 'pi-rpc-id',
@@ -298,7 +298,7 @@ describe('Pi coding-agent runtime providers', () => {
       } as never,
       { OPENAI_BASE_URL: 'http://127.0.0.1:10531/v1', OPENAI_API_KEY: 'local-key' },
     );
-    const llm = resolveTargetDefinition(
+    const llm = resolveProviderDefinition(
       { name: 'mock-llm', provider: 'mock', response: 'still works' },
       {},
     );

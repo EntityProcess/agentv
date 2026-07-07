@@ -63,7 +63,7 @@ import {
 } from './loaders/shorthand-expansion.js';
 import { parseTransformSpec } from './loaders/transform-parser.js';
 import { parseMetadata } from './metadata.js';
-import type { TargetDefinition } from './providers/types.js';
+import type { ProviderDefinition } from './providers/types.js';
 import type {
   AgentRulesExtensionConfig,
   AgentRulesPaths,
@@ -1301,7 +1301,7 @@ export type EvalSuiteResult = {
   /** Internal normalized run controls derived from flat eval YAML. */
   readonly experimentConfig?: ExperimentConfig;
   /** Inline target definition from a TS eval config. */
-  readonly inlineTarget?: import('./providers/types.js').TargetDefinition;
+  readonly inlineTarget?: import('./providers/types.js').ProviderDefinition;
   /** Custom provider factory from a TS eval config task(). */
   readonly providerFactory?: import('./providers/provider-registry.js').ProviderFactoryFn;
 };
@@ -1314,7 +1314,7 @@ export type EvalDefaultTestDefaults = {
 export type EvalTargetSpec = {
   readonly name: string;
   readonly extends?: string;
-  readonly definition?: TargetDefinition;
+  readonly definition?: ProviderDefinition;
   readonly hooks?: TargetHooksConfig;
 };
 

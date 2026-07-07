@@ -11,7 +11,7 @@ import {
   type JsonObject,
   type PreparedEvalWorkspace,
   type PreparedWorkspaceRepoPin,
-  type ResolvedTarget,
+  type ResolvedProviderBackend,
   type TargetHooksConfig,
   deriveCategory,
   loadTestSuite,
@@ -263,7 +263,7 @@ async function selectPrepareTarget(options: {
   readonly target: string;
   readonly targetRefs?: readonly EvalTargetRef[];
 }): Promise<{
-  readonly resolvedTarget: ResolvedTarget;
+  readonly resolvedTarget: ResolvedProviderBackend;
   readonly targetHooks?: TargetHooksConfig;
 }> {
   const selections = await selectMultipleTargets({
@@ -282,7 +282,7 @@ async function selectPrepareTarget(options: {
     resolvedTarget: {
       ...selection.resolvedTarget,
       name: options.target,
-    } as ResolvedTarget,
+    } as ResolvedProviderBackend,
     ...(selection.targetHooks !== undefined && { targetHooks: selection.targetHooks }),
   };
 }

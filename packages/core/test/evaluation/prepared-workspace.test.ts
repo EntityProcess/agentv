@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { prepareEvalWorkspace } from '../../src/evaluation/prepared-workspace.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../src/evaluation/providers/targets.js';
 import type { EvalTest, WorkspaceConfig } from '../../src/evaluation/types.js';
 import { WorkspaceSetupError } from '../../src/evaluation/workspace/setup.js';
 
@@ -76,7 +76,7 @@ function evalCase(workspace: WorkspaceConfig): EvalTest {
   };
 }
 
-const target: ResolvedTarget = {
+const target: ResolvedProviderBackend = {
   kind: 'mock',
   name: 'mock-target',
   config: { response: '{}' },

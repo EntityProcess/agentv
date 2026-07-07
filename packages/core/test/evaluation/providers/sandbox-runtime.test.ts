@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 
 import { createProvider } from '../../../src/evaluation/providers/index.js';
-import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
+import type { ResolvedProviderBackend } from '../../../src/evaluation/providers/targets.js';
 
 describe('sandbox target runtime', () => {
   it('returns deliberate unsupported envelopes for sandbox coding-agent adapters', async () => {
-    const target: ResolvedTarget = {
+    const target: ResolvedProviderBackend = {
       name: 'codex-sandbox',
       kind: 'codex-cli',
       runtime: { mode: 'sandbox', image: 'agentv-codex:sha256' },
