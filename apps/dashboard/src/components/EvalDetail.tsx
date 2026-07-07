@@ -174,7 +174,7 @@ export function EvalDetail({
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* Tab navigation — at the top so Files tab editor fills maximum height */}
       <div className="min-w-0 border-b border-gray-800">
-        <div className="flex min-w-0 gap-1 overflow-x-auto px-4">
+        <div className="av-scrollbar-none flex min-w-0 gap-1 overflow-x-auto px-4">
           {tabs.map((tab) => (
             <button
               type="button"

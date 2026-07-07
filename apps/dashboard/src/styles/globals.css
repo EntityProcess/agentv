@@ -15,6 +15,14 @@ body {
   @apply bg-cyan-400/25 text-cyan-50;
 }
 
+.av-scrollbar-none {
+  scrollbar-width: none;
+}
+
+.av-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 .av-brand-name {
   font-family: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
   letter-spacing: 0;
