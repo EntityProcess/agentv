@@ -850,32 +850,25 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(existsSync(rawLogPath)).toBe(false);
   });
 
-  it('reports failed progress status for batch item errors', async () => {
-    class BatchProvider implements Provider {
-      readonly id = 'batch:mock';
+  it('reports failed progress status for per-case provider errors', async () => {
+    class ErroringProvider implements Provider {
+      readonly id = 'mock:progress';
       readonly kind = 'mock' as const;
       readonly targetName = 'mock';
-      readonly supportsBatch = true;
+      private calls = 0;
 
       async invoke(): Promise<ProviderResponse> {
-        throw new Error('invoke not used');
-      }
-
-      async invokeBatch(
-        requests: readonly ProviderRequest[],
-      ): Promise<readonly ProviderResponse[]> {
-        return requests.map((request) => {
-          if (request.evalCaseId === 'case-2') {
-            return {
-              output: [{ role: 'assistant', content: "Error: Batch output missing id 'case-2'" }],
-              raw: { error: "Batch output missing id 'case-2'" },
-            };
-          }
-
+        this.calls += 1;
+        if (this.calls === 2) {
           return {
-            output: [{ role: 'assistant', content: 'OK' }],
+            output: [{ role: 'assistant', content: 'Error: Invalid request' }],
+            raw: { error: 'Invalid request' },
           };
-        });
+        }
+
+        return {
+          output: [{ role: 'assistant', content: 'OK' }],
+        };
       }
     }
 
@@ -891,10 +884,9 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       repoRoot: 'in-memory',
       target: {
         ...baseTarget,
-        providerBatching: true,
         workers: 1,
       },
-      providerFactory: () => new BatchProvider(),
+      providerFactory: () => new ErroringProvider(),
       evaluators: evaluatorRegistry,
       evalCases,
       onProgress: async (event) => {
@@ -908,15 +900,14 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(events.find((e) => e.testId === 'case-1')?.status).toBe('completed');
     const case2 = events.find((e) => e.testId === 'case-2');
     expect(case2?.status).toBe('failed');
-    expect(case2?.error).toBe("Batch output missing id 'case-2'");
+    expect(case2?.error).toBe('Invalid request');
   });
 
-  it('disables request batching when cases require workspace setup', async () => {
-    class BatchCapableProvider implements Provider {
-      readonly id = 'batch:workspace';
+  it('runs workspace setup cases through per-case provider invocation without batch warnings', async () => {
+    class InternalBatchHelperProvider implements Provider {
+      readonly id = 'mock:workspace';
       readonly kind = 'mock' as const;
       readonly targetName = 'workspace';
-      readonly supportsBatch = true;
       batchCalls = 0;
       invokeRequests: ProviderRequest[] = [];
 
@@ -935,7 +926,8 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
 
     const templateDir = mkdtempSync(path.join(tmpdir(), 'agentv-batch-workspace-'));
     writeFileSync(path.join(templateDir, 'README.md'), 'workspace\n', 'utf8');
-    const provider = new BatchCapableProvider();
+    const provider = new InternalBatchHelperProvider();
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
     try {
       const results = await runEvaluation({
@@ -943,7 +935,6 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
         repoRoot: 'in-memory',
         target: {
           ...baseTarget,
-          providerBatching: true,
           workers: 1,
         },
         providerFactory: () => provider,
@@ -962,18 +953,19 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       expect(provider.batchCalls).toBe(0);
       expect(provider.invokeRequests).toHaveLength(1);
       expect(provider.invokeRequests[0]?.cwd).toBeDefined();
+      expect(warnSpy.mock.calls.flat().join('\n')).not.toContain('Batch mode');
     } finally {
+      warnSpy.mockRestore();
       const { rm } = await import('node:fs/promises');
       await rm(templateDir, { recursive: true, force: true });
     }
   });
 
-  it('disables request batching when cases require environment setup', async () => {
-    class BatchCapableProvider implements Provider {
-      readonly id = 'batch:environment';
+  it('runs environment setup cases through per-case provider invocation without batch warnings', async () => {
+    class InternalBatchHelperProvider implements Provider {
+      readonly id = 'mock:environment';
       readonly kind = 'mock' as const;
       readonly targetName = 'environment';
-      readonly supportsBatch = true;
       batchCalls = 0;
       invokeRequests: ProviderRequest[] = [];
 
@@ -997,7 +989,8 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       "import { writeFileSync } from 'node:fs'; writeFileSync(process.env.AGENTV_ENVIRONMENT_WORKDIR + '/ready.txt', 'ok');\n",
       'utf8',
     );
-    const provider = new BatchCapableProvider();
+    const provider = new InternalBatchHelperProvider();
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
     try {
       const results = await runEvaluation({
@@ -1005,7 +998,6 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
         repoRoot: 'in-memory',
         target: {
           ...baseTarget,
-          providerBatching: true,
           workers: 1,
         },
         providerFactory: () => provider,
@@ -1028,7 +1020,9 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       expect(provider.invokeRequests).toHaveLength(1);
       expect(provider.invokeRequests[0]?.cwd).toBe(workdir);
       expect(existsSync(path.join(workdir, 'ready.txt'))).toBe(true);
+      expect(warnSpy.mock.calls.flat().join('\n')).not.toContain('Batch mode');
     } finally {
+      warnSpy.mockRestore();
       const { rm } = await import('node:fs/promises');
       await rm(sourceDir, { recursive: true, force: true });
     }
@@ -1198,12 +1192,11 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     }
   });
 
-  it('disables request batching when repeat attempts are configured', async () => {
-    class BatchCapableProvider implements Provider {
-      readonly id = 'batch:repeat';
+  it('runs repeat attempts through per-case provider invocation without batch warnings', async () => {
+    class InternalBatchHelperProvider implements Provider {
+      readonly id = 'mock:repeat';
       readonly kind = 'mock' as const;
       readonly targetName = 'repeat';
-      readonly supportsBatch = true;
       invokeCalls = 0;
       batchCalls = 0;
 
@@ -1220,7 +1213,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       }
     }
 
-    const provider = new BatchCapableProvider();
+    const provider = new InternalBatchHelperProvider();
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const results = await runEvaluation({
@@ -1228,7 +1221,6 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
         repoRoot: 'in-memory',
         target: {
           ...baseTarget,
-          providerBatching: true,
           workers: 1,
         },
         providerFactory: () => provider,
@@ -1240,9 +1232,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       expect(results).toHaveLength(1);
       expect(provider.batchCalls).toBe(0);
       expect(provider.invokeCalls).toBe(2);
-      expect(warnSpy).toHaveBeenCalledWith(
-        'Warning: Batch mode is disabled when evaluate_options.repeat.count > 1. Using per-attempt dispatch.',
-      );
+      expect(warnSpy.mock.calls.flat().join('\n')).not.toContain('Batch mode');
     } finally {
       warnSpy.mockRestore();
     }

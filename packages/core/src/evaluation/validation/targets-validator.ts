@@ -15,6 +15,11 @@ type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
 const LEGACY_ENV_PATTERN = /\$\{\{\s*([A-Z_][A-Z0-9_]*)\s*\}\}/g;
+const REMOVED_RUNNER_BATCHING_FIELDS = new Set([
+  'batch_requests',
+  'provider_batching',
+  'providerBatching',
+]);
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -370,6 +375,9 @@ function validateUnknownSettings(
   const removedForProvider = removedPerProvider[provider];
 
   for (const key of Object.keys(target)) {
+    if (REMOVED_RUNNER_BATCHING_FIELDS.has(key)) {
+      continue;
+    }
     if (removedFields.has(key)) {
       errors.push({
         severity: 'warning',
@@ -386,15 +394,6 @@ function validateUnknownSettings(
         filePath: absolutePath,
         location: `${location}.${key}`,
         message: `The '${key}' field has been removed. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.`,
-      });
-      continue;
-    }
-    if (key === 'provider_batching') {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.${key}`,
-        message: "The 'provider_batching' field has been removed. Use 'batch_requests' instead.",
       });
       continue;
     }
@@ -415,6 +414,29 @@ function validateUnknownSettings(
         message: `Unknown setting '${key}' for ${provider} provider. This property will be ignored.`,
       });
     }
+  }
+}
+
+function buildRemovedRunnerBatchingMessage(field: string): string {
+  return `The '${field}' field has been removed. Runner-level batching was removed; providers should implement internal queueing/batching behind per-request invocation.`;
+}
+
+function validateRemovedRunnerBatchingFields(
+  target: JsonObject,
+  absolutePath: string,
+  location: string,
+  errors: ValidationError[],
+): void {
+  for (const key of Object.keys(target)) {
+    if (!REMOVED_RUNNER_BATCHING_FIELDS.has(key)) {
+      continue;
+    }
+    errors.push({
+      severity: 'error',
+      filePath: absolutePath,
+      location: `${location}.${key}`,
+      message: buildRemovedRunnerBatchingMessage(key),
+    });
   }
 }
 
@@ -730,6 +752,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     // Validate CLI provider fields
+    validateRemovedRunnerBatchingFields(effectiveTarget, absolutePath, location, errors);
     if (providerValue === 'cli') {
       validateCliSettings(effectiveTarget, absolutePath, location, errors);
     }

@@ -68,8 +68,6 @@ export class CodexCliProvider implements Provider {
   readonly id: string;
   readonly kind: 'codex-cli' | 'codex-app-server';
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: CodexResolvedConfig;
   private readonly runCodex: CodexRunner;
   private environmentCheck?: Promise<void>;

@@ -32,8 +32,6 @@ export class ClaudeCliProvider implements Provider {
   readonly id: string;
   readonly kind = 'claude-cli' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: ClaudeResolvedConfig;
 
   constructor(targetName: string, config: ClaudeResolvedConfig) {

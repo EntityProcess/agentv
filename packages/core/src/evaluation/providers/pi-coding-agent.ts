@@ -267,8 +267,6 @@ export class PiCodingAgentProvider implements Provider {
   readonly id: string;
   readonly kind = 'pi-coding-agent' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: PiCodingAgentResolvedConfig;
 
   constructor(targetName: string, config: PiCodingAgentResolvedConfig) {

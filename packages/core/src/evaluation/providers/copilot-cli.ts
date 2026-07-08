@@ -83,8 +83,6 @@ export class CopilotCliProvider implements Provider {
   readonly id: string;
   readonly kind = 'copilot-cli' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: CopilotCliResolvedConfig;
   private readonly runPromptMode: CopilotCliPromptRunner;
   private readonly spawnAcpProcess: CopilotCliSpawn;

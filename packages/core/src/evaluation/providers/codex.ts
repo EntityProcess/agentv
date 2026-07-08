@@ -50,8 +50,6 @@ export class CodexProvider implements Provider {
   readonly id: string;
   readonly kind = 'codex-sdk' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: CodexResolvedConfig;
 
   constructor(targetName: string, config: CodexResolvedConfig) {

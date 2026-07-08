@@ -108,8 +108,6 @@ export class CopilotSdkProvider implements Provider {
   readonly id: string;
   readonly kind = 'copilot-sdk' as const;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   private readonly config: CopilotSdkResolvedConfig;
   // biome-ignore lint/suspicious/noExplicitAny: SDK client type is dynamically loaded
   private client: any = null;

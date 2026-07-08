@@ -385,8 +385,6 @@ export class CliProvider implements Provider {
   readonly id: string;
   readonly kind = 'cli';
   readonly targetName: string;
-  readonly supportsBatch = true;
-
   private readonly config: CliResolvedConfig;
   private readonly runCommand: CommandRunner;
   private readonly runSandboxCommand: SandboxCommandRunner;

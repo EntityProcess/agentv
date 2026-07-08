@@ -32,6 +32,8 @@ const SUPPORTED_FILE_REF_FIELDS = new Set([
 ]);
 const RUNTIME_MODES = new Set(['host', 'profile', 'sandbox']);
 const AMBIGUOUS_PROVIDER_ALIASES = new Set(['codex', 'claude', 'copilot', 'pi']);
+const REMOVED_RUNNER_BATCHING_MESSAGE =
+  'runner-level batching was removed; providers should implement internal queueing/batching behind per-request invocation.';
 const REMOVED_TARGET_FIELDS = new Map([
   ['label', "target identity uses 'id'; remove 'label'."],
   ['name', "target identity uses 'id'; remove 'name'."],
@@ -44,10 +46,9 @@ const REMOVED_TARGET_FIELDS = new Map([
   ['install', 'install/setup steps belong in environment.setup, not under targets.'],
   ['grader_target', "grader selection belongs in 'defaults.grader' or evaluator config."],
   ['workers', "target-level 'workers' is not general run policy; use 'execution.max_concurrency'."],
-  [
-    'batch_requests',
-    "target-level 'batch_requests' is not part of the base config contract; keep provider batching under provider-specific config only when needed.",
-  ],
+  ['batch_requests', REMOVED_RUNNER_BATCHING_MESSAGE],
+  ['provider_batching', REMOVED_RUNNER_BATCHING_MESSAGE],
+  ['providerBatching', REMOVED_RUNNER_BATCHING_MESSAGE],
   [
     'subagent_mode_allowed',
     "target-level 'subagent_mode_allowed' is not part of the base config contract.",

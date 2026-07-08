@@ -118,7 +118,6 @@ export const CliTargetInputSchema = z
     // Common target fields
     grader_target: z.string().optional(),
     workers: z.number().int().min(1).optional(),
-    batch_requests: z.boolean().optional(),
   })
   .passthrough();
 
@@ -615,7 +614,6 @@ export interface TargetDeprecationWarning {
 }
 
 const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
-  ['providerBatching', 'batch_requests'],
   ['subagentModeAllowed', 'subagent_mode_allowed'],
   ['fallbackTargets', 'fallback_targets'],
   ['resourceName', 'endpoint'],
@@ -1095,7 +1093,26 @@ function assertNoRemovedTargetFields(definition: ProviderDefinition): void {
   }
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'provider_batching')) {
     throw new Error(
-      `target "${definition.name}".provider_batching: field 'provider_batching' has been removed. Use 'batch_requests' instead.`,
+      buildRemovedRunnerBatchingError(
+        `target "${definition.name}".provider_batching`,
+        'provider_batching',
+      ),
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'batch_requests')) {
+    throw new Error(
+      buildRemovedRunnerBatchingError(
+        `target "${definition.name}".batch_requests`,
+        'batch_requests',
+      ),
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'providerBatching')) {
+    throw new Error(
+      buildRemovedRunnerBatchingError(
+        `target "${definition.name}".providerBatching`,
+        'providerBatching',
+      ),
     );
   }
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'log_format')) {
@@ -1108,6 +1125,10 @@ function assertNoRemovedTargetFields(definition: ProviderDefinition): void {
       `target "${definition.name}".log_output_format: field 'log_output_format' has been removed. Use 'stream_log' instead.`,
     );
   }
+}
+
+function buildRemovedRunnerBatchingError(location: string, field: string): string {
+  return `${location}: field '${field}' has been removed. Runner-level batching was removed; providers should implement internal queueing/batching behind per-request invocation.`;
 }
 
 export function findDeprecatedCamelCaseTargetWarnings(
@@ -1153,7 +1174,6 @@ interface ResolvedProviderBackendBase {
   readonly environment?: EnvironmentRecipe;
   readonly graderTarget?: string;
   readonly workers?: number;
-  readonly providerBatching?: boolean;
   /**
    * Whether this target can be executed via executor subagents in subagent mode.
    * Defaults to `true` for all non-CLI providers. Set `false` in targets.yaml
@@ -1243,7 +1263,6 @@ export type ResolvedProviderBackend =
 export const COMMON_PROVIDER_SETTINGS = [
   'runtime',
   'environment',
-  'batch_requests',
   'subagent_mode_allowed',
   'fallback_targets',
 ] as const;
@@ -1457,7 +1476,6 @@ export function resolveProviderDefinition(
       `Target "${parsed.name}" uses removed provider 'copilot-log'. Import Copilot events with 'agentv import copilot' and replay the normalized transcript with provider: replay and transcripts: <path>.`,
     );
   }
-  const providerBatching = resolveOptionalBoolean(parsed.batch_requests);
   const subagentModeAllowed = resolveOptionalBoolean(parsed.subagent_mode_allowed);
 
   // Shared base fields for all resolved targets
@@ -1469,7 +1487,6 @@ export function resolveProviderDefinition(
     environment: isResolvedEnvironmentRecipe(parsed.environment) ? parsed.environment : undefined,
     graderTarget: parsed.grader_target,
     workers: parsed.workers,
-    providerBatching,
     subagentModeAllowed,
     ...(fallbackTargets ? { fallbackTargets } : {}),
   } as const;

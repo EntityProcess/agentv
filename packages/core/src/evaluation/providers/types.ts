@@ -438,15 +438,6 @@ export interface Provider {
   readonly targetName: string;
   readonly environment?: EnvironmentRecipe;
   invoke(request: ProviderRequest): Promise<ProviderResponse>;
-  /**
-   * Optional capability marker for provider-managed batching (single session handling multiple requests).
-   */
-  readonly supportsBatch?: boolean;
-  /**
-   * Optional batch invocation hook. When defined alongside supportsBatch=true,
-   * the orchestrator may send multiple requests in a single provider session.
-   */
-  invokeBatch?(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]>;
 }
 
 export type EnvLookup = Readonly<Record<string, string | undefined>>;
@@ -475,8 +466,6 @@ export interface ProviderDefinition {
   readonly use_target?: string | unknown | undefined;
   readonly grader_target?: string | undefined;
   readonly workers?: number | undefined;
-  // Request batching
-  readonly batch_requests?: boolean | undefined;
   readonly subagent_mode_allowed?: boolean | undefined;
   // Azure fields
   readonly endpoint?: string | unknown | undefined;

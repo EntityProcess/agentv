@@ -47,8 +47,6 @@ export interface SdkChildProviderOptions {
 export class SdkChildProvider implements Provider {
   readonly id: string;
   readonly targetName: string;
-  readonly supportsBatch = false;
-
   readonly kind: SdkChildProviderKind;
 
   private readonly config: unknown;

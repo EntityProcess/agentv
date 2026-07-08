@@ -20,8 +20,6 @@ export class VSCodeProvider implements Provider {
   readonly id: string;
   readonly kind: 'vscode' | 'vscode-insiders';
   readonly targetName: string;
-  readonly supportsBatch = true;
-
   private readonly config: VSCodeResolvedConfig;
   private environmentCheck?: Promise<void>;
 

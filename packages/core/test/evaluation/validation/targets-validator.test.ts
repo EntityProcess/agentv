@@ -94,7 +94,6 @@ describe('validateTargetsFile', () => {
       api_format: responses
     grader_target: grader
     fallback_targets: [backup-agent]
-    batch_requests: true
   - id: openai
     label: grader
     config:
@@ -113,28 +112,41 @@ describe('validateTargetsFile', () => {
     expect(result.errors.filter((error) => error.severity === 'warning')).toEqual([]);
   });
 
-  it('rejects removed provider_batching in favor of batch_requests', async () => {
-    const filePath = path.join(tempDir, 'removed-provider-batching.yaml');
+  it('rejects removed runner-level batching fields', async () => {
+    const filePath = path.join(tempDir, 'removed-runner-batching.yaml');
     await writeFile(
       filePath,
       `providers:
   - id: mock
-    label: batch-cli
+    label: batch-requests
+    batch_requests: true
+  - id: mock
+    label: provider-batching
     provider_batching: true
+  - id: mock
+    label: camel-batching
+    providerBatching: true
 `,
     );
 
     const result = await validateTargetsFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(
-      result.errors.some(
-        (error) =>
-          error.severity === 'error' &&
-          error.location === 'providers[0].provider_batching' &&
-          error.message.includes("Use 'batch_requests' instead"),
-      ),
-    ).toBe(true);
+    for (const [index, field] of [
+      'batch_requests',
+      'provider_batching',
+      'providerBatching',
+    ].entries()) {
+      expect(
+        result.errors.some(
+          (error) =>
+            error.severity === 'error' &&
+            error.location === `providers[${index}].${field}` &&
+            error.message.includes('Runner-level batching was removed') &&
+            error.message.includes('internal queueing/batching behind per-request invocation'),
+        ),
+      ).toBe(true);
+    }
   });
 
   it('rejects authored provider name in favor of id', async () => {
