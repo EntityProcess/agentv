@@ -8,7 +8,7 @@ slug: docs/targets/cli-provider
 
 The `cli` provider runs an arbitrary shell command per test case and captures its output as the target's response. It's the escape hatch that lets you evaluate *anything* that exposes a command-line entry point — your own agent, a third-party CLI, a stub that prints a fixed answer, a script that calls an in-house microservice, etc.
 
-Because the contract is "we invoke a command and read a file," almost any useful composition pattern (sanity-checking your grader against a known-good answer, diffing two implementations, driving a batch mode) can be built on top without any new primitives.
+Because the contract is "we invoke a command and read a file," almost any useful composition pattern (sanity-checking your grader against a known-good answer, diffing two implementations, calling an in-house queue) can be built on top without any new primitives.
 
 ## Minimal example
 
@@ -94,23 +94,23 @@ echo "Hello, world!" > {OUTPUT_FILE}
 | `config.verbose` | boolean | no | `false` | Log the rendered command and cwd to stdout. Useful for debugging template substitution. |
 | `config.keep_temp_files` | boolean | no | `false` | Preserve `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run — handy while iterating on your command. |
 | `config.healthcheck` | object | no | — | Pre-run health check (HTTP or command); the eval aborts if it fails. |
-| `config.batch_requests` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
 
-## Batching
+## Throughput and queueing
 
-For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `batch_requests: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
+AgentV invokes a CLI provider once per eval case. Each invocation receives one rendered prompt or prompt file and must write one response to `{OUTPUT_FILE}`.
+
+If your underlying tool benefits from throughput batching, keep that batching behind the provider boundary. For example, the command can enqueue the case into a long-running service, call a local daemon that batches requests internally, or use the tool's native queueing API. The eval YAML should still describe a normal per-case CLI provider:
 
 ```yaml
 providers:
-  - id: batched-agent
-    provider: cli
+  - id: cli
+    label: my-agent
     runtime: host
     config:
-      batch_requests: true
-      command: python agent.py --batch-in {PROMPT_FILE} --batch-out {OUTPUT_FILE}
+      command: python agent.py --prompt-file {PROMPT_FILE} --out {OUTPUT_FILE}
 ```
 
-`{PROMPT_FILE}` contains one JSON object per line with an `id` and the case's inputs; your command writes one line per case to `{OUTPUT_FILE}`, each carrying the matching `id` plus the same output shape as the non-batched case.
+The important boundary is that AgentV still receives one result per case. Internal queueing, caching, daemon reuse, or request batching belongs in the adapter or CLI implementation, not in eval-runner batch configuration.
 
 ## Pattern: Oracle validation (sanity-check your grader)
 

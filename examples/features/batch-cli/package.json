@@ -1,8 +1,0 @@
-{
-  "name": "agentv-example-batch-cli",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "agentv": "file:../../../apps/cli"
-  }
-}
