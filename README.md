@@ -1,5 +1,7 @@
 # AgentV
 
+> **Deprecated:** AgentV has been replaced by [oh-my-promptfoo](https://github.com/allagentsdev/oh-my-promptfoo) and [Promptfoo](https://github.com/promptfoo/promptfoo). Use oh-my-promptfoo for workspace setup, and migrate your YAML configs to `promptfooconfig.yaml` for Promptfoo.
+
 Test AI providers on real repo tasks and measure what actually works.
 
 ## Why?
