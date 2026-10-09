@@ -1,0 +1,38 @@
+<aside class="deprecation-banner" aria-label="AgentV deprecation notice">
+  <p>
+    <strong>AgentV is deprecated.</strong>
+    Use <a href="https://github.com/allagentsdev/oh-my-promptfoo">oh-my-promptfoo</a> for workspace setup;
+    migrate eval YAML to <a href="https://github.com/promptfoo/promptfoo">Promptfoo</a>'s
+    <code>promptfooconfig.yaml</code>.
+  </p>
+</aside>
+
+<style>
+  .deprecation-banner {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    flex: 0 0 var(--av-deprecation-banner-height);
+    padding: 0.375rem max(1rem, calc((100% - 76rem) / 2));
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-text);
+    background: var(--sl-color-accent-low);
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    color: var(--sl-color-accent-high);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--sl-color-accent-high);
+    outline-offset: 2px;
+  }
+</style>

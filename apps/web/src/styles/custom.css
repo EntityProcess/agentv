@@ -5,6 +5,8 @@
 /* Design tokens */
 :root {
   --av-font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  --av-deprecation-banner-height: 2.75rem;
+  --av-docs-top-offset: calc(var(--sl-nav-height) + var(--av-deprecation-banner-height));
   --av-indigo: #06b6d4;
   --av-indigo-dark: #0891b2;
   --av-violet: #22d3ee;
@@ -14,6 +16,36 @@
   --av-surface: rgba(255, 255, 255, 0.03);
   --av-surface-border: rgba(0, 0, 0, 0.08);
   --av-radius: 4px;
+}
+
+@media (max-width: 49.999rem) {
+  :root {
+    --av-deprecation-banner-height: 4.25rem;
+  }
+
+  starlight-menu-button button {
+    top: calc(
+      var(--av-deprecation-banner-height) + (var(--sl-nav-height) - var(--sl-menu-button-size)) / 2
+    );
+  }
+}
+
+@media (max-width: 23.5rem) {
+  :root {
+    --av-deprecation-banner-height: 6.25rem;
+  }
+}
+
+.page > header.header {
+  height: var(--av-docs-top-offset);
+}
+
+.main-frame {
+  padding-top: calc(var(--av-docs-top-offset) + var(--sl-mobile-toc-height));
+}
+
+.sidebar-pane {
+  inset-block-start: var(--av-docs-top-offset);
 }
 
 /* Light mode */
