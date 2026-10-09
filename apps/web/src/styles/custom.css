@@ -25,7 +25,9 @@
 
   starlight-menu-button button {
     top: calc(
-      var(--av-deprecation-banner-height) + (var(--sl-nav-height) - var(--sl-menu-button-size)) / 2
+      var(--av-deprecation-banner-height) +
+      (var(--sl-nav-height) - var(--sl-menu-button-size)) /
+      2
     );
   }
 }
