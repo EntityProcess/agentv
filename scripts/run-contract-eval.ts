@@ -42,14 +42,11 @@ for (const evalFile of evalFiles) {
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
     console.error('\nContract eval failure details:');
-    const details = Bun.spawn(
-      ['bun', 'apps/cli/src/cli.ts', 'results', 'failures'],
-      {
-        env: { ...process.env, NO_COLOR: '1' },
-        stdout: 'inherit',
-        stderr: 'inherit',
-      },
-    );
+    const details = Bun.spawn(['bun', 'apps/cli/src/cli.ts', 'results', 'failures'], {
+      env: { ...process.env, NO_COLOR: '1' },
+      stdout: 'inherit',
+      stderr: 'inherit',
+    });
     await details.exited;
     process.exit(exitCode);
   }
