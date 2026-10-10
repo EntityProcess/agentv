@@ -20,7 +20,7 @@ interface Assertion {
   readonly evidence?: string;
 }
 
-const payload = JSON.parse(readFileSync('/dev/stdin', 'utf8')) as GraderPayload;
+const payload = JSON.parse(readFileSync(0, 'utf8')) as GraderPayload;
 const workspacePath = payload.workspace_path ?? process.env.AGENTV_WORKSPACE_PATH;
 const assertions: Assertion[] = [];
 
