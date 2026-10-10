@@ -26,7 +26,7 @@ for (const evalFile of evalFiles) {
       'apps/cli/src/cli.ts',
       'eval',
       evalFile,
-      '--target',
+      '--provider',
       'github-models-contract',
       '--threshold',
       '1',
