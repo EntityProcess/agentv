@@ -7,7 +7,7 @@
  * invoking this file directly.
  *
  * Local usage:
- * Set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, and AZURE_DEPLOYMENT_NAME,
+ * Set OPENROUTER_API_KEY and OPENROUTER_MODEL,
  * then run `bun run contract-eval`.
  */
 
@@ -26,9 +26,9 @@ for (const evalFile of evalFiles) {
       'eval',
       evalFile,
       '--provider',
-      'azure',
+      'openrouter',
       '--grader-provider',
-      'azure',
+      'openrouter',
       '--threshold',
       '1',
     ],

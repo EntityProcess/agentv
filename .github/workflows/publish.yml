@@ -101,14 +101,13 @@ jobs:
 
       # Finalize/stable releases promote to latest, so block before any version
       # bump/tag if the live contract eval fails. The gate uses the configured
-      # Azure OpenAI deployment and does not override the workflow GITHUB_TOKEN.
+      # OpenRouter model and does not override the workflow GITHUB_TOKEN.
       - name: Contract eval gate
         if: inputs.channel == 'finalize' || inputs.channel == 'stable'
         run: bun run contract-eval
         env:
-          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-          AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
-          AZURE_DEPLOYMENT_NAME: ${{ vars.AZURE_DEPLOYMENT_NAME }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openai/gpt-5.4-mini' }}
 
       - name: Bump version, commit, and tag
         if: inputs.channel != 'existing'
@@ -229,9 +228,8 @@ jobs:
         if: needs.prepare.outputs.publish_action == 'publish-latest' && inputs.channel == 'existing'
         run: bun run contract-eval
         env:
-          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-          AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
-          AZURE_DEPLOYMENT_NAME: ${{ vars.AZURE_DEPLOYMENT_NAME }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openai/gpt-5.4-mini' }}
 
       - name: Publish to npm
         run: |
