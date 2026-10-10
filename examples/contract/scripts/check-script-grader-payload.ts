@@ -46,7 +46,7 @@ function collectStrings(value: unknown, strings: string[]): void {
 let payload: Record<string, unknown>;
 
 try {
-  const parsed = JSON.parse(readFileSync('/dev/stdin', 'utf8')) as unknown;
+  const parsed = JSON.parse(readFileSync(0, 'utf8')) as unknown;
   if (!isRecord(parsed)) {
     push('stdin payload is a JSON object', false, `Received ${typeof parsed}`);
     console.log(JSON.stringify({ assertions }));
