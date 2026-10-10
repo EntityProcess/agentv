@@ -100,14 +100,15 @@ jobs:
         run: bun install --frozen-lockfile
 
       # Finalize/stable releases promote to latest, so block before any version
-      # bump/tag if the live contract eval fails. The gate uses a Models-capable
-      # PAT secret and does not override the workflow GITHUB_TOKEN.
+      # bump/tag if the live contract eval fails. The gate uses the configured
+      # Azure OpenAI deployment and does not override the workflow GITHUB_TOKEN.
       - name: Contract eval gate
         if: inputs.channel == 'finalize' || inputs.channel == 'stable'
         run: bun run contract-eval
         env:
-          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
-          GH_MODELS_MODEL: ${{ vars.GH_MODELS_MODEL || 'gpt-5-mini' }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+          AZURE_DEPLOYMENT_NAME: ${{ vars.AZURE_DEPLOYMENT_NAME }}
 
       - name: Bump version, commit, and tag
         if: inputs.channel != 'existing'
@@ -228,8 +229,9 @@ jobs:
         if: needs.prepare.outputs.publish_action == 'publish-latest' && inputs.channel == 'existing'
         run: bun run contract-eval
         env:
-          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
-          GH_MODELS_MODEL: ${{ vars.GH_MODELS_MODEL || 'gpt-5-mini' }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+          AZURE_DEPLOYMENT_NAME: ${{ vars.AZURE_DEPLOYMENT_NAME }}
 
       - name: Publish to npm
         run: |

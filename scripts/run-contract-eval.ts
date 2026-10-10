@@ -7,10 +7,9 @@
  * invoking this file directly.
  *
  * Local usage:
- * GH_MODELS_TOKEN=$(gh auth token) bun run contract-eval
+ * Set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, and AZURE_DEPLOYMENT_NAME,
+ * then run `bun run contract-eval`.
  */
-
-process.env.GH_MODELS_MODEL ||= 'gpt-5-mini';
 
 const evalFiles = [
   'examples/contract/evals/release-gate.eval.yaml',
@@ -27,9 +26,9 @@ for (const evalFile of evalFiles) {
       'eval',
       evalFile,
       '--provider',
-      'gh-models',
+      'azure',
       '--grader-provider',
-      'gh-models',
+      'azure',
       '--threshold',
       '1',
     ],
