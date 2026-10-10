@@ -107,7 +107,7 @@ jobs:
         run: bun run contract-eval
         env:
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
-          CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
+          GH_MODELS_MODEL: ${{ vars.GH_MODELS_MODEL || 'gpt-5-mini' }}
 
       - name: Bump version, commit, and tag
         if: inputs.channel != 'existing'
@@ -229,7 +229,7 @@ jobs:
         run: bun run contract-eval
         env:
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
-          CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
+          GH_MODELS_MODEL: ${{ vars.GH_MODELS_MODEL || 'gpt-5-mini' }}
 
       - name: Publish to npm
         run: |

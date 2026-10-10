@@ -10,12 +10,12 @@
  * GH_MODELS_TOKEN=$(gh auth token) bun run contract-eval
  */
 
-process.env.CONTRACT_EVAL_MODEL ||= 'openai/gpt-4.1-mini';
+process.env.GH_MODELS_MODEL ||= 'gpt-5-mini';
 
 const evalFiles = [
   'examples/contract/evals/release-gate.eval.yaml',
   'examples/contract/evals/repo-materialization.eval.yaml',
-  'examples/contract/evals/code-grader-contract.eval.yaml',
+  'examples/contract/evals/script-grader-contract.eval.yaml',
 ];
 
 for (const evalFile of evalFiles) {
@@ -27,7 +27,9 @@ for (const evalFile of evalFiles) {
       'eval',
       evalFile,
       '--provider',
-      'github-models-contract',
+      'gh-models',
+      '--grader-provider',
+      'gh-models',
       '--threshold',
       '1',
     ],
