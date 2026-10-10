@@ -4,7 +4,7 @@ environment:
   type: host
   workdir: ../workspace-template
 providers:
-  - github-models-contract
+  - gh-models
 prompts:
   - "{{ input }}"
 tests:
