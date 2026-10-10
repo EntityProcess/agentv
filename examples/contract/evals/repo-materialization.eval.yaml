@@ -13,7 +13,7 @@ environment:
       - 21a34daed7ebcfe36cbed053607622a55e5e94cb
     cwd: "."
 providers:
-  - azure
+  - openrouter
 prompts:
   - "{{ input }}"
 tests:

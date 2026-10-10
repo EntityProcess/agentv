@@ -1,7 +1,7 @@
 name: script-grader-contract
 description: Release gate verifying the script-grader stdin payload contract.
 providers:
-  - azure
+  - openrouter
 prompts:
   - "{{ input }}"
 tests:
