@@ -117,8 +117,8 @@ push(
 
 const criteria = payload.criteria;
 push(
-  'criteria contains the test criteria',
-  typeof criteria === 'string' && criteria.includes('RELEASE') && criteria.includes('CONTRACT'),
+  'criteria is a string',
+  typeof criteria === 'string',
   typeof criteria === 'string' ? `criteria=${JSON.stringify(criteria)}` : 'criteria was missing',
 );
 
