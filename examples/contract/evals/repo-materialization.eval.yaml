@@ -7,7 +7,7 @@ environment:
   setup:
     command:
       - bash
-      - ../scripts/materialize-repo.sh
+      - ../../scripts/materialize-repo.sh
       - ./fixture
       - EntityProcess/agentv-contract-fixture
       - 21a34daed7ebcfe36cbed053607622a55e5e94cb
@@ -25,7 +25,7 @@ tests:
         type: script
         command:
           - bun
-          - ../scripts/check-repo-materialization.ts
+          - ../../scripts/check-repo-materialization.ts
       - The workspace materializes an owned public fixture repo at a pinned previous commit.
     vars:
       input:
@@ -34,6 +34,6 @@ tests:
         - role: user
           content:
             - type: file
-              value: ../fixtures/repo-materialization-note.txt
+              value: ../../fixtures/repo-materialization-note.txt
             - type: text
               value: Reply READY after reading the attached contract file.
