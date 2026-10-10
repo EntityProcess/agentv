@@ -34,7 +34,6 @@ tests:
         command:
           - bun
           - ../scripts/check-workspace.ts
-      - The local workspace template is materialized and deterministic grading can inspect it.
     vars:
       input:
         - role: system
