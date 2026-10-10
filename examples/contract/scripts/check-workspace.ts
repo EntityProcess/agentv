@@ -14,23 +14,29 @@ interface GraderPayload {
   readonly workspace_path?: string | null;
 }
 
-interface Assertion {
+interface Check {
   readonly text: string;
-  readonly passed: boolean;
+  readonly pass: boolean;
+  readonly reason: string;
   readonly evidence?: string;
 }
 
 const payload = JSON.parse(readFileSync(0, 'utf8')) as GraderPayload;
 const workspacePath = payload.workspace_path ?? process.env.AGENTV_WORKSPACE_PATH;
-const assertions: Assertion[] = [];
+const checks: Check[] = [];
 
 function push(text: string, passed: boolean, evidence?: string): void {
-  assertions.push({ text, passed, ...(evidence ? { evidence } : {}) });
+  checks.push({
+    text,
+    pass: passed,
+    reason: evidence ?? (passed ? 'Check passed' : 'Check failed'),
+    ...(evidence ? { evidence } : {}),
+  });
 }
 
 if (!workspacePath) {
   push('workspace_path is provided', false, 'workspace_path was missing from the grader payload');
-  console.log(JSON.stringify({ assertions }));
+  console.log(JSON.stringify({ checks }));
   process.exit(0);
 }
 
@@ -67,4 +73,4 @@ if (markerExists) {
   }
 }
 
-console.log(JSON.stringify({ assertions }));
+console.log(JSON.stringify({ checks }));
