@@ -9,16 +9,22 @@
 
 import { readFileSync } from 'node:fs';
 
-interface Assertion {
+interface Check {
   readonly text: string;
-  readonly passed: boolean;
+  readonly pass: boolean;
+  readonly reason: string;
   readonly evidence?: string;
 }
 
-const assertions: Assertion[] = [];
+const checks: Check[] = [];
 
 function push(text: string, passed: boolean, evidence?: string): void {
-  assertions.push({ text, passed, ...(evidence ? { evidence } : {}) });
+  checks.push({
+    text,
+    pass: passed,
+    reason: evidence ?? (passed ? 'Check passed' : 'Check failed'),
+    ...(evidence ? { evidence } : {}),
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -49,14 +55,14 @@ try {
   const parsed = JSON.parse(readFileSync(0, 'utf8')) as unknown;
   if (!isRecord(parsed)) {
     push('stdin payload is a JSON object', false, `Received ${typeof parsed}`);
-    console.log(JSON.stringify({ assertions }));
+    console.log(JSON.stringify({ checks }));
     process.exit(0);
   }
   payload = parsed;
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   push('stdin payload is valid JSON', false, message);
-  console.log(JSON.stringify({ assertions }));
+  console.log(JSON.stringify({ checks }));
   process.exit(0);
 }
 
@@ -145,4 +151,4 @@ push(
   hasOwn(payload, 'answer') ? 'Unexpected answer field found in payload' : undefined,
 );
 
-console.log(JSON.stringify({ assertions }));
+console.log(JSON.stringify({ checks }));
